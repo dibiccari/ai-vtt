@@ -1,0 +1,7 @@
+node_modules/
+.env
+public/uploads/*
+!public/uploads/.gitkeep
+data/campaign/
+public/tokens/
+data/tts-cache/

@@ -1,0 +1,19 @@
+{
+  "id": "seraphine",
+  "name": "Seraphine",
+  "class": "Cleric",
+  "level": 3,
+  "hp": 24,
+  "maxHp": 24,
+  "ac": 16,
+  "speed": 30,
+  "abilities": {
+    "str": 14,
+    "dex": 10,
+    "con": 14,
+    "int": 10,
+    "wis": 16,
+    "cha": 12
+  },
+  "color": "#e3b341"
+}

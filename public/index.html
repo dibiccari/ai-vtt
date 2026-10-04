@@ -1,0 +1,2636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI-VTT Tabletop</title>
+<style>
+  :root {
+    --bg: #0a0d12;
+    --canvas-bg: #07090d;
+    --panel: #11151c;
+    --panel-2: #171c25;
+    --panel-3: #1f2632;
+    --border: #2a3242;
+    --border-strong: #3a4558;
+    --text: #edf1f7;
+    --muted: #9ba7b9;
+    --faint: #6b778a;
+    --accent: #4f9dff;
+    --accent-soft: rgba(79, 157, 255, 0.16);
+    --gold: #f0c048;
+    --gold-soft: rgba(240, 192, 72, 0.16);
+    --ok: #3fd27f;
+    --danger: #ff6b6b;
+    --danger-soft: rgba(255, 107, 107, 0.14);
+    --door: #d58c3f;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 var(--font);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ------------------------------------------------------------ map panel */
+  .map-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--border); }
+  .map-toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 800; letter-spacing: 0.04em; font-size: 15px; margin-right: 4px; white-space: nowrap; }
+  .brand span { color: var(--gold); }
+  .turn-tracker { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+  .turn-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 6px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .turn-chip .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); }
+  .turn-chip.active { background: var(--gold-soft); border-color: var(--gold); color: var(--text); }
+  .turn-chip.npc { border-style: dashed; }
+  .move-info { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .move-info strong { color: var(--text); }
+  .canvas-wrap { position: relative; flex: 1; min-height: 0; background: var(--canvas-bg); overflow: hidden; }
+  #board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: default; }
+  .hud {
+    position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; align-items: center;
+    pointer-events: none; font: 12px var(--mono); color: var(--muted);
+  }
+  .hud .pill { background: rgba(10, 13, 18, 0.82); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+  .mode-badge {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 12px; letter-spacing: 0.08em;
+    background: var(--danger); color: #1a0505; box-shadow: var(--shadow); pointer-events: none; display: none;
+  }
+  .mode-badge.show { display: block; }
+  .zoom-controls { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .zoom-controls button {
+    width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: rgba(17, 21, 28, 0.9); font-weight: 700; font-size: 16px;
+  }
+  .zoom-controls button:hover { border-color: var(--accent); }
+
+  /* ------------------------------------------------------------ buttons + inputs */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+    background: var(--panel-3); font-weight: 600; white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s, transform 0.05s;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #04101f; }
+  .btn-primary:hover:not(:disabled) { background: #6eb0ff; }
+  .btn-gold { background: var(--gold); border-color: var(--gold); color: #1d1500; }
+  .btn-gold:hover:not(:disabled) { background: #f6cf6a; border-color: #f6cf6a; }
+  .btn-danger { color: var(--danger); border-color: rgba(255, 107, 107, 0.4); background: var(--danger-soft); }
+  .btn-danger:hover:not(:disabled) { border-color: var(--danger); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-block { width: 100%; }
+  label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  input[type="text"], input[type="number"], select, textarea {
+    background: var(--bg); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 8px 10px; color: var(--text); width: 100%;
+  }
+  input[type="color"] { width: 100%; height: 38px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg); padding: 3px; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  /* ------------------------------------------------------------ sidebar */
+  .sidebar { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border); background: var(--panel); }
+  .tab {
+    padding: 14px 8px; border: none; background: none; color: var(--muted); font-weight: 700; font-size: 13px;
+    border-bottom: 3px solid transparent; letter-spacing: 0.02em;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--gold); background: var(--panel-2); }
+  .tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .tab-panel.active { display: flex; }
+  .scroll { overflow-y: auto; flex: 1; min-height: 0; padding: 14px; }
+  .section-title { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+  .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+
+  /* chat */
+  .chat-log { display: flex; flex-direction: column; gap: 10px; }
+  .msg { border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); max-width: 100%; }
+  .msg .who { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .msg .body { white-space: pre-wrap; word-wrap: break-word; }
+  .msg-assistant { background: linear-gradient(180deg, #1c1a12, #17150f); border-color: rgba(240, 192, 72, 0.35); }
+  .msg-assistant .who { color: var(--gold); }
+  .msg-assistant .body { font-family: Georgia, "Times New Roman", serif; font-size: 15px; line-height: 1.6; }
+  .msg-user { background: var(--accent-soft); border-color: rgba(79, 157, 255, 0.4); margin-left: 24px; }
+  .msg-user .who { color: var(--accent); }
+  .msg-system { background: transparent; border-style: dashed; color: var(--muted); font-size: 12px; padding: 6px 10px; }
+  .msg-system .who { display: none; }
+  .typing { display: none; gap: 5px; padding: 10px 12px; }
+  .typing.show { display: flex; }
+  .typing span { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); animation: blink 1.2s infinite ease-in-out; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+  .composer { border-top: 1px solid var(--border); padding: 12px 14px 14px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+  .composer .speaker { font-size: 12px; color: var(--muted); }
+  .composer .speaker strong { color: var(--gold); }
+  .composer textarea { min-height: 84px; resize: vertical; font-size: 14px; }
+  .composer .row { display: flex; gap: 8px; align-items: center; }
+  .composer .hint { font-size: 11px; color: var(--faint); flex: 1; }
+
+  /* voice */
+  .voice-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn-mic.live { background: var(--danger); border-color: var(--danger); color: #1a0505; }
+  .mic-meter { flex: 1; min-width: 60px; height: 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+  .mic-meter > div { height: 100%; width: 0; background: var(--ok); transition: width 0.06s linear; }
+  .voice-status { font-size: 12px; color: var(--muted); min-height: 16px; }
+  .voice-status.live { color: var(--danger); font-weight: 700; }
+  .voice-opts { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .voice-opts label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .msg .speaker-tag { color: var(--gold); font-weight: 700; font-family: var(--font); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .msg .voice-line { display: block; margin-bottom: 6px; }
+  .msg .voice-line.speaking { background: var(--gold-soft); border-radius: 4px; box-shadow: -4px 0 0 var(--gold-soft); }
+
+  /* character sheets */
+  .char-card { position: relative; }
+  .char-card.is-active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  .char-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .char-avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    font-weight: 800; color: #fff; border: 2px solid rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  }
+  .char-name { font-weight: 800; font-size: 16px; }
+  .char-sub { font-size: 12px; color: var(--muted); }
+  .hp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .hp-bar { flex: 1; height: 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+  .hp-bar > div { height: 100%; background: var(--ok); transition: width 0.2s; }
+  .hp-text { font: 600 12px var(--mono); min-width: 64px; text-align: right; }
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px; text-align: center; }
+  .stat .k { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--faint); text-transform: uppercase; }
+  .stat .v { font-size: 18px; font-weight: 800; }
+  .abilities { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 10px; }
+  .ability { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: center; padding: 5px 2px; }
+  .ability .k { font-size: 10px; font-weight: 800; color: var(--faint); letter-spacing: 0.08em; }
+  .ability .m { font-size: 16px; font-weight: 800; }
+  .ability .s { font-size: 11px; color: var(--muted); }
+  .char-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .ability-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .ability-inputs .mod { font: 600 11px var(--mono); color: var(--accent); }
+  .form-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .empty { color: var(--muted); text-align: center; padding: 20px; border: 1px dashed var(--border); border-radius: var(--radius); }
+
+  /* map tools */
+  .dropzone {
+    border: 2px dashed var(--border-strong); border-radius: var(--radius); padding: 22px 14px; text-align: center;
+    color: var(--muted); transition: border-color 0.15s, background 0.15s; cursor: pointer;
+  }
+  .dropzone:hover, .dropzone.over { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+  .dropzone strong { color: var(--text); display: block; font-size: 15px; margin-bottom: 4px; }
+  .upload-status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .gallery button {
+    aspect-ratio: 1; border-radius: var(--radius-sm); border: 2px solid var(--border); background: var(--bg) center / cover no-repeat;
+    padding: 0; font-size: 11px; font-weight: 700; color: var(--muted);
+  }
+  .gallery button.current { border-color: var(--gold); }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+  .switch-row + .switch-row { border-top: 1px solid var(--border); }
+  .switch-row .label { font-weight: 700; }
+  .switch-row .desc { font-size: 12px; color: var(--muted); }
+  .switch { position: relative; width: 46px; height: 26px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 1; }
+  .switch .track { position: absolute; inset: 0; border-radius: 999px; background: var(--bg); border: 1px solid var(--border-strong); transition: background 0.15s; }
+  .switch .track::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--muted); transition: transform 0.15s, background 0.15s;
+  }
+  .switch input:checked + .track { background: var(--accent); border-color: var(--accent); }
+  .switch input:checked + .track::after { transform: translateX(20px); background: #fff; }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch.danger input:checked + .track { background: var(--danger); border-color: var(--danger); }
+  .segmented { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+  .segmented button { border: none; background: var(--bg); padding: 8px; font-weight: 700; color: var(--muted); }
+  .segmented button[aria-pressed="true"] { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+  .segmented button[data-type="door"][aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--door); }
+  .gallery button { position: relative; overflow: hidden; }
+  .gallery button .cap {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 3px; font-size: 10px; line-height: 1.15; font-weight: 700;
+    color: #fff; background: rgba(7, 9, 13, 0.82); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .token-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; max-height: 240px; overflow-y: auto; margin-top: 10px; padding: 2px; }
+  .token-gallery button { aspect-ratio: 1; padding: 0; border: 2px solid transparent; border-radius: 50%; background: none; }
+  .token-gallery button:hover { border-color: var(--accent); }
+  .token-gallery button.selected { border-color: var(--gold); }
+  .token-gallery img { width: 100%; height: 100%; display: block; border-radius: 50%; }
+  .art-pick { display: flex; align-items: center; gap: 10px; }
+  .art-pick img { width: 44px; height: 44px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border-strong); }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .kbd { font: 11px var(--mono); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 5px; background: var(--bg); }
+
+  /* toasts */
+  .toasts { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 50; pointer-events: none; }
+  .toast {
+    background: var(--panel-3); border: 1px solid var(--border-strong); border-left: 4px solid var(--accent);
+    padding: 10px 14px; border-radius: var(--radius-sm); box-shadow: var(--shadow); font-weight: 600;
+    animation: toast-in 0.18s ease-out;
+  }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.ok { border-left-color: var(--ok); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; grid-template-rows: 58vh minmax(0, 1fr); height: 100dvh; }
+    .map-panel { border-right: none; border-bottom: 1px solid var(--border); }
+    .map-toolbar { padding: 8px 12px; gap: 8px; }
+    .brand { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================ LEFT: BATTLEMAP -->
+<main class="map-panel">
+  <div class="map-toolbar">
+    <div class="brand">AI<span>·</span>VTT</div>
+    <div class="turn-tracker" id="turnTracker" aria-label="Turn order"></div>
+    <div class="move-info" id="moveInfo"></div>
+    <button class="btn btn-gold btn-sm" id="endTurnBtn" title="End the active token's turn">End Turn ⏭</button>
+    <a class="btn btn-sm" href="/settings.html" target="_blank" rel="noopener" title="API keys and voice settings" style="text-decoration:none;">⚙ Settings</a>
+  </div>
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="board" aria-label="Battlemap canvas"></canvas>
+    <div class="mode-badge" id="modeBadge">DRAW WALLS MODE</div>
+    <div class="hud"><span class="pill" id="hudCoords">—</span><span class="pill" id="hudZoom">100%</span></div>
+    <div class="zoom-controls">
+      <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
+      <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
+    </div>
+  </div>
+</main>
+
+<!-- ================================================================ RIGHT: SIDEBAR -->
+<aside class="sidebar">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-chat" aria-controls="panel-chat" aria-selected="true" data-tab="chat">AI DM Chat</button>
+    <button class="tab" role="tab" id="tab-chars" aria-controls="panel-chars" aria-selected="false" data-tab="chars">Character Sheets</button>
+    <button class="tab" role="tab" id="tab-map" aria-controls="panel-map" aria-selected="false" data-tab="map">Map Tools</button>
+  </div>
+
+  <!-- ---------------------------------------------------- TAB 1: CHAT -->
+  <section class="tab-panel active" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
+    <div class="scroll" id="chatScroll">
+      <div class="chat-log" id="chatLog" aria-live="polite"></div>
+      <div class="typing" id="typing" aria-label="The DM is thinking"><span></span><span></span><span></span></div>
+    </div>
+    <div class="composer">
+      <div class="speaker">Acting as <strong id="speakerName">—</strong></div>
+      <div class="voice-bar">
+        <button class="btn btn-mic" id="micBtn" type="button" title="Hold to talk. Release to send. (Hold Space while not typing)">🎙 Hold to Talk</button>
+        <button class="btn btn-sm" id="micToggleBtn" type="button" title="Start or stop continuous listening">Start Listening</button>
+        <button class="btn btn-sm" id="stopSpeechBtn" type="button" title="Silence the DM">🔇 Stop voice</button>
+        <div class="mic-meter" aria-hidden="true"><div id="micLevel"></div></div>
+      </div>
+      <div class="voice-status" id="voiceStatus">Microphone idle.</div>
+      <div class="voice-opts">
+        <label><input type="checkbox" id="speakToggle" checked> DM speaks replies</label>
+        <label><input type="checkbox" id="autoSendToggle" checked> Auto-send what I say</label>
+      </div>
+      <label class="field">Voice engine
+        <select id="engineSel">
+          <option value="cloud">ChatGPT voices (OpenAI)</option>
+          <option value="browser">Microsoft voices</option>
+        </select>
+      </label>
+      <div class="voice-status" id="voiceEngine">Voices: checking…</div>
+      <label class="field">Microsoft narrator voice (used when the engine is Microsoft)
+        <select id="narratorVoice"><option value="">Auto (best available)</option></select>
+      </label>
+      <textarea id="chatInput" placeholder="Describe your action… e.g. &quot;I draw my longsword and charge the goblin by the door.&quot;"></textarea>
+      <div class="row">
+        <span class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to send · map, sheets &amp; walls are attached</span>
+        <button class="btn btn-sm" id="clearChatBtn" title="Clear the chat log">Clear</button>
+        <button class="btn btn-primary" id="sendBtn">Send Turn to AI DM</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------- TAB 2: CHARACTERS -->
+  <section class="tab-panel" id="panel-chars" role="tabpanel" aria-labelledby="tab-chars">
+    <div class="scroll">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h2 class="section-title" style="margin:0;">Party</h2>
+        <button class="btn btn-primary btn-sm" id="newCharBtn">+ New Character</button>
+      </div>
+
+      <form class="card" id="charForm" hidden autocomplete="off">
+        <h2 class="section-title" id="charFormTitle">New Character</h2>
+        <input type="hidden" name="id">
+        <div class="form-grid">
+          <label class="field full">Name<input type="text" name="name" required maxlength="60" placeholder="Character name"></label>
+          <label class="field">Class<input type="text" name="class" maxlength="40" placeholder="Fighter"></label>
+          <label class="field">Level<input type="number" name="level" min="1" max="20" value="1"></label>
+          <label class="field">Max HP<input type="number" name="maxHp" min="1" max="999" value="10"></label>
+          <label class="field">Current HP<input type="number" name="hp" min="0" max="999" value="10"></label>
+          <label class="field">Armor Class<input type="number" name="ac" min="1" max="40" value="12"></label>
+          <label class="field">Speed (ft)<input type="number" name="speed" min="0" max="120" step="5" value="30"></label>
+          <label class="field full">Token Color<input type="color" name="color" value="#4f9dff"></label>
+          <div class="field full">Token art
+            <div class="art-pick">
+              <img id="charArtPreview" alt="" hidden>
+              <button type="button" class="btn btn-sm" id="charArtBtn">Choose art…</button>
+              <button type="button" class="btn btn-sm" id="charArtClear">Use color only</button>
+            </div>
+            <input type="hidden" name="image">
+            <div class="token-gallery" id="charArtGallery" hidden></div>
+          </div>
+        </div>
+        <h2 class="section-title" style="margin-top:14px;">Ability Scores</h2>
+        <div class="ability-inputs" id="abilityInputs"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" style="flex:1;">Save Character</button>
+          <button type="button" class="btn" id="cancelCharBtn">Cancel</button>
+        </div>
+      </form>
+
+      <div id="charList"></div>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------- TAB 3: MAP TOOLS -->
+  <section class="tab-panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map">
+    <div class="scroll">
+      <div class="card">
+        <h2 class="section-title">Battlemap Image</h2>
+        <label class="dropzone" id="dropzone" tabindex="0">
+          <strong>Upload a map</strong>
+          Drop an image here or click to browse (PNG, JPG, WEBP, GIF · max 15 MB)
+          <input type="file" id="mapFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        </label>
+        <div class="upload-status" id="uploadStatus"></div>
+        <div class="gallery" id="mapGallery"></div>
+        <div class="field" style="margin-top:14px;">
+          <span>Grid opacity <span id="gridOpacityVal" style="color:var(--text)"></span></span>
+          <input type="range" id="gridOpacity" min="0" max="1" step="0.05">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Token Library</h2>
+        <div class="form-grid">
+          <label class="field full">Name for the next token<input type="text" id="libName" maxlength="40" placeholder="e.g. Klarg, Goblin 1, Sildar"></label>
+          <label class="switch-row full" style="grid-column:1/-1; padding:0;"><span><span class="label">Party member</span><span class="desc" style="display:block">Reveals fog and joins the turn order like a hero</span></span>
+            <span class="switch"><input type="checkbox" id="libParty" aria-label="Party member"><span class="track"></span></span></label>
+        </div>
+        <div class="meta">Click a portrait to place it in the middle of the map. Right-click a token on the map to remove it.</div>
+        <div class="token-gallery" id="libGallery"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Walls &amp; Doors</h2>
+        <div class="switch-row">
+          <div><div class="label">Draw Walls</div><div class="desc">Click &amp; drag on the map to draw blocking segments. Endpoints snap to grid corners. Right-click undoes.</div></div>
+          <label class="switch danger"><input type="checkbox" id="drawWallsToggle" aria-label="Draw walls"><span class="track"></span></label>
+        </div>
+        <div class="segmented" id="wallTypeSeg" role="group" aria-label="Segment type" style="margin-top:8px;">
+          <button type="button" data-type="wall" aria-pressed="true">▬ Stone Wall</button>
+          <button type="button" data-type="door" aria-pressed="false">▭ Door</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-sm" id="undoWallBtn">↶ Undo last</button>
+          <button class="btn btn-sm btn-danger" id="clearWallsBtn">Clear all walls</button>
+        </div>
+        <div class="meta" id="wallMeta"></div>
+        <div class="meta">Outside draw mode, click a door to open or close it.</div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Vision &amp; Control</h2>
+        <div class="switch-row">
+          <div><div class="label">Fog of War</div><div class="desc">Raycast line-of-sight (60 ft) permanently clears explored areas.</div></div>
+          <label class="switch"><input type="checkbox" id="fogToggle" aria-label="Fog of war"><span class="track"></span></label>
+        </div>
+        <div class="switch-row">
+          <div><div class="label">GM Override</div><div class="desc">Move any token freely, ignore walls &amp; movement, see through fog.</div></div>
+          <label class="switch"><input type="checkbox" id="gmToggle" aria-label="GM override"><span class="track"></span></label>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-sm" id="resetFogBtn">Reset explored fog</button>
+          <button class="btn btn-sm" id="resetTokensBtn">Reset token positions</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</aside>
+
+<div class="toasts" id="toasts" aria-live="assertive"></div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   CONSTANTS & STATE
+   ===================================================================== */
+const GRID = 50;              // world pixels per 5-ft square
+const FT_PER_SQUARE = 5;
+const VISION_FT = 60;
+const DEFAULT_COLS = 30;
+const DEFAULT_ROWS = 20;
+const MIN_SCALE = 0.15;
+const MAX_SCALE = 4;
+const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+const DEFAULT_TOKENS = [
+  { name: 'Hero 1', color: '#e5534b' },
+  { name: 'Hero 2', color: '#4f9dff' },
+  { name: 'Hero 3', color: '#57c47a' },
+  { name: 'Hero 4', color: '#e3b341' }
+];
+const START_SQUARES = [[2, 2], [3, 2], [2, 3], [3, 3]];
+
+const state = {
+  map: { url: null, img: null, width: DEFAULT_COLS * GRID, height: DEFAULT_ROWS * GRID, drawW: 0, drawH: 0 },
+  view: { scale: 1, ox: 0, oy: 0 },
+  tokens: [],
+  activeIndex: 0,
+  walls: [],
+  wallsVersion: 0,
+  characters: [],
+  chat: [],
+  fogEnabled: true,
+  gridOpacity: 0.35,
+  drawWalls: false,
+  wallType: 'wall',
+  gmOverride: false,
+  busy: false,
+  mapList: [],
+  tokenList: []
+};
+
+const interaction = {
+  mode: null,          // 'drag' | 'wall' | 'pan' | 'pinch' | null
+  pointers: new Map(), // pointerId -> {x, y} (screen)
+  token: null,
+  offX: 0, offY: 0,
+  wx: 0, wy: 0,
+  wallStart: null,
+  wallEnd: null,
+  panStart: null,
+  pinch: null,
+  hoverSquare: null
+};
+
+/* =====================================================================
+   SAFE STORAGE
+   ===================================================================== */
+const store = {
+  get(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  },
+  getRaw(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+  },
+  setRaw(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch { return false; }
+  },
+  remove(key) {
+    try { localStorage.removeItem(key); } catch { /* storage unavailable */ }
+  }
+};
+const mapKey = () => state.map.url || 'default';
+const wallsKey = () => `vtt.walls.${mapKey()}`;
+const fogKey = () => `vtt.fog.${mapKey()}`;
+
+/* =====================================================================
+   DOM HELPERS
+   ===================================================================== */
+const $ = (sel) => document.querySelector(sel);
+const canvas = $('#board');
+const ctx = canvas.getContext('2d');
+const wrap = $('#canvasWrap');
+
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const mod = (score) => Math.floor((Number(score) - 10) / 2);
+const fmtMod = (m) => (m >= 0 ? `+${m}` : `${m}`);
+const initials = (name) => String(name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+function toast(message, kind = 'info', ms = 2600) {
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.textContent = message;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, options);
+  let data = null;
+  try { data = await res.json(); } catch { data = null; }
+  if (!res.ok) throw new Error(data?.error || `${res.status} ${res.statusText}`);
+  return data;
+}
+const jsonPost = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+/* =====================================================================
+   COORDINATES & VIEW
+   ===================================================================== */
+let dpr = window.devicePixelRatio || 1;
+let sized = false;
+const cols = () => Math.ceil(state.map.width / GRID);
+const rows = () => Math.ceil(state.map.height / GRID);
+const centerOf = (cell) => cell * GRID + GRID / 2;
+const sqKey = (c, r) => `${c},${r}`;
+
+function screenToWorld(sx, sy) {
+  const v = state.view;
+  return { x: (sx - v.ox) / v.scale, y: (sy - v.oy) / v.scale };
+}
+function eventPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+function worldToCell(x, y) {
+  return { col: Math.floor(x / GRID), row: Math.floor(y / GRID) };
+}
+function inBounds(col, row) {
+  return col >= 0 && row >= 0 && col < cols() && row < rows();
+}
+
+function resizeCanvas() {
+  dpr = window.devicePixelRatio || 1;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  canvas.width = Math.max(1, Math.round(w * dpr));
+  canvas.height = Math.max(1, Math.round(h * dpr));
+  requestRender();
+}
+
+function fitView() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (!w || !h) return;
+  const v = state.view;
+  v.scale = clamp(Math.min(w / state.map.width, h / state.map.height) * 0.94, MIN_SCALE, MAX_SCALE);
+  v.ox = (w - state.map.width * v.scale) / 2;
+  v.oy = (h - state.map.height * v.scale) / 2;
+  updateHud();
+  requestRender();
+}
+
+function zoomAt(sx, sy, factor) {
+  const v = state.view;
+  const before = screenToWorld(sx, sy);
+  v.scale = clamp(v.scale * factor, MIN_SCALE, MAX_SCALE);
+  v.ox = sx - before.x * v.scale;
+  v.oy = sy - before.y * v.scale;
+  updateHud();
+  requestRender();
+}
+
+function centerOnToken(t) {
+  const v = state.view;
+  v.ox = wrap.clientWidth / 2 - centerOf(t.col) * v.scale;
+  v.oy = wrap.clientHeight / 2 - centerOf(t.row) * v.scale;
+  requestRender();
+}
+
+/* =====================================================================
+   GEOMETRY: SEGMENT INTERSECTION & RAYCASTING
+   ===================================================================== */
+const cross = (ax, ay, bx, by) => ax * by - ay * bx;
+
+// Does segment p1->p2 intersect wall segment w? (endpoints inclusive)
+function segmentsIntersect(p1x, p1y, p2x, p2y, w) {
+  const dx = p2x - p1x, dy = p2y - p1y;
+  const ex = w.x2 - w.x1, ey = w.y2 - w.y1;
+  const den = cross(dx, dy, ex, ey);
+  if (Math.abs(den) < 1e-9) return false;
+  const sx = w.x1 - p1x, sy = w.y1 - p1y;
+  const r = cross(sx, sy, ex, ey) / den;
+  const u = cross(sx, sy, dx, dy) / den;
+  return r >= 0 && r <= 1 && u >= 0 && u <= 1;
+}
+
+// Distance along ray (origin p, unit dir d) to the nearest segment hit.
+function castRay(px, py, dx, dy, segments) {
+  let best = Infinity;
+  for (const s of segments) {
+    const ex = s.x2 - s.x1, ey = s.y2 - s.y1;
+    const den = cross(dx, dy, ex, ey);
+    if (Math.abs(den) < 1e-12) continue;
+    const sx = s.x1 - px, sy = s.y1 - py;
+    const r = cross(sx, sy, ex, ey) / den;
+    const u = cross(sx, sy, dx, dy) / den;
+    if (r >= 0 && u >= -1e-9 && u <= 1 + 1e-9 && r < best) best = r;
+  }
+  return best;
+}
+
+function pointSegmentDistance(px, py, w) {
+  const ex = w.x2 - w.x1, ey = w.y2 - w.y1;
+  const len2 = ex * ex + ey * ey;
+  let t = len2 ? ((px - w.x1) * ex + (py - w.y1) * ey) / len2 : 0;
+  t = clamp(t, 0, 1);
+  return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
+}
+
+const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open));
+
+// Visibility polygon: cast rays at every wall endpoint (±epsilon) plus a uniform fan.
+function visibilityPolygon(ox, oy) {
+  const W = state.map.width, H = state.map.height;
+  const segments = blockingWalls().concat([
+    { x1: 0, y1: 0, x2: W, y2: 0 },
+    { x1: W, y1: 0, x2: W, y2: H },
+    { x1: W, y1: H, x2: 0, y2: H },
+    { x1: 0, y1: H, x2: 0, y2: 0 }
+  ]);
+  const angles = [];
+  for (const s of segments) {
+    const a1 = Math.atan2(s.y1 - oy, s.x1 - ox);
+    const a2 = Math.atan2(s.y2 - oy, s.x2 - ox);
+    angles.push(a1 - 1e-5, a1, a1 + 1e-5, a2 - 1e-5, a2, a2 + 1e-5);
+  }
+  const FAN = 90;
+  for (let i = 0; i < FAN; i++) angles.push(-Math.PI + (i / FAN) * Math.PI * 2);
+  angles.sort((a, b) => a - b);
+  const points = [];
+  for (const a of angles) {
+    const dx = Math.cos(a), dy = Math.sin(a);
+    const dist = castRay(ox, oy, dx, dy, segments);
+    if (dist !== Infinity) points.push({ x: ox + dx * dist, y: oy + dy * dist });
+  }
+  return points;
+}
+
+function moveBlocked(c1, r1, c2, r2, walls) {
+  const x1 = centerOf(c1), y1 = centerOf(r1), x2 = centerOf(c2), y2 = centerOf(r2);
+  for (const w of walls) {
+    if (segmentsIntersect(x1, y1, x2, y2, w)) return true;
+  }
+  return false;
+}
+
+/* =====================================================================
+   MOVEMENT POOL / REACHABILITY (5e: diagonals cost 5 ft)
+   ===================================================================== */
+let reachCache = { sig: '', map: new Map() };
+
+function reachable(token) {
+  if (!token) return new Map();
+  const sig = `${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|` +
+    state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
+  if (reachCache.sig === sig) return reachCache.map;
+
+  const maxSteps = state.gmOverride ? Infinity : Math.floor(token.movementRemaining / FT_PER_SQUARE);
+  const walls = state.gmOverride ? [] : blockingWalls();
+  const dist = new Map([[sqKey(token.col, token.row), 0]]);
+  const queue = [[token.col, token.row]];
+  for (let i = 0; i < queue.length; i++) {
+    const [c, r] = queue[i];
+    const d = dist.get(sqKey(c, r));
+    if (d >= maxSteps) continue;
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        const nc = c + dc, nr = r + dr;
+        if (!inBounds(nc, nr)) continue;
+        const k = sqKey(nc, nr);
+        if (dist.has(k)) continue;
+        if (walls.length && moveBlocked(c, r, nc, nr, walls)) continue;
+        dist.set(k, d + 1);
+        queue.push([nc, nr]);
+      }
+    }
+  }
+  // Allies may be passed through, but a move cannot end on an occupied square.
+  for (const other of state.tokens) {
+    if (other !== token) dist.delete(sqKey(other.col, other.row));
+  }
+  reachCache = { sig, map: dist };
+  return dist;
+}
+
+/* =====================================================================
+   TOKENS
+   ===================================================================== */
+const activeToken = () => state.tokens[state.activeIndex] || null;
+const characterFor = (t) => (t?.characterId ? state.characters.find((c) => c.id === t.characterId) : null);
+
+function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '' }) {
+  return { id, name, color, characterId, isPC, col, row, speed, image, movementRemaining: speed };
+}
+
+// Token art cache: url -> HTMLImageElement (loads lazily, re-renders when ready).
+const tokenArt = new Map();
+function artFor(url) {
+  if (!url) return null;
+  let img = tokenArt.get(url);
+  if (!img) {
+    img = new Image();
+    img.onload = () => requestRender();
+    img.onerror = () => { img.failed = true; };
+    img.src = url;
+    tokenArt.set(url, img);
+  }
+  return img.complete && img.naturalWidth && !img.failed ? img : null;
+}
+
+function freeSquareNear(col, row) {
+  const taken = new Set(state.tokens.map((t) => sqKey(t.col, t.row)));
+  for (let radius = 0; radius < Math.max(cols(), rows()); radius++) {
+    for (let dc = -radius; dc <= radius; dc++) {
+      for (let dr = -radius; dr <= radius; dr++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== radius) continue;
+        const c = col + dc, r = row + dr;
+        if (inBounds(c, r) && !taken.has(sqKey(c, r))) return { col: c, row: r };
+      }
+    }
+  }
+  return { col: clamp(col, 0, cols() - 1), row: clamp(row, 0, rows() - 1) };
+}
+
+function createDefaultTokens() {
+  state.tokens = [];
+  const pcs = state.characters.slice(0, 4);
+  for (let i = 0; i < 4; i++) {
+    const [col, row] = START_SQUARES[i];
+    const c = pcs[i];
+    state.tokens.push(c
+      ? makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col, row, speed: c.speed, image: c.image || '' })
+      : makeToken({ id: `tok-hero-${i + 1}`, name: DEFAULT_TOKENS[i].name, color: DEFAULT_TOKENS[i].color, col, row }));
+  }
+  state.activeIndex = 0;
+}
+
+function syncTokensWithCharacters() {
+  const activeId = activeToken()?.id;
+  state.tokens = state.tokens.filter((t) => !t.characterId || state.characters.some((c) => c.id === t.characterId));
+  for (const t of state.tokens) {
+    const c = characterFor(t);
+    if (!c) continue;
+    t.name = c.name;
+    t.color = c.color;
+    t.image = c.image || '';
+    if (t.speed !== c.speed) {
+      t.speed = c.speed;
+      t.movementRemaining = Math.min(t.movementRemaining, c.speed);
+    }
+  }
+  const idx = state.tokens.findIndex((t) => t.id === activeId);
+  state.activeIndex = idx >= 0 ? idx : clamp(state.activeIndex, 0, Math.max(0, state.tokens.length - 1));
+}
+
+function clampTokensToMap() {
+  for (const t of state.tokens) {
+    t.col = clamp(t.col, 0, cols() - 1);
+    t.row = clamp(t.row, 0, rows() - 1);
+  }
+}
+
+function animateToken(t, fromX, fromY) {
+  t._anim = { x: fromX, y: fromY, start: performance.now() };
+  requestRender();
+}
+
+function tokenAt(wx, wy) {
+  for (let i = state.tokens.length - 1; i >= 0; i--) {
+    const t = state.tokens[i];
+    if (Math.hypot(wx - centerOf(t.col), wy - centerOf(t.row)) <= GRID * 0.45) return t;
+  }
+  return null;
+}
+
+function doorAt(wx, wy) {
+  const tolerance = Math.max(8, 10 / state.view.scale);
+  let best = null, bestDist = Infinity;
+  for (const w of state.walls) {
+    if (w.type !== 'door') continue;
+    const d = pointSegmentDistance(wx, wy, w);
+    if (d < tolerance && d < bestDist) { best = w; bestDist = d; }
+  }
+  return best;
+}
+
+function endTurn() {
+  if (!state.tokens.length) return;
+  state.activeIndex = (state.activeIndex + 1) % state.tokens.length;
+  const next = activeToken();
+  next.movementRemaining = next.speed;
+  toast(`${next.name}'s turn — ${next.speed} ft of movement`, 'ok');
+  commitBoard();
+}
+
+function serializeToken(t) {
+  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '' };
+}
+
+/* =====================================================================
+   FOG OF WAR (shroud + current-vision layers, destination-out)
+   ===================================================================== */
+const shroud = document.createElement('canvas');
+const sctx = shroud.getContext('2d');
+const vision = document.createElement('canvas');
+const vctx = vision.getContext('2d');
+let fogSaveTimer = null;
+
+function resetShroud() {
+  for (const [c, cx] of [[shroud, sctx], [vision, vctx]]) {
+    c.width = state.map.width;
+    c.height = state.map.height;
+    cx.globalCompositeOperation = 'source-over';
+  }
+  sctx.fillStyle = '#040508';
+  sctx.fillRect(0, 0, shroud.width, shroud.height);
+}
+
+function revealFog() {
+  const W = state.map.width, H = state.map.height;
+  vctx.globalCompositeOperation = 'source-over';
+  vctx.clearRect(0, 0, W, H);
+  vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
+  vctx.fillRect(0, 0, W, H);
+  const radius = (VISION_FT / FT_PER_SQUARE) * GRID;
+  for (const t of state.tokens) {
+    if (!t.isPC) continue;
+    const cx = centerOf(t.col), cy = centerOf(t.row);
+    const poly = visibilityPolygon(cx, cy);
+    if (poly.length < 3) continue;
+    for (const c of [sctx, vctx]) {
+      c.save();
+      c.globalCompositeOperation = 'destination-out';
+      const grad = c.createRadialGradient(cx, cy, radius * 0.65, cx, cy, radius);
+      grad.addColorStop(0, 'rgba(0,0,0,1)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = grad;
+      c.beginPath();
+      c.moveTo(poly[0].x, poly[0].y);
+      for (let i = 1; i < poly.length; i++) c.lineTo(poly[i].x, poly[i].y);
+      c.closePath();
+      c.fill();
+      c.restore();
+    }
+  }
+  scheduleFogSave();
+  requestRender();
+}
+
+function scheduleFogSave() {
+  clearTimeout(fogSaveTimer);
+  const key = fogKey();
+  fogSaveTimer = setTimeout(() => {
+    try {
+      if (!store.setRaw(key, shroud.toDataURL('image/png'))) console.info('Fog not persisted (storage full or unavailable)');
+    } catch (err) {
+      console.info('Fog not persisted:', err.message);
+    }
+  }, 700);
+}
+
+function loadFog() {
+  return new Promise((resolve) => {
+    const data = store.getRaw(fogKey());
+    if (!data) { revealFog(); resolve(); return; }
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth === shroud.width && img.naturalHeight === shroud.height) {
+        sctx.globalCompositeOperation = 'source-over';
+        sctx.clearRect(0, 0, shroud.width, shroud.height);
+        sctx.drawImage(img, 0, 0);
+      }
+      revealFog();
+      resolve();
+    };
+    img.onerror = () => { revealFog(); resolve(); };
+    img.src = data;
+  });
+}
+
+function resetFog() {
+  store.remove(fogKey());
+  resetShroud();
+  revealFog();
+  toast('Explored fog reset');
+}
+
+/* =====================================================================
+   MAP LOADING
+   ===================================================================== */
+function setMap(url) {
+  return new Promise((resolve) => {
+    if (!url) {
+      state.map = { url: null, img: null, width: DEFAULT_COLS * GRID, height: DEFAULT_ROWS * GRID, drawW: 0, drawH: 0 };
+      onMapChanged().then(resolve);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      // Small images are scaled up so the map is at least 12 squares on its short side.
+      const factor = Math.max(1, (12 * GRID) / Math.min(img.naturalWidth, img.naturalHeight));
+      const drawW = img.naturalWidth * factor;
+      const drawH = img.naturalHeight * factor;
+      state.map = { url, img, width: Math.ceil(drawW / GRID) * GRID, height: Math.ceil(drawH / GRID) * GRID, drawW, drawH };
+      onMapChanged().then(resolve);
+    };
+    img.onerror = () => {
+      toast('Could not load that map image — using the default grid', 'error');
+      setMap(null).then(resolve);
+    };
+    img.src = url;
+  });
+}
+
+async function onMapChanged() {
+  state.walls = store.get(wallsKey(), []);
+  if (!Array.isArray(state.walls)) state.walls = [];
+  state.wallsVersion++;
+  clampTokensToMap();
+  resetShroud();
+  fitView();
+  await loadFog();
+  commitBoard();
+  renderMapTools();
+}
+
+async function uploadMap(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Please choose an image file', 'error'); return; }
+  const status = $('#uploadStatus');
+  status.textContent = `Uploading ${file.name}…`;
+  const form = new FormData();
+  form.append('map', file);
+  try {
+    const data = await api('/api/upload', { method: 'POST', body: form });
+    status.textContent = `Uploaded ${file.name}`;
+    await setMap(data.url);
+    await refreshMapGallery();
+    toast('Map loaded', 'ok');
+  } catch (err) {
+    status.textContent = `Upload failed: ${err.message}`;
+    toast(`Upload failed: ${err.message}`, 'error');
+  } finally {
+    $('#mapFile').value = '';
+  }
+}
+
+async function refreshMapGallery() {
+  try {
+    const data = await api('/api/maps');
+    state.mapList = Array.isArray(data.maps) ? data.maps : [];
+  } catch (err) {
+    state.mapList = [];
+    console.warn('Could not list maps:', err.message);
+  }
+  renderMapTools();
+}
+
+/* =====================================================================
+   WALLS
+   ===================================================================== */
+function snapToCorner(x, y) {
+  return {
+    x: clamp(Math.round(x / GRID) * GRID, 0, state.map.width),
+    y: clamp(Math.round(y / GRID) * GRID, 0, state.map.height)
+  };
+}
+
+function wallsChanged() {
+  state.wallsVersion++;
+  store.set(wallsKey(), state.walls);
+  revealFog();
+  renderMapTools();
+  renderTurnBar();
+}
+
+function undoWall() {
+  if (!state.walls.length) { toast('No walls to undo'); return; }
+  state.walls.pop();
+  wallsChanged();
+}
+
+function clearWalls() {
+  if (!state.walls.length) return;
+  if (!confirm(`Remove all ${state.walls.length} wall segments from this map?`)) return;
+  state.walls = [];
+  wallsChanged();
+}
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+let renderQueued = false;
+let animating = false;
+
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(render);
+}
+
+function render(now) {
+  renderQueued = false;
+  animating = false;
+  const v = state.view;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#07090d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
+
+  drawBackground();
+  drawGrid();
+  drawWallSegments(1);
+  drawTokens(false, now);
+  drawFog();
+  if (state.drawWalls || state.gmOverride) drawWallSegments(0.85);
+  drawReachable();
+  drawTokens(true, now);
+  drawDragPreview();
+  drawWallPreview();
+
+  if (animating) requestRender();
+}
+
+function drawBackground() {
+  const { width, height, img, drawW, drawH } = state.map;
+  ctx.fillStyle = '#2c313a';
+  ctx.fillRect(0, 0, width, height);
+  if (img) {
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, drawW, drawH);
+  }
+}
+
+function drawGrid() {
+  const { width, height } = state.map;
+  if (state.gridOpacity <= 0) return;
+  ctx.save();
+  ctx.lineWidth = 1 / state.view.scale;
+  ctx.strokeStyle = `rgba(255, 255, 255, ${state.gridOpacity})`;
+  ctx.beginPath();
+  for (let x = 0; x <= width; x += GRID) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
+  for (let y = 0; y <= height; y += GRID) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
+  ctx.stroke();
+  ctx.lineWidth = 2 / state.view.scale;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.strokeRect(0, 0, width, height);
+  ctx.restore();
+}
+
+function drawWallSegments(alpha) {
+  if (!state.walls.length) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.lineCap = 'round';
+  for (const w of state.walls) {
+    const isDoor = w.type === 'door';
+    ctx.setLineDash(isDoor && w.open ? [10, 8] : []);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = isDoor ? (w.open ? 'rgba(213, 140, 63, 0.75)' : '#d58c3f') : '#c7ccd6';
+    ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  if (state.drawWalls) {
+    ctx.fillStyle = '#ff6b6b';
+    for (const w of state.walls) {
+      ctx.beginPath(); ctx.arc(w.x1, w.y1, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(w.x2, w.y2, 4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawFog() {
+  if (!state.fogEnabled) return;
+  ctx.save();
+  ctx.globalAlpha = state.gmOverride ? 0.5 : 1;
+  ctx.drawImage(shroud, 0, 0);
+  ctx.globalAlpha = state.gmOverride ? 0.5 : 1;
+  ctx.drawImage(vision, 0, 0);
+  ctx.restore();
+}
+
+function drawReachable() {
+  const t = activeToken();
+  if (!t || state.drawWalls || state.gmOverride) return;
+  const reach = reachable(t);
+  const set = new Set(reach.keys());
+  set.add(sqKey(t.col, t.row));
+  ctx.save();
+  ctx.fillStyle = 'rgba(240, 192, 72, 0.10)';
+  for (const k of set) {
+    const [c, r] = k.split(',').map(Number);
+    ctx.fillRect(c * GRID, r * GRID, GRID, GRID);
+  }
+  // Boundary outline: edges whose neighbour is outside the reachable set.
+  ctx.strokeStyle = 'rgba(240, 192, 72, 0.85)';
+  ctx.lineWidth = 2 / state.view.scale;
+  ctx.setLineDash([6 / state.view.scale, 4 / state.view.scale]);
+  ctx.beginPath();
+  for (const k of set) {
+    const [c, r] = k.split(',').map(Number);
+    const x = c * GRID, y = r * GRID;
+    if (!set.has(sqKey(c, r - 1))) { ctx.moveTo(x, y); ctx.lineTo(x + GRID, y); }
+    if (!set.has(sqKey(c, r + 1))) { ctx.moveTo(x, y + GRID); ctx.lineTo(x + GRID, y + GRID); }
+    if (!set.has(sqKey(c - 1, r))) { ctx.moveTo(x, y); ctx.lineTo(x, y + GRID); }
+    if (!set.has(sqKey(c + 1, r))) { ctx.moveTo(x + GRID, y); ctx.lineTo(x + GRID, y + GRID); }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function tokenDisplayPos(t, now) {
+  if (interaction.mode === 'drag' && interaction.token === t) {
+    return { x: interaction.wx - interaction.offX, y: interaction.wy - interaction.offY };
+  }
+  const tx = centerOf(t.col), ty = centerOf(t.row);
+  if (t._anim) {
+    const p = Math.min(1, (now - t._anim.start) / 180);
+    if (p >= 1) { t._anim = null; return { x: tx, y: ty }; }
+    animating = true;
+    const e = 1 - Math.pow(1 - p, 3);
+    return { x: t._anim.x + (tx - t._anim.x) * e, y: t._anim.y + (ty - t._anim.y) * e };
+  }
+  return { x: tx, y: ty };
+}
+
+function drawTokens(pcs, now) {
+  const active = activeToken();
+  const radius = GRID * 0.4;
+  const ordered = state.tokens.filter((t) => t.isPC === pcs);
+  // Draw the dragged token last so it floats above the others.
+  ordered.sort((a, b) => (a === interaction.token) - (b === interaction.token));
+  for (const t of ordered) {
+    const { x, y } = tokenDisplayPos(t, now);
+    const isActive = t === active;
+    const dragging = interaction.mode === 'drag' && interaction.token === t;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = dragging ? 18 : 8;
+    ctx.shadowOffsetY = dragging ? 6 : 2;
+    if (isActive) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(240, 192, 72, 0.35)';
+      ctx.fill();
+    }
+    const art = artFor(t.image);
+    const r = radius * (dragging ? 1.08 : 1);
+    if (art) {
+      // The supplied token PNGs are already round with their own frame; draw them whole.
+      const size = (r + 4) * 2;
+      ctx.drawImage(art, x - size / 2, y - size / 2, size, size);
+      ctx.shadowColor = 'transparent';
+      if (isActive || !t.isPC) {
+        ctx.beginPath();
+        ctx.arc(x, y, size / 2 - 1, 0, Math.PI * 2);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = isActive ? '#f0c048' : '#ff6b6b';
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = t.color || '#888';
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = isActive ? '#f0c048' : (t.isPC ? '#ffffff' : '#ff6b6b');
+      if (!t.isPC) ctx.setLineDash([5, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 ${Math.round(GRID * 0.3)}px Inter, "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.strokeText(initials(t.name), x, y + 1);
+      ctx.fillText(initials(t.name), x, y + 1);
+    }
+
+    const c = characterFor(t);
+    if (c && c.maxHp > 0) {
+      const bw = GRID * 0.8, bh = 5, bx = x - bw / 2, by = y + radius + 4;
+      const pct = clamp(c.hp / c.maxHp, 0, 1);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+      ctx.fillStyle = pct > 0.5 ? '#3fd27f' : pct > 0.25 ? '#f0c048' : '#ff6b6b';
+      ctx.fillRect(bx, by, bw * pct, bh);
+    }
+    if (state.view.scale > 0.45 || isActive) {
+      ctx.font = `700 ${Math.round(GRID * 0.22)}px Inter, "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const label = t.name;
+      const tw = ctx.measureText(label).width + 10;
+      const ly = y - radius - 11;
+      ctx.fillStyle = 'rgba(7, 9, 13, 0.85)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x - tw / 2, ly - 8, tw, 16, 8); else ctx.rect(x - tw / 2, ly - 8, tw, 16);
+      ctx.fill();
+      ctx.fillStyle = isActive ? '#f0c048' : '#edf1f7';
+      ctx.fillText(label, x, ly + 1);
+    }
+    ctx.restore();
+  }
+}
+
+function dragTarget() {
+  const t = interaction.token;
+  const x = interaction.wx - interaction.offX;
+  const y = interaction.wy - interaction.offY;
+  const { col, row } = worldToCell(x, y);
+  const cell = { col: clamp(col, 0, cols() - 1), row: clamp(row, 0, rows() - 1) };
+  const same = cell.col === t.col && cell.row === t.row;
+  const steps = reachable(t).get(sqKey(cell.col, cell.row));
+  return { ...cell, same, steps, legal: same || steps !== undefined };
+}
+
+function drawDragPreview() {
+  if (interaction.mode !== 'drag' || !interaction.token) return;
+  const t = interaction.token;
+  const target = dragTarget();
+  const s = state.view.scale;
+  ctx.save();
+  ctx.fillStyle = target.legal ? 'rgba(63, 210, 127, 0.28)' : 'rgba(255, 107, 107, 0.30)';
+  ctx.strokeStyle = target.legal ? '#3fd27f' : '#ff6b6b';
+  ctx.lineWidth = 2 / s;
+  ctx.fillRect(target.col * GRID, target.row * GRID, GRID, GRID);
+  ctx.strokeRect(target.col * GRID, target.row * GRID, GRID, GRID);
+  ctx.setLineDash([6 / s, 5 / s]);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.beginPath();
+  ctx.moveTo(centerOf(t.col), centerOf(t.row));
+  ctx.lineTo(centerOf(target.col), centerOf(target.row));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const label = target.same ? '0 ft'
+    : target.legal ? (state.gmOverride ? 'GM move' : `${target.steps * FT_PER_SQUARE} ft`)
+    : 'Out of range';
+  ctx.font = `700 ${14 / s}px Inter, "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const lx = centerOf(target.col), ly = target.row * GRID - 14 / s;
+  const tw = ctx.measureText(label).width + 14 / s;
+  ctx.fillStyle = 'rgba(7, 9, 13, 0.9)';
+  ctx.fillRect(lx - tw / 2, ly - 11 / s, tw, 22 / s);
+  ctx.fillStyle = target.legal ? '#3fd27f' : '#ff6b6b';
+  ctx.fillText(label, lx, ly);
+  ctx.restore();
+}
+
+function drawWallPreview() {
+  if (interaction.mode !== 'wall' || !interaction.wallStart || !interaction.wallEnd) return;
+  const a = interaction.wallStart, b = interaction.wallEnd;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = state.wallType === 'door' ? 'rgba(213, 140, 63, 0.9)' : 'rgba(255, 107, 107, 0.9)';
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  for (const p of [a, b]) { ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); }
+  const lenFt = Math.round((Math.hypot(b.x - a.x, b.y - a.y) / GRID) * FT_PER_SQUARE);
+  ctx.font = `700 ${13 / state.view.scale}px Inter, system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`${lenFt} ft`, (a.x + b.x) / 2, (a.y + b.y) / 2 - 10 / state.view.scale);
+  ctx.restore();
+}
+
+/* =====================================================================
+   POINTER / TOUCH INPUT
+   ===================================================================== */
+function updateCursor(world) {
+  if (interaction.mode === 'drag') { canvas.style.cursor = 'grabbing'; return; }
+  if (interaction.mode === 'pan' || interaction.mode === 'pinch') { canvas.style.cursor = 'move'; return; }
+  if (state.drawWalls) { canvas.style.cursor = 'crosshair'; return; }
+  const t = world && tokenAt(world.x, world.y);
+  if (t && (t === activeToken() || state.gmOverride)) canvas.style.cursor = 'grab';
+  else if (world && doorAt(world.x, world.y)) canvas.style.cursor = 'pointer';
+  else canvas.style.cursor = 'default';
+}
+
+function startPinch() {
+  const [p1, p2] = [...interaction.pointers.values()];
+  const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+  interaction.pinch = {
+    dist: Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1,
+    world: screenToWorld(mid.x, mid.y),
+    scale: state.view.scale
+  };
+  interaction.mode = 'pinch';
+}
+
+function cancelInteraction() {
+  if (interaction.mode === 'drag' && interaction.token) {
+    const t = interaction.token;
+    animateToken(t, interaction.wx - interaction.offX, interaction.wy - interaction.offY);
+  }
+  interaction.mode = null;
+  interaction.token = null;
+  interaction.wallStart = null;
+  interaction.wallEnd = null;
+  interaction.pinch = null;
+  requestRender();
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  const pos = eventPos(e);
+  interaction.pointers.set(e.pointerId, pos);
+  canvas.setPointerCapture(e.pointerId);
+
+  if (interaction.pointers.size === 2) {
+    // Second finger: abandon any single-pointer action and pinch-zoom instead.
+    if (interaction.mode === 'drag' || interaction.mode === 'wall') cancelInteraction();
+    startPinch();
+    return;
+  }
+  if (interaction.pointers.size > 2) return;
+
+  const world = screenToWorld(pos.x, pos.y);
+  const isPanButton = e.button === 1 || e.button === 2;
+
+  if (state.drawWalls && e.button === 0) {
+    interaction.mode = 'wall';
+    interaction.wallStart = snapToCorner(world.x, world.y);
+    interaction.wallEnd = { ...interaction.wallStart };
+    requestRender();
+    return;
+  }
+  if (state.drawWalls && e.button === 2) return; // handled by contextmenu (undo)
+
+  if (!isPanButton) {
+    const t = tokenAt(world.x, world.y);
+    if (t) {
+      if (t !== activeToken() && !state.gmOverride) {
+        toast(`It's ${activeToken()?.name ?? 'someone else'}'s turn. Use End Turn or GM Override.`);
+        return;
+      }
+      if (state.gmOverride && t !== activeToken()) {
+        state.activeIndex = state.tokens.indexOf(t);
+        renderTurnBar();
+      }
+      interaction.mode = 'drag';
+      interaction.token = t;
+      interaction.wx = world.x;
+      interaction.wy = world.y;
+      interaction.offX = world.x - centerOf(t.col);
+      interaction.offY = world.y - centerOf(t.row);
+      t._anim = null;
+      updateCursor(world);
+      requestRender();
+      return;
+    }
+    const door = doorAt(world.x, world.y);
+    if (door) {
+      door.open = !door.open;
+      wallsChanged();
+      toast(door.open ? 'Door opened' : 'Door closed');
+      return;
+    }
+  }
+  interaction.mode = 'pan';
+  interaction.panStart = { x: pos.x, y: pos.y, ox: state.view.ox, oy: state.view.oy };
+  updateCursor(world);
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  const pos = eventPos(e);
+  if (interaction.pointers.has(e.pointerId)) interaction.pointers.set(e.pointerId, pos);
+  const world = screenToWorld(pos.x, pos.y);
+
+  const cell = worldToCell(world.x, world.y);
+  const hover = inBounds(cell.col, cell.row) ? cell : null;
+  if (hover?.col !== interaction.hoverSquare?.col || hover?.row !== interaction.hoverSquare?.row) {
+    interaction.hoverSquare = hover;
+    updateHud();
+  }
+
+  switch (interaction.mode) {
+    case 'drag':
+      interaction.wx = world.x;
+      interaction.wy = world.y;
+      requestRender();
+      break;
+    case 'wall':
+      interaction.wallEnd = snapToCorner(world.x, world.y);
+      requestRender();
+      break;
+    case 'pan': {
+      const p = interaction.panStart;
+      state.view.ox = p.ox + (pos.x - p.x);
+      state.view.oy = p.oy + (pos.y - p.y);
+      requestRender();
+      break;
+    }
+    case 'pinch': {
+      if (interaction.pointers.size < 2) break;
+      const [p1, p2] = [...interaction.pointers.values()];
+      const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+      const d = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+      const pz = interaction.pinch;
+      state.view.scale = clamp(pz.scale * (d / pz.dist), MIN_SCALE, MAX_SCALE);
+      state.view.ox = mid.x - pz.world.x * state.view.scale;
+      state.view.oy = mid.y - pz.world.y * state.view.scale;
+      updateHud();
+      requestRender();
+      break;
+    }
+    default:
+      updateCursor(world);
+  }
+});
+
+function finishPointer(e, cancelled) {
+  if (!interaction.pointers.has(e.pointerId)) return;
+  interaction.pointers.delete(e.pointerId);
+  if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+
+  if (interaction.mode === 'pinch') {
+    if (interaction.pointers.size === 0) interaction.mode = null;
+    else if (interaction.pointers.size === 1) {
+      const [p] = [...interaction.pointers.values()];
+      interaction.mode = 'pan';
+      interaction.panStart = { x: p.x, y: p.y, ox: state.view.ox, oy: state.view.oy };
+    }
+    return;
+  }
+
+  if (interaction.mode === 'drag') {
+    if (cancelled) { cancelInteraction(); return; }
+    const t = interaction.token;
+    const target = dragTarget();
+    const fromX = interaction.wx - interaction.offX;
+    const fromY = interaction.wy - interaction.offY;
+    interaction.mode = null;
+    interaction.token = null;
+    if (target.same) {
+      animateToken(t, fromX, fromY);
+    } else if (target.legal) {
+      t.col = target.col;
+      t.row = target.row;
+      if (!state.gmOverride) t.movementRemaining = Math.max(0, t.movementRemaining - target.steps * FT_PER_SQUARE);
+      animateToken(t, fromX, fromY);
+      revealFog();
+      commitBoard();
+    } else {
+      animateToken(t, fromX, fromY);
+      toast(`Too far — ${t.name} has ${t.movementRemaining} ft left (walls block movement)`, 'error');
+    }
+    updateCursor(screenToWorld(eventPos(e).x, eventPos(e).y));
+    return;
+  }
+
+  if (interaction.mode === 'wall') {
+    const a = interaction.wallStart, b = interaction.wallEnd;
+    interaction.mode = null;
+    interaction.wallStart = null;
+    interaction.wallEnd = null;
+    if (!cancelled && a && b && (a.x !== b.x || a.y !== b.y)) {
+      state.walls.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, type: state.wallType, open: false });
+      wallsChanged();
+    }
+    requestRender();
+    return;
+  }
+
+  interaction.mode = null;
+  updateCursor(null);
+}
+
+canvas.addEventListener('pointerup', (e) => finishPointer(e, false));
+canvas.addEventListener('pointercancel', (e) => finishPointer(e, true));
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (state.drawWalls) { undoWall(); return; }
+  const pos = eventPos(e);
+  const world = screenToWorld(pos.x, pos.y);
+  const t = tokenAt(world.x, world.y);
+  if (t) removeTokenAt(t);
+});
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const pos = eventPos(e);
+  zoomAt(pos.x, pos.y, Math.exp(-e.deltaY * 0.0015));
+}, { passive: false });
+canvas.addEventListener('pointerleave', () => {
+  if (!interaction.mode) { interaction.hoverSquare = null; updateHud(); }
+});
+
+window.addEventListener('keydown', (e) => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
+  if (e.key === 'Escape' && interaction.mode) cancelInteraction();
+  if (typing) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && state.drawWalls) { e.preventDefault(); undoWall(); }
+});
+
+/* =====================================================================
+   UI: TOOLBAR, HUD, TURN TRACKER
+   ===================================================================== */
+function updateHud() {
+  const sq = interaction.hoverSquare;
+  $('#hudCoords').textContent = sq ? `Col ${sq.col}, Row ${sq.row}` : `${cols()} × ${rows()} squares`;
+  $('#hudZoom').textContent = `${Math.round(state.view.scale * 100)}%`;
+}
+
+function renderTurnBar() {
+  const tracker = $('#turnTracker');
+  tracker.innerHTML = '';
+  state.tokens.forEach((t, i) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = `turn-chip${i === state.activeIndex ? ' active' : ''}${t.isPC ? '' : ' npc'}`;
+    chip.title = state.gmOverride ? `Make ${t.name} active` : `Center on ${t.name}`;
+    chip.innerHTML = `<span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}`;
+    chip.addEventListener('click', () => {
+      if (state.gmOverride) { state.activeIndex = i; commitBoard(); }
+      centerOnToken(t);
+    });
+    tracker.appendChild(chip);
+  });
+  const t = activeToken();
+  $('#moveInfo').innerHTML = t
+    ? `<strong>${esc(t.name)}</strong> · ${t.movementRemaining}/${t.speed} ft (${Math.floor(t.movementRemaining / FT_PER_SQUARE)} sq)`
+    : 'No tokens';
+  $('#speakerName').textContent = t ? t.name : 'the party';
+  $('#endTurnBtn').disabled = !t;
+}
+
+function saveBoard() {
+  store.set('vtt.board', {
+    mapUrl: state.map.url,
+    tokens: state.tokens.map(serializeToken),
+    activeIndex: state.activeIndex,
+    fogEnabled: state.fogEnabled,
+    gridOpacity: state.gridOpacity
+  });
+}
+
+function commitBoard() {
+  saveBoard();
+  renderTurnBar();
+  renderCharacters();
+  requestRender();
+}
+
+/* =====================================================================
+   UI: TABS
+   ===================================================================== */
+function selectTab(name) {
+  document.querySelectorAll('.tab').forEach((tab) => {
+    const on = tab.dataset.tab === name;
+    tab.setAttribute('aria-selected', String(on));
+    document.getElementById(tab.getAttribute('aria-controls')).classList.toggle('active', on);
+  });
+  store.set('vtt.tab', name);
+  if (name === 'chat') scrollChat();
+}
+
+/* =====================================================================
+   UI: AI DM CHAT
+   ===================================================================== */
+function scrollChat() {
+  const s = $('#chatScroll');
+  requestAnimationFrame(() => { s.scrollTop = s.scrollHeight; });
+}
+
+function renderChatMessage(m) {
+  const el = document.createElement('div');
+  el.className = `msg msg-${m.role}`;
+  const who = document.createElement('div');
+  who.className = 'who';
+  who.textContent = m.role === 'assistant' ? 'Dungeon Master' : m.role === 'user' ? 'Player' : 'System';
+  const body = document.createElement('div');
+  body.className = 'body';
+  if (m.role === 'assistant' && Array.isArray(m.lines) && m.lines.length) {
+    m.lines.forEach((line, i) => {
+      const span = document.createElement('span');
+      span.className = 'voice-line';
+      span.dataset.line = String(i);
+      if (line.speaker && line.speaker !== 'Narrator') {
+        const tag = document.createElement('span');
+        tag.className = 'speaker-tag';
+        tag.textContent = `${line.speaker}: `;
+        span.appendChild(tag);
+      }
+      span.appendChild(document.createTextNode(line.text));
+      body.appendChild(span);
+    });
+  } else {
+    body.textContent = m.content;
+  }
+  el.append(who, body);
+  return el;
+}
+
+function renderChat() {
+  const log = $('#chatLog');
+  log.innerHTML = '';
+  for (const m of state.chat) log.appendChild(renderChatMessage(m));
+  scrollChat();
+}
+
+function addChat(role, content, lines) {
+  const m = { role, content: String(content), ts: Date.now() };
+  if (Array.isArray(lines) && lines.length) m.lines = lines;
+  state.chat.push(m);
+  if (state.chat.length > 200) state.chat = state.chat.slice(-200);
+  store.set('vtt.chat', state.chat);
+  const el = renderChatMessage(m);
+  $('#chatLog').appendChild(el);
+  scrollChat();
+  return el;
+}
+
+function setBusy(busy) {
+  state.busy = busy;
+  $('#sendBtn').disabled = busy;
+  $('#sendBtn').textContent = busy ? 'The DM is thinking…' : 'Send Turn to AI DM';
+  $('#typing').classList.toggle('show', busy);
+  if (busy) scrollChat();
+}
+
+async function sendTurn(spokenText) {
+  if (state.busy) return;
+  const input = $('#chatInput');
+  const isVoice = typeof spokenText === 'string';
+  const text = (isVoice ? spokenText : input.value).trim();
+  if (!text) { toast('Describe your action first'); input.focus(); return; }
+  voice.cancelSpeech();
+  const active = activeToken();
+  const content = active ? `[${active.name}] ${text}` : text;
+  const history = state.chat
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .slice(-20)
+    .map(({ role, content: c }) => ({ role, content: c }));
+
+  addChat('user', content);
+  input.value = '';
+  setBusy(true);
+  try {
+    const data = await jsonPost('/api/chat', {
+      message: content,
+      history,
+      activeTokenId: active ? active.id : null,
+      tokens: state.tokens.map(serializeToken),
+      characters: state.characters,
+      walls: state.walls.map(({ x1, y1, x2, y2, type, open }) => ({ x1, y1, x2, y2, type, open: !!open })),
+      gridSize: GRID,
+      mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
+      inputMode: isVoice ? 'voice' : 'text'
+    });
+    const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
+    const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
+    applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
+    if (lines.length) voice.speak(lines, msgEl);
+  } catch (err) {
+    addChat('system', `Could not reach the AI DM: ${err.message}`);
+    toast(err.message, 'error');
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* =====================================================================
+   VOICE MODE: microphone (getUserMedia) + speech-to-text + spoken DM replies
+   ===================================================================== */
+const VOICE_PROFILES = {
+  narrator:  { pitch: 1.0,  rate: 1.0,  gender: null },
+  gruff:     { pitch: 0.8,  rate: 0.95, gender: 'male' },
+  sly:       { pitch: 1.1,  rate: 1.08, gender: 'male' },
+  noble:     { pitch: 1.0,  rate: 0.95, gender: 'male' },
+  elderly:   { pitch: 0.9,  rate: 0.88, gender: 'male' },
+  child:     { pitch: 1.4,  rate: 1.1,  gender: 'female' },
+  monstrous: { pitch: 0.55, rate: 0.82, gender: 'male' },
+  ethereal:  { pitch: 1.2,  rate: 0.88, gender: 'female' },
+  feminine:  { pitch: 1.05, rate: 1.0,  gender: 'female' },
+  masculine: { pitch: 0.9,  rate: 1.0,  gender: 'male' }
+};
+
+const voice = (() => {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const synth = window.speechSynthesis || null;
+  const mic = { stream: null, audioCtx: null, analyser: null, raf: 0, data: null };
+  let recognition = null;
+  let listening = false;     // recognition currently running
+  let continuous = false;    // Start Listening mode
+  let holding = false;       // push-to-talk held
+  let transcript = '';
+  let interim = '';
+  let speakGen = 0;
+  let speaking = false;      // DM audio is playing
+  let ignoreUntil = 0;       // quiet period after the DM stops, so echo and tails are dropped
+  const TAIL_GRACE_MS = 1200;
+  const assigned = new Map(); // speaker name -> SpeechSynthesisVoice (consistent per NPC)
+
+  const status = (text, live = false) => {
+    const el = $('#voiceStatus');
+    el.textContent = text;
+    el.classList.toggle('live', live);
+  };
+
+  async function ensureMic() {
+    if (mic.stream && mic.stream.active) return true;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      status('This browser has no microphone API (needs https or localhost).');
+      toast('Microphone API unavailable in this browser', 'error');
+      return false;
+    }
+    try {
+      mic.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (err) {
+      const denied = err.name === 'NotAllowedError' || err.name === 'SecurityError';
+      const missing = err.name === 'NotFoundError' || err.name === 'OverconstrainedError';
+      status(denied ? 'Microphone permission denied. Allow it in the browser site settings.'
+        : missing ? 'No microphone found.' : `Microphone error: ${err.message}`);
+      toast(denied ? 'Microphone permission denied' : missing ? 'No microphone found' : `Microphone error: ${err.message}`, 'error', 4000);
+      return false;
+    }
+    if (speaking) mic.stream.getAudioTracks().forEach((t) => { t.enabled = false; });
+    try {
+      mic.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = mic.audioCtx.createMediaStreamSource(mic.stream);
+      mic.analyser = mic.audioCtx.createAnalyser();
+      mic.analyser.fftSize = 512;
+      mic.data = new Uint8Array(mic.analyser.fftSize);
+      source.connect(mic.analyser);
+      meterLoop();
+    } catch (err) {
+      console.warn('Level meter unavailable:', err.message);
+    }
+    return true;
+  }
+
+  function meterLoop() {
+    if (!mic.analyser) return;
+    mic.analyser.getByteTimeDomainData(mic.data);
+    let peak = 0;
+    for (let i = 0; i < mic.data.length; i++) peak = Math.max(peak, Math.abs(mic.data[i] - 128));
+    $('#micLevel').style.width = `${Math.min(100, Math.round((peak / 128) * 160))}%`;
+    mic.raf = requestAnimationFrame(meterLoop);
+  }
+
+  // Hard-mute the captured stream while the DM talks (the recognizer is also stopped in speak()).
+  function setMicMuted(muted) {
+    if (mic.stream) mic.stream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
+    if (muted) status('Mic muted while the DM speaks…');
+    else if (continuous) status('Listening… speak your action.', true);
+    else if (!holding) status(SpeechRec ? 'Microphone idle.' : status_idle_no_stt());
+  }
+  const status_idle_no_stt = () => 'Microphone idle. Speech-to-text is unsupported here; use Chrome or Edge, or type.';
+
+  function releaseMic() {
+    cancelAnimationFrame(mic.raf);
+    if (mic.stream) mic.stream.getTracks().forEach((t) => t.stop());
+    if (mic.audioCtx) mic.audioCtx.close().catch(() => {});
+    mic.stream = null; mic.audioCtx = null; mic.analyser = null;
+    $('#micLevel').style.width = '0%';
+  }
+
+  function reflectUi() {
+    const live = holding || continuous;
+    $('#micBtn').classList.toggle('live', holding);
+    $('#micBtn').textContent = holding ? '🎙 Listening… release to send' : '🎙 Hold to Talk';
+    $('#micToggleBtn').textContent = continuous ? 'Stop Listening' : 'Start Listening';
+    $('#micToggleBtn').classList.toggle('btn-danger', continuous);
+    if (!live) status(SpeechRec ? 'Microphone idle.' : 'Microphone idle. Speech-to-text is unsupported here; use Chrome or Edge, or type.');
+  }
+
+  function buildRecognition() {
+    const rec = new SpeechRec();
+    rec.lang = navigator.language || 'en-US';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      // Ignore anything heard while the DM is talking (or just finished): it is the DM, not the player.
+      if (speaking || Date.now() < ignoreUntil) { transcript = ''; interim = ''; return; }
+      interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const piece = e.results[i][0].transcript;
+        if (e.results[i].isFinal) transcript += `${piece} `;
+        else interim += piece;
+      }
+      $('#chatInput').value = `${transcript}${interim}`.trim();
+      status(`Heard: “${$('#chatInput').value}”`, true);
+      if (continuous && !holding && transcript.trim() && !interim) flush();
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      const msg = e.error === 'not-allowed' ? 'Speech recognition permission denied.'
+        : e.error === 'network' ? 'Speech recognition needs a network connection in this browser.'
+        : `Speech recognition error: ${e.error}`;
+      status(msg);
+      toast(msg, 'error', 4000);
+      continuous = false; holding = false;
+      reflectUi();
+    };
+    rec.onend = () => {
+      listening = false;
+      if ((holding || continuous) && !speaking) { startRecognition(); }
+    };
+    return rec;
+  }
+
+  function startRecognition() {
+    if (!SpeechRec || listening) return;
+    if (!recognition) recognition = buildRecognition();
+    try { recognition.start(); listening = true; } catch (err) { console.warn('recognition.start:', err.message); }
+  }
+
+  function stopRecognition() {
+    if (recognition && listening) { try { recognition.stop(); } catch { /* already stopped */ } }
+  }
+
+  // Send whatever has been transcribed so far.
+  function flush() {
+    const text = `${transcript}${interim}`.trim();
+    transcript = ''; interim = '';
+    if (!text) return;
+    if ($('#autoSendToggle').checked) { $('#chatInput').value = ''; sendTurn(text); }
+    else $('#chatInput').value = text;
+  }
+
+  async function beginHold() {
+    if (holding || state.busy) return;
+    if (!(await ensureMic())) return;
+    cancelSpeech();
+    holding = true;
+    transcript = ''; interim = '';
+    reflectUi();
+    if (SpeechRec) { status('Listening…', true); startRecognition(); }
+    else status('Mic is live, but this browser cannot transcribe speech. Type your action instead.');
+  }
+
+  function endHold() {
+    if (!holding) return;
+    holding = false;
+    reflectUi();
+    // Give the recognizer a moment to deliver its final result before sending.
+    setTimeout(() => {
+      if (!continuous) stopRecognition();
+      flush();
+    }, 450);
+  }
+
+  async function toggleContinuous() {
+    if (continuous) {
+      continuous = false;
+      stopRecognition();
+      if (!holding) releaseMic();
+      reflectUi();
+      return;
+    }
+    if (!(await ensureMic())) return;
+    if (!SpeechRec) { status('Mic is live, but this browser cannot transcribe speech. Use Chrome or Edge, or type.'); toast('Speech-to-text is not supported in this browser', 'error', 4000); return; }
+    continuous = true;
+    transcript = ''; interim = '';
+    reflectUi();
+    status('Listening… speak your action.', true);
+    startRecognition();
+  }
+
+  /* ---------- text-to-speech ---------- */
+  function pickVoice(speaker, profileName) {
+    const key = speaker.toLowerCase();
+    if (assigned.has(key)) return assigned.get(key);
+    const all = synth.getVoices().filter((v) => /^en/i.test(v.lang));
+    const pool = all.length ? all : synth.getVoices();
+    if (!pool.length) return null;
+    const gender = (VOICE_PROFILES[profileName] || VOICE_PROFILES.narrator).gender;
+    const maleRe = /(david|mark|james|george|daniel|alex|male|guy|ryan|thomas|fred|aaron|brian|davis|jason|tony|christopher|eric|roger|andrew|steffan|liam|oliver|arthur)/i;
+    const femaleRe = /(zira|susan|hazel|samantha|female|aria|jenny|karen|fiona|victoria|moira|tessa|libby|sonia|michelle|ana|emma|ava|jane|nancy|sara|amber|ashley)/i;
+    // Neural/online voices sound far more human than the legacy desktop ones.
+    const quality = (v) => (/natural|neural|online/i.test(v.name) ? 100 : 0)
+      + (/premium|enhanced|studio|wavenet/i.test(v.name) ? 60 : 0)
+      + (/google/i.test(v.name) ? 40 : 0)
+      + (v.localService ? 0 : 20)
+      - (/desktop|espeak|compact/i.test(v.name) ? 50 : 0);
+    const chosenNarrator = store.get('vtt.narratorVoice', '');
+    if (key === 'narrator' && chosenNarrator) {
+      const picked = pool.find((v) => v.name === chosenNarrator);
+      if (picked) { assigned.set(key, picked); return picked; }
+    }
+    let candidates = pool;
+    if (gender === 'male') candidates = pool.filter((v) => maleRe.test(v.name) && !femaleRe.test(v.name));
+    else if (gender === 'female') candidates = pool.filter((v) => femaleRe.test(v.name));
+    if (!candidates.length) candidates = pool;
+    candidates = [...candidates].sort((a, b) => quality(b) - quality(a));
+    // Distinct NPCs get distinct voices where possible, best quality first.
+    const used = new Set(assigned.values());
+    const choice = candidates.find((v) => !used.has(v)) || candidates[0];
+    assigned.set(key, choice);
+    return choice;
+  }
+
+  function populateVoicePicker() {
+    const sel = $('#narratorVoice');
+    const voices = synth ? synth.getVoices().filter((v) => /^en/i.test(v.lang)) : [];
+    const saved = store.get('vtt.narratorVoice', '');
+    sel.innerHTML = '<option value="">Auto (best available)</option>' + voices
+      .map((v) => `<option value="${esc(v.name)}"${v.name === saved ? ' selected' : ''}>${esc(v.name)}</option>`).join('');
+  }
+
+  function cancelSpeech() {
+    speakGen++;
+    if (speaking) setMicMuted(false);
+    speaking = false;
+    ignoreUntil = Date.now() + 400;
+    if (synth) synth.cancel();
+    cloudStop();
+    document.querySelectorAll('.voice-line.speaking').forEach((n) => n.classList.remove('speaking'));
+  }
+
+  /* ---------- cloud voices (server /api/tts, OpenAI) ---------- */
+  const cloud = { enabled: false, audio: new Audio(), resolve: null };
+
+  const enginePref = () => (store.get('vtt.voiceEngine', 'cloud') === 'browser' ? 'browser' : 'cloud');
+  const wantCloud = () => cloud.enabled && enginePref() === 'cloud';
+
+  function updateEngineNote() {
+    $('#engineSel').value = enginePref();
+    $('#voiceEngine').textContent = enginePref() === 'browser'
+      ? 'Voices: Microsoft'
+      : cloud.enabled
+        ? 'Voices: ChatGPT (OpenAI)'
+        : 'ChatGPT voices unavailable (add your OpenAI key in Settings). Using Microsoft voices for now.';
+  }
+
+  async function checkCloud() {
+    try {
+      const s = await api('/api/tts/status');
+      cloud.enabled = Boolean(s.enabled);
+    } catch { cloud.enabled = false; }
+    updateEngineNote();
+  }
+
+  function cloudStop() {
+    cloud.audio.pause();
+    if (cloud.resolve) { const r = cloud.resolve; cloud.resolve = null; r(false); }
+  }
+
+  async function fetchClip(line) {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: line.text, voice: line.voice, speaker: line.speaker || 'Narrator' })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `text-to-speech ${res.status}`);
+    }
+    return URL.createObjectURL(await res.blob());
+  }
+
+  function playClip(url, onstart) {
+    return new Promise((resolve) => {
+      cloud.resolve = resolve;
+      const a = cloud.audio;
+      a.onplaying = () => { if (onstart) onstart(); };
+      a.onended = () => { cloud.resolve = null; resolve(true); };
+      a.onerror = () => { cloud.resolve = null; resolve(false); };
+      a.src = url;
+      a.play().catch(() => { cloud.resolve = null; resolve(false); });
+    }).finally(() => URL.revokeObjectURL(url));
+  }
+
+  // Start every clip request at once so later lines are ready while earlier ones play.
+  async function speakCloud(lines, msgEl, gen) {
+    const clips = lines.map((l) => fetchClip(l));
+    clips.forEach((p) => p.catch(() => {}));
+    for (let i = 0; i < lines.length; i++) {
+      if (gen !== speakGen) return true;
+      let url;
+      try { url = await clips[i]; } catch (err) { err.playedCount = i; throw err; }
+      if (gen !== speakGen) return true;
+      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${i}"]`) : null;
+      await playClip(url, () => { if (gen === speakGen && node) node.classList.add('speaking'); });
+      if (node) node.classList.remove('speaking');
+    }
+    return true;
+  }
+
+  /* ---------- speaking: shared mic muting ---------- */
+  function beginSpeaking() {
+    cancelSpeech();
+    const gen = speakGen;
+    // Pause the recognizer while the DM talks so it does not transcribe the speakers.
+    if (listening && (continuous || holding)) stopRecognition();
+    speaking = true;
+    setMicMuted(true);
+    return gen;
+  }
+
+  function endSpeaking(gen) {
+    if (gen !== speakGen) return;
+    // Keep the mic deaf briefly after the last word so the tail of the narration is not transcribed.
+    ignoreUntil = Date.now() + TAIL_GRACE_MS;
+    setTimeout(() => {
+      if (gen !== speakGen) return;
+      speaking = false;
+      setMicMuted(false);
+      transcript = ''; interim = '';
+      if (continuous) startRecognition();
+    }, TAIL_GRACE_MS);
+  }
+
+  function speakBrowser(lines, msgEl, offset, gen) {
+    if (!synth) { endSpeaking(gen); return; }
+    let remaining = lines.length;
+    if (!remaining) { endSpeaking(gen); return; }
+    const done = () => {
+      if (gen !== speakGen) return;
+      if (--remaining === 0) endSpeaking(gen);
+    };
+    lines.forEach((line, k) => {
+      const profile = VOICE_PROFILES[line.voice] || VOICE_PROFILES.narrator;
+      const u = new SpeechSynthesisUtterance(line.text);
+      const v = pickVoice(line.speaker || 'Narrator', line.voice);
+      if (v) { u.voice = v; u.lang = v.lang; }
+      u.pitch = profile.pitch;
+      u.rate = profile.rate;
+      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${offset + k}"]`) : null;
+      u.onstart = () => { if (gen === speakGen && node) node.classList.add('speaking'); };
+      u.onend = () => { if (node) node.classList.remove('speaking'); done(); };
+      u.onerror = () => { if (node) node.classList.remove('speaking'); done(); };
+      synth.speak(u);
+    });
+  }
+
+  function speak(lines, msgEl) {
+    if (!$('#speakToggle').checked) return;
+    const gen = beginSpeaking();
+    if (!wantCloud()) { speakBrowser(lines, msgEl, 0, gen); return; }
+    speakCloud(lines, msgEl, gen)
+      .then(() => endSpeaking(gen))
+      .catch((err) => {
+        if (gen !== speakGen) return;
+        toast(`ChatGPT voice failed (${err.message}). Using Microsoft voices.`, 'error', 5000);
+        speakBrowser(lines.slice(err.playedCount || 0), msgEl, err.playedCount || 0, gen);
+      });
+  }
+
+  function init() {
+    if (synth) synth.getVoices(); // kick off async voice loading in Chrome
+    if (synth && 'onvoiceschanged' in synth) synth.onvoiceschanged = () => { assigned.clear(); populateVoicePicker(); };
+    populateVoicePicker();
+    checkCloud();
+    $('#engineSel').addEventListener('change', (e) => {
+      store.set('vtt.voiceEngine', e.target.value);
+      cancelSpeech();
+      checkCloud();
+    });
+    window.addEventListener('focus', checkCloud); // pick up a key saved on the Settings page
+    $('#narratorVoice').addEventListener('change', (e) => {
+      store.set('vtt.narratorVoice', e.target.value);
+      assigned.clear();
+      speak([{ speaker: 'Narrator', voice: 'narrator', text: 'The torchlight flickers, and the door creaks open.' }], null);
+    });
+    const btn = $('#micBtn');
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); beginHold(); });
+    btn.addEventListener('pointerup', endHold);
+    btn.addEventListener('pointercancel', endHold);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+    $('#micToggleBtn').addEventListener('click', toggleContinuous);
+    $('#stopSpeechBtn').addEventListener('click', cancelSpeech);
+    $('#speakToggle').addEventListener('change', (e) => { if (!e.target.checked) cancelSpeech(); });
+    // Spacebar push-to-talk while the chat tab is open and no field has focus.
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(document.activeElement?.tagName)) return;
+      if (!$('#panel-chat').classList.contains('active')) return;
+      e.preventDefault();
+      beginHold();
+    });
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space') endHold(); });
+    window.addEventListener('beforeunload', () => { if (synth) synth.cancel(); releaseMic(); });
+    reflectUi();
+  }
+
+  return { init, speak, cancelSpeech, ensureMic };
+})();
+
+function applyMapUpdates(updates) {
+  if (!updates.length) return;
+  let wallsTouched = false;
+  const hpSaves = [];
+  for (const u of updates) {
+    switch (u.type) {
+      case 'moveToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
+        const fromX = centerOf(t.col), fromY = centerOf(t.row);
+        t.col = clamp(u.col, 0, cols() - 1);
+        t.row = clamp(u.row, 0, rows() - 1);
+        animateToken(t, fromX, fromY);
+        addChat('system', `↳ ${t.name} moved to (${t.col}, ${t.row})`);
+        break;
+      }
+      case 'addToken': {
+        if (!u.tokenId || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
+        const existing = state.tokens.find((x) => x.id === u.tokenId);
+        const spot = existing ? { col: clamp(u.col, 0, cols() - 1), row: clamp(u.row, 0, rows() - 1) } : freeSquareNear(u.col, u.row);
+        if (existing) {
+          Object.assign(existing, spot, { name: u.name || existing.name, color: /^#[0-9a-f]{6}$/i.test(u.color || '') ? u.color : existing.color });
+        } else {
+          state.tokens.push(makeToken({
+            id: String(u.tokenId),
+            name: u.name || 'Creature',
+            color: /^#[0-9a-f]{6}$/i.test(u.color || '') ? u.color : '#a04545',
+            isPC: false,
+            ...spot
+          }));
+        }
+        addChat('system', `↳ ${u.name || u.tokenId} appears at (${spot.col}, ${spot.row})`);
+        break;
+      }
+      case 'removeToken': {
+        const idx = state.tokens.findIndex((x) => x.id === u.tokenId);
+        if (idx < 0) break;
+        const [removed] = state.tokens.splice(idx, 1);
+        if (idx < state.activeIndex || state.activeIndex >= state.tokens.length) state.activeIndex = Math.max(0, state.activeIndex - 1);
+        addChat('system', `↳ ${removed.name} removed from the board`);
+        break;
+      }
+      case 'setHp': {
+        const c = state.characters.find((x) => x.id === u.characterId)
+          || characterFor(state.tokens.find((x) => x.id === u.characterId || x.id === u.tokenId));
+        if (!c || !Number.isFinite(u.hp)) break;
+        const before = c.hp;
+        c.hp = clamp(Math.round(u.hp), 0, c.maxHp);
+        hpSaves.push(c);
+        addChat('system', `↳ ${c.name} HP ${before} → ${c.hp}/${c.maxHp}`);
+        break;
+      }
+      case 'addWall': {
+        if (![u.x1, u.y1, u.x2, u.y2].every(Number.isFinite)) break;
+        state.walls.push({ x1: u.x1, y1: u.y1, x2: u.x2, y2: u.y2, type: u.wallType === 'door' ? 'door' : 'wall', open: false });
+        wallsTouched = true;
+        addChat('system', `↳ A ${u.wallType === 'door' ? 'door' : 'wall'} was added to the map`);
+        break;
+      }
+      default:
+        console.warn('Unknown map update', u);
+    }
+  }
+  if (wallsTouched) wallsChanged();
+  for (const c of hpSaves) {
+    jsonPost('/api/characters', c).catch((err) => toast(`Could not save ${c.name}'s HP: ${err.message}`, 'error'));
+  }
+  revealFog();
+  commitBoard();
+}
+
+/* =====================================================================
+   UI: CHARACTER SHEETS
+   ===================================================================== */
+async function loadCharacters() {
+  try {
+    const list = await api('/api/characters');
+    state.characters = Array.isArray(list) ? list : [];
+  } catch (err) {
+    state.characters = [];
+    toast(`Could not load characters: ${err.message}`, 'error');
+  }
+  syncTokensWithCharacters();
+}
+
+function renderCharacters() {
+  const list = $('#charList');
+  if (!state.characters.length) {
+    list.innerHTML = '<div class="empty">No characters yet. Create one to place it on the map.</div>';
+    return;
+  }
+  const active = activeToken();
+  list.innerHTML = state.characters.map((c) => {
+    const pct = c.maxHp ? clamp((c.hp / c.maxHp) * 100, 0, 100) : 0;
+    const barColor = pct > 50 ? 'var(--ok)' : pct > 25 ? 'var(--gold)' : 'var(--danger)';
+    const onBoard = state.tokens.some((t) => t.characterId === c.id);
+    const isActive = active?.characterId === c.id;
+    const abilities = ABILITIES.map((k) => `
+      <div class="ability"><div class="k">${k.toUpperCase()}</div><div class="m">${fmtMod(mod(c.abilities?.[k] ?? 10))}</div><div class="s">${esc(c.abilities?.[k] ?? 10)}</div></div>`).join('');
+    return `
+      <article class="card char-card${isActive ? ' is-active' : ''}" data-id="${esc(c.id)}">
+        <div class="char-head">
+          <div class="char-avatar" style="background:${esc(c.color)}">${esc(initials(c.name))}</div>
+          <div style="flex:1; min-width:0;">
+            <div class="char-name">${esc(c.name)}${isActive ? ' <span style="color:var(--gold); font-size:12px;">· ACTIVE TURN</span>' : ''}</div>
+            <div class="char-sub">Level ${esc(c.level)} ${esc(c.class)}${onBoard ? '' : ' · not on map'}</div>
+          </div>
+        </div>
+        <div class="hp-row">
+          <button class="btn btn-sm" data-act="hp" data-delta="-1" title="Damage 1 (Shift: 5)" aria-label="Decrease HP">−</button>
+          <div class="hp-bar"><div style="width:${pct}%; background:${barColor}"></div></div>
+          <span class="hp-text">${esc(c.hp)}/${esc(c.maxHp)} HP</span>
+          <button class="btn btn-sm" data-act="hp" data-delta="1" title="Heal 1 (Shift: 5)" aria-label="Increase HP">+</button>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="k">Armor Class</div><div class="v">${esc(c.ac)}</div></div>
+          <div class="stat"><div class="k">Speed</div><div class="v">${esc(c.speed)} ft</div></div>
+          <div class="stat"><div class="k">Initiative</div><div class="v">${fmtMod(mod(c.abilities?.dex ?? 10))}</div></div>
+        </div>
+        <div class="abilities">${abilities}</div>
+        <div class="char-actions">
+          <button class="btn btn-sm" data-act="place">${onBoard ? '◎ Find token' : '＋ Place token'}</button>
+          <button class="btn btn-sm" data-act="edit">✎ Edit</button>
+          <button class="btn btn-sm btn-danger" data-act="delete">Delete</button>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+function buildAbilityInputs() {
+  $('#abilityInputs').innerHTML = ABILITIES.map((k) => `
+    <label class="field">${k.toUpperCase()} <span class="mod" data-mod="${k}">+0</span>
+      <input type="number" name="ab_${k}" min="1" max="30" value="10">
+    </label>`).join('');
+}
+
+function refreshFormMods() {
+  const form = $('#charForm');
+  for (const k of ABILITIES) {
+    form.querySelector(`[data-mod="${k}"]`).textContent = fmtMod(mod(form.elements[`ab_${k}`].value || 10));
+  }
+}
+
+function openCharForm(c = null) {
+  const form = $('#charForm');
+  form.reset();
+  form.hidden = false;
+  $('#charFormTitle').textContent = c ? `Edit ${c.name}` : 'New Character';
+  form.elements.id.value = c?.id ?? '';
+  form.elements.name.value = c?.name ?? '';
+  form.elements.class.value = c?.class ?? '';
+  form.elements.level.value = c?.level ?? 1;
+  form.elements.maxHp.value = c?.maxHp ?? 10;
+  form.elements.hp.value = c?.hp ?? 10;
+  form.elements.ac.value = c?.ac ?? 12;
+  form.elements.speed.value = c?.speed ?? 30;
+  form.elements.color.value = c?.color ?? '#4f9dff';
+  setCharArt(c?.image ?? '');
+  for (const k of ABILITIES) form.elements[`ab_${k}`].value = c?.abilities?.[k] ?? 10;
+  refreshFormMods();
+  form.elements.name.focus();
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeCharForm() {
+  $('#charForm').hidden = true;
+}
+
+async function submitCharForm(e) {
+  e.preventDefault();
+  const f = e.target.elements;
+  const maxHp = Number(f.maxHp.value);
+  const payload = {
+    name: f.name.value.trim(),
+    class: f.class.value.trim(),
+    level: Number(f.level.value),
+    maxHp,
+    hp: Math.min(Number(f.hp.value), maxHp),
+    ac: Number(f.ac.value),
+    speed: Number(f.speed.value),
+    color: f.color.value,
+    image: f.image.value,
+    abilities: Object.fromEntries(ABILITIES.map((k) => [k, Number(f[`ab_${k}`].value)]))
+  };
+  if (f.id.value) payload.id = f.id.value;
+  if (!payload.name) { toast('Name is required', 'error'); return; }
+  try {
+    const saved = await jsonPost('/api/characters', payload);
+    const idx = state.characters.findIndex((c) => c.id === saved.id);
+    if (idx >= 0) state.characters[idx] = saved; else state.characters.push(saved);
+    state.characters.sort((a, b) => a.name.localeCompare(b.name));
+    if (idx < 0) placeCharacterToken(saved, false);
+    syncTokensWithCharacters();
+    closeCharForm();
+    commitBoard();
+    toast(`${saved.name} saved`, 'ok');
+  } catch (err) {
+    toast(`Save failed: ${err.message}`, 'error');
+  }
+}
+
+function placeCharacterToken(c, center = true) {
+  let t = state.tokens.find((x) => x.characterId === c.id);
+  if (!t) {
+    const mid = screenToWorld(wrap.clientWidth / 2, wrap.clientHeight / 2);
+    const cell = worldToCell(mid.x, mid.y);
+    const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
+    t = makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.speed, image: c.image || '' });
+    state.tokens.push(t);
+    revealFog();
+  }
+  if (center) centerOnToken(t);
+  return t;
+}
+
+async function onCharListClick(e) {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.closest('[data-id]').dataset.id;
+  const c = state.characters.find((x) => x.id === id);
+  if (!c) return;
+  switch (btn.dataset.act) {
+    case 'hp': {
+      const delta = Number(btn.dataset.delta) * (e.shiftKey ? 5 : 1);
+      c.hp = clamp(c.hp + delta, 0, c.maxHp);
+      commitBoard();
+      try { await jsonPost('/api/characters', c); } catch (err) { toast(`Could not save HP: ${err.message}`, 'error'); }
+      break;
+    }
+    case 'place':
+      placeCharacterToken(c, true);
+      commitBoard();
+      break;
+    case 'edit':
+      openCharForm(c);
+      break;
+    case 'delete':
+      if (!confirm(`Delete ${c.name}? This removes the sheet from the server and the token from the map.`)) return;
+      try {
+        await api(`/api/characters/${encodeURIComponent(c.id)}`, { method: 'DELETE' });
+        state.characters = state.characters.filter((x) => x.id !== c.id);
+        syncTokensWithCharacters();
+        revealFog();
+        commitBoard();
+        toast(`${c.name} deleted`);
+      } catch (err) {
+        toast(`Delete failed: ${err.message}`, 'error');
+      }
+      break;
+  }
+}
+
+/* =====================================================================
+   TOKEN LIBRARY & TOKEN ART
+   ===================================================================== */
+function prettyMapName(url) {
+  const base = String(url || '').split('/').pop().replace(/\.[a-z0-9]+$/i, '').replace(/-[0-9a-z]{6,10}$/, (m) => (/\d/.test(m) && /[a-z]/.test(m) ? '' : m));
+  return base.split('-').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') || 'Map';
+}
+
+async function loadTokenList() {
+  try {
+    const data = await api('/api/tokens');
+    state.tokenList = Array.isArray(data.tokens) ? data.tokens : [];
+  } catch (err) {
+    state.tokenList = [];
+    console.warn('Could not list tokens:', err.message);
+  }
+  fillTokenGallery($('#libGallery'), placeLibraryToken);
+}
+
+function fillTokenGallery(container, onPick, selectedUrl = '') {
+  container.innerHTML = '';
+  if (!state.tokenList.length) {
+    container.textContent = 'No token art found in public/tokens.';
+    return;
+  }
+  state.tokenList.forEach((url, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.title = `Token ${i + 1}`;
+    b.setAttribute('aria-label', `Token art ${i + 1}`);
+    if (url === selectedUrl) b.className = 'selected';
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.loading = 'lazy';
+    b.appendChild(img);
+    b.addEventListener('click', () => onPick(url, b));
+    container.appendChild(b);
+  });
+}
+
+function placeLibraryToken(url) {
+  const nameInput = $('#libName');
+  const name = nameInput.value.trim() || `Token ${state.tokenList.indexOf(url) + 1}`;
+  const party = $('#libParty').checked;
+  const mid = screenToWorld(wrap.clientWidth / 2, wrap.clientHeight / 2);
+  const cell = worldToCell(mid.x, mid.y);
+  const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
+  const id = `tok-lib-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
+  state.tokens.push(makeToken({ id, name, color: party ? '#4f9dff' : '#a04545', isPC: party, image: url, ...spot }));
+  nameInput.value = '';
+  revealFog();
+  commitBoard();
+  toast(`${name} placed at (${spot.col}, ${spot.row})`, 'ok');
+}
+
+function removeTokenAt(t) {
+  if (t.characterId) { toast(`${t.name} is a party character. Delete the sheet to remove them.`); return; }
+  if (!confirm(`Remove ${t.name} from the map?`)) return;
+  const idx = state.tokens.indexOf(t);
+  state.tokens.splice(idx, 1);
+  if (idx < state.activeIndex || state.activeIndex >= state.tokens.length) state.activeIndex = Math.max(0, state.activeIndex - 1);
+  revealFog();
+  commitBoard();
+}
+
+function setCharArt(url) {
+  const form = $('#charForm');
+  form.elements.image.value = url || '';
+  const img = $('#charArtPreview');
+  img.hidden = !url;
+  if (url) img.src = url;
+  $('#charArtGallery').hidden = true;
+}
+
+/* =====================================================================
+   UI: MAP TOOLS
+   ===================================================================== */
+function renderMapTools() {
+  const gallery = $('#mapGallery');
+  gallery.innerHTML = '';
+  const def = document.createElement('button');
+  def.type = 'button';
+  def.textContent = 'Default grid';
+  def.className = state.map.url ? '' : 'current';
+  def.addEventListener('click', () => setMap(null));
+  gallery.appendChild(def);
+  for (const url of state.mapList) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const pretty = prettyMapName(url);
+    b.title = pretty;
+    b.setAttribute('aria-label', `Use map ${pretty}`);
+    b.style.backgroundImage = `url("${encodeURI(url)}")`;
+    const cap = document.createElement('span');
+    cap.className = 'cap';
+    cap.textContent = pretty;
+    b.appendChild(cap);
+    if (url === state.map.url) b.className = 'current';
+    b.addEventListener('click', () => setMap(url));
+    gallery.appendChild(b);
+  }
+  const doors = state.walls.filter((w) => w.type === 'door').length;
+  $('#wallMeta').textContent = `${state.walls.length - doors} wall segment(s), ${doors} door(s) on this map · saved in this browser`;
+  $('#drawWallsToggle').checked = state.drawWalls;
+  $('#fogToggle').checked = state.fogEnabled;
+  $('#gmToggle').checked = state.gmOverride;
+  $('#gridOpacity').value = state.gridOpacity;
+  $('#gridOpacityVal').textContent = `${Math.round(state.gridOpacity * 100)}%`;
+  document.querySelectorAll('#wallTypeSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.type === state.wallType)));
+  $('#modeBadge').classList.toggle('show', state.drawWalls);
+  $('#modeBadge').textContent = `DRAW ${state.wallType === 'door' ? 'DOORS' : 'WALLS'} MODE`;
+}
+
+/* =====================================================================
+   EVENT BINDINGS
+   ===================================================================== */
+function bindUi() {
+  document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => selectTab(tab.dataset.tab)));
+
+  $('#endTurnBtn').addEventListener('click', endTurn);
+  $('#zoomInBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 1.25));
+  $('#zoomOutBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 0.8));
+  $('#fitBtn').addEventListener('click', fitView);
+
+  voice.init();
+  $('#sendBtn').addEventListener('click', () => sendTurn());
+  $('#chatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendTurn(); }
+  });
+  $('#clearChatBtn').addEventListener('click', () => {
+    if (!confirm('Clear the whole chat log? The DM will lose this conversation history.')) return;
+    state.chat = [];
+    store.set('vtt.chat', state.chat);
+    renderChat();
+  });
+
+  buildAbilityInputs();
+  $('#charArtBtn').addEventListener('click', () => {
+    const g = $('#charArtGallery');
+    if (g.hidden) fillTokenGallery(g, (url) => setCharArt(url), $('#charForm').elements.image.value);
+    g.hidden = !g.hidden;
+  });
+  $('#charArtClear').addEventListener('click', () => setCharArt(''));
+  $('#newCharBtn').addEventListener('click', () => openCharForm(null));
+  $('#cancelCharBtn').addEventListener('click', closeCharForm);
+  $('#charForm').addEventListener('submit', submitCharForm);
+  $('#charForm').addEventListener('input', refreshFormMods);
+  $('#charList').addEventListener('click', onCharListClick);
+
+  const dz = $('#dropzone');
+  $('#mapFile').addEventListener('change', (e) => uploadMap(e.target.files[0]));
+  dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#mapFile').click(); } });
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop', (e) => uploadMap(e.dataTransfer.files[0]));
+
+  $('#gridOpacity').addEventListener('input', (e) => {
+    state.gridOpacity = Number(e.target.value);
+    $('#gridOpacityVal').textContent = `${Math.round(state.gridOpacity * 100)}%`;
+    saveBoard();
+    requestRender();
+  });
+  $('#drawWallsToggle').addEventListener('change', (e) => {
+    state.drawWalls = e.target.checked;
+    if (interaction.mode === 'wall') cancelInteraction();
+    renderMapTools();
+    updateCursor(null);
+    requestRender();
+  });
+  document.querySelectorAll('#wallTypeSeg button').forEach((b) => b.addEventListener('click', () => {
+    state.wallType = b.dataset.type;
+    renderMapTools();
+  }));
+  $('#undoWallBtn').addEventListener('click', undoWall);
+  $('#clearWallsBtn').addEventListener('click', clearWalls);
+  $('#fogToggle').addEventListener('change', (e) => {
+    state.fogEnabled = e.target.checked;
+    saveBoard();
+    requestRender();
+  });
+  $('#gmToggle').addEventListener('change', (e) => {
+    state.gmOverride = e.target.checked;
+    renderTurnBar();
+    requestRender();
+  });
+  $('#resetFogBtn').addEventListener('click', () => {
+    if (confirm('Re-cover the whole map in fog? Explored areas will be forgotten.')) resetFog();
+  });
+  $('#resetTokensBtn').addEventListener('click', () => {
+    if (!confirm('Remove all NPCs and move party tokens back to the start?')) return;
+    createDefaultTokens();
+    clampTokensToMap();
+    revealFog();
+    commitBoard();
+  });
+
+  new ResizeObserver(() => {
+    resizeCanvas();
+    if (!sized && wrap.clientWidth && wrap.clientHeight) { sized = true; fitView(); }
+  }).observe(wrap);
+  window.matchMedia(`(resolution: ${dpr}dppx)`).addEventListener?.('change', resizeCanvas);
+}
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+async function init() {
+  bindUi();
+  const board = store.get('vtt.board', null);
+  state.chat = store.get('vtt.chat', []);
+  if (!Array.isArray(state.chat)) state.chat = [];
+  if (board && typeof board === 'object') {
+    state.tokens = Array.isArray(board.tokens) ? board.tokens.filter((t) => t && t.id) : [];
+    state.activeIndex = Number.isInteger(board.activeIndex) ? board.activeIndex : 0;
+    state.fogEnabled = board.fogEnabled !== false;
+    state.gridOpacity = Number.isFinite(board.gridOpacity) ? board.gridOpacity : 0.35;
+  }
+  selectTab(store.get('vtt.tab', 'chat'));
+  renderChat();
+  await loadCharacters();
+  if (!state.tokens.length) createDefaultTokens();
+  await setMap(board?.mapUrl || null);
+  await refreshMapGallery();
+  await loadTokenList();
+  if (!state.chat.length) {
+    addChat('system', 'Welcome to AI-VTT. Drag the highlighted token to move (gold outline = legal range), press End Turn to pass, and describe actions here for the AI Dungeon Master.');
+  }
+  commitBoard();
+}
+
+// Debug handle for inspection in the browser console.
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf };
+
+init().catch((err) => {
+  console.error(err);
+  toast(`Startup failed: ${err.message}`, 'error', 6000);
+});
+</script>
+</body>
+</html>

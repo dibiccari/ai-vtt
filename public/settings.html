@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Settings</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0 auto; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; padding:24px 16px 60px; max-width:760px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 20px; }
+  a { color:var(--accent); }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card h2 { margin:0 0 4px; font-size:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .card p { margin:0 0 12px; color:var(--muted); font-size:13px; }
+  .badge { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .badge.on { color:var(--ok); border-color:rgba(63,210,127,.5); background:rgba(63,210,127,.1); }
+  .badge.off { color:var(--danger); border-color:rgba(255,107,107,.5); background:rgba(255,107,107,.1); }
+  label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:12px; }
+  .inline { display:flex; gap:8px; }
+  input[type=password], input[type=text], select { flex:1; width:100%; background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:9px 10px; font:inherit; }
+  input:focus, select:focus { outline:none; border-color:var(--accent); }
+  button { font:inherit; color:inherit; cursor:pointer; padding:9px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; white-space:nowrap; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .msg { font-size:13px; min-height:20px; margin-top:8px; }
+  .msg.ok { color:var(--ok); } .msg.bad { color:var(--danger); }
+  .radio { display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; cursor:pointer; flex-direction:row; color:var(--text); font-weight:400; font-size:14px; }
+  .radio:has(input:checked) { border-color:var(--gold); background:rgba(240,192,72,.08); }
+  .radio input { margin-top:3px; accent-color:var(--gold); }
+  .radio small { display:block; color:var(--muted); font-size:12px; }
+  .help { font-size:12px; color:var(--muted); }
+  code { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 5px; font:12px Consolas,monospace; }
+</style>
+</head>
+<body>
+<h1>AI<span>·</span>VTT Settings</h1>
+<p class="lead">Keys are saved to the <code>.env</code> file on this computer and take effect immediately, with no restart. They are never shown again once saved. <a href="/">Back to the tabletop</a> · <a href="/voice-test.html">Voice test</a></p>
+
+<div class="card">
+  <h2>Claude (AI Dungeon Master) <span class="badge" id="anBadge">checking…</span></h2>
+  <p>Claude, from Anthropic, runs the Dungeon Master: all narration, rules and NPC dialogue. Get a Claude API key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+  <label>Claude API key (Anthropic) <span class="help" id="anHint"></span>
+    <div class="inline"><input type="password" id="anKey" placeholder="sk-ant-… (Claude key)" autocomplete="off" spellcheck="false"><button type="button" data-show="anKey">Show</button></div>
+  </label>
+  <label>Claude model
+    <input type="text" id="anModel" placeholder="claude-opus-5-5" spellcheck="false">
+  </label>
+  <div class="row">
+    <button class="primary" id="anSave">Save</button>
+    <button id="anTest">Test key</button>
+    <button class="danger" id="anClear">Remove key</button>
+  </div>
+  <div class="msg" id="anMsg"></div>
+</div>
+
+<div class="card">
+  <h2>ChatGPT voices (OpenAI) <span class="badge" id="oaBadge">checking…</span></h2>
+  <p>ChatGPT's text-to-speech (from OpenAI) gives the narrator and each NPC a natural voice. It only speaks the words Claude writes. Get an OpenAI API key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> (needs credit on the account).</p>
+  <label>ChatGPT / OpenAI API key <span class="help" id="oaHint"></span>
+    <div class="inline"><input type="password" id="oaKey" placeholder="sk-… (OpenAI key)" autocomplete="off" spellcheck="false"><button type="button" data-show="oaKey">Show</button></div>
+  </label>
+  <label>Voice model
+    <select id="oaModel">
+      <option value="gpt-4o-mini-tts">gpt-4o-mini-tts (recommended: takes acting directions)</option>
+      <option value="tts-1">tts-1 (cheaper, no acting directions)</option>
+      <option value="tts-1-hd">tts-1-hd (higher quality, no acting directions)</option>
+    </select>
+  </label>
+  <div class="row">
+    <button class="primary" id="oaSave">Save</button>
+    <button id="oaTest">Test key</button>
+    <button id="oaSample">🔊 Hear a sample</button>
+    <button class="danger" id="oaClear">Remove key</button>
+  </div>
+  <div class="msg" id="oaMsg"></div>
+</div>
+
+<div class="card">
+  <h2>Who speaks the DM's words?</h2>
+  <p>Saved in this browser. You can switch any time, and the tabletop has the same switch in the chat tab.</p>
+  <label class="radio"><input type="radio" name="engine" value="cloud"><span><b>ChatGPT voices (OpenAI)</b><small>Natural, distinct voices for the narrator and each NPC. Needs the OpenAI key above. Falls back to Microsoft voices if it fails.</small></span></label>
+  <label class="radio"><input type="radio" name="engine" value="browser"><span><b>Microsoft voices</b><small>Free and offline. Uses the voices installed on this computer.</small></span></label>
+  <div class="msg" id="engMsg"></div>
+</div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+
+function setMsg(el, text, ok) { el.textContent = text; el.className = `msg ${ok ? 'ok' : 'bad'}`; }
+
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+  return data;
+}
+
+function badge(el, set) {
+  el.textContent = set ? 'key saved' : 'no key';
+  el.className = `badge ${set ? 'on' : 'off'}`;
+}
+
+async function load() {
+  try {
+    const s = await api('/api/settings');
+    badge($('#anBadge'), s.anthropic.set);
+    $('#anHint').textContent = s.anthropic.set ? `(saved, ${s.anthropic.hint}; leave blank to keep it)` : '(not set)';
+    $('#anModel').value = s.anthropic.model;
+    badge($('#oaBadge'), s.openai.set);
+    $('#oaHint').textContent = s.openai.set ? `(saved, ${s.openai.hint}; leave blank to keep it)` : '(not set)';
+    $('#oaModel').value = s.openai.ttsModel;
+    if (![...$('#oaModel').options].some((o) => o.value === s.openai.ttsModel)) {
+      const o = document.createElement('option');
+      o.value = o.textContent = s.openai.ttsModel;
+      $('#oaModel').appendChild(o);
+      $('#oaModel').value = s.openai.ttsModel;
+    }
+  } catch (err) {
+    setMsg($('#anMsg'), `Could not load settings: ${err.message}`, false);
+  }
+}
+
+async function save(fields, msgEl, clearInputs) {
+  try {
+    await api('/api/settings', fields);
+    clearInputs.forEach((id) => { $(id).value = ''; });
+    setMsg(msgEl, 'Saved. Active now, no restart needed.', true);
+    await load();
+  } catch (err) {
+    setMsg(msgEl, err.message, false);
+  }
+}
+
+async function test(which, msgEl) {
+  setMsg(msgEl, 'Testing…', true);
+  try {
+    const r = await api('/api/settings/test', { which });
+    setMsg(msgEl, r.ok ? r.message : r.error, r.ok);
+  } catch (err) {
+    setMsg(msgEl, err.message, false);
+  }
+}
+
+$('#anSave').addEventListener('click', () => save({ ANTHROPIC_API_KEY: $('#anKey').value, ANTHROPIC_MODEL: $('#anModel').value }, $('#anMsg'), ['#anKey']));
+$('#anTest').addEventListener('click', () => test('anthropic', $('#anMsg')));
+$('#anClear').addEventListener('click', () => { if (confirm('Remove the Claude key? The AI DM will go offline.')) save({ clear: ['ANTHROPIC_API_KEY'] }, $('#anMsg'), ['#anKey']); });
+$('#oaSave').addEventListener('click', () => save({ OPENAI_API_KEY: $('#oaKey').value, TTS_MODEL: $('#oaModel').value }, $('#oaMsg'), ['#oaKey']));
+$('#oaTest').addEventListener('click', () => test('openai', $('#oaMsg')));
+$('#oaClear').addEventListener('click', () => { if (confirm('Remove the OpenAI key? ChatGPT voices will turn off.')) save({ clear: ['OPENAI_API_KEY'] }, $('#oaMsg'), ['#oaKey']); });
+
+$('#oaSample').addEventListener('click', async () => {
+  const msg = $('#oaMsg');
+  setMsg(msg, 'Generating a sample…', true);
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'The torchlight flickers, and somewhere in the dark, something stirs.', voice: 'narrator', speaker: 'Narrator' })
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url);
+    audio.onended = () => URL.revokeObjectURL(url);
+    await audio.play();
+    setMsg(msg, 'Playing the narrator sample. Your key and credit work.', true);
+  } catch (err) {
+    setMsg(msg, err.message, false);
+  }
+});
+
+document.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => {
+  const input = $(`#${b.dataset.show}`);
+  input.type = input.type === 'password' ? 'text' : 'password';
+  b.textContent = input.type === 'password' ? 'Show' : 'Hide';
+}));
+
+// Voice engine preference (browser-local).
+function readEngine() { try { return localStorage.getItem('vtt.voiceEngine') === '"browser"' ? 'browser' : 'cloud'; } catch { return 'cloud'; } }
+document.querySelectorAll('input[name="engine"]').forEach((r) => {
+  r.checked = r.value === readEngine();
+  r.addEventListener('change', () => {
+    try { localStorage.setItem('vtt.voiceEngine', JSON.stringify(r.value)); setMsg($('#engMsg'), `Using ${r.value === 'cloud' ? 'ChatGPT voices' : 'Microsoft voices'}.`, true); }
+    catch { setMsg($('#engMsg'), 'This browser blocked saving the choice.', false); }
+  });
+});
+
+load();
+</script>
+</body>
+</html>

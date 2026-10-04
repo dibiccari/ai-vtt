@@ -1,0 +1,21 @@
+{
+  "name": "ai-vtt",
+  "version": "0.2.0",
+  "description": "Self-hosted D&D 5e virtual tabletop with an AI Dungeon Master",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node scripts/check.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "multer": "^2.0.0"
+  }
+}

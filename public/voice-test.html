@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Voice Test</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0 auto; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; padding:20px; max-width:1040px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  h2.sec { margin:26px 0 10px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  p.lead { color:var(--muted); margin:0 0 18px; }
+  a { color:var(--accent); }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; }
+  button { font:inherit; color:inherit; cursor:pointer; padding:8px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.gold { background:var(--gold); border-color:var(--gold); color:#1d1500; }
+  button.rec { background:var(--danger); border-color:var(--danger); color:#1a0505; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:12px; }
+  .card { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .card.playing { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+  .card h3 { margin:0; font-size:15px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .card h3 small { color:var(--muted); font-weight:500; font-size:12px; text-align:right; }
+  .line { font-family:Georgia,serif; font-size:14px; color:#dfe4ec; min-height:42px; }
+  .cloudline { font:600 12px "Segoe UI",sans-serif; color:var(--ok); background:rgba(63,210,127,.1); border:1px solid rgba(63,210,127,.3); border-radius:6px; padding:5px 8px; }
+  label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
+  label span b { color:var(--text); font-weight:700; }
+  select, input[type=range] { width:100%; }
+  select { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:6px; }
+  input[type=range] { accent-color:var(--accent); }
+  .scene { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .scene .l { margin:4px 0; padding:2px 6px; border-radius:4px; } .scene .l.on { background:rgba(240,192,72,.16); }
+  .scene .who { color:var(--gold); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px; display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:18px; }
+  .panel h3 { margin:0 0 8px; font-size:15px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0; }
+  .meter { height:14px; border-radius:999px; background:var(--bg); border:1px solid var(--border); overflow:hidden; position:relative; }
+  .meter > div { height:100%; width:0; background:linear-gradient(90deg,var(--ok),var(--gold) 70%,var(--danger)); transition:width .05s linear; }
+  .readout { font:12px Consolas,monospace; color:var(--muted); min-height:18px; }
+  .ok { color:var(--ok); } .bad { color:var(--danger); }
+  .tr { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px; min-height:40px; font-family:Georgia,serif; }
+  audio { width:100%; margin-top:6px; }
+  input[type=text] { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:9px 10px; font:inherit; }
+  input[type=text]:focus { outline:none; border-color:var(--accent); }
+  .dmlog { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .dmsys { color:var(--muted); font-size:12px; border:1px dashed var(--border); border-radius:6px; padding:6px 8px; }
+  .dmmsg { border-radius:8px; padding:8px 10px; border:1px solid var(--border); }
+  .dmmsg.you { background:rgba(79,157,255,.14); border-color:rgba(79,157,255,.4); margin-left:30px; }
+  .dmmsg.dm { background:#1a1810; border-color:rgba(240,192,72,.35); font-family:Georgia,serif; font-size:15px; line-height:1.55; }
+  .dmmsg .tag { font:700 11px "Segoe UI",sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); margin-bottom:3px; }
+  .dmmsg.you .tag { color:var(--accent); }
+  .dmmsg .sp { color:var(--gold); font:700 12px "Segoe UI",sans-serif; text-transform:uppercase; }
+  .dmmsg .vl { display:block; margin-bottom:4px; border-radius:4px; }
+  .dmmsg .vl.on { background:rgba(240,192,72,.18); }
+  .dmtyping { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<h1>AI<span>·</span>VTT Voice Test</h1>
+<p class="lead">Check your microphone and speakers, and hear each voice profile and Phandelver character with the voices installed in <em>this</em> browser. <a href="/">Back to the tabletop</a> · <a href="/settings.html">⚙ Settings (API keys)</a></p>
+
+<div class="bar" id="cloudRow" hidden style="margin-bottom:16px;">
+  <label style="flex-direction:row; align-items:center; gap:8px; color:var(--text); font-size:14px;"><input type="checkbox" id="cloudToggle"> Use ChatGPT voices (uncheck for Microsoft voices)</label>
+  <span id="cloudNote" style="color:var(--muted); font-size:12px;"></span>
+</div>
+
+<h2 class="sec">Microphone &amp; speaker check</h2>
+<div class="panel">
+  <div>
+    <h3>🔈 Speakers</h3>
+    <div class="row">
+      <button id="beepL">◀ Left</button><button id="beepR">Right ▶</button><button id="beepB">Both</button>
+    </div>
+    <label>Volume <span><b id="volOut">70%</b></span><input type="range" id="vol" min="0" max="1" step="0.05" value="0.7"></label>
+    <label style="margin-top:8px;">Output device<select id="outDev"><option value="">Default (system)</option></select></label>
+    <div class="readout" id="spkStatus">Play a beep: you should hear it only on the side you chose.</div>
+  </div>
+  <div>
+    <h3>🎙 Microphone</h3>
+    <label>Input device<select id="inDev"><option value="">Default (system)</option></select></label>
+    <div class="row">
+      <button class="primary" id="micStart">Start microphone</button>
+      <button id="micStop" disabled>Stop</button>
+    </div>
+    <div class="meter" aria-hidden="true"><div id="micBar"></div></div>
+    <div class="readout" id="micStatus">Not started. Your browser will ask permission.</div>
+    <div class="row">
+      <button id="recBtn" disabled>● Record 4 s and play back</button>
+    </div>
+    <audio id="playback" controls hidden></audio>
+    <div class="readout">Tip: use headphones for the playback test, or the speakers will feed back into the mic.</div>
+  </div>
+  <div>
+    <h3>📝 Speech-to-text</h3>
+    <div class="row"><button id="sttBtn">Start dictation test</button></div>
+    <div class="tr" id="sttOut">Say something like “Bram, not Brown”.</div>
+    <div class="readout" id="sttStatus"></div>
+  </div>
+</div>
+
+<h2 class="sec">Talk to the AI DM</h2>
+<div class="panel" style="grid-template-columns:1fr;">
+  <div>
+    <div class="dmlog" id="dmLog" aria-live="polite"><div class="dmsys">Type or speak to the Dungeon Master. Replies are read aloud with the voices below, and the mic is muted while the DM talks. Each turn calls the real AI DM with the Lost Mine of Phandelver loaded.</div></div>
+    <div class="row">
+      <input type="text" id="dmInput" placeholder="e.g. I walk into the Stonehill Inn and ask the innkeeper about Gundren." style="flex:1; min-width:220px;">
+      <button class="primary" id="dmSend">Send</button>
+      <button id="dmMic">🎙 Speak</button>
+      <button id="dmStop">⏹ Silence DM</button>
+      <button id="dmClear">Clear</button>
+    </div>
+    <div class="readout" id="dmStatus">Ready.</div>
+  </div>
+</div>
+
+<h2 class="sec">Voice profiles (used by the AI DM)</h2>
+<div class="bar" style="margin-bottom:12px;">
+  <button class="primary" id="playAll">▶ Play all profiles</button>
+  <button class="gold" id="playScene">🎭 Play sample scene</button>
+  <button id="stop">⏹ Stop</button>
+  <button id="reset">Reset sliders</button>
+  <span id="voiceCount" style="color:var(--muted)"></span>
+</div>
+<div class="grid" id="cards"></div>
+
+<h2 class="sec">Lost Mine of Phandelver cast</h2>
+<div class="bar" style="margin-bottom:12px;">
+  <button class="primary" id="playNpcs">▶ Play all NPCs</button>
+  <button id="stop2">⏹ Stop</button>
+  <span style="color:var(--muted)">Lines are written for this test, not quoted from the book.</span>
+</div>
+<div class="grid" id="npcCards"></div>
+
+<h2 class="sec">Sample scene: the tavern</h2>
+<div class="scene" id="sceneLines"></div>
+
+<script>
+'use strict';
+const synth = window.speechSynthesis;
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+/* ---------------------------------------------------------------- voices */
+
+// Keep these in sync with VOICE_PROFILES in index.html.
+const PROFILES = {
+  narrator:  { label: 'Narrator',  pitch: 1.0,  rate: 1.0,  gender: null,     line: 'The torchlight flickers as the heavy oak door creaks open, spilling warm light into the cold night.' },
+  gruff:     { label: 'Gruff',     pitch: 0.8,  rate: 0.95, gender: 'male',   line: 'You want passage through the mountain? Then pay the toll, or turn around.' },
+  sly:       { label: 'Sly',       pitch: 1.1,  rate: 1.08, gender: 'male',   line: 'Oh, I know exactly where it is. The question is: what is it worth to you?' },
+  noble:     { label: 'Noble',     pitch: 1.0,  rate: 0.95, gender: 'male',   line: 'You stand in the presence of the Lord Warden. Speak plainly, and speak truthfully.' },
+  elderly:   { label: 'Elderly',   pitch: 0.9,  rate: 0.88, gender: 'male',   line: 'Bram, my name is Bram. Not Brown. Ah, it is good that someone listens.' },
+  child:     { label: 'Child',     pitch: 1.4,  rate: 1.1,  gender: 'female', line: 'There is a monster under the bridge, I swear it! It ate my brother\'s shoe!' },
+  monstrous: { label: 'Monstrous', pitch: 0.55, rate: 0.82, gender: 'male',   line: 'You... dare... enter... my... lair. Now you will join the bones.' },
+  ethereal:  { label: 'Ethereal',  pitch: 1.2,  rate: 0.88, gender: 'female', line: 'Time is a river, little one, and you have wandered far from its banks.' },
+  feminine:  { label: 'Feminine',  pitch: 1.05, rate: 1.0,  gender: 'female', line: 'The innkeeper wipes the bar and smiles. "Stay as long as you like. The stew is hot."' },
+  masculine: { label: 'Masculine', pitch: 0.9,  rate: 1.0,  gender: 'male',   line: 'Hold the line! Shields up, and do not let them past the gate!' }
+};
+
+// Phandelver NPCs: each picks the profile (pitch/speed) that suits them. Lines are original.
+const NPCS = {
+  sildar:   { label: 'Sildar Hallwinter', sub: 'Human knight, Lords\' Alliance', base: 'noble',     line: 'Gundren and I were bound for Phandalin when the goblins struck. Find him, and the Alliance will see you rewarded.' },
+  gundren:  { label: 'Gundren Rockseeker', sub: 'Dwarf prospector',              base: 'gruff',     line: 'A lost mine, friend. The old forge of the Phandelver pact. I found the way in, and I mean to share the riches.' },
+  toblen:   { label: 'Toblen Stonehill',   sub: 'Innkeeper',                     base: 'masculine', line: 'Welcome to the Stonehill Inn! Sit by the fire. The stew is hot, the ale is cold, and the beds are clean.' },
+  elmar:    { label: 'Elmar Barthen',      sub: 'Shopkeeper',                    base: 'elderly',   line: 'Barthen\'s Provisions has everything an adventurer needs, and my prices are fair. Mind the lantern oil, though. It goes quickly.' },
+  garaele:  { label: 'Sister Garaele',     sub: 'Elf priestess, Harper',         base: 'ethereal',  line: 'The Lady of Silver keep you. Phandalin has troubles, and a quiet word reaches the Harpers sooner than a loud one.' },
+  halia:    { label: 'Halia Thornton',     sub: 'Miner\'s Exchange',             base: 'feminine',  line: 'The Miner\'s Exchange does business with people who can be useful. Tell me, are you useful?' },
+  glasstaff:{ label: 'Iarno "Glasstaff"',  sub: 'Redbrand leader',               base: 'sly',       line: 'Do not misunderstand. This town belongs to whoever is strong enough to hold it. Today, that is us.' },
+  klarg:    { label: 'Klarg',              sub: 'Bugbear boss',                  base: 'monstrous', line: 'Klarg is boss! You steal Klarg\'s wolf, you steal Klarg\'s food! Now Klarg breaks you!' },
+  yeemik:   { label: 'Yeemik',             sub: 'Goblin leader',                 base: 'child',     line: 'Yeemik not like Klarg either. You kill big boss, Yeemik makes deal. Good deal. Very good deal.' },
+  nezznar:  { label: 'Nezznar',            sub: 'The Black Spider, drow',        base: 'ethereal',  line: 'So the surface dwellers have found my cavern. How predictable. How very, very brief your visit will be.' },
+  agatha:   { label: 'Agatha',             sub: 'Banshee',                       base: 'ethereal',  line: 'Three answers, mortal. Pay with truth, or pay with fear. Come closer. I cannot hear you.', pitchOffset: 0.15, rateOffset: -0.08 },
+  reidoth:  { label: 'Reidoth',            sub: 'Human druid',                   base: 'elderly',   line: 'The forest remembers what the town forgets. Walk softly here, and it will let you leave.' }
+};
+
+const SCENE = [
+  ['Narrator', 'narrator', 'The tavern falls quiet as a hooded stranger slides onto the stool beside you.'],
+  ['Bram', 'elderly', 'You have the look of folk who are lost. Sit, sit. I am Bram.'],
+  ['Lyra', 'feminine', 'Bram. Not Brown.'],
+  ['Bram', 'elderly', 'Ha! Someone was listening, at last.'],
+  ['Skeever', 'sly', 'Careful with that one. He sells maps to places that do not exist.'],
+  ['Captain Holt', 'gruff', 'Enough talk. The goblins hit the east gate at dawn.'],
+  ['Narrator', 'narrator', 'Far below, something enormous stirs in the dark.'],
+  ['The Thing Below', 'monstrous', 'Who... wakes... me?']
+];
+
+// Unified entries: key -> { label, sub, pitch, rate, gender, line }
+const ENTRIES = {};
+for (const [k, p] of Object.entries(PROFILES)) ENTRIES[k] = { ...p, sub: p.gender ?? 'any' };
+for (const [k, n] of Object.entries(NPCS)) {
+  const base = PROFILES[n.base];
+  ENTRIES[`npc:${k}`] = { label: n.label, sub: n.sub, gender: base.gender, line: n.line,
+    pitch: Math.max(0.1, base.pitch + (n.pitchOffset || 0)), rate: Math.max(0.5, base.rate + (n.rateOffset || 0)) };
+}
+
+const state = {};            // key -> { voiceName, pitch, rate }
+let gen = 0;
+const sceneAssigned = new Map();
+
+const quality = (v) => (/natural|neural|online/i.test(v.name) ? 100 : 0) + (/premium|enhanced|studio|wavenet/i.test(v.name) ? 60 : 0)
+  + (/google/i.test(v.name) ? 40 : 0) + (v.localService ? 0 : 20) - (/desktop|espeak|compact/i.test(v.name) ? 50 : 0);
+const maleRe = /(david|mark|james|george|daniel|alex|male|guy|ryan|thomas|fred|aaron|brian|davis|jason|tony|christopher|eric|roger|andrew|steffan|liam|oliver|arthur)/i;
+const femaleRe = /(zira|susan|hazel|samantha|female|aria|jenny|karen|fiona|victoria|moira|tessa|libby|sonia|michelle|ana|emma|ava|jane|nancy|sara|amber|ashley)/i;
+
+function englishVoices() {
+  const all = synth.getVoices();
+  const en = all.filter((v) => /^en/i.test(v.lang));
+  return en.length ? en : all;
+}
+
+function autoVoice(gender, used) {
+  const pool = englishVoices();
+  if (!pool.length) return null;
+  let c = pool;
+  if (gender === 'male') c = pool.filter((v) => maleRe.test(v.name) && !femaleRe.test(v.name));
+  else if (gender === 'female') c = pool.filter((v) => femaleRe.test(v.name));
+  if (!c.length) c = pool;
+  c = [...c].sort((a, b) => quality(b) - quality(a));
+  return c.find((v) => !used.has(v)) || c[0];
+}
+
+function resetState() {
+  const used = new Set();
+  for (const [key, e] of Object.entries(ENTRIES)) {
+    const v = autoVoice(e.gender, used);
+    if (v) used.add(v);
+    state[key] = { voiceName: v ? v.name : '', pitch: e.pitch, rate: e.rate };
+  }
+}
+
+function cardHtml(key, e, voices) {
+  const s = state[key];
+  const safeKey = esc(key);
+  return `
+    <div class="card" data-key="${safeKey}">
+      <h3>${esc(e.label)} <small>${esc(e.sub)}</small></h3>
+      <div class="line">“${esc(e.line)}”</div>
+      <div class="cloudline" data-cl hidden></div>
+      <label class="browser-ctl">Microsoft voice
+        <select data-f="voiceName">${voices.map((v) => `<option value="${esc(v.name)}"${v.name === s.voiceName ? ' selected' : ''}>${esc(v.name)}</option>`).join('')}</select>
+      </label>
+      <label class="browser-ctl"><span>Pitch <b data-o="pitch">${s.pitch.toFixed(2)}</b></span><input type="range" data-f="pitch" min="0.1" max="2" step="0.05" value="${s.pitch}"></label>
+      <label class="browser-ctl"><span>Speed <b data-o="rate">${s.rate.toFixed(2)}</b></span><input type="range" data-f="rate" min="0.5" max="1.6" step="0.02" value="${s.rate}"></label>
+      <button data-play="${safeKey}">▶ Hear ${esc(e.label)}</button>
+    </div>`;
+}
+
+function render() {
+  const voices = englishVoices();
+  $('#voiceCount').textContent = `${voices.length} English voice(s) installed`;
+  $('#cards').innerHTML = Object.keys(PROFILES).map((k) => cardHtml(k, ENTRIES[k], voices)).join('');
+  $('#npcCards').innerHTML = Object.keys(NPCS).map((k) => cardHtml(`npc:${k}`, ENTRIES[`npc:${k}`], voices)).join('');
+  $('#sceneLines').innerHTML = SCENE.map(([who, , text], i) =>
+    `<div class="l" data-i="${i}"><span class="who">${esc(who)}</span> ${esc(text)}</div>`).join('');
+}
+
+function utter(text, key, voice, onstart, onend) {
+  const s = state[key];
+  const u = new SpeechSynthesisUtterance(text);
+  const v = voice || englishVoices().find((x) => x.name === s.voiceName);
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.pitch = s.pitch;
+  u.rate = s.rate;
+  u.volume = Number($('#vol').value);
+  u.onstart = onstart || null;
+  u.onend = onend || null;
+  u.onerror = onend || null;
+  synth.speak(u);
+}
+
+/* ---------- cloud voices (server /api/tts, OpenAI) ---------- */
+const cloud = { enabled: false, audio: new Audio(), resolve: null };
+
+// Shared with the tabletop and Settings page: 'cloud' or 'browser' (Microsoft voices).
+function readEngine() { try { return localStorage.getItem('vtt.voiceEngine') === '"browser"' ? 'browser' : 'cloud'; } catch { return 'cloud'; } }
+function saveEngine(v) { try { localStorage.setItem('vtt.voiceEngine', JSON.stringify(v)); } catch { /* storage blocked */ } }
+
+async function checkCloud() {
+  try { cloud.enabled = Boolean((await (await fetch('/api/tts/status')).json()).enabled); } catch { cloud.enabled = false; }
+  $('#cloudRow').hidden = false;
+  $('#cloudToggle').disabled = !cloud.enabled;
+  $('#cloudToggle').checked = cloud.enabled && readEngine() === 'cloud';
+  $('#cloudNote').textContent = cloud.enabled
+    ? 'ChatGPT voices (OpenAI) are on. The Microsoft voice, pitch and speed controls below are dimmed while this is on.'
+    : 'ChatGPT voices are off: add your OpenAI key on the Settings page to enable them.';
+  updateCloudLabels();
+}
+const cloudOn = () => cloud.enabled && $('#cloudToggle').checked;
+
+// Show which cloud voice each card uses, and dim the browser-only controls while cloud voices are on.
+async function updateCloudLabels() {
+  const on = cloudOn();
+  document.querySelectorAll('.browser-ctl').forEach((el) => { el.style.opacity = on ? '0.35' : ''; el.style.pointerEvents = on ? 'none' : ''; });
+  const cards = [...document.querySelectorAll('.card[data-key]')];
+  if (!on) { cards.forEach((c) => { c.querySelector('[data-cl]').hidden = true; }); return; }
+  try {
+    const items = cards.map((c) => ({ voice: tagOf(c.dataset.key), speaker: speakerOf(c.dataset.key) }));
+    const res = await fetch('/api/tts/voices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+    const data = await res.json();
+    cards.forEach((c, i) => {
+      const el = c.querySelector('[data-cl]');
+      const v = data.voices[i];
+      el.hidden = false;
+      el.textContent = `☁ ChatGPT voice: ${v.voice}${v.named ? ' (own voice)' : ' (shared by style)'}`;
+    });
+  } catch (err) {
+    console.warn('Could not label cloud voices:', err.message);
+  }
+}
+$('#cloudToggle').addEventListener('change', () => { saveEngine($('#cloudToggle').checked ? 'cloud' : 'browser'); updateCloudLabels(); });
+
+function cloudStop() {
+  cloud.audio.pause();
+  if (cloud.resolve) { const r = cloud.resolve; cloud.resolve = null; r(false); }
+}
+
+async function fetchClip(item) {
+  const res = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: item.text, voice: item.voice, speaker: item.speaker })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `text-to-speech ${res.status}`);
+  }
+  return URL.createObjectURL(await res.blob());
+}
+
+function playClip(url, onstart) {
+  return new Promise((resolve) => {
+    cloud.resolve = resolve;
+    const a = cloud.audio;
+    a.volume = Number($('#vol').value);
+    a.onplaying = () => { if (onstart) onstart(); };
+    a.onended = () => { cloud.resolve = null; resolve(true); };
+    a.onerror = () => { cloud.resolve = null; resolve(false); };
+    a.src = url;
+    a.play().catch(() => { cloud.resolve = null; resolve(false); });
+  }).finally(() => URL.revokeObjectURL(url));
+}
+
+// items: [{ text, voice (profile tag), speaker }]. Requests all clips up front, plays them in order.
+async function cloudSequence(items, valid, onStart, onEnd) {
+  const clips = items.map((it) => fetchClip(it));
+  clips.forEach((p) => p.catch(() => {}));
+  for (let i = 0; i < items.length; i++) {
+    if (!valid()) return;
+    let url;
+    try { url = await clips[i]; } catch (err) { err.playedCount = i; throw err; }
+    if (!valid()) return;
+    await playClip(url, () => { if (valid()) onStart(i); });
+    onEnd(i);
+  }
+}
+
+function cloudFailed(err) {
+  $('#cloudToggle').checked = false;
+  updateCloudLabels();
+  $('#cloudNote').textContent = `ChatGPT voice failed: ${err.message}. Switched to Microsoft voices; tick the box to retry.`;
+}
+
+function stopAll() {
+  gen++;
+  synth.cancel();
+  cloudStop();
+  document.querySelectorAll('.playing,.on').forEach((n) => n.classList.remove('playing', 'on'));
+}
+
+function cardFor(key) { return document.querySelector(`.card[data-key="${CSS.escape(key)}"]`); }
+
+const tagOf = (key) => (key.startsWith('npc:') ? NPCS[key.slice(4)].base : key);
+const speakerOf = (key) => (key === 'narrator' ? 'Narrator' : ENTRIES[key].label);
+
+function playKeysBrowser(keys, g) {
+  keys.forEach((key) => {
+    const card = cardFor(key);
+    utter(ENTRIES[key].line, key, null,
+      () => { if (g === gen) { card.classList.add('playing'); card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } },
+      () => card.classList.remove('playing'));
+  });
+}
+
+function playKeys(keys) {
+  stopAll();
+  const g = gen;
+  if (!cloudOn()) { playKeysBrowser(keys, g); return; }
+  const items = keys.map((k) => ({ text: ENTRIES[k].line, voice: tagOf(k), speaker: speakerOf(k) }));
+  cloudSequence(items, () => g === gen,
+    (i) => { const c = cardFor(keys[i]); c.classList.add('playing'); c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
+    (i) => cardFor(keys[i]).classList.remove('playing'))
+    .catch((err) => { cloudFailed(err); if (g === gen) playKeysBrowser(keys.slice(err.playedCount || 0), g); });
+}
+
+function playScene() {
+  stopAll();
+  const g = gen;
+  if (cloudOn()) {
+    const items = SCENE.map(([who, profile, text]) => ({ text, voice: profile, speaker: who }));
+    const rows = SCENE.map((_, i) => document.querySelector(`.l[data-i="${i}"]`));
+    cloudSequence(items, () => g === gen, (i) => rows[i].classList.add('on'), (i) => rows[i].classList.remove('on'))
+      .catch((err) => { cloudFailed(err); });
+    return;
+  }
+  sceneAssigned.clear();
+  const used = new Set();
+  SCENE.forEach(([who, profile, text], i) => {
+    if (!sceneAssigned.has(who)) {
+      const v = autoVoice(PROFILES[profile].gender, used);
+      if (v) used.add(v);
+      sceneAssigned.set(who, v);
+    }
+    const row = document.querySelector(`.l[data-i="${i}"]`);
+    utter(text, profile, sceneAssigned.get(who),
+      () => { if (g === gen) row.classList.add('on'); },
+      () => row.classList.remove('on'));
+  });
+}
+
+document.addEventListener('input', (e) => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  const card = e.target.closest('.card');
+  const key = card.dataset.key;
+  state[key][f] = f === 'voiceName' ? e.target.value : Number(e.target.value);
+  const out = card.querySelector(`[data-o="${f}"]`);
+  if (out) out.textContent = state[key][f].toFixed(2);
+});
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-play]');
+  if (b) playKeys([b.dataset.play]);
+});
+$('#playAll').addEventListener('click', () => playKeys(Object.keys(PROFILES)));
+$('#playNpcs').addEventListener('click', () => playKeys(Object.keys(NPCS).map((k) => `npc:${k}`)));
+$('#playScene').addEventListener('click', playScene);
+$('#stop').addEventListener('click', stopAll);
+$('#stop2').addEventListener('click', stopAll);
+$('#reset').addEventListener('click', () => { stopAll(); resetState(); render(); });
+
+if (!synth) {
+  $('#voiceCount').textContent = 'This browser has no speech synthesis support.';
+} else {
+  const boot = () => { resetState(); render(); };
+  boot();
+  if ('onvoiceschanged' in synth) synth.onvoiceschanged = boot;
+}
+
+/* ---------------------------------------------------------------- speakers */
+
+let outCtx = null;
+function getOutCtx() {
+  if (!outCtx) outCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (outCtx.state === 'suspended') outCtx.resume();
+  return outCtx;
+}
+
+function beep(pan, label) {
+  const ctx = getOutCtx();
+  const gain = ctx.createGain();
+  gain.gain.value = Number($('#vol').value) * 0.5;
+  const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (panner) panner.pan.value = pan;
+  const notes = [523.25, 659.25, 783.99];
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const t0 = ctx.currentTime + i * 0.22;
+    env.gain.setValueAtTime(0, t0);
+    env.gain.linearRampToValueAtTime(1, t0 + 0.02);
+    env.gain.exponentialRampToValueAtTime(0.001, t0 + 0.2);
+    osc.connect(env).connect(gain);
+    osc.start(t0);
+    osc.stop(t0 + 0.22);
+  });
+  gain.connect(panner || ctx.destination);
+  if (panner) panner.connect(ctx.destination);
+  $('#spkStatus').textContent = `Played a three-note chime (${label}). Heard it on the right side?`;
+}
+$('#beepL').addEventListener('click', () => beep(-1, 'left only'));
+$('#beepR').addEventListener('click', () => beep(1, 'right only'));
+$('#beepB').addEventListener('click', () => beep(0, 'both speakers'));
+$('#vol').addEventListener('input', (e) => { $('#volOut').textContent = `${Math.round(e.target.value * 100)}%`; });
+
+/* ---------------------------------------------------------------- devices */
+
+async function listDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  const fill = (sel, kind, fallback) => {
+    const keep = sel.value;
+    sel.innerHTML = `<option value="">${fallback}</option>` + devs.filter((d) => d.kind === kind)
+      .map((d, i) => `<option value="${esc(d.deviceId)}">${esc(d.label || `${kind} ${i + 1}`)}</option>`).join('');
+    sel.value = [...sel.options].some((o) => o.value === keep) ? keep : '';
+  };
+  fill($('#inDev'), 'audioinput', 'Default (system)');
+  fill($('#outDev'), 'audiooutput', 'Default (system)');
+}
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', listDevices);
+listDevices().catch(() => {});
+checkCloud();
+
+$('#outDev').addEventListener('change', async (e) => {
+  const id = e.target.value;
+  const status = $('#spkStatus');
+  try {
+    if (getOutCtx().setSinkId) await getOutCtx().setSinkId(id);
+    if ($('#playback').setSinkId) await $('#playback').setSinkId(id);
+    status.textContent = 'Output device changed for beeps and recording playback. Speech voices always follow the system default in browsers.';
+  } catch (err) {
+    status.textContent = `Could not switch output device: ${err.message}`;
+  }
+});
+
+/* ---------------------------------------------------------------- microphone */
+
+const mic = { stream: null, ctx: null, analyser: null, data: null, raf: 0, recorder: null, peakDb: -Infinity };
+
+function micMessage(err) {
+  if (err.name === 'NotAllowedError' || err.name === 'SecurityError') return 'Permission denied. Click the lock icon in the address bar and allow the microphone, then try again.';
+  if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') return 'No microphone found for that device.';
+  if (err.name === 'NotReadableError') return 'The microphone is in use by another app.';
+  return `Microphone error: ${err.message}`;
+}
+
+async function startMic() {
+  const status = $('#micStatus');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.innerHTML = '<span class="bad">No microphone API. Use https or localhost.</span>';
+    return;
+  }
+  stopMic();
+  try {
+    const id = $('#inDev').value;
+    mic.stream = await navigator.mediaDevices.getUserMedia({ audio: id ? { deviceId: { exact: id } } : true });
+  } catch (err) {
+    status.innerHTML = `<span class="bad">${esc(micMessage(err))}</span>`;
+    return;
+  }
+  await listDevices(); // labels become available once permission is granted
+  mic.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const source = mic.ctx.createMediaStreamSource(mic.stream);
+  mic.analyser = mic.ctx.createAnalyser();
+  mic.analyser.fftSize = 1024;
+  mic.data = new Float32Array(mic.analyser.fftSize);
+  source.connect(mic.analyser);
+  mic.peakDb = -Infinity;
+  const track = mic.stream.getAudioTracks()[0];
+  $('#micStart').disabled = true;
+  $('#micStop').disabled = false;
+  $('#recBtn').disabled = typeof MediaRecorder === 'undefined';
+  const loop = () => {
+    mic.analyser.getFloatTimeDomainData(mic.data);
+    let sum = 0;
+    for (let i = 0; i < mic.data.length; i++) sum += mic.data[i] * mic.data[i];
+    const rms = Math.sqrt(sum / mic.data.length);
+    const db = rms > 0 ? 20 * Math.log10(rms) : -Infinity;
+    if (db > mic.peakDb) mic.peakDb = db;
+    $('#micBar').style.width = `${Math.max(0, Math.min(100, ((db + 60) / 60) * 100))}%`;
+    status.innerHTML = `<span class="ok">Live:</span> ${esc(track.label || 'microphone')} · level ${Number.isFinite(db) ? db.toFixed(0) : '-∞'} dB · peak ${Number.isFinite(mic.peakDb) ? mic.peakDb.toFixed(0) : '-∞'} dB`
+      + (mic.peakDb < -50 ? ' <span class="bad">(very quiet: speak up or check the device)</span>' : '');
+    mic.raf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+function stopMic() {
+  cancelAnimationFrame(mic.raf);
+  if (mic.recorder && mic.recorder.state !== 'inactive') mic.recorder.stop();
+  if (mic.stream) mic.stream.getTracks().forEach((t) => t.stop());
+  if (mic.ctx) mic.ctx.close().catch(() => {});
+  mic.stream = mic.ctx = mic.analyser = null;
+  $('#micBar').style.width = '0%';
+  $('#micStart').disabled = false;
+  $('#micStop').disabled = true;
+  $('#recBtn').disabled = true;
+  $('#recBtn').classList.remove('rec');
+  $('#recBtn').textContent = '● Record 4 s and play back';
+  if (!$('#micStatus').textContent.startsWith('Permission')) $('#micStatus').textContent = 'Stopped.';
+}
+
+function recordClip() {
+  if (!mic.stream || typeof MediaRecorder === 'undefined') return;
+  const chunks = [];
+  const rec = new MediaRecorder(mic.stream);
+  mic.recorder = rec;
+  const btn = $('#recBtn');
+  btn.disabled = true;
+  btn.classList.add('rec');
+  let left = 4;
+  btn.textContent = `● Recording… ${left}`;
+  const tick = setInterval(() => { left -= 1; if (left > 0) btn.textContent = `● Recording… ${left}`; }, 1000);
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    clearInterval(tick);
+    const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+    const audio = $('#playback');
+    if (audio.src) URL.revokeObjectURL(audio.src);
+    audio.src = URL.createObjectURL(blob);
+    audio.hidden = false;
+    audio.volume = Number($('#vol').value);
+    audio.play().catch(() => {});
+    btn.classList.remove('rec');
+    btn.textContent = '● Record 4 s and play back';
+    btn.disabled = !mic.stream;
+  };
+  rec.start();
+  setTimeout(() => { if (rec.state !== 'inactive') rec.stop(); }, 4000);
+}
+
+$('#micStart').addEventListener('click', startMic);
+$('#micStop').addEventListener('click', stopMic);
+$('#recBtn').addEventListener('click', recordClip);
+$('#inDev').addEventListener('change', () => { if (mic.stream) startMic(); });
+
+/* ---------------------------------------------------------------- speech to text */
+
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let sttRec = null;
+$('#sttBtn').addEventListener('click', () => {
+  const out = $('#sttOut'), status = $('#sttStatus'), btn = $('#sttBtn');
+  if (!SpeechRec) { status.innerHTML = '<span class="bad">Speech-to-text is not supported in this browser. Use Chrome or Edge.</span>'; return; }
+  if (sttRec) { sttRec.stop(); return; }
+  sttRec = new SpeechRec();
+  sttRec.lang = navigator.language || 'en-US';
+  sttRec.interimResults = true;
+  sttRec.continuous = true;
+  let finalText = '';
+  sttRec.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += `${e.results[i][0].transcript} `;
+      else interim += e.results[i][0].transcript;
+    }
+    out.textContent = `${finalText}${interim}`.trim() || '…';
+  };
+  sttRec.onerror = (e) => { status.innerHTML = `<span class="bad">Error: ${esc(e.error)}</span>`; };
+  sttRec.onend = () => { sttRec = null; btn.textContent = 'Start dictation test'; status.textContent = status.textContent || 'Stopped.'; };
+  try {
+    sttRec.start();
+    btn.textContent = 'Stop dictation test';
+    out.textContent = 'Listening…';
+    status.textContent = 'Speak now.';
+  } catch (err) {
+    sttRec = null;
+    status.innerHTML = `<span class="bad">${esc(err.message)}</span>`;
+  }
+});
+
+/* ---------------------------------------------------------------- talk to the AI DM */
+
+const dm = { history: [], busy: false, speaking: false, gen: 0, voices: new Map(), rec: null, characters: null };
+const TAIL_GRACE_MS = 1200;
+
+function dmStatus(text, bad = false) {
+  const el = $('#dmStatus');
+  el.textContent = text;
+  el.classList.toggle('bad', bad);
+}
+
+function dmAdd(kind, tag, build) {
+  const log = $('#dmLog');
+  const el = document.createElement('div');
+  el.className = `dmmsg ${kind}`;
+  const t = document.createElement('div');
+  t.className = 'tag';
+  t.textContent = tag;
+  const body = document.createElement('div');
+  build(body);
+  el.append(t, body);
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+// Mute the mic stream and stop dictation while the DM talks (and briefly after).
+function dmMuteMic(muted) {
+  if (mic.stream) mic.stream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
+  if (muted && dm.rec) { try { dm.rec.abort(); } catch { /* not running */ } }
+  $('#dmMic').disabled = muted;
+}
+
+function dmSilence() {
+  dm.gen++;
+  synth.cancel();
+  cloudStop();
+  if (dm.speaking) { dm.speaking = false; dmMuteMic(false); }
+  document.querySelectorAll('.dmmsg .vl.on').forEach((n) => n.classList.remove('on'));
+}
+
+function dmSpeak(lines, msgEl) {
+  if (!synth || !lines.length) return;
+  dmSilence();
+  const gen = dm.gen;
+  dm.speaking = true;
+  dmMuteMic(true);
+  dmStatus('The DM is speaking. Mic muted.');
+  let remaining = lines.length;
+  const finish = () => {
+    if (gen !== dm.gen || --remaining !== 0) return;
+    setTimeout(() => {
+      if (gen !== dm.gen) return;
+      dm.speaking = false;
+      dmMuteMic(false);
+      dmStatus('Ready.');
+    }, TAIL_GRACE_MS);
+  };
+  const nodeAt = (i) => msgEl.querySelector(`.vl[data-i="${i}"]`);
+  if (cloudOn()) {
+    const items = lines.map((l) => ({ text: l.text, voice: PROFILES[l.voice] ? l.voice : 'narrator', speaker: l.speaker || 'Narrator' }));
+    cloudSequence(items, () => gen === dm.gen, (i) => nodeAt(i).classList.add('on'), (i) => nodeAt(i).classList.remove('on'))
+      .then(() => { remaining = 1; finish(); })
+      .catch((err) => {
+        cloudFailed(err);
+        if (gen === dm.gen) { dmSpeakBrowser(lines.slice(err.playedCount || 0), msgEl, gen, err.playedCount || 0, finish, (n) => { remaining = n; }); }
+      });
+    return;
+  }
+  dmSpeakBrowser(lines, msgEl, gen, 0, finish, (n) => { remaining = n; });
+}
+
+function dmSpeakBrowser(lines, msgEl, gen, offset, finish, setRemaining) {
+  setRemaining(lines.length);
+  if (!lines.length) { setRemaining(1); finish(); return; }
+  lines.forEach((line, k) => {
+    const i = offset + k;
+    const key = PROFILES[line.voice] ? line.voice : 'narrator';
+    const speaker = line.speaker || 'Narrator';
+    if (!dm.voices.has(speaker)) {
+      const used = new Set(dm.voices.values());
+      dm.voices.set(speaker, autoVoice(PROFILES[key].gender, used));
+    }
+    const node = msgEl.querySelector(`.vl[data-i="${i}"]`);
+    utter(line.text, key, dm.voices.get(speaker),
+      () => { if (gen === dm.gen && node) node.classList.add('on'); },
+      () => { if (node) node.classList.remove('on'); finish(); });
+  });
+}
+
+async function dmCharacters() {
+  if (dm.characters) return dm.characters;
+  try { dm.characters = await (await fetch('/api/characters')).json(); } catch { dm.characters = []; }
+  return dm.characters;
+}
+
+async function dmSend(text, spoken) {
+  text = String(text || '').trim();
+  if (!text || dm.busy) return;
+  dmSilence();
+  dm.busy = true;
+  $('#dmSend').disabled = true;
+  $('#dmInput').value = '';
+  dmAdd('you', 'You', (b) => { b.textContent = text; });
+  dmStatus('The DM is thinking…');
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: text,
+        history: dm.history.slice(-20),
+        activeTokenId: null,
+        tokens: [],
+        characters: await dmCharacters(),
+        walls: [],
+        gridSize: 50,
+        mapName: 'Voice test page (no map loaded)',
+        inputMode: spoken ? 'voice' : 'text'
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+    dm.history.push({ role: 'user', content: text }, { role: 'assistant', content: data.narrative || '' });
+    const lines = Array.isArray(data.voiceLines) && data.voiceLines.length
+      ? data.voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: data.narrative || '(silence)' }];
+    const el = dmAdd('dm', 'Dungeon Master', (b) => {
+      lines.forEach((l, i) => {
+        const span = document.createElement('span');
+        span.className = 'vl';
+        span.dataset.i = String(i);
+        if (l.speaker && l.speaker !== 'Narrator') {
+          const sp = document.createElement('span');
+          sp.className = 'sp';
+          sp.textContent = `${l.speaker}: `;
+          span.appendChild(sp);
+        }
+        span.appendChild(document.createTextNode(l.text));
+        b.appendChild(span);
+      });
+    });
+    dmStatus(data.offline ? 'DM is offline: no ANTHROPIC_API_KEY on the server.' : 'Ready.', !!data.offline);
+    dmSpeak(lines, el);
+  } catch (err) {
+    dmAdd('dm', 'System', (b) => { b.textContent = `Could not reach the DM: ${err.message}`; });
+    dmStatus(err.message, true);
+  } finally {
+    dm.busy = false;
+    $('#dmSend').disabled = false;
+  }
+}
+
+function dmToggleMic() {
+  if (!SpeechRec) { dmStatus('Speech-to-text is not supported in this browser. Use Chrome or Edge.', true); return; }
+  if (dm.rec) { dm.rec.stop(); return; }
+  if (dm.speaking || dm.busy) return;
+  const rec = new SpeechRec();
+  dm.rec = rec;
+  rec.lang = navigator.language || 'en-US';
+  rec.interimResults = true;
+  rec.continuous = false;
+  let finalText = '';
+  rec.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += `${e.results[i][0].transcript} `;
+      else interim += e.results[i][0].transcript;
+    }
+    $('#dmInput').value = `${finalText}${interim}`.trim();
+  };
+  rec.onerror = (e) => { if (e.error !== 'aborted' && e.error !== 'no-speech') dmStatus(`Speech recognition error: ${e.error}`, true); };
+  rec.onend = () => {
+    dm.rec = null;
+    $('#dmMic').textContent = '🎙 Speak';
+    $('#dmMic').classList.remove('rec');
+    const said = finalText.trim();
+    if (said) dmSend(said, true);
+    else if (!dm.speaking) dmStatus('Ready.');
+  };
+  try {
+    rec.start();
+    $('#dmMic').textContent = '⏹ Stop and send';
+    $('#dmMic').classList.add('rec');
+    dmStatus('Listening… speak now.');
+  } catch (err) {
+    dm.rec = null;
+    dmStatus(err.message, true);
+  }
+}
+
+$('#dmSend').addEventListener('click', () => dmSend($('#dmInput').value, false));
+$('#dmInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); dmSend($('#dmInput').value, false); } });
+$('#dmMic').addEventListener('click', dmToggleMic);
+$('#dmStop').addEventListener('click', dmSilence);
+$('#dmClear').addEventListener('click', () => {
+  dmSilence();
+  dm.history = [];
+  dm.voices.clear();
+  $('#dmLog').innerHTML = '<div class="dmsys">Conversation cleared.</div>';
+});
+// The shared Stop buttons should silence the DM too.
+$('#stop').addEventListener('click', dmSilence);
+$('#stop2').addEventListener('click', dmSilence);
+
+window.addEventListener('beforeunload', () => { if (synth) synth.cancel(); stopMic(); });
+</script>
+</body>
+</html>

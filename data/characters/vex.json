@@ -1,0 +1,19 @@
+{
+  "id": "vex",
+  "name": "Vex",
+  "class": "Rogue",
+  "level": 3,
+  "hp": 21,
+  "maxHp": 21,
+  "ac": 15,
+  "speed": 30,
+  "abilities": {
+    "str": 10,
+    "dex": 17,
+    "con": 12,
+    "int": 13,
+    "wis": 12,
+    "cha": 14
+  },
+  "color": "#57c47a"
+}
