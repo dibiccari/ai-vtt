@@ -5293,11 +5293,20 @@
   "starts": [
     {
       "name": "start",
-      "x": 595,
-      "y": 1505
+      "x": 96,
+      "y": 1524
+    },
+    {
+      "name": "south",
+      "x": 1649,
+      "y": 2687
+    },
+    {
+      "name": "north",
+      "x": 2268,
+      "y": 114
     }
   ],
-  "source": "dd2vtt",
   "lights": [
     {
       "x": 1227.83,
@@ -5337,7 +5346,7 @@
     {
       "x": 1222.58,
       "y": 1441.89,
-      "range": 2.812713,
+      "range": 2.81,
       "intensity": 0.7,
       "color": "ffffad58"
     },
@@ -5351,7 +5360,7 @@
     {
       "x": 1716.95,
       "y": 945.76,
-      "range": 3.119445,
+      "range": 3.12,
       "intensity": 0.7,
       "color": "ffffad58"
     },
@@ -5365,10 +5374,11 @@
     {
       "x": 2535.95,
       "y": 1018.39,
-      "range": 2.807732,
+      "range": 2.81,
       "intensity": 0.7,
       "color": "ffffad58"
     }
   ],
-  "ambient": "ff6f759b"
+  "ambient": "ff6f759b",
+  "source": "dd2vtt"
 }

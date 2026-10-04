@@ -64,6 +64,10 @@
       <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, back-door, secret-passage…">
     </label>
     <div id="startList" class="hint"></div>
+    <div class="row">
+      <select id="copyTarget" aria-label="Copy pins to this map"></select>
+      <button id="copyPinsBtn" title="Copy this map's pins onto another map (for example the night version of the same place). Pins with the same name are replaced; the other map's walls are untouched.">Copy pins</button>
+    </div>
     <p class="hint">Use the Pins tool: click empty ground to add a pin with the name above, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
   </div>
 
@@ -419,6 +423,61 @@
     ctx.restore();
   }
 
+  // The other maps that pins can be copied to; the day/night twin of this map is preselected.
+  function fillCopyTargets() {
+    const sel = $('#copyTarget');
+    sel.innerHTML = '';
+    const others = [...$('#mapSelect').options].filter((o) => o.value !== S.url);
+    for (const o of others) {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.textContent;
+      sel.appendChild(opt);
+    }
+    const twinUrl = /day|night/i.test(S.url || '') ? (S.url.includes('day') ? S.url.replace('day', 'night') : S.url.replace('night', 'day')) : '';
+    if (twinUrl && others.some((o) => o.value === twinUrl)) sel.value = twinUrl;
+    else sel.selectedIndex = others.length ? 0 : -1;
+    $('#copyPinsBtn').disabled = !others.length;
+  }
+
+  async function copyPins() {
+    const target = $('#copyTarget').value;
+    if (!target) return;
+    if (!S.starts.length) { setSavedNote('This map has no pins to copy.'); return; }
+    const name = target.split('/').pop();
+    try {
+      const img = new Image();
+      img.src = target;
+      await img.decode();
+      const cfg = (await fetchServerConfig(name)) || {};
+      const sx = img.naturalWidth / S.W, sy = img.naturalHeight / S.H;
+      const resized = Math.abs(sx - 1) > 0.001 || Math.abs(sy - 1) > 0.001;
+      const existing = Array.isArray(cfg.starts) ? cfg.starts : [];
+      const clash = existing.filter((e) => S.starts.some((x) => x.name === e.name)).map((e) => e.name);
+      const msg = 'Copy ' + S.starts.length + ' pin(s) to ' + name + '?' +
+        (clash.length ? '\nThese will be replaced there: ' + clash.join(', ') + '.' : '') +
+        (resized ? '\nThat map is a different size, so positions will be scaled to fit.' : '');
+      if (!confirm(msg)) return;
+      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy) }));
+      const merged = existing.filter((e) => !copied.some((c) => c.name === e.name)).concat(copied);
+      const body = {
+        squares: cfg.squares > 0 ? cfg.squares : Math.max(5, Math.round(img.naturalWidth / 50)),
+        walls: Array.isArray(cfg.walls) ? cfg.walls : [],
+        starts: merged,
+        source: cfg.source,
+        lights: cfg.lights,
+        ambient: cfg.ambient
+      };
+      const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'HTTP ' + res.status);
+      setSavedNote('Copied ' + copied.length + ' pin(s) to ' + name);
+    } catch (err) {
+      setSavedNote('Could not copy the pins: ' + err.message);
+    }
+  }
+
   // After a pin is placed the name box moves on to a fresh name, so the next click adds a new pin instead of moving the last one.
   function suggestPinName() {
     if (!S.starts.some((x) => x.name === 'start')) { $('#startName').value = 'start'; return; }
@@ -602,6 +661,7 @@
     $('#visionVal').textContent = S.visionFt;
     renderStartList();
     suggestPinName();
+    fillCopyTargets();
   }
 
   function setTool(tool) {
@@ -787,6 +847,7 @@
   /* ---------------- sidebar wiring ---------------- */
   document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
   $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
+  $('#copyPinsBtn').addEventListener('click', copyPins);
   $('#onlyUvtt').checked = S.onlyUvtt;
   $('#onlyUvtt').addEventListener('change', (e) => {
     S.onlyUvtt = e.target.checked;
