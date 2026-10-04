@@ -1,0 +1,50 @@
+{
+  "Sildar Hallwinter": {
+    "voice": "echo",
+    "style": "A noble, honorable human knight. Steady and sincere, a little weary from hard travel, speaking with quiet resolve."
+  },
+  "Gundren Rockseeker": {
+    "voice": "ash",
+    "style": "A gruff, excitable dwarf prospector with a rough burr. Proud and brusque, thrilled about treasure."
+  },
+  "Toblen Stonehill": {
+    "voice": "alloy",
+    "style": "A warm, friendly innkeeper. Cheerful and hospitable, but worried about the town underneath the welcome."
+  },
+  "Elmar Barthen": {
+    "voice": "ash",
+    "style": "An old, tidy shopkeeper in his seventies. Polite, patient and a little fussy, with a thin, creaky, aged voice that wavers slightly and slows down to think."
+  },
+  "Sister Garaele": {
+    "voice": "coral",
+    "style": "A calm elven priestess and secret Harper. Soft, graceful and measured, with a hint of mystery."
+  },
+  "Halia Thornton": {
+    "voice": "nova",
+    "style": "A brisk, ambitious businesswoman. Polished, calculating and cool, every sentence a negotiation."
+  },
+  "Iarno Glasstaff": {
+    "voice": "verse",
+    "style": "A smug, arrogant wizard who thinks he is the cleverest person in the room. Silky, contemptuous and controlled."
+  },
+  "Klarg": {
+    "voice": "onyx",
+    "style": "A brutish bugbear boss. Very deep and guttural, loud and bullying, speaking in broken short sentences."
+  },
+  "Yeemik": {
+    "voice": "alloy",
+    "style": "A scheming goblin leader. Raspy, high and fast, nervous, sneaky and eager to make a deal."
+  },
+  "Nezznar": {
+    "voice": "echo",
+    "style": "A cold, patient drow spellcaster known as the Black Spider. Quiet, silky and venomous, never raising his voice."
+  },
+  "Agatha": {
+    "voice": "ballad",
+    "style": "A haunting banshee. Whispering, mournful and echoing, with long eerie pauses and sudden sharpness."
+  },
+  "Reidoth": {
+    "voice": "onyx",
+    "style": "A very old, solitary druid. Slow, gravelly and weathered, a gentle rasp and a quaver of age, with the calm of someone who prefers trees to people."
+  }
+}

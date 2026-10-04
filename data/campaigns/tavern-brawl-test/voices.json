@@ -1,0 +1,34 @@
+{
+  "Marta Ironbrew": {
+    "voice": "nova",
+    "style": "A broad, sharp-eyed halfling innkeeper in her fifties. Warm, brisk and funny, with a no-nonsense edge when her furniture is at risk."
+  },
+  "Bruno": {
+    "voice": "onyx",
+    "style": "A huge, calm bouncer. Slow, deep and patient, like a man who hates raising his voice and always wins anyway."
+  },
+  "Gruk Tannerson": {
+    "voice": "ash",
+    "style": "A loud, scarred sellsword three drinks in. Boastful and gravelly, quick to take offence, laughing at his own jokes."
+  },
+  "Dagger Dan": {
+    "voice": "echo",
+    "style": "A grinning, sly hanger-on. Quick, smug and sneering, always backing his boss."
+  },
+  "Skinny Jo": {
+    "voice": "verse",
+    "style": "A nervous, eager hanger-on. High, quick and jumpy, laughing too soon."
+  },
+  "Odo Pennywhistle": {
+    "voice": "fable",
+    "style": "A cheerful, slightly drunk regular. Warm and rambling, delighted by gossip."
+  },
+  "Pell Brightwater": {
+    "voice": "alloy",
+    "style": "A cheerful, slightly drunk regular. Friendly and slurry, ready to throw a mug for the fun of it."
+  },
+  "Nim": {
+    "voice": "ballad",
+    "style": "A thin, nervous spy in a gray cloak. Quiet, hurried and wary, glancing at the door between phrases."
+  }
+}

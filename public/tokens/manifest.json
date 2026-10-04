@@ -1,0 +1,6767 @@
+{
+ "generated": "2026-10-04T05:32:05.076Z",
+ "tokens": [
+  {
+   "file": "abberant-banshee-0d0e6.png",
+   "name": "abberant banshee",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abberant-humanoid-experimentin-fe27a.png",
+   "name": "abberant humanoid experimenting",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abberant-maw-29b5e.png",
+   "name": "abberant maw",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abberant-monster-ab833.png",
+   "name": "abberant monster",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abberant-prowler-fe2f2.png",
+   "name": "abberant prowler",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abberant-touched-human-ab510.png",
+   "name": "abberant-touched human",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abberation-lashing-tongue-51255.png",
+   "name": "abberation lashing tongue",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "aboleth-of-the-deep-waters-3286d.png",
+   "name": "aboleth of the deep waters",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "aboleth-c1e1c.png",
+   "name": "aboleth",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "abolethic-priest-360d2.png",
+   "name": "abolethic priest",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "beholder-n-rampage-36652.png",
+   "name": "beholder οn rampage",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "beholder-5764a.png",
+   "name": "beholder",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "blight-beholder-5c201.png",
+   "name": "blight beholder",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "blood-hound-3c979.png",
+   "name": "blood hound",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "cultist-of-the-far-realms-ef488.png",
+   "name": "cultist of the far realms",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "devourer-6dcc6.png",
+   "name": "devourer",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "far-realm-intruder-274da.png",
+   "name": "far realm intruder",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "far-realms-entity-f61e8.png",
+   "name": "Far Realms entity",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "flumgorth-dec32.png",
+   "name": "flumgorth",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "forest-nighthunter-134d1.png",
+   "name": "forest nighthunter",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "frost-kraken-57d1a.png",
+   "name": "frost kraken",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "griffin-abberation-982da.png",
+   "name": "griffin abberation",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "hellhound-abberation-1d14a.png",
+   "name": "hellhound abberation",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "herald-close-up-ed713.png",
+   "name": "herald close-up",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "herald-of-the-far-realms-745fb.png",
+   "name": "herald of the far realms",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "horror-entity-of-the-far-realm-92e17.png",
+   "name": "horror entity of the Far Realms",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "illithid-devouring-0544c.png",
+   "name": "illithid devouring",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "illithid-de5a4.png",
+   "name": "illithid",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "insectile-abberation-0b660.png",
+   "name": "insectile abberation",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "kraken-head-4ebab.png",
+   "name": "kraken head",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "kraken-head-d6204.png",
+   "name": "kraken head",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "kraken-tentacle-55d47.png",
+   "name": "kraken tentacle",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "kraken-token-e5ba8.png",
+   "name": "kraken token",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "kraken-b920c.png",
+   "name": "kraken",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "lake-kraken-10e1b.png",
+   "name": "lake kraken",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "melded-abberant-rider-04b9e.png",
+   "name": "melded abberant rider",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "mind-flayer-1-c36df.png",
+   "name": "mind flayer 1",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "mind-flayer-2-129ef.png",
+   "name": "mind flayer 2",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "mind-flayer-3-e4711.png",
+   "name": "mind flayer 3",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "mutated-flyer-9fade.png",
+   "name": "mutated flyer",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "night-stalker-22a24.png",
+   "name": "night stalker",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "nightmare-given-form-7041f.png",
+   "name": "nightmare given form",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "priest-of-the-great-old-ones-ace34.png",
+   "name": "priest of the great old ones",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "shaquo-ravoth-in-the-mist-2086e.png",
+   "name": "Shaquo-Ravoth in the mist",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "sheoldred-882b5.png",
+   "name": "Sheoldred",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "shrieker-fc282.png",
+   "name": "shrieker",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "the-first-sliver-a160a.png",
+   "name": "the first sliver",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "werewolf-abomination-46f0f.png",
+   "name": "werewolf abomination",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "wolf-abberation-d5a48.png",
+   "name": "wolf abberation",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "zombie-abberation-1b574.png",
+   "name": "zombie abberation",
+   "category": "Aberrations",
+   "sub": null
+  },
+  {
+   "file": "crab-with-skull-shell-fbf5b.png",
+   "name": "crab with skull shell",
+   "category": "Beasts",
+   "sub": "Aquatic Creatures"
+  },
+  {
+   "file": "giant-snapping-turtle-1cf97.png",
+   "name": "giant snapping turtle",
+   "category": "Beasts",
+   "sub": "Aquatic Creatures"
+  },
+  {
+   "file": "great-shark-d3eaf.png",
+   "name": "great shark",
+   "category": "Beasts",
+   "sub": "Aquatic Creatures"
+  },
+  {
+   "file": "octopus-c6ab5.png",
+   "name": "octopus",
+   "category": "Beasts",
+   "sub": "Aquatic Creatures"
+  },
+  {
+   "file": "sea-turtle-2-b5216.png",
+   "name": "sea turtle 2",
+   "category": "Beasts",
+   "sub": "Aquatic Creatures"
+  },
+  {
+   "file": "snapping-turtle-86775.png",
+   "name": "snapping turtle",
+   "category": "Beasts",
+   "sub": "Aquatic Creatures"
+  },
+  {
+   "file": "arthropod-fbacb.png",
+   "name": "arthropod",
+   "category": "Beasts",
+   "sub": "Aranae and other Arthropods"
+  },
+  {
+   "file": "feral-giant-spider-1480e.png",
+   "name": "feral giant spider",
+   "category": "Beasts",
+   "sub": "Aranae and other Arthropods"
+  },
+  {
+   "file": "giant-spider-in-dungeon-5c3a6.png",
+   "name": "giant spider in dungeon",
+   "category": "Beasts",
+   "sub": "Aranae and other Arthropods"
+  },
+  {
+   "file": "giant-spider-67fe5.png",
+   "name": "giant spider",
+   "category": "Beasts",
+   "sub": "Aranae and other Arthropods"
+  },
+  {
+   "file": "scorpion-of-swamp-34da5.png",
+   "name": "scorpion of swamp",
+   "category": "Beasts",
+   "sub": "Aranae and other Arthropods"
+  },
+  {
+   "file": "scorpion-b7c52.png",
+   "name": "scorpion",
+   "category": "Beasts",
+   "sub": "Aranae and other Arthropods"
+  },
+  {
+   "file": "bat-1-7af4d.png",
+   "name": "bat 1",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "bat-2-aa8b2.png",
+   "name": "bat 2",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "bat-swarm-1-29452.png",
+   "name": "bat swarm 1",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "bat-swarm-2-f6aae.png",
+   "name": "bat swarm 2",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "bat-vampire-a1c40.png",
+   "name": "bat vampire",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "bats-skeletons-aad4e.png",
+   "name": "bats skeletons",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "courier-bat-1a6a6.png",
+   "name": "courier bat",
+   "category": "Beasts",
+   "sub": "Bats"
+  },
+  {
+   "file": "bear-1-ca28d.png",
+   "name": "bear 1",
+   "category": "Beasts",
+   "sub": "Bears"
+  },
+  {
+   "file": "bear-2-b7b98.png",
+   "name": "bear 2",
+   "category": "Beasts",
+   "sub": "Bears"
+  },
+  {
+   "file": "bear-3-32c66.png",
+   "name": "bear 3",
+   "category": "Beasts",
+   "sub": "Bears"
+  },
+  {
+   "file": "hawk-in-snow-d7c83.png",
+   "name": "hawk in snow",
+   "category": "Beasts",
+   "sub": "Birds"
+  },
+  {
+   "file": "hawk-messenger-9c29d.png",
+   "name": "hawk messenger",
+   "category": "Beasts",
+   "sub": "Birds"
+  },
+  {
+   "file": "raven-1-647b7.png",
+   "name": "raven 1",
+   "category": "Beasts",
+   "sub": "Birds"
+  },
+  {
+   "file": "raven-2-684b9.png",
+   "name": "raven 2",
+   "category": "Beasts",
+   "sub": "Birds"
+  },
+  {
+   "file": "raven-3-d3c44.png",
+   "name": "raven 3",
+   "category": "Beasts",
+   "sub": "Birds"
+  },
+  {
+   "file": "trained-hawk-12e10.png",
+   "name": "trained hawk",
+   "category": "Beasts",
+   "sub": "Birds"
+  },
+  {
+   "file": "alioramus-8879d.png",
+   "name": "alioramus",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "allosaurus-2f263.png",
+   "name": "allosaurus",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "brontosaurus-a1fda.png",
+   "name": "brontosaurus",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "dinosaur-egg-stealer-420ae.png",
+   "name": "dinosaur egg stealer",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "dinosaur-ferocidon-f4101.png",
+   "name": "dinosaur ferocidon",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "dinosaur-roaring-cdbd6.png",
+   "name": "dinosaur roaring",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "isanosaurus-c4561.png",
+   "name": "isanosaurus",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "tyrranosaurus-0bfe3.png",
+   "name": "tyrranosaurus",
+   "category": "Beasts",
+   "sub": "Dinosaurs"
+  },
+  {
+   "file": "cerberus-9d5cc.png",
+   "name": "cerberus",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "dog-sentinel-62384.png",
+   "name": "dog sentinel",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "doggo-ffee4.png",
+   "name": "doggo",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "pup-5c770.png",
+   "name": "pup",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "shepherd-s-hound-9e80e.png",
+   "name": "shepherd's hound",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "two-headed-hound-eb96d.png",
+   "name": "two-headed hound",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "wolf-pup-91bc7.png",
+   "name": "wolf pup",
+   "category": "Beasts",
+   "sub": "Dogs-Lupines"
+  },
+  {
+   "file": "beast-of-the-wildmother-08601.png",
+   "name": "beast of the wildmother",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "black-cat-dc8cb.png",
+   "name": "black cat",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "cat-1-cc0ce.png",
+   "name": "cat 1",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "cat-2-f805d.png",
+   "name": "cat 2",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "cat-3-05d24.png",
+   "name": "cat 3",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "cat-corrupted-97188.png",
+   "name": "cat corrupted",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "dragon-cat-1e150.png",
+   "name": "dragon cat",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "emchanted-flying-cat-e7d2e.png",
+   "name": "emchanted flying cat",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "feline-beast-12869.png",
+   "name": "feline beast",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "flourishing-fox-97814.png",
+   "name": "flourishing fox",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "lion-of-theros-d7a8f.png",
+   "name": "lion of Theros",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "lion-e8ea3.png",
+   "name": "lion",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "sabertooth-beast-6acfa.png",
+   "name": "sabertooth beast",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "white-cat-2568b.png",
+   "name": "white cat",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "winged-cat-2a50f.png",
+   "name": "winged cat",
+   "category": "Beasts",
+   "sub": "Felines"
+  },
+  {
+   "file": "brown-horse-b7648.png",
+   "name": "brown horse",
+   "category": "Beasts",
+   "sub": "Horses"
+  },
+  {
+   "file": "horse-galloping-98896.png",
+   "name": "horse galloping",
+   "category": "Beasts",
+   "sub": "Horses"
+  },
+  {
+   "file": "horse-supplier-cbc53.png",
+   "name": "horse supplier",
+   "category": "Beasts",
+   "sub": "Horses"
+  },
+  {
+   "file": "white-mare-9b481.png",
+   "name": "white mare",
+   "category": "Beasts",
+   "sub": "Horses"
+  },
+  {
+   "file": "behir-86ff5.png",
+   "name": "behir",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "catoblepas-1-6d373.png",
+   "name": "catoblepas 1",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "catoblepas-2-cdfeb.png",
+   "name": "catoblepas 2",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "dark-pangolin-f9dda.png",
+   "name": "dark pangolin",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "displacer-beast-f00e8.png",
+   "name": "displacer beast",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "elk-in-waterfall-d889c.png",
+   "name": "elk in waterfall",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "feral-beast-8238b.png",
+   "name": "feral beast",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "feral-boar-588e2.png",
+   "name": "feral boar",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "flying-squirrel-67859.png",
+   "name": "flying squirrel",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "forest-beast-4b451.png",
+   "name": "forest beast",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "frog-f8d2a.png",
+   "name": "frog",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "giant-horned-beast-452bc.png",
+   "name": "giant horned beast",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "nyxborn-stag-a01c6.png",
+   "name": "nyxborn stag",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "owlbear-angered-b3182.png",
+   "name": "owlbear angered",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "owlbear-2aeb2.png",
+   "name": "owlbear",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "siege-rhino-d8d23.png",
+   "name": "siege rhino",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "spiked-forest-creature-c37f7.png",
+   "name": "spiked forest creature",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "swamp-moss-beast-638c1.png",
+   "name": "swamp moss-beast",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "turtle-multi-headed-59f82.png",
+   "name": "turtle multi-headed",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "water-buffalo-dbbe5.png",
+   "name": "water buffalo",
+   "category": "Beasts",
+   "sub": "Miscellaneous Beasts"
+  },
+  {
+   "file": "cute-mouse-with-fruit-16aa3.png",
+   "name": "cute mouse with fruit",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "mouse-194ee.png",
+   "name": "mouse",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-bone-picker-aaa4c.png",
+   "name": "rat bone-picker",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-corpse-eaters-7c6b5.png",
+   "name": "rat corpse eaters",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-plague-carrier-26e66.png",
+   "name": "rat plague-carrier",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-swarm-0db2c.png",
+   "name": "rat swarm",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-undead-85c15.png",
+   "name": "rat undead",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-with-lantern-5557f.png",
+   "name": "rat with lantern",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "rat-05a85.png",
+   "name": "rat",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "white-mouse-de48a.png",
+   "name": "white mouse",
+   "category": "Beasts",
+   "sub": "Rodents"
+  },
+  {
+   "file": "coiling-snake-e7f1f.png",
+   "name": "coiling snake",
+   "category": "Beasts",
+   "sub": "Snakes"
+  },
+  {
+   "file": "copperhead-snake-76283.png",
+   "name": "copperhead snake",
+   "category": "Beasts",
+   "sub": "Snakes"
+  },
+  {
+   "file": "nyxbirn-snake-05be3.png",
+   "name": "nyxbirn snake",
+   "category": "Beasts",
+   "sub": "Snakes"
+  },
+  {
+   "file": "purple-snake-863de.png",
+   "name": "purple snake",
+   "category": "Beasts",
+   "sub": "Snakes"
+  },
+  {
+   "file": "snake-spellgorger-9bfe7.png",
+   "name": "snake spellgorger",
+   "category": "Beasts",
+   "sub": "Snakes"
+  },
+  {
+   "file": "snake-venomous-1df65.png",
+   "name": "snake venomous",
+   "category": "Beasts",
+   "sub": "Snakes"
+  },
+  {
+   "file": "adult-blue-dragon-ee081.png",
+   "name": "adult blue dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "adult-gold-dragon-21cd3.png",
+   "name": "adult gold dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "adult-green-dragon-f25c4.png",
+   "name": "adult green dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "adult-silver-dragon-e092c.png",
+   "name": "adult silver dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "adult-white-dragon-57f46.png",
+   "name": "adult white dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "black-dragon-2-487dc.png",
+   "name": "black dragon 2",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "black-dragon-menace-2beb4.png",
+   "name": "black dragon menace",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "black-dragon-silumgar-742e0.png",
+   "name": "black dragon Silumgar",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "black-dragon-45bf2.png",
+   "name": "black dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "blue-dragon-at-sea-a541d.png",
+   "name": "blue dragon at sea",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "blue-dragon-perched-atop-castl-ac8ba.png",
+   "name": "blue dragon perched atop castle",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "blue-dragon-underwater-0e91b.png",
+   "name": "blue dragon underwater",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "blue-dragon-upon-treasure-9a13e.png",
+   "name": "blue dragon upon treasure",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "brown-copper-dragon-724da.png",
+   "name": "brown-copper dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "elder-black-dragon-6a9c8.png",
+   "name": "elder black dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "elder-dragon-emanating-dark-en-39b83.png",
+   "name": "elder dragon, emanating dark energy",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "elder-dragon-white-with-red-de-74780.png",
+   "name": "elder dragon, white with red details",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "elder-platinum-dragon-b68a7.png",
+   "name": "elder platinum dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "elemental-dragon-wizard-946da.png",
+   "name": "elemental dragon wizard",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "emerald-dragon-86196.png",
+   "name": "emerald dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "green-dragon-spewing-8fc88.png",
+   "name": "green dragon spewing",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "green-dragon-3c337.png",
+   "name": "green dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "moonlit-dragon-da2d7.png",
+   "name": "moonlit dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "old-gnawbone-881ad.png",
+   "name": "Old Gnawbone",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "prismatic-dragon-73bbd.png",
+   "name": "prismatic dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "red-dragon-1-8f21e.png",
+   "name": "red dragon 1",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "red-dragon-2-8b067.png",
+   "name": "red dragon 2",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "red-dragon-3-22f85.png",
+   "name": "red dragon 3",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "red-dragon-4-f74cc.png",
+   "name": "red dragon 4",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "roaring-dragon-36feb.png",
+   "name": "roaring dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "roaring-dragon-da145.png",
+   "name": "roaring dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "sky-hunter-7a2cd.png",
+   "name": "sky hunter",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "spirit-dragon-c5dbf.png",
+   "name": "spirit dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "thunderbreath-dragon-33e88.png",
+   "name": "thunderbreath dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "white-dragon-in-cave-338d2.png",
+   "name": "white dragon in cave",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "white-dragon-with-red-feathers-2acc7.png",
+   "name": "white dragon with red feathers",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "white-dragon-8e4e0.png",
+   "name": "white dragon",
+   "category": "Dragons",
+   "sub": null
+  },
+  {
+   "file": "dark-elf-disfigured-face-1d39d.png",
+   "name": "dark elf disfigured face",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "dark-elf-with-scars-f39be.png",
+   "name": "dark elf with scars",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "dark-elf-6237c.png",
+   "name": "dark elf",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-adolescent-c6939.png",
+   "name": "drow adolescent",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-angered-2b226.png",
+   "name": "drow angered",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-archmage-b360f.png",
+   "name": "drow archmage",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-caster-3b898.png",
+   "name": "drow caster",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-determined-ac5d0.png",
+   "name": "drow determined",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-druid-2e973.png",
+   "name": "drow druid",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-frusrated-35162.png",
+   "name": "drow frusrated",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-high-priestess-cd52f.png",
+   "name": "drow high priestess",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-in-plate-armor-7d450.png",
+   "name": "drow in plate armor",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-noble-contemplative-3ccd5.png",
+   "name": "drow noble contemplative",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-noble-fighter-41898.png",
+   "name": "drow noble fighter",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-priestess-7e6ab.png",
+   "name": "drow priestess",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-sellsword-0e9cb.png",
+   "name": "drow sellsword",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-soldier-1-b1e9e.png",
+   "name": "drow soldier 1",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-soldier-2-fc541.png",
+   "name": "drow soldier 2",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-soldier-3-f4945.png",
+   "name": "drow soldier 3",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-soldier-4-f54b8.png",
+   "name": "drow soldier 4",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-spellcaster-with-wand-831f7.png",
+   "name": "drow spellcaster with wand",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-sword-dancer-00194.png",
+   "name": "drow sword dancer",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-warlock-6f160.png",
+   "name": "drow warlock",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-with-blue-eyes-19830.png",
+   "name": "drow with blue eyes",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-with-earrings-aa3ff.png",
+   "name": "drow with earrings",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-with-ice-blue-eyes-2c6af.png",
+   "name": "drow with ice-blue eyes",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-with-magic-pipe-60003.png",
+   "name": "drow with magic pipe",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "drow-youthful-e4fa8.png",
+   "name": "drow youthful",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "half-drow-with-beard-f31a2.png",
+   "name": "half-drow with beard",
+   "category": "Drow",
+   "sub": null
+  },
+  {
+   "file": "duergar-angry-a2d93.png",
+   "name": "duergar angry",
+   "category": "Dwarves",
+   "sub": "Duergar"
+  },
+  {
+   "file": "duergar-vexed-e8287.png",
+   "name": "duergar vexed",
+   "category": "Dwarves",
+   "sub": "Duergar"
+  },
+  {
+   "file": "duergar-with-hace-tattoos-a3712.png",
+   "name": "duergar with hace tattoos",
+   "category": "Dwarves",
+   "sub": "Duergar"
+  },
+  {
+   "file": "dward-merchant-67c23.png",
+   "name": "dward merchant",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-1-a4ad3.png",
+   "name": "dwarf 1",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-2-0a6e3.png",
+   "name": "dwarf 2",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-3-70e29.png",
+   "name": "dwarf 3",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-4-f6ab4.png",
+   "name": "dwarf 4",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-5-5a97c.png",
+   "name": "dwarf 5",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-armorsmith-b82cf.png",
+   "name": "dwarf armorsmith",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-artificer-0bc5b.png",
+   "name": "dwarf artificer",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-axe-wielding-929f5.png",
+   "name": "dwarf axe-wielding",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-barbarian-6c054.png",
+   "name": "dwarf barbarian",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-cleric-scholar-c1f94.png",
+   "name": "dwarf cleric scholar",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-cleric-with-hammer-549d4.png",
+   "name": "dwarf cleric with hammer",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-curiosties-crafter-5d7d0.png",
+   "name": "dwarf curiosties crafter",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-elder-warrior-a9a60.png",
+   "name": "dwarf elder warrior",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-enchanter-2572a.png",
+   "name": "dwarf enchanter",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-fighter-worried-c7948.png",
+   "name": "dwarf fighter worried",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-hawk-scout-4e858.png",
+   "name": "dwarf hawk scout",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-in-armor-8d4db.png",
+   "name": "dwarf in armor",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-jeweller-3e394.png",
+   "name": "dwarf jeweller",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-king-11fe7.png",
+   "name": "dwarf king",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-mace-wielder-d6228.png",
+   "name": "dwarf mace wielder",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-merchant-8af76.png",
+   "name": "dwarf merchant",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-miner-8d315.png",
+   "name": "dwarf miner",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-monk-of-the-sun-soul-f9f06.png",
+   "name": "dwarf monk of the sun soul",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-negotiator-d97bf.png",
+   "name": "dwarf negotiator",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-paladin-2-6bb90.png",
+   "name": "dwarf paladin 2",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-paladin-a671f.png",
+   "name": "dwarf paladin",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-rider-63b18.png",
+   "name": "dwarf rider",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-sorcerer-9cfd9.png",
+   "name": "dwarf sorcerer",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-triumphant-6d71c.png",
+   "name": "dwarf triumphant",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-warcaller-d3336.png",
+   "name": "dwarf warcaller",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-warlord-59a17.png",
+   "name": "dwarf warlord",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-with-beard-ornaments-1f4c5.png",
+   "name": "dwarf with beard ornaments",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-with-dragonling-familiar-7eba9.png",
+   "name": "dwarf with dragonling familiar",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-with-helmet-c3208.png",
+   "name": "dwarf with helmet",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwarf-with-shield-5c5af.png",
+   "name": "dwarf with shield",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "dwerym-stoutarm-2783f.png",
+   "name": "Dwerym Stoutarm",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "elder-dwarf-da393.png",
+   "name": "elder dwarf",
+   "category": "Dwarves",
+   "sub": null
+  },
+  {
+   "file": "agitated-gobling-ad512.png",
+   "name": "agitated gobling",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "boggart-50268.png",
+   "name": "boggart",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-1-f3d19.png",
+   "name": "goblin 1",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-2-f4b22.png",
+   "name": "goblin 2",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-adoring-a-mcguffin-72d66.png",
+   "name": "goblin adoring a mcguffin",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-alchemist-6483d.png",
+   "name": "goblin alchemist",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-archer-49276.png",
+   "name": "goblin archer",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-artificer-73c7c.png",
+   "name": "goblin artificer",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-attacker-3da97.png",
+   "name": "goblin attacker",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-battle-tactician-b960d.png",
+   "name": "goblin battle tactician",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-chainwhirler-d66c5.png",
+   "name": "goblin chainwhirler",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-climber-a4dc2.png",
+   "name": "goblin climber",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-commander-d06f7.png",
+   "name": "goblin commander",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-deep-dwellers-7b6c3.png",
+   "name": "goblin deep dwellers",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-explorer-533e0.png",
+   "name": "goblin explorer",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-king-f00b8.png",
+   "name": "goblin king",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-lackey-a8d8f.png",
+   "name": "goblin lackey",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-matron-66960.png",
+   "name": "goblin matron",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-miner-40e66.png",
+   "name": "goblin miner",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-pack-79431.png",
+   "name": "goblin pack",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-pillager-41336.png",
+   "name": "goblin pillager",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-pyrotechnician-31e8e.png",
+   "name": "goblin pyrotechnician",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-raiders-99fa6.png",
+   "name": "goblin raiders",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-road-seeker-ba552.png",
+   "name": "goblin road seeker",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-rogue-89b11.png",
+   "name": "goblin rogue",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-rummaging-9fffd.png",
+   "name": "goblin rummaging",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-scout-e07bd.png",
+   "name": "goblin scout",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-self-sacrificial-a1ed5.png",
+   "name": "goblin self-sacrificial",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-shaman-3262a.png",
+   "name": "goblin shaman",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-soldier-e3019.png",
+   "name": "goblin soldier",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-sparkmage-e598d.png",
+   "name": "goblin sparkmage",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-squad-e2b8f.png",
+   "name": "goblin squad",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-supplier-8274f.png",
+   "name": "goblin supplier",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-tresure-finder-36780.png",
+   "name": "goblin tresure finder",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-warcaller-bb786.png",
+   "name": "goblin warcaller",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "goblin-with-artifact-832fd.png",
+   "name": "goblin with artifact",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "hobgoblin-raider-1cf82.png",
+   "name": "hobgoblin raider",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "hobgoblin-red-eyed-ccb95.png",
+   "name": "hobgoblin red-eyed",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "hobgoblin-vengeful-fea74.png",
+   "name": "hobgoblin vengeful",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "hobgoblin-warrior-d9c1d.png",
+   "name": "hobgoblin warrior",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "yelling-goblin-70f9d.png",
+   "name": "yelling goblin",
+   "category": "Goblins and Goblinoids",
+   "sub": null
+  },
+  {
+   "file": "adolescent-archer-c9c98.png",
+   "name": "adolescent archer",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "cardat-f8c81.png",
+   "name": "Cardat",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "child-finding-flower-a5a30.png",
+   "name": "child finding flower",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "child-travelling-67ddf.png",
+   "name": "child travelling",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "childish-curiosity-42bff.png",
+   "name": "childish curiosity",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "duversa-be734.png",
+   "name": "Duversa",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "ekedolh-d3963.png",
+   "name": "Ekedolh",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "fedur-46862.png",
+   "name": "Fedur",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "geres-8cff2.png",
+   "name": "Geres",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "isomille-6e8e2.png",
+   "name": "Isomille",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "neved-d46a2.png",
+   "name": "Neved",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "odvolin-be861.png",
+   "name": "Odvolin",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "perkeda-8cda7.png",
+   "name": "Perkeda",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "radane-5bb30.png",
+   "name": "Radane",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "raghin-c4798.png",
+   "name": "Raghin",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "scared-youth-08640.png",
+   "name": "scared youth",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "tegris-3a15b.png",
+   "name": "Tegris",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "thordev-55cd2.png",
+   "name": "Thordev",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "tomik-2e24d.png",
+   "name": "Tomik",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "volinda-207f9.png",
+   "name": "Volinda",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "yemna-b6e4c.png",
+   "name": "Yemna",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "youth-in-blue-white-dress-c5c84.png",
+   "name": "youth in blue-white dress",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "zamvorae-89855.png",
+   "name": "Zamvorae",
+   "category": "Humans",
+   "sub": "Humans Children"
+  },
+  {
+   "file": "agorve-6d59b.png",
+   "name": "Agorve",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "artifact-finder-29282.png",
+   "name": "artifact finder",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "ascended-elder-mystic-08562.png",
+   "name": "ascended elder mystic",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "barbarian-smirking-63669.png",
+   "name": "barbarian smirking",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "black-haired-noble-37127.png",
+   "name": "black-haired noble",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "blissful-young-woman-ba713.png",
+   "name": "blissful young woman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "cartographer-27eeb.png",
+   "name": "cartographer",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "caster-with-gleaming-eyes-6bf8b.png",
+   "name": "caster with gleaming eyes",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "citizen-with-broom-9d672.png",
+   "name": "citizen with broom",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "cleric-bestowing-blessing-e0df8.png",
+   "name": "cleric bestowing blessing",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "cloaked-determined-human-9c156.png",
+   "name": "cloaked determined human",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "cloaked-female-with-dagger-6a3ee.png",
+   "name": "cloaked female with dagger",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "commanding-noble-ec5d2.png",
+   "name": "commanding noble",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "contemplative-woman-of-the-wil-e660e.png",
+   "name": "contemplative woman of the wilds",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "corrupted-rogue-c9101.png",
+   "name": "corrupted rogue",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "corrupted-rogue-a9755.png",
+   "name": "corrupted rogue",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "countess-aec2e.png",
+   "name": "countess",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "crying-young-woman-b2520.png",
+   "name": "crying young woman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "deer-hunter-ad08a.png",
+   "name": "deer hunter",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "determined-captain-0af63.png",
+   "name": "determined captain",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "determined-human-9d8c5.png",
+   "name": "determined human",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "determined-warrior-9af2f.png",
+   "name": "determined warrior",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "eager-apprentice-f9657.png",
+   "name": "eager apprentice",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "elder-knight-e1f9f.png",
+   "name": "elder knight",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "elder-shaman-690bd.png",
+   "name": "elder shaman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "elder-woman-with-goggles-5c04b.png",
+   "name": "elder woman with goggles",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "elder-woman-4f03a.png",
+   "name": "elder woman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "emelka-7938f.png",
+   "name": "Emelka",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "fair-maid-auburn-hair-e870f.png",
+   "name": "fair maid, auburn hair",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "fair-young-woman-eea11.png",
+   "name": "fair young woman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "female-mage-with-pristine-garm-d05e3.png",
+   "name": "female mage with pristine garments",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "female-with-light-07680.png",
+   "name": "female with light",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "fighter-adjusting-her-armor-70ff4.png",
+   "name": "fighter adjusting her armor",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "frowning-noble-woman-07850.png",
+   "name": "frowning noble woman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "gifted-orator-9fdd3.png",
+   "name": "gifted orator",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "haughty-woman-with-pipe-and-cr-41f4d.png",
+   "name": "haughty woman with pipe and crown",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "higher-scholar-mage-1f211.png",
+   "name": "higher scholar-mage",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "historian-with-glasses-18690.png",
+   "name": "historian with glasses",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "hoille-72ae1.png",
+   "name": "Hoille",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "hooded-stern-female-92237.png",
+   "name": "hooded stern female",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-cathar-41236.png",
+   "name": "human cathar",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-disheveled-49171.png",
+   "name": "human female disheveled",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-druid-a39aa.png",
+   "name": "human female druid",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-mysterious-ea6d0.png",
+   "name": "human female mysterious",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-noble-blonde-22ae2.png",
+   "name": "human female noble blonde",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-noble-young-6e5c8.png",
+   "name": "human female noble young",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-nomadic-740d1.png",
+   "name": "human female nomadic",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-peasant-c681e.png",
+   "name": "human female peasant",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-ranger-6f0f1.png",
+   "name": "human female ranger",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-red-robes-fd0fc.png",
+   "name": "human female red robes",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-serene-0986a.png",
+   "name": "human female serene",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-servant-3968e.png",
+   "name": "human female servant",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-soft-features-122b7.png",
+   "name": "human female soft features",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-warrior-b00cf.png",
+   "name": "human female warrior",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-wizard-2f3fa.png",
+   "name": "human female wizard",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-female-young-1ce5a.png",
+   "name": "human female young",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-noble-assassin-afe9d.png",
+   "name": "human noble assassin",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "human-noble-with-soft-features-a0920.png",
+   "name": "human noble with soft features",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "iarnu-73ff8.png",
+   "name": "Iarnu",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "imposing-sovereign-dc3e4.png",
+   "name": "imposing sovereign",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "intelligent-inventor-6b452.png",
+   "name": "intelligent inventor",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "joyful-duelist-4926f.png",
+   "name": "joyful duelist",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "khaya-85b83.png",
+   "name": "Khaya",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "lady-leandra-8ef16.png",
+   "name": "Lady Leandra",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "lethrena-artificer-ef340.png",
+   "name": "Lethrena artificer",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "lorehold-scholar-ff738.png",
+   "name": "Lorehold scholar",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "mage-youth-481a8.png",
+   "name": "mage youth",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "majolla-17ce1.png",
+   "name": "Majolla",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "medeth-bceaf.png",
+   "name": "Medeth",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "merovina-7cee5.png",
+   "name": "Merovina",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "middle-aged-woman-329c1.png",
+   "name": "middle-aged woman",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "mildretha-97325.png",
+   "name": "Mildretha",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "mother-and-child-43c5b.png",
+   "name": "mother and child",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "moved-mother-bf1bc.png",
+   "name": "moved mother",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "musician-with-tambourine-c8d79.png",
+   "name": "musician with tambourine",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "navigator-with-artifact-10849.png",
+   "name": "navigator with artifact",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "night-messenger-465e4.png",
+   "name": "night messenger",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "noble-blonde-exquisite-clothes-88cb3.png",
+   "name": "noble blonde exquisite clothes",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "noble-in-black-d52c0.png",
+   "name": "noble in black",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "noble-woman-in-sunlight-12930.png",
+   "name": "noble woman in sunlight",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "old-lady-smiling-f6735.png",
+   "name": "old lady smiling",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "old-lady-smirking-222c2.png",
+   "name": "old lady smirking",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "old-lady-with-braid-4a6f9.png",
+   "name": "old lady with braid",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "older-artificer-d423c.png",
+   "name": "older artificer",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "pacifist-villager-289af.png",
+   "name": "pacifist villager",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "paladin-of-death-deity-52948.png",
+   "name": "paladin of death deity",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "pale-alchemist-b8e2c.png",
+   "name": "pale alchemist",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "palerria-0284e.png",
+   "name": "Palerria",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "proud-chult-inhabitant-b2ae5.png",
+   "name": "proud Chult inhabitant",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "ranger-with-wolf-08f3e.png",
+   "name": "ranger with wolf",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "red-haired-youth-5c6b0.png",
+   "name": "red-haired youth",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "regal-old-noble-314d5.png",
+   "name": "regal old noble",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "regal-queen-734bb.png",
+   "name": "regal queen",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "regal-woman-dressed-black-85d49.png",
+   "name": "regal woman dressed black",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "relieved-fighter-6ea9a.png",
+   "name": "relieved fighter",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "rider-of-flying-contraption-1dab8.png",
+   "name": "rider of flying contraption",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "sedelmir-dde9f.png",
+   "name": "Sedelmir",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "smiling-artificer-37f7e.png",
+   "name": "smiling artificer",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "smiling-emgineer-fc259.png",
+   "name": "smiling emgineer",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "smiling-youth-ecd1e.png",
+   "name": "smiling youth",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "smirking-lady-with-lantern-8044c.png",
+   "name": "smirking lady with lantern",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "traveller-with-backpack-e092a.png",
+   "name": "traveller with backpack",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "travelling-merchant-eb62e.png",
+   "name": "travelling merchant",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "twin-diviner-1-d1306.png",
+   "name": "twin diviner 1",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "twin-diviner-2-4e394.png",
+   "name": "twin diviner 2",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "vemika-fc801.png",
+   "name": "Vemika",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "vierelle-eab5e.png",
+   "name": "Vierelle",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "villager-defending-with-pitchf-592e5.png",
+   "name": "villager defending with pitchfork",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "vistani-seer-ce901.png",
+   "name": "Vistani seer",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "warlord-with-auburn-hair-cef12.png",
+   "name": "warlord with auburn hair",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "welcoming-cleric-5ff0d.png",
+   "name": "welcoming cleric",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "wine-connnoisseur-523d9.png",
+   "name": "wine connnoisseur",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "woman-gazing-in-the-horizon-685a9.png",
+   "name": "woman gazing in the horizon",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "woman-with-glowing-blade-fc64c.png",
+   "name": "woman with glowing blade",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "yakerra-86b9d.png",
+   "name": "Yakerra",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "yermenna-d24cb.png",
+   "name": "Yermenna",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "young-academic-4bae6.png",
+   "name": "young academic",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "young-scholar-629b5.png",
+   "name": "young scholar",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "young-woman-in-snowy-forest-24b21.png",
+   "name": "young woman in snowy forest",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "young-woman-with-ribbon-in-nec-ed4c7.png",
+   "name": "young woman with ribbon in neck",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "youth-blue-eyes-earrings-7f4a1.png",
+   "name": "youth, blue eyes, earrings",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "zerivenne-29007.png",
+   "name": "Zerivenne",
+   "category": "Humans",
+   "sub": "Humans Female"
+  },
+  {
+   "file": "acolyte-elder-worn-out-robe-1-b6667.png",
+   "name": "acolyte elder worn out robe (1)",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "angered-man-4c023.png",
+   "name": "angered man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "angry-man-with-long-hair-7a3d2.png",
+   "name": "angry man with long hair",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "angry-peasant-813ff.png",
+   "name": "angry peasant",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "antagonist-in-black-armor-7d8c6.png",
+   "name": "antagonist in black armor",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "arcane-conjurer-9c9b6.png",
+   "name": "arcane conjurer",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "armored-man-observant-78284.png",
+   "name": "armored man, observant",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "bearded-grey-haired-man-6eed9.png",
+   "name": "bearded grey haired man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "bearded-noble-7ab08.png",
+   "name": "bearded noble",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "bertand-98a62.png",
+   "name": "Bertand",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "black-and-white-clothes-d0744.png",
+   "name": "black-and-white clothes",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "blind-man-4064d.png",
+   "name": "blind man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "blind-spy-a19ab.png",
+   "name": "blind spy",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "calm-man-in-blue-and-white-ac6b3.png",
+   "name": "calm man in blue and white",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "careful-crafter-8bb8e.png",
+   "name": "careful crafter",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "clever-elder-ee442.png",
+   "name": "clever elder",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "concerned-soldier-1af96.png",
+   "name": "concerned soldier",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "confused-look-67477.png",
+   "name": "confused look",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "contemplating-scholar-84923.png",
+   "name": "contemplating scholar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "contemplative-warrior-in-fores-01603.png",
+   "name": "contemplative warrior in forest",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "cothalkas-ba8f0.png",
+   "name": "Cothalkas",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "count-e2eea.png",
+   "name": "count",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "coven-participant-9cba4.png",
+   "name": "coven participant",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "cutpurse-29366.png",
+   "name": "cutpurse",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "dac-fayden-04c8a.png",
+   "name": "Dac Fayden",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "depdack-06d9c.png",
+   "name": "Depdack",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "disheveled-old-bearded-man-05bee.png",
+   "name": "disheveled old bearded man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "dohrann-2c283.png",
+   "name": "Dohrann",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "droghiev-f0396.png",
+   "name": "Droghiev",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "ekvarn-5da37.png",
+   "name": "Ekvarn",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "elder-in-robes-a4f1d.png",
+   "name": "elder in robes",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "elder-mystic-scholar-77baf.png",
+   "name": "elder mystic-scholar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "elder-with-hood-and-white-bear-c498a.png",
+   "name": "elder with hood and white beard",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "enraged-barbarian-b6977.png",
+   "name": "enraged barbarian",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "experiement-conductor-9682a.png",
+   "name": "experiement conductor",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "fair-man-with-dragonid-66d27.png",
+   "name": "fair man with dragonid",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "fighter-with-rapier-f99d8.png",
+   "name": "fighter with rapier",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "fisher-f502b.png",
+   "name": "fisher",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "floating-bard-0c306.png",
+   "name": "floating bard",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "frowning-bearded-man-972f4.png",
+   "name": "frowning bearded man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "genius-conductor-f1df8.png",
+   "name": "genius conductor",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "gerrard-captain-b6ebb.png",
+   "name": "Gerrard captain",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "grey-armored-fighter-2ed52.png",
+   "name": "grey armored fighter",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "hedge-knight-10982.png",
+   "name": "hedge knight",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "human-attendant-bc8d4.png",
+   "name": "human attendant",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "human-warrior-stern-a8268.png",
+   "name": "human warrior stern",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "human-with-pleased-expression-ac176.png",
+   "name": "human with pleased expression",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "human-with-wolf-pup-c96cf.png",
+   "name": "human with wolf pup",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "hunter-middle-aged-f7d25.png",
+   "name": "hunter middle-aged",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "hunter-with-white-bear-skin-4bc2c.png",
+   "name": "hunter with white bear skin",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "innocuous-nobleman-c371a.png",
+   "name": "innocuous nobleman",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "inquisitive-man-46139.png",
+   "name": "inquisitive man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "inquisitive-scholar-e3363.png",
+   "name": "inquisitive scholar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "inspiring-orator-23007.png",
+   "name": "inspiring orator",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "jerden-ff313.png",
+   "name": "Jerden",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "kahriel-72f93.png",
+   "name": "Kahriel",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "khan-s-messenger-de473.png",
+   "name": "khan's messenger",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "lumberjack-d1825.png",
+   "name": "lumberjack",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-in-black-leather-armor-44b12.png",
+   "name": "man in black leather armor",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-in-front-of-stained-glass-18b27.png",
+   "name": "man in front of stained glass",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-pale-white-haired-36192.png",
+   "name": "man pale white-haired",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-with-mantis-4e3ab.png",
+   "name": "man with mantis",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-with-sideburns-41eb5.png",
+   "name": "man with sideburns",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-with-yellow-eyes-4c7d0.png",
+   "name": "man with yellow eyes",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "man-yelling-2f27b.png",
+   "name": "man yelling",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "mathas-01dd0.png",
+   "name": "Mathas",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "medic-798af.png",
+   "name": "medic",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "middle-aged-black-hair-fur-clo-d2a38.png",
+   "name": "middle aged, black hair, fur cloak",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "middle-aged-concerned-bc0d1.png",
+   "name": "middle-aged, concerned",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "mysterious-white-haired-man-cc467.png",
+   "name": "mysterious white-haired man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "nikhal-45c44.png",
+   "name": "Nikhal",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "njallar-8dd29.png",
+   "name": "Njallar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "noble-middle-aged-0c5f6.png",
+   "name": "noble middle-aged",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "nordling-elder-99d89.png",
+   "name": "nordling elder",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "old-human-with-pipe-0d64b.png",
+   "name": "old human with pipe",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "old-man-thinking-c3695.png",
+   "name": "old man thinking",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "older-bearded-armored-e27d0.png",
+   "name": "older bearded armored",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "older-general-0d410.png",
+   "name": "older general",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "omedec-6b082.png",
+   "name": "Omedec",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "paladin-e871f.png",
+   "name": "paladin",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "priest-with-beard-8e057.png",
+   "name": "priest with beard",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "pup-carer-bc7cd.png",
+   "name": "pup carer",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "rich-artificer-1b186.png",
+   "name": "rich artificer",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "ritualist-with-dagger-42bbe.png",
+   "name": "ritualist with dagger",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "rogue-concerned-14ae8.png",
+   "name": "rogue concerned",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "roguish-man-5b1cc.png",
+   "name": "roguish man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "scholar-poet-b6eb6.png",
+   "name": "scholar poet",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "scoundrel-582b6.png",
+   "name": "scoundrel",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "scribe-with-glasses-d0bb2.png",
+   "name": "scribe with glasses",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "shepherd-22eab.png",
+   "name": "shepherd",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "smiling-innkeeper-eb302.png",
+   "name": "smiling innkeeper",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "smiling-youth-6a74f.png",
+   "name": "smiling youth",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "smirking-mysterious-man-66df9.png",
+   "name": "smirking mysterious man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "smirking-seafarer-57233.png",
+   "name": "smirking seafarer",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "stern-man-with-high-collar-34b83.png",
+   "name": "stern man with high collar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "stern-soldier-ac56c.png",
+   "name": "stern soldier",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "tavern-patron-d2459.png",
+   "name": "tavern patron",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "thargos-5999e.png",
+   "name": "Thargos",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "theros-champion-a0f56.png",
+   "name": "Theros champion",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "tired-bearded-man-4ce95.png",
+   "name": "tired bearded man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "trester-1fd60.png",
+   "name": "Trester",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "trickster-e6c28.png",
+   "name": "trickster",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "umedenith-8844c.png",
+   "name": "Umedenith",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "umodothar-3cf14.png",
+   "name": "Umodothar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "unseathing-a-sword-3b7dd.png",
+   "name": "unseathing a sword",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "veteran-in-plate-armor-ab3f7.png",
+   "name": "veteran in plate armor",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "vicious-arcanist-b4c04.png",
+   "name": "vicious arcanist",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "vigilant-scholar-4f5aa.png",
+   "name": "vigilant scholar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "village-elder-worried-82fd9.png",
+   "name": "village elder worried",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "vistor-54cf8.png",
+   "name": "Vistor",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "welcoming-bearded-man-3e671.png",
+   "name": "welcoming bearded man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "welcoming-scholar-5565a.png",
+   "name": "welcoming scholar",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "yarbeck-cc332.png",
+   "name": "Yarbeck",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "young-affluent-man-eab04.png",
+   "name": "young affluent man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "young-man-with-bandana-0e234.png",
+   "name": "young man with bandana",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "young-man-with-earring-af850.png",
+   "name": "young man with earring",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "young-man-neutral-expession-eb090.png",
+   "name": "young man, neutral expession",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "young-man-91dbe.png",
+   "name": "young man",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "young-warrior-paladin-e133a.png",
+   "name": "young warrior-paladin",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "zavyoud-bb837.png",
+   "name": "Zavyoud",
+   "category": "Humans",
+   "sub": "Humans Male"
+  },
+  {
+   "file": "angry-villagers-fe971.png",
+   "name": "angry villagers",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "blessed-warrrior-abbb8.png",
+   "name": "blessed warrrior",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "conclave-judges-c7586.png",
+   "name": "conclave judges",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "corpse-3bfba.png",
+   "name": "corpse",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "deranged-jester-9585a.png",
+   "name": "deranged jester",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "deranged-poet-f3262.png",
+   "name": "deranged poet",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "fallen-warrior-7aec4.png",
+   "name": "fallen warrior",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "figure-with-light-in-the-darkn-e9da9.png",
+   "name": "figure with light in the darkness",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "frightened-father-and-child-1a7e5.png",
+   "name": "frightened father and child",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "horse-rider-pair-b35b6.png",
+   "name": "horse-rider pair",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "human-burned-alive-45319.png",
+   "name": "human burned alive",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "human-with-porcelain-mask-47437.png",
+   "name": "human with porcelain mask",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "man-on-wheel-6b6c7.png",
+   "name": "man on wheel",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "man-swallowed-by-swamp-27db3.png",
+   "name": "man swallowed by swamp",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "rioting-people-3632b.png",
+   "name": "rioting people",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "scholars-18e66.png",
+   "name": "scholars",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "sewed-face-681c3.png",
+   "name": "sewed face",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "sneaky-cloaked-human-75b25.png",
+   "name": "sneaky cloaked human",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "spellbound-mad-human-cbcd5.png",
+   "name": "spellbound mad human",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "tempted-youth-0ec06.png",
+   "name": "tempted youth",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "the-poetry-of-death-and-rebirt-42ad4.png",
+   "name": "the poetry of death and rebirth",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "tortured-human-6b94a.png",
+   "name": "tortured human",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "villager-1-2df8f.png",
+   "name": "villager 1",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "villager-2-1948b.png",
+   "name": "villager 2",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "villager-3-0844f.png",
+   "name": "villager 3",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "villager-4-a9843.png",
+   "name": "villager 4",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "villager-with-pitchfork-33533.png",
+   "name": "villager with pitchfork",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "villager-with-scythe-8b61d.png",
+   "name": "villager with scythe",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "warlock-wearing-the-eye-of-vec-8d903.png",
+   "name": "warlock wearing the eye of Vecna",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "wicked-doppler-eb237.png",
+   "name": "wicked doppler",
+   "category": "Humans",
+   "sub": "Humans miscellaneous"
+  },
+  {
+   "file": "beckoning-cyclops-0515d.png",
+   "name": "beckoning cyclops",
+   "category": "Miscellaneous Monsters",
+   "sub": "Cyclops"
+  },
+  {
+   "file": "cyclops-1-9b647.png",
+   "name": "cyclops 1",
+   "category": "Miscellaneous Monsters",
+   "sub": "Cyclops"
+  },
+  {
+   "file": "cyclops-2-e7743.png",
+   "name": "cyclops 2",
+   "category": "Miscellaneous Monsters",
+   "sub": "Cyclops"
+  },
+  {
+   "file": "enraged-horned-cyclops-88cf5.png",
+   "name": "enraged horned cyclops",
+   "category": "Miscellaneous Monsters",
+   "sub": "Cyclops"
+  },
+  {
+   "file": "abberant-hydra-e6636.png",
+   "name": "abberant hydra",
+   "category": "Miscellaneous Monsters",
+   "sub": "Hydras"
+  },
+  {
+   "file": "hydra-1-fdfb7.png",
+   "name": "hydra 1",
+   "category": "Miscellaneous Monsters",
+   "sub": "Hydras"
+  },
+  {
+   "file": "hydra-2-b384d.png",
+   "name": "hydra 2",
+   "category": "Miscellaneous Monsters",
+   "sub": "Hydras"
+  },
+  {
+   "file": "hydra-3-1dfa6.png",
+   "name": "hydra 3",
+   "category": "Miscellaneous Monsters",
+   "sub": "Hydras"
+  },
+  {
+   "file": "hydra-roaring-e58ba.png",
+   "name": "hydra roaring",
+   "category": "Miscellaneous Monsters",
+   "sub": "Hydras"
+  },
+  {
+   "file": "gorgon-7f44c.png",
+   "name": "gorgon",
+   "category": "Miscellaneous Monsters",
+   "sub": "Medusas"
+  },
+  {
+   "file": "medusa-horror-28548.png",
+   "name": "medusa horror",
+   "category": "Miscellaneous Monsters",
+   "sub": "Medusas"
+  },
+  {
+   "file": "medusa-stabbing-cceb7.png",
+   "name": "medusa stabbing",
+   "category": "Miscellaneous Monsters",
+   "sub": "Medusas"
+  },
+  {
+   "file": "medusa-with-rapier-ddb6a.png",
+   "name": "medusa with rapier",
+   "category": "Miscellaneous Monsters",
+   "sub": "Medusas"
+  },
+  {
+   "file": "medusa-with-sword-00f25.png",
+   "name": "medusa with sword",
+   "category": "Miscellaneous Monsters",
+   "sub": "Medusas"
+  },
+  {
+   "file": "medusa-6bd44.png",
+   "name": "medusa",
+   "category": "Miscellaneous Monsters",
+   "sub": "Medusas"
+  },
+  {
+   "file": "phoenix-2-0661c.png",
+   "name": "phoenix 2",
+   "category": "Miscellaneous Monsters",
+   "sub": "Phoenixes"
+  },
+  {
+   "file": "phoenix-3-01236.png",
+   "name": "phoenix 3",
+   "category": "Miscellaneous Monsters",
+   "sub": "Phoenixes"
+  },
+  {
+   "file": "phoenix-04dde.png",
+   "name": "phoenix",
+   "category": "Miscellaneous Monsters",
+   "sub": "Phoenixes"
+  },
+  {
+   "file": "scarecrow-1-bc7f2.png",
+   "name": "scarecrow 1",
+   "category": "Miscellaneous Monsters",
+   "sub": "Scarecrows"
+  },
+  {
+   "file": "scarecrow-2-7e0ea.png",
+   "name": "scarecrow 2",
+   "category": "Miscellaneous Monsters",
+   "sub": "Scarecrows"
+  },
+  {
+   "file": "scarecrow-3-aeca6.png",
+   "name": "scarecrow 3",
+   "category": "Miscellaneous Monsters",
+   "sub": "Scarecrows"
+  },
+  {
+   "file": "scarecrow-4-fdd04.png",
+   "name": "scarecrow 4",
+   "category": "Miscellaneous Monsters",
+   "sub": "Scarecrows"
+  },
+  {
+   "file": "fanged-serpent-5ab2d.png",
+   "name": "fanged serpent",
+   "category": "Miscellaneous Monsters",
+   "sub": "Serpents"
+  },
+  {
+   "file": "gargantuan-water-serpent-ba4f0.png",
+   "name": "gargantuan water serpent",
+   "category": "Miscellaneous Monsters",
+   "sub": "Serpents"
+  },
+  {
+   "file": "serpent-in-mist-ebeb1.png",
+   "name": "serpent in mist",
+   "category": "Miscellaneous Monsters",
+   "sub": "Serpents"
+  },
+  {
+   "file": "prognostic-sphinx-232e9.png",
+   "name": "prognostic sphinx",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphink-with-red-hair-4e400.png",
+   "name": "sphink with red hair",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphinx-1-b8573.png",
+   "name": "sphinx 1",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphinx-2-11f59.png",
+   "name": "sphinx 2",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphinx-mummy-b3fe2.png",
+   "name": "sphinx mummy",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphinx-observant-b674e.png",
+   "name": "sphinx observant",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphinx-riddle-maker-a2ece.png",
+   "name": "sphinx riddle-maker",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "sphinx-seer-e225f.png",
+   "name": "sphinx seer",
+   "category": "Miscellaneous Monsters",
+   "sub": "Sphinxes"
+  },
+  {
+   "file": "aggressive-rock-troll-a156b.png",
+   "name": "aggressive rock troll",
+   "category": "Miscellaneous Monsters",
+   "sub": "Trolls"
+  },
+  {
+   "file": "forest-troll-54feb.png",
+   "name": "forest troll",
+   "category": "Miscellaneous Monsters",
+   "sub": "Trolls"
+  },
+  {
+   "file": "slumbering-troll-e1d29.png",
+   "name": "slumbering troll",
+   "category": "Miscellaneous Monsters",
+   "sub": "Trolls"
+  },
+  {
+   "file": "troll-awakened-8fd60.png",
+   "name": "troll awakened",
+   "category": "Miscellaneous Monsters",
+   "sub": "Trolls"
+  },
+  {
+   "file": "troll-king-f2fd0.png",
+   "name": "troll king",
+   "category": "Miscellaneous Monsters",
+   "sub": "Trolls"
+  },
+  {
+   "file": "troll-warrior-2d88e.png",
+   "name": "troll warrior",
+   "category": "Miscellaneous Monsters",
+   "sub": "Trolls"
+  },
+  {
+   "file": "earth-slumbering-wurm-4eae4.png",
+   "name": "earth-slumbering wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "fire-wurm-cd5f6.png",
+   "name": "fire wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "flying-wurm-f844e.png",
+   "name": "flying wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "forest-wurm-dfa4b.png",
+   "name": "forest wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "gargantuan-wurm-68e01.png",
+   "name": "gargantuan wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "hellion-lava-wurm-80be5.png",
+   "name": "hellion, lava wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "scaled-wurm-7a32c.png",
+   "name": "scaled wurm",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "wurm-ghost-eater-9b294.png",
+   "name": "wurm ghost-eater",
+   "category": "Miscellaneous Monsters",
+   "sub": "Wurms"
+  },
+  {
+   "file": "archon-flying-30e3e.png",
+   "name": "archon flying",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "arthropod-8c515.png",
+   "name": "arthropod",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "baloth-1-d09ed.png",
+   "name": "baloth 1",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "baloth-2-4cab7.png",
+   "name": "baloth 2",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "baloth-stalker-69c88.png",
+   "name": "baloth stalker",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "baloth-ebd05.png",
+   "name": "baloth",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "basilisk-04553.png",
+   "name": "basilisk",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "beast-monstrosity-48854.png",
+   "name": "beast monstrosity",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "craterhoof-behemoth-b9a0e.png",
+   "name": "craterhoof behemoth",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "crowlock-25e76.png",
+   "name": "crowlock",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "dark-forest-reptile-b8103.png",
+   "name": "dark forest reptile",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "dark-manticore-044be.png",
+   "name": "dark manticore",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "dire-anglerfish-7a620.png",
+   "name": "dire anglerfish",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "drider-with-sword-fc99b.png",
+   "name": "drider with sword",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "drider-ab287.png",
+   "name": "drider",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "fanged-horror-27914.png",
+   "name": "fanged horror",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "fiend-horned-b8b9d.png",
+   "name": "fiend horned",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "fire-draconid-6f550.png",
+   "name": "fire draconid",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "froghemoth-eating-adventurers-9b58d.png",
+   "name": "froghemoth eating adventurers",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "froghemoth-in-swamp-5ce75.png",
+   "name": "froghemoth in swamp",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "froghemoth-1a6d4.png",
+   "name": "froghemoth",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "gelatinous-cube-b2ac1.png",
+   "name": "gelatinous cube",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "griffin-gold-feathered-627b3.png",
+   "name": "griffin gold-feathered",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "griffin-inquisitive-b0f9b.png",
+   "name": "griffin inquisitive",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "harpy-masked-493c8.png",
+   "name": "harpy masked",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "harpy-f13f9.png",
+   "name": "harpy",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "hellhound-d9ecc.png",
+   "name": "hellhound",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "hooked-horror-7fbdb.png",
+   "name": "hooked horror",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "kipine-6aba8.png",
+   "name": "kipine",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "manticore-hunting-026af.png",
+   "name": "manticore hunting",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "manticore-of-the-desert-93f79.png",
+   "name": "manticore of the desert",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "moor-shambler-86b06.png",
+   "name": "moor shambler",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "multi-handed-abomination-9c820.png",
+   "name": "multi-handed abomination",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "nyxborn-chimera-e2d80.png",
+   "name": "nyxborn chimera",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "nyxborn-lamia-0ee51.png",
+   "name": "nyxborn lamia",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "onnake-ogre-e3078.png",
+   "name": "onnake ogre",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "phyrexian-obliterator-0eb7e.png",
+   "name": "phyrexian obliterator",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "primal-giant-lizard-76983.png",
+   "name": "primal giant lizard",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "primal-predator-f664c.png",
+   "name": "primal predator",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "roper-bc1cc.png",
+   "name": "roper",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "shadow-familiar-a279a.png",
+   "name": "shadow familiar",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "shadowfell-beast-67b7f.png",
+   "name": "shadowfell beast",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "shark-chimera-0fd5f.png",
+   "name": "shark chimera",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "sharktocrab-8b678.png",
+   "name": "sharktocrab",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "simic-experiment-045f2.png",
+   "name": "simic experiment",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "swamp-lurker-39a8f.png",
+   "name": "swamp lurker",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "tarrasque-abominable-69166.png",
+   "name": "Tarrasque abominable",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "tarrasque-661ba.png",
+   "name": "Tarrasque",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "three-headed-drake-d7c7e.png",
+   "name": "three-headed drake",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "thrull-4a536.png",
+   "name": "thrull",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "vampiric-predatory-beast-5d469.png",
+   "name": "vampiric predatory beast",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "vorinclex-31630.png",
+   "name": "vorinclex",
+   "category": "Miscellaneous Monsters",
+   "sub": null
+  },
+  {
+   "file": "corrupted-treefolk-ed939.png",
+   "name": "corrupted treefolk",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "creeping-hut-5401d.png",
+   "name": "creeping hut",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "forest-guardian-eb81c.png",
+   "name": "forest guardian",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "fungal-abomination-060a6.png",
+   "name": "fungal abomination",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "mangler-a77a9.png",
+   "name": "mangler",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "plant-drake-b547d.png",
+   "name": "plant drake",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "saproling-dcb16.png",
+   "name": "saproling",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "shepherd-of-the-forest-78048.png",
+   "name": "shepherd of the forest",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "treant-987d3.png",
+   "name": "treant",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "treefolk-druid-dc0df.png",
+   "name": "treefolk druid",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "treefolk-small-7043c.png",
+   "name": "treefolk small",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "treefolk-stonecrusher-d7ac2.png",
+   "name": "treefolk stonecrusher",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "treefolk-00607.png",
+   "name": "treefolk",
+   "category": "Plant Creatures",
+   "sub": null
+  },
+  {
+   "file": "artificer-with-flying-contrapt-02981.png",
+   "name": "artificer with flying contraption",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "elder-artificer-f3a4e.png",
+   "name": "elder artificer",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "electromancer-1-5fd81.png",
+   "name": "electromancer 1",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "electromancer-2-c6dde.png",
+   "name": "electromancer 2",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "electromancer-3-e816f.png",
+   "name": "electromancer 3",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "izzet-electromancer-3de54.png",
+   "name": "izzet electromancer",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "izzet-scientist-34d0e.png",
+   "name": "izzet scientist",
+   "category": "Spellcasters",
+   "sub": "Artificers, Electromancers, scientific casters"
+  },
+  {
+   "file": "blood-ritualist-3beb5.png",
+   "name": "blood ritualist",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "chult-grave-cleric-e0f66.png",
+   "name": "Chult grave cleric",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "cleric-bewildered-da986.png",
+   "name": "cleric bewildered",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "light-cleric-62f25.png",
+   "name": "light cleric",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "praying-priest-5e9fa.png",
+   "name": "praying priest",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "priest-in-robes-1d9fa.png",
+   "name": "priest in robes",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "sun-cleric-09257.png",
+   "name": "sun cleric",
+   "category": "Spellcasters",
+   "sub": "Clerics, Priests"
+  },
+  {
+   "file": "arch-cultist-63688.png",
+   "name": "arch-cultist",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "caller-of-the-sea-a489c.png",
+   "name": "caller of the sea",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-in-swamp-0218c.png",
+   "name": "cultist in swamp",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-leader-58046.png",
+   "name": "cultist leader",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-of-the-eye-224de.png",
+   "name": "cultist of the eye",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-of-the-old-gods-2dfb1.png",
+   "name": "cultist of the old gods",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-poisoner-4a452.png",
+   "name": "cultist poisoner",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-with-dagger-0291c.png",
+   "name": "cultist with dagger",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "cultist-11cbe.png",
+   "name": "cultist",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "dragon-cult-priest-b54ed.png",
+   "name": "dragon cult priest",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "viscera-diviner-b64da.png",
+   "name": "viscera diviner",
+   "category": "Spellcasters",
+   "sub": "Cultists"
+  },
+  {
+   "file": "attentive-druid-9f471.png",
+   "name": "attentive druid",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "chult-druid-4b22c.png",
+   "name": "Chult druid",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "circle-of-the-land-druid-81937.png",
+   "name": "circle of the land druid",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "death-druid-48d1c.png",
+   "name": "death druid",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "death-druid-98ff7.png",
+   "name": "death druid",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "druid-auburn-hair-730ee.png",
+   "name": "druid auburn hair",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "druid-caller-bfc54.png",
+   "name": "druid caller",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "druid-dragonspeaker-06e37.png",
+   "name": "druid dragonspeaker",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "druid-rhino-caller-0472d.png",
+   "name": "druid rhino caller",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "druid-with-hawk-6020f.png",
+   "name": "druid with hawk",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "nature-ritualist-49966.png",
+   "name": "nature ritualist",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "ugrathiel-druid-7662b.png",
+   "name": "Ugrathiel druid",
+   "category": "Spellcasters",
+   "sub": "Druids"
+  },
+  {
+   "file": "alchemist-with-familiar-b60d0.png",
+   "name": "alchemist with familiar",
+   "category": "Spellcasters",
+   "sub": "Elder casters"
+  },
+  {
+   "file": "elder-mage-f6416.png",
+   "name": "elder mage",
+   "category": "Spellcasters",
+   "sub": "Elder casters"
+  },
+  {
+   "file": "elder-wizened-mage-fd96b.png",
+   "name": "elder wizened mage",
+   "category": "Spellcasters",
+   "sub": "Elder casters"
+  },
+  {
+   "file": "old-mage-half-mad-8b6a4.png",
+   "name": "old mage half-mad",
+   "category": "Spellcasters",
+   "sub": "Elder casters"
+  },
+  {
+   "file": "old-wizard-0bff7.png",
+   "name": "old wizard",
+   "category": "Spellcasters",
+   "sub": "Elder casters"
+  },
+  {
+   "file": "chaotic-magic-sorcerer-2fadf.png",
+   "name": "chaotic magic sorcerer",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "elder-fire-mage-48c13.png",
+   "name": "elder fire mage",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "pyromancer-a8100.png",
+   "name": "pyromancer",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "red-clad-pyromancer-d24de.png",
+   "name": "red-clad pyromancer",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "sparkmage-7454f.png",
+   "name": "sparkmage",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "warlord-fire-summoner-52de0.png",
+   "name": "warlord fire summoner",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "young-pyromancer-2756f.png",
+   "name": "young pyromancer",
+   "category": "Spellcasters",
+   "sub": "Fire Casters"
+  },
+  {
+   "file": "delighted-necromancer-616ac.png",
+   "name": "delighted necromancer",
+   "category": "Spellcasters",
+   "sub": "Necromancers"
+  },
+  {
+   "file": "necromancer-1-d4e77.png",
+   "name": "necromancer 1",
+   "category": "Spellcasters",
+   "sub": "Necromancers"
+  },
+  {
+   "file": "necromancer-2-60abe.png",
+   "name": "necromancer 2",
+   "category": "Spellcasters",
+   "sub": "Necromancers"
+  },
+  {
+   "file": "blood-witch-0629e.png",
+   "name": "blood witch",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "caligo-skin-witch-08ce9.png",
+   "name": "caligo skin witch",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "cultist-warlock-1efc9.png",
+   "name": "cultist warlock",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "cuombajj-witch-1-a5b75.png",
+   "name": "cuombajj witch 1",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "cuombajj-witch-2-7bc80.png",
+   "name": "cuombajj witch 2",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "moor-witch-b165e.png",
+   "name": "moor witch",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "occultist-with-wand-0de9f.png",
+   "name": "occultist with wand",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "wandering-witch-96262.png",
+   "name": "wandering witch",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "warlock-cloaked-9bb50.png",
+   "name": "warlock cloaked",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "warlock-summoner-04120.png",
+   "name": "warlock summoner",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "witch-angered-494af.png",
+   "name": "witch angered",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "witch-caller-of-rats-354a7.png",
+   "name": "witch caller of rats",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "witch-cloaked-f2c73.png",
+   "name": "witch cloaked",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "witch-hag-3c085.png",
+   "name": "witch hag",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "witch-horned-3c7c5.png",
+   "name": "witch horned",
+   "category": "Spellcasters",
+   "sub": "Witches, Warlocks"
+  },
+  {
+   "file": "arcane-apprentice-536a0.png",
+   "name": "arcane apprentice",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "corrupt-ritualist-3c032.png",
+   "name": "corrupt ritualist",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "cuombajj-witch-1-60a58.png",
+   "name": "cuombajj witch 1",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "cuombajj-witch-2-71a87.png",
+   "name": "cuombajj witch 2",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "determined-mage-97868.png",
+   "name": "determined mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "fungus-mage-2920e.png",
+   "name": "fungus mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "ice-mage-c350c.png",
+   "name": "ice mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "lawmage-7cc86.png",
+   "name": "lawmage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-arithmancer-222e9.png",
+   "name": "mage arithmancer",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-explorer-231e5.png",
+   "name": "mage explorer",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-inkcaster-3e774.png",
+   "name": "mage inkcaster",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-storyteller-81b53.png",
+   "name": "mage storyteller",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-with-dagger-b46f0.png",
+   "name": "mage with dagger",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-with-owl-b13c2.png",
+   "name": "mage with owl",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mage-with-tome-0f8b9.png",
+   "name": "mage with tome",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "mask-conjurer-84f8c.png",
+   "name": "mask conjurer",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "masked-mage-bfec0.png",
+   "name": "masked mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "nightmare-shaper-d1e34.png",
+   "name": "nightmare shaper",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "nightmare-wielder-fd678.png",
+   "name": "nightmare wielder",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "pensive-caster-9a4f3.png",
+   "name": "pensive caster",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "rune-crafter-10c49.png",
+   "name": "rune crafter",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "shadow-figure-0dd5e.png",
+   "name": "shadow figure",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "shadow-mage-bbc27.png",
+   "name": "shadow mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "snapcaster-mage-9534d.png",
+   "name": "snapcaster mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "sorcerer-in-whirlwind-28e8c.png",
+   "name": "sorcerer in whirlwind",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "spellseeker-6cf51.png",
+   "name": "spellseeker",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "teferi-time-mage-6b673.png",
+   "name": "Teferi, time mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "temporal-mage-caa93.png",
+   "name": "temporal mage",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "twin-spellcaster-1-5eb6d.png",
+   "name": "twin spellcaster 1",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "twin-spellcaster-2-8c35b.png",
+   "name": "twin spellcaster 2",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "twin-spellcasters-bce8e.png",
+   "name": "twin spellcasters",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "vampire-warlock-f4b48.png",
+   "name": "vampire warlock",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "viscera-diviner-040c8.png",
+   "name": "viscera diviner",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "water-mystic-07907.png",
+   "name": "water mystic",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wicked-arcanist-e5cde.png",
+   "name": "wicked arcanist",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wizard-arithmomancer-dfefe.png",
+   "name": "wizard arithmomancer",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wizard-graviturgist-b75f5.png",
+   "name": "wizard graviturgist",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wizard-of-ioun-3aaea.png",
+   "name": "wizard of Ioun",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wizard-with-wand-2b80d.png",
+   "name": "wizard with wand",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wizard-school-of-abjuration-76406.png",
+   "name": "wizard, school of abjuration",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "wizard-school-of-conjuration-15e0c.png",
+   "name": "wizard, school of conjuration",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "young-mage-apprentice-1f5c2.png",
+   "name": "young mage apprentice",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "young-mystic-seer-b787c.png",
+   "name": "young mystic-seer",
+   "category": "Spellcasters",
+   "sub": null
+  },
+  {
+   "file": "bear-spirit-a4ede.png",
+   "name": "bear spirit",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc / Spirits"
+  },
+  {
+   "file": "cleric-spirit-a5a2a.png",
+   "name": "cleric spirit",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc / Spirits"
+  },
+  {
+   "file": "solemn-spirit-e7858.png",
+   "name": "solemn spirit",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc / Spirits"
+  },
+  {
+   "file": "spectral-skeleton-flock-025e9.png",
+   "name": "spectral skeleton flock",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc / Spirits"
+  },
+  {
+   "file": "spirit-guide-68eb8.png",
+   "name": "spirit guide",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc / Spirits"
+  },
+  {
+   "file": "banshee-sightless-3dafd.png",
+   "name": "banshee sightless",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "banshee-7fc23.png",
+   "name": "banshee",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "chained-ghost-954c8.png",
+   "name": "chained ghost",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "crypt-ghost-2920a.png",
+   "name": "crypt ghost",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ethereal-horse-99e81.png",
+   "name": "ethereal horse",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "forest-spirit-486e9.png",
+   "name": "forest spirit",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "geist-hovering-d2cb5.png",
+   "name": "geist hovering",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "geist-white-sheets-190ee.png",
+   "name": "geist white sheets",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "geist-0fd94.png",
+   "name": "geist",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-1-2d02c.png",
+   "name": "ghost 1",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-company-d997c.png",
+   "name": "ghost company",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-council-0a0ba.png",
+   "name": "ghost council",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-gathering-ad09a.png",
+   "name": "ghost gathering",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-girl-0587b.png",
+   "name": "ghost girl",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-of-vampire-ab459.png",
+   "name": "ghost of vampire",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-skeleton-animal-b8d31.png",
+   "name": "ghost skeleton animal",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-token-4e063.png",
+   "name": "ghost token",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-with-many-hands-a5bf4.png",
+   "name": "ghost with many hands",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghost-36533.png",
+   "name": "ghost",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "headless-specter-2641a.png",
+   "name": "headless specter",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "lantern-lit-ghost-c2bbe.png",
+   "name": "lantern-lit ghost",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "mire-ghost-e5695.png",
+   "name": "mire ghost",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "niblis-with-arms-ffbd0.png",
+   "name": "niblis with arms",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "nightmare-7b7af.png",
+   "name": "nightmare",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "orzhov-1-4d92f.png",
+   "name": "orzhov 1",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "orzhov-2-3afe7.png",
+   "name": "orzhov 2",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "orzhov-3-b2f54.png",
+   "name": "orzhov 3",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "pale-ghostform-e2ec6.png",
+   "name": "pale ghostform",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "rusalka-5e938.png",
+   "name": "rusalka",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "shade-12f6d.png",
+   "name": "shade",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-1-66449.png",
+   "name": "spectral 1",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-2-26279.png",
+   "name": "spectral 2",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-3-4cac6.png",
+   "name": "spectral 3",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-entities-c6193.png",
+   "name": "spectral entities",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-rider-2-27875.png",
+   "name": "spectral rider 2",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-rider-8b473.png",
+   "name": "spectral rider",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-shepherd-d3278.png",
+   "name": "spectral shepherd",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spectral-trio-65899.png",
+   "name": "spectral trio",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spirit-feline-73ab8.png",
+   "name": "spirit feline",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spirit-strider-34131.png",
+   "name": "spirit strider",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "spirit-swordsman-3621d.png",
+   "name": "spirit swordsman",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "wraith-a0f9c.png",
+   "name": "wraith",
+   "category": "Undead",
+   "sub": "Ghosts, Specters, Nightmares, etc"
+  },
+  {
+   "file": "ghoul-enchanted-f6e41.png",
+   "name": "ghoul enchanted",
+   "category": "Undead",
+   "sub": "Ghouls"
+  },
+  {
+   "file": "silversmote-ghoul-8ac78.png",
+   "name": "silversmote ghoul",
+   "category": "Undead",
+   "sub": "Ghouls"
+  },
+  {
+   "file": "demilich-with-jewels-as-eyes-c0bb0.png",
+   "name": "demilich with jewels as eyes",
+   "category": "Undead",
+   "sub": "Liches, Demiliches"
+  },
+  {
+   "file": "demilich-3edf0.png",
+   "name": "demilich",
+   "category": "Undead",
+   "sub": "Liches, Demiliches"
+  },
+  {
+   "file": "lich-1-97134.png",
+   "name": "lich 1",
+   "category": "Undead",
+   "sub": "Liches, Demiliches"
+  },
+  {
+   "file": "lich-2-859be.png",
+   "name": "lich 2",
+   "category": "Undead",
+   "sub": "Liches, Demiliches"
+  },
+  {
+   "file": "lich-3-b43cc.png",
+   "name": "lich 3",
+   "category": "Undead",
+   "sub": "Liches, Demiliches"
+  },
+  {
+   "file": "revenant-death-knight-976f3.png",
+   "name": "revenant death knight",
+   "category": "Undead",
+   "sub": "Revenants"
+  },
+  {
+   "file": "revenant-token-8b733.png",
+   "name": "revenant token",
+   "category": "Undead",
+   "sub": "Revenants"
+  },
+  {
+   "file": "undead-knight-token-ee758.png",
+   "name": "undead knight token",
+   "category": "Undead",
+   "sub": "Revenants"
+  },
+  {
+   "file": "skeleton-knight-59522.png",
+   "name": "skeleton knight",
+   "category": "Undead",
+   "sub": "Skeletons"
+  },
+  {
+   "file": "skeleton-with-crown-e7385.png",
+   "name": "skeleton with crown",
+   "category": "Undead",
+   "sub": "Skeletons"
+  },
+  {
+   "file": "undead-dog-4c734.png",
+   "name": "undead dog",
+   "category": "Undead",
+   "sub": "Skeletons"
+  },
+  {
+   "file": "wall-of-bones-6b7a8.png",
+   "name": "wall of bones",
+   "category": "Undead",
+   "sub": "Skeletons"
+  },
+  {
+   "file": "decaying-ooze-262af.png",
+   "name": "decaying ooze",
+   "category": "Undead",
+   "sub": "Undead beasts, animals"
+  },
+  {
+   "file": "nightstalker-161f6.png",
+   "name": "nightstalker",
+   "category": "Undead",
+   "sub": "Undead beasts, animals"
+  },
+  {
+   "file": "undead-dinosaur-80c63.png",
+   "name": "undead dinosaur",
+   "category": "Undead",
+   "sub": "Undead beasts, animals"
+  },
+  {
+   "file": "undead-horse-efeec.png",
+   "name": "undead horse",
+   "category": "Undead",
+   "sub": "Undead beasts, animals"
+  },
+  {
+   "file": "undead-raven-1349f.png",
+   "name": "undead raven",
+   "category": "Undead",
+   "sub": "Undead beasts, animals"
+  },
+  {
+   "file": "blight-dracolich-85c0f.png",
+   "name": "blight dracolich",
+   "category": "Undead",
+   "sub": "Undead Dragons"
+  },
+  {
+   "file": "blight-skeletal-dragon-a9dc0.png",
+   "name": "blight skeletal dragon",
+   "category": "Undead",
+   "sub": "Undead Dragons"
+  },
+  {
+   "file": "blighted-undead-dragon-5616c.png",
+   "name": "blighted undead dragon",
+   "category": "Undead",
+   "sub": "Undead Dragons"
+  },
+  {
+   "file": "bone-dragon-485ea.png",
+   "name": "bone dragon",
+   "category": "Undead",
+   "sub": "Undead Dragons"
+  },
+  {
+   "file": "dracolich-black-30283.png",
+   "name": "dracolich black",
+   "category": "Undead",
+   "sub": "Undead Dragons"
+  },
+  {
+   "file": "dragon-skeleton-6dc7b.png",
+   "name": "dragon skeleton",
+   "category": "Undead",
+   "sub": "Undead Dragons"
+  },
+  {
+   "file": "flying-scaab-253f2.png",
+   "name": "flying scaab",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "stitched-scaab-2e2cb.png",
+   "name": "stitched scaab",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "undead-experiment-5a66d.png",
+   "name": "undead experiment",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "undead-stitched-monstrosity-5cab4.png",
+   "name": "undead stitched monstrosity",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "winged-stitched-zombie-0ee83.png",
+   "name": "winged stitched zombie",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "winged-undead-ceafc.png",
+   "name": "winged undead",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "zombie-colossus-74e62.png",
+   "name": "zombie colossus",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "zombie-stitched-1-bc26c.png",
+   "name": "zombie stitched 1",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "zombie-stitched-2-fc824.png",
+   "name": "zombie stitched 2",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "zombie-stitched-5522b.png",
+   "name": "zombie stitched",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "zombie-stitcher-98ef9.png",
+   "name": "zombie stitcher",
+   "category": "Undead",
+   "sub": "Undead experiments"
+  },
+  {
+   "file": "fungal-zombie-8c414.png",
+   "name": "fungal zombie",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "stalking-zombie-e4462.png",
+   "name": "stalking zombie",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-1-21f07.png",
+   "name": "zombie 1",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-2-cb706.png",
+   "name": "zombie 2",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-3-4d819.png",
+   "name": "zombie 3",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-4-d92f4.png",
+   "name": "zombie 4",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-5-4a31b.png",
+   "name": "zombie 5",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-7-111bc.png",
+   "name": "zombie 7",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-8-7638a.png",
+   "name": "zombie 8",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-9-13b0a.png",
+   "name": "zombie 9",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-barbarian-355bb.png",
+   "name": "zombie barbarian",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-couple-dafa2.png",
+   "name": "zombie couple",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombie-decomposing-with-dress-505b4.png",
+   "name": "zombie decomposing with dress",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombies-invasion-3c713.png",
+   "name": "zombies invasion",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "zombies-rising-6d8bb.png",
+   "name": "zombies rising",
+   "category": "Undead",
+   "sub": "Zombies et al"
+  },
+  {
+   "file": "armored-undead-general-1f9df.png",
+   "name": "armored undead general",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "blight-dracolich-a68f0.png",
+   "name": "blight dracolich",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "blight-skeletal-dragon-bf111.png",
+   "name": "blight skeletal dragon",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "blighted-undead-dragon-f8e96.png",
+   "name": "blighted undead dragon",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "bone-dragon-458e9.png",
+   "name": "bone dragon",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "death-caller-43893.png",
+   "name": "death caller",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "death-giant-cab75.png",
+   "name": "death giant",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "decaying-ooze-fe880.png",
+   "name": "decaying ooze",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "demilich-with-jewels-as-eyes-1fd42.png",
+   "name": "demilich with jewels as eyes",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "demilich-8c0e0.png",
+   "name": "demilich",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "dracolich-black-93c01.png",
+   "name": "dracolich black",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "dragon-skeleton-6eb65.png",
+   "name": "dragon skeleton",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "eyeless-undead-a7e8d.png",
+   "name": "eyeless undead",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "flying-specter-c9422.png",
+   "name": "flying specter",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "fungal-zombie-939e0.png",
+   "name": "fungal zombie",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "gendour-undead-warrior-f9d8b.png",
+   "name": "Gendour undead warrior",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "ghoul-enchanted-50388.png",
+   "name": "ghoul enchanted",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "ghoul-5e9b9.png",
+   "name": "ghoul",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "goliath-undead-5d6ac.png",
+   "name": "goliath undead",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "lich-1-54386.png",
+   "name": "lich 1",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "lich-2-24daa.png",
+   "name": "lich 2",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "lich-3-e3d61.png",
+   "name": "lich 3",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "medusa-undead-06cb0.png",
+   "name": "medusa undead",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "nightstalker-e9871.png",
+   "name": "nightstalker",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "revenant-death-knight-ab282.png",
+   "name": "revenant death knight",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "revenant-token-d4532.png",
+   "name": "revenant token",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "silversmote-ghoul-12a4e.png",
+   "name": "silversmote ghoul",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "skeleton-knight-6f5bd.png",
+   "name": "skeleton knight",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "skeleton-with-crown-d3c3c.png",
+   "name": "skeleton with crown",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "stalking-zombie-339d2.png",
+   "name": "stalking zombie",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "thinking-undead-8dbc4.png",
+   "name": "thinking undead",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-butcher-a72d0.png",
+   "name": "undead butcher",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-dinosaur-672a7.png",
+   "name": "undead dinosaur",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-dog-96376.png",
+   "name": "undead dog",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-goblin-aa557.png",
+   "name": "undead goblin",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-goblin-8ce63.png",
+   "name": "undead goblin",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-horse-24fd3.png",
+   "name": "undead horse",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-knight-token-7496d.png",
+   "name": "undead knight token",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-mage-02a52.png",
+   "name": "undead mage",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-mage-c8e5d.png",
+   "name": "undead mage",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-naga-e4160.png",
+   "name": "undead naga",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-naga-8adde.png",
+   "name": "undead naga",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-raven-a3489.png",
+   "name": "undead raven",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-rider-29c35.png",
+   "name": "undead rider",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-rider-b094c.png",
+   "name": "undead rider",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-ritualist-af0cb.png",
+   "name": "undead ritualist",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-ritualist-00337.png",
+   "name": "undead ritualist",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-sentient-dc6e5.png",
+   "name": "undead sentient",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "undead-sentient-ed889.png",
+   "name": "undead sentient",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "vengeful-scaab-d27fa.png",
+   "name": "vengeful scaab",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "wall-of-bones-7532a.png",
+   "name": "wall of bones",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "winged-stitched-zombie-600f7.png",
+   "name": "winged stitched zombie",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "winged-undead-2028b.png",
+   "name": "winged undead",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-1-6686a.png",
+   "name": "zombie 1",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-2-1c346.png",
+   "name": "zombie 2",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-3-b7d9a.png",
+   "name": "zombie 3",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-4-b7e0a.png",
+   "name": "zombie 4",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-5-09c8c.png",
+   "name": "zombie 5",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-7-c7ff8.png",
+   "name": "zombie 7",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-8-51462.png",
+   "name": "zombie 8",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-9-59bca.png",
+   "name": "zombie 9",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-barbarian-7b805.png",
+   "name": "zombie barbarian",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-colossus-a399e.png",
+   "name": "zombie colossus",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-couple-4852a.png",
+   "name": "zombie couple",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-decomposiing-dress-a6e83.png",
+   "name": "zombie decomposiing dress",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-stitched-1-0f7f9.png",
+   "name": "zombie stitched 1",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-stitched-2-ea311.png",
+   "name": "zombie stitched 2",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-stitched-60fe0.png",
+   "name": "zombie stitched",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombie-stitcher-fc9bb.png",
+   "name": "zombie stitcher",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombies-invasion-56e61.png",
+   "name": "zombies invasion",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "zombies-rising-1c7eb.png",
+   "name": "zombies rising",
+   "category": "Undead",
+   "sub": null
+  },
+  {
+   "file": "aasimar-fighter-30efb.png",
+   "name": "aasimar fighter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "adventurer-with-magic-lantern-0771e.png",
+   "name": "adventurer with magic lantern",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "aether-wielding-archer-40f81.png",
+   "name": "aether-wielding archer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "archer-in-flaming-city-7e71e.png",
+   "name": "archer in flaming city",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "archer-solemn-8520d.png",
+   "name": "archer solemn",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "archer-21bde.png",
+   "name": "archer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "armored-general-bb198.png",
+   "name": "armored general",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "armored-man-with-flaming-weapo-0cba8.png",
+   "name": "armored man with flaming weapon",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "armorer-2faec.png",
+   "name": "armorer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "assassin-with-blades-2ec42.png",
+   "name": "assassin with blades",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "attentive-druid-e0900.png",
+   "name": "attentive druid",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "axe-wielding-barbarian-ef309.png",
+   "name": "axe-wielding barbarian",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "barbarian-with-axe-c934f.png",
+   "name": "barbarian with axe",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "barbarian-fe32f.png",
+   "name": "barbarian",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "bastion-general-48de4.png",
+   "name": "bastion general",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "bedecked-rider-60d4d.png",
+   "name": "bedecked rider",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "black-armored-knight-ce9cf.png",
+   "name": "black armored knight",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "blade-blossom-be227.png",
+   "name": "blade blossom",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "blade-juggler-f693d.png",
+   "name": "blade juggler",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "blind-lior-rider-18f57.png",
+   "name": "blind lior rider",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "blood-mad-berserker-a2d84.png",
+   "name": "blood-mad berserker",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "cathar-with-sword-b2568.png",
+   "name": "cathar with sword",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "cleric-in-the-forest-a163f.png",
+   "name": "cleric in the forest",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "cloaked-assassion-f7d03.png",
+   "name": "cloaked assassion",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "cloaked-figure-39b74.png",
+   "name": "cloaked figure",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "cloaked-rogue-031fc.png",
+   "name": "cloaked rogue",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "cloaked-swordmaster-ccd01.png",
+   "name": "cloaked swordmaster",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "decorated-fighter-87260.png",
+   "name": "decorated fighter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "duelist-with-2-swords-646aa.png",
+   "name": "duelist with 2 swords",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "ember-eyed-warrior-ae41b.png",
+   "name": "ember eyed warrior",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "falconer-10db4.png",
+   "name": "falconer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighter-duelist-9fbd2.png",
+   "name": "fighter duelist",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighter-mid-battle-cry-af38f.png",
+   "name": "fighter mid-battle-cry",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighter-with-cape-0acb9.png",
+   "name": "fighter with cape",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighter-with-hammer-0bc9e.png",
+   "name": "fighter with hammer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighter-with-shield-8d040.png",
+   "name": "fighter with shield",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighter-with-spear-e459d.png",
+   "name": "fighter with spear",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "fighting-prince-9496f.png",
+   "name": "fighting prince",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "forest-scout-f9524.png",
+   "name": "forest scout",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "forest-vigil-94005.png",
+   "name": "forest vigil",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "frenzied-rider-5856e.png",
+   "name": "frenzied rider",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "frightened-guard-10612.png",
+   "name": "frightened guard",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "gate-sentinel-d97e1.png",
+   "name": "gate sentinel",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "general-in-plate-armor-08845.png",
+   "name": "general in plate armor",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "guard-in-gold-armor-5765e.png",
+   "name": "guard in gold armor",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "guard-with-halberd-1-60224.png",
+   "name": "guard with halberd 1",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "guard-with-halberd-2-fd62f.png",
+   "name": "guard with halberd 2",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "guard-with-halberd-3-deac3.png",
+   "name": "guard with halberd 3",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "guard-with-torch-d467b.png",
+   "name": "guard with torch",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "hunter-in-forest-a0e7f.png",
+   "name": "hunter in forest",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "knight-of-the-silver-order-b45db.png",
+   "name": "knight of the silver order",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "knight-rider-5f9fc.png",
+   "name": "knight rider",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "knight-riding-horse-e5ed7.png",
+   "name": "knight riding horse",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "knight-riding-c3f2d.png",
+   "name": "knight riding",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "knight-with-skull-lantern-46abb.png",
+   "name": "knight with skull lantern",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "male-soldier-145c0.png",
+   "name": "male soldier",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "menacing-knight-rider-6c692.png",
+   "name": "menacing knight rider",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "militia-with-hat-a336f.png",
+   "name": "militia with hat",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "militia-a9428.png",
+   "name": "militia",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "moonlit-assassin-997cb.png",
+   "name": "moonlit assassin",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "nameless-paladin-97569.png",
+   "name": "nameless paladin",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "ninja-219ff.png",
+   "name": "ninja",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "orc-paladin-f40e5.png",
+   "name": "orc paladin",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "paladin-armored-female-4611d.png",
+   "name": "paladin armored female",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "paladin-of-light-3f931.png",
+   "name": "paladin of light",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "paladin-with-blade-eb6b4.png",
+   "name": "paladin with blade",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "paladin-with-polearm-6648f.png",
+   "name": "paladin with polearm",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "pale-assassin-1f9d2.png",
+   "name": "pale assassin",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "pale-swordsman-c0407.png",
+   "name": "pale swordsman",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "pious-knight-4d32c.png",
+   "name": "pious knight",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "purple-knight-6fbcf.png",
+   "name": "purple knight",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "radiant-general-abd8c.png",
+   "name": "radiant general",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "radiant-knight-7d247.png",
+   "name": "radiant knight",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "radiant-warrior-dc1fa.png",
+   "name": "radiant warrior",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "raging-hexblade-6e1b5.png",
+   "name": "raging hexblade",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "ranger-with-ethereal-arrows-aa6b0.png",
+   "name": "ranger with ethereal arrows",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "ranger-with-familiar-43080.png",
+   "name": "ranger with familiar",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "ranger-with-spirit-animals-728bb.png",
+   "name": "ranger with spirit animals",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "red-riding-hood-and-her-wolves-26563.png",
+   "name": "Red Riding Hood and her wolves",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "rogue-arcane-trickster-c5700.png",
+   "name": "rogue arcane trickster",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "rogue-artificer-e418e.png",
+   "name": "rogue artificer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "rogue-dungeon-delver-9a55e.png",
+   "name": "rogue dungeon delver",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "rogue-swashbuckler-bdc8f.png",
+   "name": "rogue swashbuckler",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "servant-of-the-raven-queen-37650.png",
+   "name": "servant of the Raven Queen",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "shadowfell-hunter-4bb9f.png",
+   "name": "shadowfell hunter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "shield-fighter-4ef0e.png",
+   "name": "shield fighter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "spell-and-sword-slinger-2e8d5.png",
+   "name": "spell-and-sword-slinger",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "spellslinger-pyromancer-6343c.png",
+   "name": "spellslinger pyromancer",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "spellslinger-twins-51489.png",
+   "name": "spellslinger twins",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "steppe-warrior-af966.png",
+   "name": "steppe warrior",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "stern-paladin-4374a.png",
+   "name": "stern paladin",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "theros-hunter-686c5.png",
+   "name": "theros hunter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "token-42-5-80f7f.png",
+   "name": "token_42 (5)",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "tracker-warrior-042e0.png",
+   "name": "tracker warrior",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "tundra-hunter-3c273.png",
+   "name": "tundra hunter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "warlord-d55cf.png",
+   "name": "warlord",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "warrior-armless-4725e.png",
+   "name": "warrior armless",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "warrior-bathed-in-flames-7c5a8.png",
+   "name": "warrior bathed in flames",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "warrior-in-chariot-095be.png",
+   "name": "warrior in chariot",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "warrior-wild-e4f6e.png",
+   "name": "warrior wild",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "warrior-with-vorpal-sword-4e95d.png",
+   "name": "warrior with vorpal sword",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "wild-hunter-22052.png",
+   "name": "wild hunter",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "wilderness-guide-54336.png",
+   "name": "wilderness guide",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "wildling-with-scythe-a3af7.png",
+   "name": "wildling with scythe",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "wolf-riders-83095.png",
+   "name": "wolf riders",
+   "category": "Warriors and Rogues",
+   "sub": null
+  },
+  {
+   "file": "angered-werewolf-7a6ba.png",
+   "name": "angered werewolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "armored-wolf-companion-b0db9.png",
+   "name": "armored wolf companion",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "fearsome-werewolf-580e9.png",
+   "name": "fearsome werewolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "female-werewolf-fbe57.png",
+   "name": "female werewolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "fenrir-the-devourer-58810.png",
+   "name": "Fenrir, the devourer",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "flaming-werewolf-abberation-0e5d0.png",
+   "name": "flaming werewolf abberation",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "grey-werewolf-135c0.png",
+   "name": "grey werewolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "howling-wolf-179c1.png",
+   "name": "howling wolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "mordwolf-f6b1f.png",
+   "name": "mordwolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "nyxborn-wolf-18c90.png",
+   "name": "nyxborn wolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "rabid-werewolf-1-5763f.png",
+   "name": "rabid werewolf 1",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "rabid-werewolf-2-951ca.png",
+   "name": "rabid werewolf 2",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "shadow-wolf-e7829.png",
+   "name": "shadow wolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "stalking-wolf-a85a9.png",
+   "name": "stalking wolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-1-22ef7.png",
+   "name": "werewolf 1",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-2-d089b.png",
+   "name": "werewolf 2",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-3-17b7c.png",
+   "name": "werewolf 3",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-5-bff8b.png",
+   "name": "werewolf 5",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-6-a0810.png",
+   "name": "werewolf 6",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-7-ca939.png",
+   "name": "werewolf 7",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-alpha-7381b.png",
+   "name": "werewolf alpha",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-ambusher-45b0d.png",
+   "name": "werewolf ambusher",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-attacking-the-village-31209.png",
+   "name": "werewolf attacking the village",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-clancaller-b8008.png",
+   "name": "werewolf clancaller",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-crusher-243a7.png",
+   "name": "werewolf crusher",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-druid-89166.png",
+   "name": "werewolf druid",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-feral-652c3.png",
+   "name": "werewolf feral",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-pierced-with-silver-s-4859a.png",
+   "name": "werewolf pierced with silver sword",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-pumkin-smasher-e9d9d.png",
+   "name": "werewolf pumkin smasher",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "werewolf-transformed-dc587.png",
+   "name": "werewolf transformed",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "white-wolf-c9b63.png",
+   "name": "white wolf",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-baring-fangs-64501.png",
+   "name": "wolf baring fangs",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-companion-9d229.png",
+   "name": "wolf companion",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-cub-7e0c8.png",
+   "name": "wolf cub",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-familiar-4751f.png",
+   "name": "wolf familiar",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-of-the-wildmother-7e61c.png",
+   "name": "wolf of the wildmother",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-of-theros-206b1.png",
+   "name": "wolf of Theros",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-pack-93ec7.png",
+   "name": "wolf pack",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolf-under-the-full-moon-dcc46.png",
+   "name": "wolf under the full moon",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  },
+  {
+   "file": "wolfir-with-many-eyes-fa336.png",
+   "name": "wolfir with many eyes",
+   "category": "Werewolves and Wolves",
+   "sub": null
+  }
+ ]
+}

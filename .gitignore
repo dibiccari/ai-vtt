@@ -1,10 +1,5 @@
 node_modules/
+.DS_Store
 .env
-public/uploads/*
-!public/uploads/.gitkeep
-!public/uploads/lmop-*
-data/campaign/
-data/campaigns/
-public/tokens/
-public/sheets/
+# Regenerated on demand
 data/tts-cache/
