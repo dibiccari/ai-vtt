@@ -17,7 +17,11 @@
     // A small pitch drop (pitch not preserved) makes the voice read clearly male.
     masculine: { rate: 0.92, keepPitch: false, bass: 4 },
     // Slower with pitch not preserved = deeper, then crunch it and roll off the highs for a growl.
-    monstrous: { rate: 0.78, keepPitch: false, distort: 14, lowpass: 2600 }
+    monstrous: { rate: 0.78, keepPitch: false, distort: 14, lowpass: 2600 },
+    // An animal given speech: lower, slower and a little rough.
+    beast: { rate: 0.88, keepPitch: false, distort: 5, lowpass: 3800 },
+    // The dead: slow, thin and hollow, with a slow tremble and the highs rolled off.
+    undead: { rate: 0.84, keepPitch: true, thin: 320, vibrato: { hz: 3.2, depth: 0.0013 }, lowpass: 3400 }
   };
 
   var ctx = null;

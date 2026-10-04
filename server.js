@@ -523,6 +523,8 @@ const TTS_PROFILES = {
   monstrous: { voices: ['onyx'], style: 'A snarling monster, not a person. Extremely deep, growling and guttural, with a wet rasp and snarls between words. Slow, heavy and menacing.' },
   ethereal:  { voices: ['shimmer', 'sage'], style: 'Ethereal and otherworldly. Airy, soft and haunting, with long pauses.' },
   feminine:  { voices: ['nova', 'coral', 'shimmer'], style: 'A woman in her thirties. High, light, soft and clearly feminine, warm and expressive, natural and conversational.' },
+  beast:     { voices: ['onyx', 'echo'], style: 'A wild animal that has been given the power of speech. Low, rough and instinctive, short simple sentences, blunt and literal, with huffs, growls and sniffs between words and an animal\'s nervous or proud cadence. Not human: no polish, no long words.' },
+  undead:    { voices: ['ballad', 'onyx'], style: 'A voice from beyond the grave. Hollow, whispery and rasping, with a cold echoing quality and a dry rattle of breath. Very slow, with long unsettling pauses, flat and sorrowful, as if every word costs effort from far away.' },
   masculine: { voices: ['onyx', 'ash'], style: 'A big, burly man in his forties. Natural baritone, warm and chesty, with a confident edge. Strong, steady and commanding, unmistakably male.' }
 };
 
@@ -785,7 +787,7 @@ Secrets stay secret. Each token in the board state has hidden, kind and visibleT
 The table plays in voice mode: your reply is read aloud. Split the full reply into voiceLines, in order, so that
 the voiceLines texts joined together equal the narrative. Use speaker "Narrator" with voice "narrator" for narration and
 rules results; give every NPC or monster line its own entry with the NPC's name as speaker and the voice profile that
-fits them best (gruff, sly, noble, elderly, child, monstrous, ethereal, feminine, masculine). Keep the same voice for the
+fits them best (gruff, sly, noble, elderly, child, monstrous, ethereal, feminine, masculine; beast for an animal that has been given speech, such as with Speak with Animals, and undead for ghosts, skeletons, zombies and the dead who answer through Speak with Dead). Keep the same voice for the
 same NPC across turns. Write dice math in a speakable way. When the player's input is marked as spoken, it was
 transcribed from speech and may contain recognition errors - interpret it charitably.`;
 
@@ -858,7 +860,7 @@ function gearToPartyUpdates(updates) {
   return out;
 }
 
-const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine'];
+const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine', 'beast', 'undead'];
 
 // The AI's reply format. Each kind of board or sheet update lists exactly its own fields (all required): the API
 // limits how many optional fields a schema may have, and this also keeps the AI from sending half-formed updates.
