@@ -39,6 +39,7 @@
     font: 14px/1.45 var(--font);
     display: grid;
     grid-template-columns: minmax(0, 1fr) 420px;
+    grid-template-rows: auto minmax(0, 1fr);
     height: 100dvh;
     overflow: hidden;
   }
@@ -258,7 +259,7 @@
   @keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
   @media (max-width: 900px) {
-    body { grid-template-columns: 1fr; grid-template-rows: 58vh minmax(0, 1fr); height: 100dvh; }
+    body { grid-template-columns: 1fr; grid-template-rows: auto 58vh minmax(0, 1fr); height: 100dvh; }
     .map-panel { border-right: none; border-bottom: 1px solid var(--border); }
     .map-toolbar { padding: 8px 12px; gap: 8px; }
     .brand { display: none; }
@@ -269,6 +270,8 @@
 </style>
 </head>
 <body>
+<script src="/nav.js"></script>
+<script src="/voice-fx.js"></script>
 
 <!-- ================================================================ LEFT: BATTLEMAP -->
 <main class="map-panel">
@@ -277,7 +280,6 @@
     <div class="turn-tracker" id="turnTracker" aria-label="Turn order"></div>
     <div class="move-info" id="moveInfo"></div>
     <button class="btn btn-gold btn-sm" id="endTurnBtn" title="End the active token's turn">End Turn ⏭</button>
-    <a class="btn btn-sm" href="/settings.html" target="_blank" rel="noopener" title="API keys and voice settings" style="text-decoration:none;">⚙ Settings</a>
   </div>
   <div class="canvas-wrap" id="canvasWrap">
     <canvas id="board" aria-label="Battlemap canvas"></canvas>
@@ -1731,8 +1733,8 @@ const VOICE_PROFILES = {
   gruff:     { pitch: 0.8,  rate: 0.95, gender: 'male' },
   sly:       { pitch: 1.1,  rate: 1.08, gender: 'male' },
   noble:     { pitch: 1.0,  rate: 0.95, gender: 'male' },
-  elderly:   { pitch: 0.9,  rate: 0.88, gender: 'male' },
-  child:     { pitch: 1.4,  rate: 1.1,  gender: 'female' },
+  elderly:   { pitch: 0.75, rate: 0.8,  gender: 'male' },
+  child:     { pitch: 1.85, rate: 1.12, gender: 'female' },
   monstrous: { pitch: 0.55, rate: 0.82, gender: 'male' },
   ethereal:  { pitch: 1.2,  rate: 0.88, gender: 'female' },
   feminine:  { pitch: 1.05, rate: 1.0,  gender: 'female' },
@@ -2013,7 +2015,7 @@ const voice = (() => {
     return URL.createObjectURL(await res.blob());
   }
 
-  function playClip(url, onstart) {
+  function playClip(url, onstart, tag) {
     return new Promise((resolve) => {
       cloud.resolve = resolve;
       const a = cloud.audio;
@@ -2021,6 +2023,7 @@ const voice = (() => {
       a.onended = () => { cloud.resolve = null; resolve(true); };
       a.onerror = () => { cloud.resolve = null; resolve(false); };
       a.src = url;
+      if (window.VoiceFx) VoiceFx.apply(a, tag);
       a.play().catch(() => { cloud.resolve = null; resolve(false); });
     }).finally(() => URL.revokeObjectURL(url));
   }
@@ -2035,7 +2038,7 @@ const voice = (() => {
       try { url = await clips[i]; } catch (err) { err.playedCount = i; throw err; }
       if (gen !== speakGen) return true;
       const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${i}"]`) : null;
-      await playClip(url, () => { if (gen === speakGen && node) node.classList.add('speaking'); });
+      await playClip(url, () => { if (gen === speakGen && node) node.classList.add('speaking'); }, lines[i].voice);
       if (node) node.classList.remove('speaking');
     }
     return true;

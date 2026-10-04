@@ -159,8 +159,8 @@ const TTS_PROFILES = {
   gruff:     { voices: ['onyx', 'ash'], style: 'Gruff, weathered and blunt. Low and rough, impatient, as if tired of fools.' },
   sly:       { voices: ['ash', 'echo'], style: 'Sly and smooth, quick and amused, a little mischievous, with a hint of a smirk in every line.' },
   noble:     { voices: ['echo', 'fable'], style: 'Dignified and confident, crisp diction, an air of authority and good breeding.' },
-  elderly:   { voices: ['sage', 'fable'], style: 'Old and weary but kind. Slower, slightly raspy and wavering, with warmth.' },
-  child:     { voices: ['shimmer', 'coral'], style: 'A young child. High, bright, excitable and earnest, words tumbling out.' },
+  elderly:   { voices: ['sage', 'fable'], style: 'Voice: a very old man or woman, ninety years old, frail and thin, breathy, hoarse and cracked, with a trembling quaver. Pacing: slow and halting, long pauses between phrases to catch breath, words dragging at the ends. Tone: tired, wistful and gentle, a little confused. Never strong, smooth, clear or young.' },
+  child:     { voices: ['shimmer', 'coral'], style: 'Voice: a tiny child of six or seven. Extremely high-pitched, squeaky, light and breathy, with a sing-song childlike lilt. Pacing: quick and uneven, tumbling over words, sometimes giggling or gasping. Tone: wide-eyed, excited and innocent. Never sound like an adult doing a child impression.' },
   monstrous: { voices: ['onyx'], style: 'A monstrous creature. Very deep and guttural, growling, menacing, with slow heavy phrasing.' },
   ethereal:  { voices: ['shimmer', 'sage'], style: 'Ethereal and otherworldly. Airy, soft and haunting, with long pauses.' },
   feminine:  { voices: ['nova', 'coral', 'shimmer'], style: 'A warm, expressive woman. Natural, conversational and lively.' },
@@ -173,7 +173,7 @@ const DEFAULT_CHARACTER_VOICES = {
   'Sildar Hallwinter': { voice: 'echo', style: 'A noble, honorable human knight. Steady and sincere, a little weary from hard travel, speaking with quiet resolve.' },
   'Gundren Rockseeker': { voice: 'ash', style: 'A gruff, excitable dwarf prospector with a rough burr. Proud and brusque, thrilled about treasure.' },
   'Toblen Stonehill': { voice: 'alloy', style: 'A warm, friendly innkeeper. Cheerful and hospitable, but worried about the town underneath the welcome.' },
-  'Elmar Barthen': { voice: 'fable', style: 'An older, tidy shopkeeper. Polite, patient and a little fussy, speaking in a slightly thin, aged voice.' },
+  'Elmar Barthen': { voice: 'fable', style: 'An old, tidy shopkeeper in his seventies. Polite, patient and a little fussy, with a thin, creaky, aged voice that wavers slightly and slows down to think.' },
   'Sister Garaele': { voice: 'coral', style: 'A calm elven priestess and secret Harper. Soft, graceful and measured, with a hint of mystery.' },
   'Halia Thornton': { voice: 'nova', style: 'A brisk, ambitious businesswoman. Polished, calculating and cool, every sentence a negotiation.' },
   'Iarno Glasstaff': { voice: 'verse', style: 'A smug, arrogant wizard who thinks he is the cleverest person in the room. Silky, contemptuous and controlled.' },
@@ -181,7 +181,7 @@ const DEFAULT_CHARACTER_VOICES = {
   'Yeemik': { voice: 'shimmer', style: 'A scheming goblin leader. Raspy, high and fast, nervous, sneaky and eager to make a deal.' },
   'Nezznar': { voice: 'sage', style: 'A cold, patient drow spellcaster known as the Black Spider. Quiet, silky and venomous, never raising his voice.' },
   'Agatha': { voice: 'ballad', style: 'A haunting banshee. Whispering, mournful and echoing, with long eerie pauses and sudden sharpness.' },
-  'Reidoth': { voice: 'echo', style: 'An old, solitary druid. Slow, gentle and wise, with the calm of someone who prefers trees to people.' }
+  'Reidoth': { voice: 'echo', style: 'A very old, solitary druid. Slow, gravelly and weathered, a gentle rasp and a quaver of age, with the calm of someone who prefers trees to people.' }
 };
 const KNOWN_OPENAI_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse']);
 

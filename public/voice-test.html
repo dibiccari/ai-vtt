@@ -25,6 +25,9 @@
   .card h3 { margin:0; font-size:15px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
   .card h3 small { color:var(--muted); font-weight:500; font-size:12px; text-align:right; }
   .line { font-family:Georgia,serif; font-size:14px; color:#dfe4ec; min-height:42px; }
+  .cardbtns { display:flex; gap:8px; }
+  .stopbtn { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  .card.playing .stopbtn { background:var(--danger); border-color:var(--danger); color:#1a0505; }
   .cloudline { font:600 12px "Segoe UI",sans-serif; color:var(--ok); background:rgba(63,210,127,.1); border:1px solid rgba(63,210,127,.3); border-radius:6px; padding:5px 8px; }
   label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
   label span b { color:var(--text); font-weight:700; }
@@ -59,8 +62,10 @@
 </style>
 </head>
 <body>
+<script src="/nav.js"></script>
+<script src="/voice-fx.js"></script>
 <h1>AI<span>·</span>VTT Voice Test</h1>
-<p class="lead">Check your microphone and speakers, and hear each voice profile and Phandelver character with the voices installed in <em>this</em> browser. <a href="/">Back to the tabletop</a> · <a href="/settings.html">⚙ Settings (API keys)</a></p>
+<p class="lead">Check your microphone and speakers, and hear each voice profile and Phandelver character with the voices installed in <em>this</em> browser.</p>
 
 <div class="bar" id="cloudRow" hidden style="margin-bottom:16px;">
   <label style="flex-direction:row; align-items:center; gap:8px; color:var(--text); font-size:14px;"><input type="checkbox" id="cloudToggle"> Use ChatGPT voices (uncheck for Microsoft voices)</label>
@@ -151,8 +156,8 @@ const PROFILES = {
   gruff:     { label: 'Gruff',     pitch: 0.8,  rate: 0.95, gender: 'male',   line: 'You want passage through the mountain? Then pay the toll, or turn around.' },
   sly:       { label: 'Sly',       pitch: 1.1,  rate: 1.08, gender: 'male',   line: 'Oh, I know exactly where it is. The question is: what is it worth to you?' },
   noble:     { label: 'Noble',     pitch: 1.0,  rate: 0.95, gender: 'male',   line: 'You stand in the presence of the Lord Warden. Speak plainly, and speak truthfully.' },
-  elderly:   { label: 'Elderly',   pitch: 0.9,  rate: 0.88, gender: 'male',   line: 'Bram, my name is Bram. Not Brown. Ah, it is good that someone listens.' },
-  child:     { label: 'Child',     pitch: 1.4,  rate: 1.1,  gender: 'female', line: 'There is a monster under the bridge, I swear it! It ate my brother\'s shoe!' },
+  elderly:   { label: 'Elderly',   pitch: 0.75, rate: 0.8,  gender: 'male',   line: 'Bram, my name is Bram. Not Brown. Ah, it is good that someone listens.' },
+  child:     { label: 'Child',     pitch: 1.85, rate: 1.12, gender: 'female', line: 'There is a monster under the bridge, I swear it! It ate my brother\'s shoe!' },
   monstrous: { label: 'Monstrous', pitch: 0.55, rate: 0.82, gender: 'male',   line: 'You... dare... enter... my... lair. Now you will join the bones.' },
   ethereal:  { label: 'Ethereal',  pitch: 1.2,  rate: 0.88, gender: 'female', line: 'Time is a river, little one, and you have wandered far from its banks.' },
   feminine:  { label: 'Feminine',  pitch: 1.05, rate: 1.0,  gender: 'female', line: 'The innkeeper wipes the bar and smiles. "Stay as long as you like. The stew is hot."' },
@@ -169,7 +174,7 @@ const NPCS = {
   halia:    { label: 'Halia Thornton',     sub: 'Miner\'s Exchange',             base: 'feminine',  line: 'The Miner\'s Exchange does business with people who can be useful. Tell me, are you useful?' },
   glasstaff:{ label: 'Iarno "Glasstaff"',  sub: 'Redbrand leader',               base: 'sly',       line: 'Do not misunderstand. This town belongs to whoever is strong enough to hold it. Today, that is us.' },
   klarg:    { label: 'Klarg',              sub: 'Bugbear boss',                  base: 'monstrous', line: 'Klarg is boss! You steal Klarg\'s wolf, you steal Klarg\'s food! Now Klarg breaks you!' },
-  yeemik:   { label: 'Yeemik',             sub: 'Goblin leader',                 base: 'child',     line: 'Yeemik not like Klarg either. You kill big boss, Yeemik makes deal. Good deal. Very good deal.' },
+  yeemik:   { label: 'Yeemik',             sub: 'Goblin leader',                 base: 'sly',       line: 'Yeemik not like Klarg either. You kill big boss, Yeemik makes deal. Good deal. Very good deal.' },
   nezznar:  { label: 'Nezznar',            sub: 'The Black Spider, drow',        base: 'ethereal',  line: 'So the surface dwellers have found my cavern. How predictable. How very, very brief your visit will be.' },
   agatha:   { label: 'Agatha',             sub: 'Banshee',                       base: 'ethereal',  line: 'Three answers, mortal. Pay with truth, or pay with fear. Come closer. I cannot hear you.', pitchOffset: 0.15, rateOffset: -0.08 },
   reidoth:  { label: 'Reidoth',            sub: 'Human druid',                   base: 'elderly',   line: 'The forest remembers what the town forgets. Walk softly here, and it will let you leave.' }
@@ -243,7 +248,10 @@ function cardHtml(key, e, voices) {
       </label>
       <label class="browser-ctl"><span>Pitch <b data-o="pitch">${s.pitch.toFixed(2)}</b></span><input type="range" data-f="pitch" min="0.1" max="2" step="0.05" value="${s.pitch}"></label>
       <label class="browser-ctl"><span>Speed <b data-o="rate">${s.rate.toFixed(2)}</b></span><input type="range" data-f="rate" min="0.5" max="1.6" step="0.02" value="${s.rate}"></label>
-      <button data-play="${safeKey}">▶ Hear ${esc(e.label)}</button>
+      <div class="cardbtns">
+        <button data-play="${safeKey}" style="flex:1;">▶ Hear ${esc(e.label)}</button>
+        <button data-stop class="stopbtn" title="Stop playback" aria-label="Stop playback">⏹ Stop</button>
+      </div>
     </div>`;
 }
 
@@ -329,7 +337,7 @@ async function fetchClip(item) {
   return URL.createObjectURL(await res.blob());
 }
 
-function playClip(url, onstart) {
+function playClip(url, onstart, tag) {
   return new Promise((resolve) => {
     cloud.resolve = resolve;
     const a = cloud.audio;
@@ -338,6 +346,7 @@ function playClip(url, onstart) {
     a.onended = () => { cloud.resolve = null; resolve(true); };
     a.onerror = () => { cloud.resolve = null; resolve(false); };
     a.src = url;
+    if (window.VoiceFx) VoiceFx.apply(a, tag);
     a.play().catch(() => { cloud.resolve = null; resolve(false); });
   }).finally(() => URL.revokeObjectURL(url));
 }
@@ -351,7 +360,7 @@ async function cloudSequence(items, valid, onStart, onEnd) {
     let url;
     try { url = await clips[i]; } catch (err) { err.playedCount = i; throw err; }
     if (!valid()) return;
-    await playClip(url, () => { if (valid()) onStart(i); });
+    await playClip(url, () => { if (valid()) onStart(i); }, items[i].voice);
     onEnd(i);
   }
 }
@@ -429,6 +438,7 @@ document.addEventListener('input', (e) => {
   if (out) out.textContent = state[key][f].toFixed(2);
 });
 document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-stop]')) { stopAll(); if (typeof dmSilence === 'function') dmSilence(); return; }
   const b = e.target.closest('[data-play]');
   if (b) playKeys([b.dataset.play]);
 });
