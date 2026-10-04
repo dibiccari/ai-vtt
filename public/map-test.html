@@ -56,10 +56,7 @@
     <h2>Tool</h2>
     <div class="row">
       <button class="tool" data-tool="token" aria-pressed="true" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
-      <button class="tool" data-tool="wall" aria-pressed="false" title="Click to start a wall, click again for each corner. Double-click, right-click or Esc to stop">Wall</button>
-      <button class="tool" data-tool="door" aria-pressed="false" title="Same as Wall, but the segments are doors">Door</button>
       <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
-      <button class="tool" data-tool="erase" aria-pressed="false" title="Click a wall or door to delete it">Erase</button>
       <button class="tool" data-tool="start" aria-pressed="false" title="Click where the party arrives. Give the spot a name below (start is where they arrive by default)">Set start</button>
       <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
     </div>
@@ -68,8 +65,6 @@
     </label>
     <div id="startList" class="hint"></div>
     <p class="hint">Use the Set start tool: click the map where the party should arrive. "start" is the default arrival; other names (such as front-door) are places the AI can send the party to. Saved with the walls, so the players never need to see the map to place themselves.</p>
-    <label class="check"><input type="checkbox" id="snap"> Snap new corners to the grid</label>
-    <p class="hint">Corners always snap to existing wall ends so there are no gaps. Trace along the printed walls and leave grid snapping off unless the grid is calibrated.</p>
   </div>
 
   <div class="group">
@@ -92,7 +87,6 @@
   <div class="group">
     <h2>Walls</h2>
     <div class="row">
-      <button id="undoBtn">Undo</button>
       <button id="clearBtn" class="danger">Clear walls</button>
       <button id="resetFogBtn">Reset explored</button>
       <button id="fitBtn">Fit view</button>
@@ -147,9 +141,9 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], tokens: [], visionFt: 60, source: null,
-    tool: 'token', fog: true, dm: false, showPoly: false, showWalls: false, showGrid: false, snap: false,
+    tool: 'token', fog: true, dm: false, showPoly: false, showWalls: false, showGrid: false,
     view: { scale: 1, ox: 0, oy: 0 },
-    draft: null, hover: null, drag: null, polys: [], spaceDown: false
+    hover: null, drag: null, polys: [], spaceDown: false
   };
   const cell = () => S.W / S.squares;
   S.onlyUvtt = store.get('vtt.maptest.onlyUvtt', true) !== false;
@@ -450,20 +444,6 @@
       ctx.stroke();
     }
     ctx.setLineDash([]);
-    if (S.draft && S.hover && (S.tool === 'wall' || S.tool === 'door')) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-      ctx.lineWidth = 3 * px;
-      ctx.setLineDash([8 * px, 6 * px]);
-      ctx.beginPath();
-      ctx.moveTo(S.draft.x, S.draft.y);
-      ctx.lineTo(S.hover.x, S.hover.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(S.draft.x, S.draft.y, 5 * px, 0, Math.PI * 2);
-      ctx.fill();
-    }
     ctx.restore();
   }
 
@@ -538,7 +518,6 @@
           if (remote.squares > 0) S.squares = remote.squares;
         }
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
-        S.draft = null;
         syncControls();
         resetFog();
         fitView();
@@ -612,9 +591,8 @@
 
   function setTool(tool) {
     S.tool = tool;
-    S.draft = null;
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
-    cv.style.cursor = tool === 'pan' ? 'grab' : tool === 'toggle' || tool === 'erase' ? 'pointer' : 'crosshair';
+    cv.style.cursor = tool === 'pan' ? 'grab' : tool === 'toggle' ? 'pointer' : 'crosshair';
     requestRender();
   }
 
@@ -649,23 +627,6 @@
     } else {
       el.append(document.createTextNode('Outside the map.'));
     }
-  }
-
-  function snapPoint(p) {
-    const tol = SNAP_PX / S.view.scale;
-    let best = null, bestD = tol;
-    for (const w of S.walls) {
-      for (const [x, y] of [[w.x1, w.y1], [w.x2, w.y2]]) {
-        const d = Math.hypot(p.x - x, p.y - y);
-        if (d < bestD) { bestD = d; best = { x, y }; }
-      }
-    }
-    if (best) return best;
-    if (S.snap) {
-      const c = cell();
-      return { x: clamp(Math.round(p.x / c) * c, 0, S.W), y: clamp(Math.round(p.y / c) * c, 0, S.H) };
-    }
-    return { x: clamp(p.x, 0, S.W), y: clamp(p.y, 0, S.H) };
   }
 
   function nearestWall(p, onlyDoors) {
@@ -708,7 +669,6 @@
     }
 
     if (e.button === 2) {
-      if (S.draft) { S.draft = null; requestRender(); return; }
       if (S.tool === 'token') {
         const i = tokenAt(p);
         if (i >= 0) { S.tokens.splice(i, 1); save(); updateStats(); revealFog(); }
@@ -728,16 +688,6 @@
         updateStats();
         revealFog();
       }
-    } else if (S.tool === 'wall' || S.tool === 'door') {
-      const pt = snapPoint(p);
-      if (!S.draft) {
-        S.draft = pt;
-      } else if (Math.hypot(pt.x - S.draft.x, pt.y - S.draft.y) > 1) {
-        S.walls.push({ x1: S.draft.x, y1: S.draft.y, x2: pt.x, y2: pt.y, type: S.tool === 'door' ? 'door' : 'wall', open: false });
-        S.draft = pt;
-        wallsChanged();
-      }
-      requestRender();
     } else if (S.tool === 'start') {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       const name = ($('#startName').value || 'start').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'start';
@@ -749,16 +699,13 @@
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);
       if (w) { w.open = !w.open; wallsChanged(); }
-    } else if (S.tool === 'erase') {
-      const w = nearestWall(p, false);
-      if (w) { S.walls.splice(S.walls.indexOf(w), 1); wallsChanged(); }
     }
   });
 
   cv.addEventListener('pointermove', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
-    S.hover = (S.tool === 'wall' || S.tool === 'door') ? snapPoint(p) : p;
+    S.hover = p;
     if (S.drag && S.drag.kind === 'pan') {
       S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
       S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
@@ -782,8 +729,6 @@
   cv.addEventListener('pointercancel', endDrag);
   cv.addEventListener('pointerleave', () => { if (!S.drag) { S.hover = null; updateReadout(); requestRender(); } });
 
-  cv.addEventListener('dblclick', () => { S.draft = null; requestRender(); });
-
   cv.addEventListener('wheel', (e) => {
     if (!S.img) return;
     e.preventDefault();
@@ -800,16 +745,8 @@
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.key === ' ') { S.spaceDown = true; e.preventDefault(); }
-    if (e.key === 'Escape') { S.draft = null; requestRender(); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undoWall(); }
   });
   window.addEventListener('keyup', (e) => { if (e.key === ' ') S.spaceDown = false; });
-
-  function undoWall() {
-    if (!S.walls.length) return;
-    S.walls.pop();
-    wallsChanged();
-  }
 
   /* ---------------- sidebar wiring ---------------- */
   document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -837,18 +774,15 @@
     updateStats();
     revealFog();
   });
-  $('#snap').addEventListener('change', (e) => { S.snap = e.target.checked; });
   $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; requestRender(); updateReadout(); });
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
 
-  $('#undoBtn').addEventListener('click', undoWall);
   $('#clearBtn').addEventListener('click', () => {
     if (!S.walls.length || !confirm('Delete every wall and door on this map?')) return;
     S.walls = [];
-    S.draft = null;
     wallsChanged();
   });
   $('#resetFogBtn').addEventListener('click', resetFog);
@@ -868,7 +802,6 @@
     if (!list.length) { $('#banner').textContent = 'The tabletop has no walls saved for this map.'; return; }
     if (S.walls.length && !confirm('Replace the walls here with the tabletop\'s?')) return;
     S.walls = list;
-    S.draft = null;
     wallsChanged();
     $('#banner').textContent = `Loaded ${list.length} walls from the tabletop.`;
   });
@@ -898,7 +831,6 @@
     const squares = Math.round(Number(res.map_size && res.map_size.x));
     if (squares >= 5 && squares <= 400) S.squares = squares;
     S.source = 'dd2vtt';
-    S.draft = null;
     syncControls();
     wallsChanged();
     resetFog();
