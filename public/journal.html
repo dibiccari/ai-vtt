@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Journal</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:980px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  h2 { margin:26px 0 10px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  p.lead { color:var(--muted); margin:0 0 16px; }
+  a { color:var(--accent); }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  button.small { padding:3px 9px; font-size:12px; }
+  button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .tabs button.on { border-color:var(--gold); color:var(--gold); }
+  .entry { border-top:1px solid var(--border); padding:10px 0; display:flex; gap:12px; align-items:flex-start; }
+  .entry:first-child { border-top:0; }
+  .entry .body { flex:1; }
+  .entry b { font-size:15px; }
+  .tag { font:700 11px "Segoe UI",sans-serif; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid #3a4558; color:var(--muted); margin-left:8px; }
+  .tag.open { color:var(--gold); border-color:var(--gold); } .tag.done { color:var(--ok); border-color:var(--ok); }
+  .when { color:var(--muted); font-size:12px; }
+  .recap { white-space:pre-wrap; font-size:15px; line-height:1.6; }
+  .status { color:var(--muted); min-height:20px; margin-top:8px; }
+  .status.err { color:var(--danger); } .status.ok { color:var(--ok); }
+  .empty { color:var(--muted); padding:8px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Campaign <span>Journal</span></h1>
+  <p class="lead">The party's shared memory for <b id="campName">the active campaign</b>. The AI Dungeon Master writes to it as you play and reads it every turn, so it remembers people, promises and quests. This is also your save file: export it, and import it on another computer.</p>
+
+  <div class="card">
+    <div class="row">
+      <button class="primary" id="recapBtn">Previously on…</button>
+      <button id="exportBtn" title="Download the journal, the saved board and the chat of this campaign as one file">Export save</button>
+      <button id="importBtn" title="Load a save file made by Export save. It replaces this campaign's journal, board and chat.">Import save</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <button class="danger" id="clearBtn">Clear journal</button>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="recap" id="recap"></div>
+  </div>
+
+  <div class="row tabs" id="tabs"></div>
+  <div class="card" id="list"></div>
+</div>
+<script src="/nav.js"></script>
+<script>
+(function () {
+  'use strict';
+  var CATEGORIES = [
+    ['all', 'Everything'], ['event', 'Events'], ['quest', 'Quests'], ['npc', 'People'],
+    ['place', 'Places'], ['loot', 'Loot'], ['promise', 'Promises']
+  ];
+  var $ = function (s) { return document.querySelector(s); };
+  var state = { campaign: '', name: '', entries: [], filter: 'all' };
+
+  function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
+
+  async function api(url, options) {
+    var res = await fetch(url, options);
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+    return data;
+  }
+  function put(entries) {
+    return api('/api/campaigns/' + state.campaign + '/journal', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: entries })
+    });
+  }
+
+  function render() {
+    var tabs = $('#tabs');
+    tabs.innerHTML = '';
+    CATEGORIES.forEach(function (c) {
+      var n = c[0] === 'all' ? state.entries.length : state.entries.filter(function (e) { return e.category === c[0]; }).length;
+      var b = document.createElement('button');
+      b.textContent = c[1] + ' (' + n + ')';
+      if (state.filter === c[0]) b.className = 'on';
+      b.addEventListener('click', function () { state.filter = c[0]; render(); });
+      tabs.appendChild(b);
+    });
+    var list = $('#list');
+    list.innerHTML = '';
+    var shown = state.entries.filter(function (e) { return state.filter === 'all' || e.category === state.filter; }).slice().reverse();
+    if (!shown.length) {
+      var empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = state.entries.length ? 'Nothing in this section yet.' : 'The journal is empty. It fills in as the Dungeon Master records what happens.';
+      list.appendChild(empty);
+      return;
+    }
+    shown.forEach(function (e) {
+      var row = document.createElement('div');
+      row.className = 'entry';
+      var body = document.createElement('div');
+      body.className = 'body';
+      var title = document.createElement('b');
+      title.textContent = e.title;
+      var tag = document.createElement('span');
+      tag.className = 'tag' + (e.status !== 'none' ? ' ' + e.status : '');
+      tag.textContent = e.status !== 'none' ? e.category + ' · ' + e.status : e.category;
+      var text = document.createElement('div');
+      text.textContent = e.text;
+      var when = document.createElement('div');
+      when.className = 'when';
+      when.textContent = (e.when ? e.when + ' · ' : '') + new Date(e.at).toLocaleString();
+      body.append(title, tag, text, when);
+      var del = document.createElement('button');
+      del.className = 'small danger';
+      del.textContent = 'Delete';
+      del.title = 'Remove this entry from the journal';
+      del.addEventListener('click', async function () {
+        try {
+          state.entries = state.entries.filter(function (x) { return x.id !== e.id; });
+          await put(state.entries);
+          render();
+        } catch (err) { setStatus(err.message, 'err'); await load(); }
+      });
+      row.append(body, del);
+      list.appendChild(row);
+    });
+  }
+
+  async function load() {
+    var info = await api('/api/campaigns');
+    state.campaign = info.active;
+    var c = info.campaigns.filter(function (x) { return x.id === info.active; })[0];
+    state.name = c ? c.name : info.active;
+    $('#campName').textContent = state.name;
+    state.entries = (await api('/api/campaigns/' + state.campaign + '/journal')).entries;
+    render();
+  }
+
+  $('#recapBtn').addEventListener('click', async function () {
+    var b = $('#recapBtn');
+    b.disabled = true;
+    setStatus('The Dungeon Master is recalling the story…');
+    $('#recap').textContent = '';
+    try {
+      var data = await api('/api/recap', { method: 'POST' });
+      $('#recap').textContent = data.narrative;
+      setStatus(data.empty ? '' : 'Use the Recap button on the tabletop to hear it read aloud.', 'ok');
+    } catch (err) { setStatus(err.message, 'err'); }
+    b.disabled = false;
+  });
+
+  $('#exportBtn').addEventListener('click', function () {
+    var local = {};
+    ['vtt.board.', 'vtt.chat.'].forEach(function (p) {
+      try { var v = localStorage.getItem(p + state.campaign); if (v) local[p + state.campaign] = JSON.parse(v); } catch (e) { /* storage blocked */ }
+    });
+    var save = { app: 'ai-vtt', version: 1, campaign: state.campaign, exportedAt: new Date().toISOString(), entries: state.entries, local: local };
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' }));
+    a.download = state.campaign + '-save-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    setStatus('Save file downloaded.', 'ok');
+  });
+
+  $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
+  $('#importFile').addEventListener('change', async function (ev) {
+    var file = ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    try {
+      var save = JSON.parse(await file.text());
+      if (!save || save.app !== 'ai-vtt' || !Array.isArray(save.entries)) throw new Error('That is not an AI-VTT save file.');
+      if (save.campaign !== state.campaign && !confirm('This save is from the campaign "' + save.campaign + '", but the active campaign is "' + state.campaign + '". Import it into the active campaign anyway?')) return;
+      if (!confirm('Replace the journal, board and chat of ' + state.name + ' with this save?')) return;
+      await put(save.entries);
+      var local = save.local && typeof save.local === 'object' ? save.local : {};
+      ['vtt.board.', 'vtt.chat.'].forEach(function (p) {
+        var from = p + save.campaign;
+        try {
+          if (local[from] !== undefined) localStorage.setItem(p + state.campaign, JSON.stringify(local[from]));
+          else localStorage.removeItem(p + state.campaign);
+        } catch (e) { /* storage blocked */ }
+      });
+      await load();
+      setStatus('Save imported. Open the tabletop to continue.', 'ok');
+    } catch (err) { setStatus(err.message, 'err'); }
+  });
+
+  $('#clearBtn').addEventListener('click', async function () {
+    if (!confirm('Delete every journal entry of ' + state.name + '? The AI will forget the story so far.')) return;
+    try { await put([]); await load(); setStatus('Journal cleared.', 'ok'); } catch (err) { setStatus(err.message, 'err'); }
+  });
+
+  load().catch(function (err) { setStatus(err.message, 'err'); });
+})();
+</script>
+</body>
+</html>

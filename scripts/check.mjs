@@ -19,9 +19,10 @@ function check(label, file) {
 }
 
 check('server.js', path.join(root, 'server.js'));
+for (const file of ['lib/sheet-edit.js', 'public/scenes.js', 'public/uvtt.js', 'public/pdf-extract.js', 'public/nav.js', 'public/voice-fx.js']) check(file, path.join(root, file));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
-for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html']) {
+for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html', 'journal.html']) {
   const html = await readFile(path.join(root, 'public', page), 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   if (!scripts.length) {

@@ -7,6 +7,8 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
+import { mapsFor, mapsForPrompt, resolveChangeMap } from './lib/campaign-maps.js';
+import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -219,7 +221,22 @@ function normalizeMapConfig(body) {
     if ([x1, y1, x2, y2].includes(null)) continue;
     walls.push({ x1, y1, x2, y2, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open) });
   }
-  const config = { squares: int(body?.squares, 50, 5, 400), walls };
+  const starts = [];
+  for (const s of Array.isArray(body?.starts) ? body.starts.slice(0, 60) : []) {
+    const name = String(s?.name ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
+    const [x, y] = [num(s?.x), num(s?.y)];
+    if (name && x !== null && y !== null && !starts.some((o) => o.name === name)) starts.push({ name, x, y });
+  }
+  // Light sources from a .dd2vtt file (image pixels; range in squares). Kept for the lighting work.
+  const lights = [];
+  for (const l of Array.isArray(body?.lights) ? body.lights.slice(0, 500) : []) {
+    const [x, y, range, intensity] = [num(l?.x), num(l?.y), num(l?.range), num(l?.intensity)];
+    if ([x, y, range].includes(null)) continue;
+    lights.push({ x, y, range, intensity: intensity ?? 1, color: /^[0-9a-f]{6,8}$/i.test(String(l?.color ?? '')) ? String(l.color).toLowerCase() : 'ffffff' });
+  }
+  const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
+  if (lights.length) config.lights = lights;
+  if (/^[0-9a-f]{6,8}$/i.test(String(body?.ambient ?? ''))) config.ambient = String(body.ambient).toLowerCase();
   if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
   return config;
 }
@@ -248,8 +265,75 @@ app.get('/api/map-configs', asyncRoute(async (_req, res) => {
 
 app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   const config = normalizeMapConfig(req.body);
-  await writeFile(mapConfigFile(req.query.map), JSON.stringify(config, null, 2));
+  const file = mapConfigFile(req.query.map);
+  // The Map Test page does not know about lights: keep the ones already saved.
+  if (!config.lights) {
+    try {
+      const old = JSON.parse(await readFile(file, 'utf8'));
+      if (Array.isArray(old.lights) && old.lights.length) config.lights = old.lights;
+      if (old.ambient && !config.ambient) config.ambient = old.ambient;
+    } catch { /* no earlier config */ }
+  }
+  await writeFile(file, JSON.stringify(config, null, 2));
   res.json({ ok: true, walls: config.walls.length });
+}));
+
+// The places the active campaign can move the table to (only maps that are installed).
+// Arrival spots saved on the Map Test page (image pixels) are added to each map, and win over the built-in guesses.
+async function withSavedStarts(maps) {
+  const out = [];
+  for (const m of maps) {
+    let starts = [];
+    try { starts = JSON.parse(await readFile(mapConfigFile(m.url.split('/').pop()), 'utf8')).starts || []; } catch { /* no saved config */ }
+    out.push({ ...m, startPx: starts.find((s) => s.name === 'start') || null, spotsPx: Object.fromEntries(starts.filter((s) => s.name !== 'start').map((s) => [s.name, { x: s.x, y: s.y }])) });
+  }
+  return out;
+}
+
+app.get('/api/maps/available', asyncRoute(async (_req, res) => {
+  const campaign = await getActiveCampaignId();
+  const maps = await withSavedStarts(mapsFor(campaign, await readdir(UPLOAD_DIR)));
+  res.json({ campaign, maps: maps.map((m) => ({ id: m.id, name: m.name, kind: m.kind, description: m.description, url: m.url, startPx: m.startPx ? { x: m.startPx.x, y: m.startPx.y } : null, start: { col: m.start[0], row: m.start[1] }, spots: Object.fromEntries(Object.entries(m.spots).map(([k, [col, row]]) => [k, { col, row }])) })) });
+}));
+
+// ---------------------------------------------------------------- journal / save file API
+
+const campaignDir = (id) => {
+  const cid = safeCampaignId(id);
+  if (!cid) throw Object.assign(new Error('Invalid campaign'), { status: 400 });
+  return path.join(CAMPAIGNS_DIR, cid);
+};
+
+app.get('/api/campaigns/:id/journal', asyncRoute(async (req, res) => {
+  res.json(await readSave(campaignDir(req.params.id)));
+}));
+
+// Replace the journal: deleting one entry, importing a save, or starting over (an empty list).
+app.put('/api/campaigns/:id/journal', localOnly, asyncRoute(async (req, res) => {
+  const entries = await replaceEntries(campaignDir(req.params.id), req.body?.entries);
+  res.json({ ok: true, count: entries.length });
+}));
+
+const RECAP_SYSTEM = `You are the Dungeon Master of a Dungeons & Dragons game, opening a new session. Write a "Previously on..." recap for the players from the journal you are given: 2 to 4 short paragraphs, spoken aloud, vivid but brief, in order, covering what the party did, who they met, what is unresolved, and the promises they made. End with where they stand now and a line that invites them to continue. Use only what the journal says; do not invent events or reveal secrets. Plain text only, no lists or headings.`;
+
+app.post('/api/recap', asyncRoute(async (_req, res) => {
+  const id = await getActiveCampaignId();
+  const text = journalForPrompt((await readSave(campaignDir(id))).entries);
+  if (!text) {
+    const narrative = 'There is nothing to recap yet: the journal is empty. Play a little and the Dungeon Master will start writing it.';
+    return res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], empty: true });
+  }
+  if (!anthropic) return res.status(503).json({ error: 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured.' });
+  try {
+    const response = await anthropic.messages.create({ model: MODEL, max_tokens: 1500, system: RECAP_SYSTEM, messages: [{ role: 'user', content: `JOURNAL:\n${text}` }] });
+    const block = response.content.find((b) => b.type === 'text');
+    const narrative = String(block?.text ?? '').trim();
+    if (!narrative) throw new Error('The recap came back empty.');
+    res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }] });
+  } catch (err) {
+    if (err instanceof Anthropic.APIError) return res.status(502).json({ error: `AI DM error: ${err.message}` });
+    throw err;
+  }
 }));
 
 // ---------------------------------------------------------------- campaign selector API
@@ -560,6 +644,7 @@ const DM_SYSTEM = `You are the Dungeon Master for a Dungeons & Dragons 5th Editi
 You are the authority on rules, narrative, and the world. Narrate vividly but concisely (1-3 short paragraphs), adjudicate the players' declared actions using 5e rules, roll dice yourself when needed and show the results (e.g. "Attack: d20+5 = 17 vs AC 13 - hit"), and end by prompting the active player.
 
 The board is a square grid; each square is 5 ft. Positions are given as integer (col,row), origin top-left. Walls are line segments in pixel coordinates where one square = gridSize pixels.
+Maps of kind "regional" (a Sword Coast map) and "town" (Phandalin) are just pictures: the party's tokens are not shown on it, there is no fog and no movement limit, so do not use moveToken or addToken there. Describe the journey or the scene instead of counting squares, and use changeMap when the party reaches a place that has its own map.
 Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
 Return mechanical changes in mapUpdates:
@@ -567,11 +652,17 @@ Return mechanical changes in mapUpdates:
 - addToken: place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard.
 - removeToken: remove a token (tokenId), e.g. a defeated monster.
 - revealToken: make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks.
+- changeMap: move the whole table to another place (mapId from the maps list in the board state, arrive: one of that map's arrivalSpots, or "default", and a short reason). The party's tokens are moved to the arrival spot, and the creatures of the scene you are leaving are put away until you return. Put changeMap first in the list, then add the creatures of the new scene with addToken (hidden ones with hidden true).
 - hideToken: hide a token again (tokenId), for example a creature that turns invisible or slips into hiding.
 - updateCharacter: change a player character's sheet. Always send characterId, a short reason, and all four lists (use an empty list when you have nothing for it). edits is a list of { field, value }, where field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. skills sets each named skill to none, proficient or expertise. saves sets saving throw proficiency. spells adds (remove false) or removes (remove true) a spell by level, 0 for cantrips. slots sets the total spell slots of a level. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
 - setHp: set a player character's current HP (characterId, hp).
 - addWall: add a wall or door (x1, y1, x2, y2 in pixels, wallType "wall" or "door").
+- journal: write something into the campaign journal (category, title, text, status, when). See Keeping the journal.
 Only include updates that actually happened. Use an empty array when nothing changes on the board.
+
+Changing maps: the board state lists the maps you can use (maps) and the one in use (currentMap). When the party travels or enters a place that has its own map, change to it: a regional map for travel between places, a town map for scenes in a town, a battle map for an encounter or a dungeon. When they say they head to a place (for example "we go to town"), use changeMap to the matching map, then narrate the arrival. Do not change maps for a short walk inside the same place, and do not invent map ids. Going back to a map you left restores its creatures, so you do not need to place them again.
+
+Keeping the journal: the campaign journal is the party's shared memory, and the current journal is given to you below the campaign text. After a turn in which something worth remembering happened, add a journal update: category "event" for what happened (a short title and one or two sentences), "npc" for a person met (title is the name, text says who they are and how they feel about the party), "quest" for a goal (status "open" until finished, then send the same title again with status "done"), "place" for somewhere important, "loot" for treasure or magic items found, "promise" for something the party promised or is owed. Sending an npc, quest, place, loot or promise title that already exists updates that entry instead of adding another. Use when for the in-game time (for example "Day 2, evening") whenever you know it. Write only what the party knows or witnessed, never DM secrets. Do not journal small talk or every combat round, and use no journal update when nothing noteworthy happened. Read the journal before you narrate so that you stay consistent with promises, names and earlier events.
 
 Keeping sheets up to date: apply routine changes from play with updateCharacter as they happen (gold, XP, equipment, temporary HP, spell slots used). Award XP after a fight or goal using the rules and the monsters' XP values, split among the living party, and say what each character gained.
 
@@ -612,6 +703,8 @@ const DM_SCHEMA = {
           upd(['addToken'], { tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] } }),
           upd(['removeToken', 'revealToken', 'hideToken'], { tokenId: STR }),
           upd(['setHp'], { characterId: STR, hp: INT }),
+          upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
+          upd(['journal'], { category: { type: 'string', enum: CATEGORIES }, title: STR, text: STR, status: { type: 'string', enum: STATUSES }, when: STR }),
           upd(['addWall'], { x1: { type: 'number' }, y1: { type: 'number' }, x2: { type: 'number' }, y2: { type: 'number' }, wallType: { type: 'string', enum: ['wall', 'door'] } }),
           upd(['updateCharacter'], {
             characterId: STR,
@@ -675,7 +768,7 @@ function buildHistory(history, message, state, inputMode) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
-  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule } = req.body ?? {};
+  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
@@ -689,9 +782,13 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     });
   }
 
+  const activeCampaign = await getActiveCampaignId();
+  const availableMaps = await withSavedStarts(mapsFor(activeCampaign, await readdir(UPLOAD_DIR)));
   const state = {
     mapName: String(mapName ?? 'blank grid').slice(0, 120),
     movementRule: ['standard', 'alternating', 'circle'].includes(movementRule) ? movementRule : 'standard',
+    maps: availableMaps ? mapsForPrompt(availableMaps) : [],
+    currentMap: availableMaps?.find((m) => m.url === mapUrl)?.id ?? null,
     activeTokenId: activeTokenId ?? null,
     gridSize: Number(gridSize) || 50,
     tokens: Array.isArray(tokens) ? tokens : [],
@@ -700,16 +797,17 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   };
 
   try {
-    const campaignText = await loadCampaignText(await getActiveCampaignId());
+    const campaignText = await loadCampaignText(activeCampaign);
+    const journalText = journalForPrompt((await readSave(path.join(CAMPAIGNS_DIR, activeCampaign))).entries);
     const response = await anthropic.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
-      system: campaignText
-        ? [
-            { type: 'text', text: DM_SYSTEM },
-            { type: 'text', text: `${CAMPAIGN_RULES}\n\n${campaignText}`, cache_control: { type: 'ephemeral' } }
-          ]
-        : DM_SYSTEM,
+      system: [
+        { type: 'text', text: DM_SYSTEM },
+        ...(campaignText ? [{ type: 'text', text: `${CAMPAIGN_RULES}\n\n${campaignText}`, cache_control: { type: 'ephemeral' } }] : []),
+        // The journal changes every few turns, so it comes after the cached campaign text.
+        { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' }
+      ],
       messages: buildHistory(history, text, state, inputMode),
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: DM_SCHEMA } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
@@ -728,7 +826,16 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
     const allUpdates = Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : [];
-    const boardUpdates = allUpdates.filter((u) => u && u.type !== 'updateCharacter');
+    const mapProblems = [];
+    const travel = [];
+    for (const u of allUpdates.filter((x) => x && x.type === 'changeMap')) {
+      const out = resolveChangeMap(availableMaps, u);
+      if (out.error) mapProblems.push(out.error); else travel.push(out.update);
+    }
+    // A map change comes first, so the creatures that follow are placed on the new map.
+    const boardUpdates = [...travel.slice(0, 1), ...allUpdates.filter((u) => u && u.type !== 'updateCharacter' && u.type !== 'changeMap' && u.type !== 'journal')];
+    const journalAdded = await addJournalUpdates(path.join(CAMPAIGNS_DIR, activeCampaign), allUpdates.filter((u) => u && u.type === 'journal'))
+      .catch((err) => { console.warn('Journal update failed:', err.message); return []; });
     const sheetResults = await processCharacterUpdates(allUpdates.filter((u) => u && u.type === 'updateCharacter'), {
       list: listCharacters,
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
@@ -738,7 +845,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       voiceLines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
       mapUpdates: boardUpdates,
       characterUpdates: sheetResults.results,
-      characterProblems: sheetResults.problems
+      journalAdded: journalAdded.map((e) => ({ category: e.category, title: e.title })),
+      characterProblems: [...mapProblems, ...sheetResults.problems]
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {

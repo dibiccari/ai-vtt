@@ -60,8 +60,14 @@
       <button class="tool" data-tool="door" aria-pressed="false" title="Same as Wall, but the segments are doors">Door</button>
       <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
       <button class="tool" data-tool="erase" aria-pressed="false" title="Click a wall or door to delete it">Erase</button>
+      <button class="tool" data-tool="start" aria-pressed="false" title="Click where the party arrives. Give the spot a name below (start is where they arrive by default)">Set start</button>
       <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
     </div>
+    <label class="field"><span>Start spot name</span>
+      <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, front-door, cave-mouth…">
+    </label>
+    <div id="startList" class="hint"></div>
+    <p class="hint">Use the Set start tool: click the map where the party should arrive. "start" is the default arrival; other names (such as front-door) are places the AI can send the party to. Saved with the walls, so the players never need to see the map to place themselves.</p>
     <label class="check"><input type="checkbox" id="snap"> Snap new corners to the grid</label>
     <p class="hint">Corners always snap to existing wall ends so there are no gaps. Trace along the printed walls and leave grid snapping off unless the grid is calibrated.</p>
   </div>
@@ -140,7 +146,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], tokens: [], visionFt: 60, source: null,
+    squares: 50, walls: [], starts: [], tokens: [], visionFt: 60, source: null,
     tool: 'token', fog: true, dm: false, showPoly: false, showWalls: true, showGrid: false, snap: false,
     view: { scale: 1, ox: 0, oy: 0 },
     draft: null, hover: null, drag: null, polys: [], spaceDown: false
@@ -223,7 +229,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, source: S.source });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, source: S.source });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -377,6 +383,7 @@
     }
 
     if (S.showWalls) drawWalls(px);
+    drawStarts(px);
     drawTokens(px);
   }
 
@@ -390,6 +397,43 @@
     for (let y = 0; y <= S.H + 0.5; y += c) { ctx.moveTo(0, y); ctx.lineTo(S.W, y); }
     ctx.stroke();
     ctx.restore();
+  }
+
+  // Saved arrival spots: a flag with its name.
+  function drawStarts(px) {
+    ctx.save();
+    ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
+    ctx.textBaseline = 'middle';
+    for (const s of S.starts) {
+      ctx.fillStyle = s.name === 'start' ? 'rgba(63, 210, 127, 0.95)' : 'rgba(79, 157, 255, 0.95)';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2 * px;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 8 * px, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.strokeText(s.name, s.x + 13 * px, s.y);
+      ctx.fillText(s.name, s.x + 13 * px, s.y);
+    }
+    ctx.restore();
+  }
+
+  function renderStartList() {
+    const box = $('#startList');
+    box.innerHTML = '';
+    if (!S.starts.length) { box.textContent = 'No arrival spots saved for this map.'; return; }
+    S.starts.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const label = document.createElement('span');
+      label.textContent = s.name + ' (' + Math.round(s.x) + ', ' + Math.round(s.y) + ')';
+      const del = document.createElement('button');
+      del.textContent = 'Remove';
+      del.addEventListener('click', () => { S.starts.splice(i, 1); save(); renderStartList(); requestRender(); });
+      row.append(label, del);
+      box.appendChild(row);
+    });
   }
 
   function drawWalls(px) {
@@ -481,6 +525,7 @@
         const saved = store.get(testKey(), null);
         S.squares = saved && saved.squares > 0 ? saved.squares : Math.max(5, Math.round(S.W / 50));
         S.walls = cleanWalls(saved && saved.walls);
+        S.starts = [];
         S.tokens = (saved && Array.isArray(saved.tokens) ? saved.tokens : [])
           .filter((t) => t && isFinite(t.x) && isFinite(t.y))
           .map((t) => ({ x: clamp(t.x, 0, S.W), y: clamp(t.y, 0, S.H) }));
@@ -492,6 +537,7 @@
           S.walls = cleanWalls(remote.walls);
           if (remote.squares > 0) S.squares = remote.squares;
         }
+        S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         S.draft = null;
         syncControls();
         resetFog();
@@ -561,6 +607,7 @@
     $('#squaresVal').textContent = S.squares;
     $('#vision').value = S.visionFt;
     $('#visionVal').textContent = S.visionFt;
+    renderStartList();
   }
 
   function setTool(tool) {
@@ -690,6 +737,14 @@
         S.draft = pt;
         wallsChanged();
       }
+      requestRender();
+    } else if (S.tool === 'start') {
+      if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
+      const name = ($('#startName').value || 'start').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'start';
+      S.starts = S.starts.filter((s) => s.name !== name);
+      S.starts.push({ name, x: Math.round(p.x), y: Math.round(p.y) });
+      save();
+      renderStartList();
       requestRender();
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);

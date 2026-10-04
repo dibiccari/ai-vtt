@@ -55,7 +55,10 @@
   }
   .brand { font-weight: 800; letter-spacing: 0.04em; font-size: 15px; margin-right: 4px; white-space: nowrap; }
   .brand span { color: var(--gold); }
-  .turn-tracker { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+  .turn-tracker { display: flex; gap: 6px; flex-wrap: wrap; flex: 1 1 0; min-width: 0; max-height: 66px; overflow-y: auto; align-content: flex-start; }
+  /* second row of the bar: whose turn it is on the left, the table's settings on the right */
+  .map-controls { flex: 0 0 100%; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
+  .map-controls .spacer { flex: 1; }
   .turn-chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 10px 4px 6px; border-radius: 999px;
@@ -281,7 +284,18 @@
   <div class="map-toolbar">
     <div class="brand">AI<span>·</span>VTT</div>
     <div class="turn-tracker" id="turnTracker" aria-label="Turn order"></div>
+    <button class="btn btn-gold btn-sm" id="endTurnBtn" title="End the active token's turn">End Turn ⏭</button>
+    <div class="map-controls">
     <div class="move-info" id="moveInfo"></div>
+    <span class="spacer"></span>
+    <label class="move-rule" id="mapPickBox" hidden title="Move the whole table to another place in this campaign. The AI does this by itself when the party travels.">
+      <span>Map</span>
+      <select id="mapPick" aria-label="Map"></select>
+    </label>
+    <label class="move-rule" title="Fog of war: only what the party can see from where they stand is shown, and explored areas are remembered. Enemies outside the party's sight are hidden.">
+      <input type="checkbox" id="fogToggle"> <span>Fog of war</span>
+    </label>
+    <button class="btn btn-sm" id="resetFogBtn" title="Cover the whole map in fog again. Explored areas are forgotten.">↺ Reset fog</button>
     <label class="move-rule" title="Show tokens the players cannot see (hidden, invisible, hiding, traps, or out of sight) as faint ghosts. Only for the person running the test.">
       <input type="checkbox" id="dmView"> <span>DM view</span>
     </label>
@@ -293,7 +307,7 @@
         <option value="alternating">5-10-5 diagonals</option>
       </select>
     </label>
-    <button class="btn btn-gold btn-sm" id="endTurnBtn" title="End the active token's turn">End Turn ⏭</button>
+    </div>
   </div>
   <div class="canvas-wrap" id="canvasWrap">
     <canvas id="board" aria-label="Battlemap canvas"></canvas>
@@ -332,6 +346,7 @@
       <textarea id="chatInput" placeholder="Describe your action… e.g. &quot;I draw my longsword and charge the goblin by the door.&quot;"></textarea>
       <div class="row">
         <span class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to send · map, sheets &amp; walls are attached</span>
+        <button class="btn btn-sm" id="recapBtn" title="The DM tells the story so far, from the campaign journal">Recap</button>
         <button class="btn btn-sm" id="clearChatBtn" title="Clear the chat log">Clear</button>
         <button class="btn btn-primary" id="sendBtn">Send Turn to AI DM</button>
       </div>
@@ -343,6 +358,8 @@
 
 <div class="toasts" id="toasts" aria-live="assertive"></div>
 
+<script src="/uvtt.js"></script>
+<script src="/scenes.js"></script>
 <script>
 'use strict';
 
@@ -381,6 +398,12 @@ const state = {
   gmOverride: false,
   busy: false,
   moveRule: 'circle',
+  campaignId: null,
+  zoomToParty: false,
+  mapKind: 'battle',          // 'regional' and 'town' maps are plain pictures (no grid, no fog, no tokens); 'battle' maps have all three
+  mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
+  fogBeforeOverland: null,
+  places: [],                 // the maps this campaign can move to
   dmView: false,
   sight: []
 };
@@ -422,6 +445,9 @@ const store = {
   }
 };
 const mapKey = () => state.map.url || 'default';
+// Each campaign keeps its own board and chat, so switching campaigns brings back where you were.
+const boardKey = () => `vtt.board.${state.campaignId || 'default'}`;
+const chatKey = () => `vtt.chat.${state.campaignId || 'default'}`;
 const wallsKey = () => `vtt.walls.${mapKey()}`;
 const fogKey = () => `vtt.fog.${mapKey()}`;
 
@@ -512,6 +538,20 @@ function zoomAt(sx, sy, factor) {
   v.oy = sy - before.y * v.scale;
   updateHud();
   requestRender();
+}
+
+// Regional and town maps are plain pictures: no tokens, no fog, no movement, shown whole.
+function plainMap() { return state.mapKind !== 'battle'; }
+
+// Opening view for boards that ask for it (a big battle map is too large to show whole): close on the active token.
+function focusStart() {
+  if (plainMap()) { fitView(); return; }
+  const t = activeToken();
+  if (state.zoomToParty && t) {
+    // A large battle map opens about 35 squares wide around the party.
+    state.view.scale = clamp(wrap.clientWidth / (35 * GRID), 0.3, 1);
+    centerOnToken(t);
+  } else fitView();
 }
 
 function centerOnToken(t) {
@@ -841,6 +881,7 @@ function animateToken(t, fromX, fromY) {
 }
 
 function tokenAt(wx, wy) {
+  if (plainMap()) return null;
   for (let i = state.tokens.length - 1; i >= 0; i--) {
     const t = state.tokens[i];
     if (!canSee(t)) continue;
@@ -897,6 +938,13 @@ function resetShroud() {
 }
 
 function revealFog() {
+  // With fog off the whole map is shown and nothing is remembered as explored. Turning fog on later starts from what the party sees then.
+  if (!state.fogEnabled) {
+    state.sight = [];
+    renderTurnBar();
+    requestRender();
+    return;
+  }
   const W = state.map.width, H = state.map.height;
   vctx.globalCompositeOperation = 'source-over';
   vctx.clearRect(0, 0, W, H);
@@ -979,9 +1027,16 @@ function setMap(url) {
       return;
     }
     const img = new Image();
-    img.onload = () => {
-      // Small images are scaled up so the map is at least 12 squares on its short side.
-      const factor = Math.max(1, (12 * GRID) / Math.min(img.naturalWidth, img.naturalHeight));
+    img.onload = async () => {
+      // A map calibrated on the Map Test page is scaled so one printed square is one board square; otherwise small
+      // images are scaled up so the map is at least 12 squares on its short side.
+      let squares = null;
+      try {
+        const res = await fetch('/api/map-config?map=' + encodeURIComponent(url.split('/').pop()));
+        const c = res.ok ? (await res.json()).config : null;
+        if (c && c.squares >= 5 && c.squares <= 400) squares = c.squares;
+      } catch { /* no calibration: use the natural size */ }
+      const factor = squares ? (squares * GRID) / img.naturalWidth : Math.max(1, (12 * GRID) / Math.min(img.naturalWidth, img.naturalHeight));
       const drawW = img.naturalWidth * factor;
       const drawH = img.naturalHeight * factor;
       state.map = { url, img, width: Math.ceil(drawW / GRID) * GRID, height: Math.ceil(drawH / GRID) * GRID, drawW, drawH };
@@ -993,6 +1048,89 @@ function setMap(url) {
     };
     img.src = url;
   });
+}
+
+// Move the table to another map: remember the scene being left (its creatures and where the party stood),
+// show the new map, and put the party at the arrival spot (or where they last stood there). Used by the AI's changeMap and by the picker.
+async function travelTo(u) {
+  if (!u || !u.mapUrl || u.mapUrl === state.map.url) return;
+  const from = state.map.url || 'default';
+  state.mapMemory[from] = {
+    npcs: state.tokens.filter((t) => !t.isPC).map(serializeToken),
+    party: Object.fromEntries(state.tokens.filter((t) => t.isPC).map((t) => [t.id, { col: t.col, row: t.row }]))
+  };
+  if (!plainMap() && u.kind !== 'battle') state.fogBeforeOverland = state.fogEnabled;
+  await setMap(u.mapUrl);
+  state.mapKind = u.kind === 'regional' || u.kind === 'town' ? u.kind : 'battle';
+  // An arrival spot saved on the Map Test page is in image pixels; turn it into a board square at this map's scale.
+  if (u.px && state.map.img) {
+    const f = state.map.drawW / state.map.img.naturalWidth;
+    u = { ...u, col: Math.floor(u.px.x * f / GRID), row: Math.floor(u.px.y * f / GRID) };
+  }
+  const memory = state.mapMemory[u.mapUrl];
+  const party = state.tokens.filter((t) => t.isPC);
+  state.tokens = [...party];                              // creatures belong to the scene they were in (a copy: `party` must stay just the party)
+  if (memory) for (const t of memory.npcs) state.tokens.push({ ...t });
+  party.forEach((t) => { t.col = -100; t.row = -100; });  // out of the way while each is placed
+  for (const t of party) {
+    // A named arrival spot (the front door, the alley) wins; otherwise the party goes back where they last stood on that map.
+    const was = !u.explicit && memory && memory.party[t.id];
+    const spot = was && inBounds(was.col, was.row) ? { col: was.col, row: was.row } : freeSquareNear(clamp(u.col, 0, cols() - 1), clamp(u.row, 0, rows() - 1));
+    t.col = spot.col;
+    t.row = spot.row;
+    t.movementRemaining = t.speed;
+  }
+  if (plainMap()) {
+    state.gridOpacity = 0;
+    state.fogEnabled = false;
+  } else {
+    state.gridOpacity = 0.35;
+    if (state.fogBeforeOverland !== null) { state.fogEnabled = state.fogBeforeOverland; state.fogBeforeOverland = null; }
+  }
+  state.zoomToParty = !plainMap() && cols() > 45;
+  $('#fogToggle').checked = state.fogEnabled;
+  syncMapUi();
+  state.activeIndex = 0;
+  revealFog();
+  focusStart();
+  commitBoard();
+  syncMapPick();
+  addChat('system', `↳ The party arrives at ${u.mapName || 'a new map'}`);
+}
+
+// Controls that make no sense on a regional map are switched off while one is showing.
+function syncMapUi() {
+  const regional = plainMap();
+  $('#fogToggle').disabled = regional;
+  $('#resetFogBtn').disabled = regional;
+  $('#moveRule').disabled = regional;
+  const why = 'Not used on a regional or town map';
+  $('#fogToggle').parentElement.title = regional ? why : "Fog of war: only what the party can see from where they stand is shown, and explored areas are remembered. Enemies outside the party's sight are hidden.";
+  $('#resetFogBtn').title = regional ? why : 'Cover the whole map in fog again. Explored areas are forgotten.';
+  $('#moveRule').parentElement.title = regional ? why : 'How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.';
+}
+
+// The maps this campaign can move to, offered in the top bar.
+async function loadPlaces() {
+  try {
+    state.places = (await api('/api/maps/available')).maps || [];
+  } catch { state.places = []; }
+  const sel = $('#mapPick');
+  sel.innerHTML = '';
+  for (const p of state.places) {
+    const o = document.createElement('option');
+    o.value = p.url;
+    o.textContent = p.name;
+    sel.appendChild(o);
+  }
+  $('#mapPickBox').hidden = !state.places.length;
+  syncMapPick();
+}
+
+function syncMapPick() {
+  const sel = $('#mapPick');
+  if (state.places.some((p) => p.url === state.map.url)) sel.value = state.map.url;
+  else if (state.places.length) sel.selectedIndex = -1;
 }
 
 // Walls saved for this map on the server (data/maps/, made on the Map Test page), converted from image pixels to board pixels.
@@ -1140,7 +1278,7 @@ function drawFog() {
 
 function drawReachable() {
   const t = activeToken();
-  if (!t || state.drawWalls || state.gmOverride) return;
+  if (!t || state.drawWalls || state.gmOverride || plainMap()) return;
   const reach = reachable(t);
   const set = new Set(reach.keys());
   set.add(sqKey(t.col, t.row));
@@ -1188,6 +1326,7 @@ function tokenDisplayPos(t, now) {
 }
 
 function drawTokens(pcs, now) {
+  if (plainMap()) return;          // regional and town maps are just maps: no tokens on them
   const active = activeToken();
   const radius = GRID * 0.4;
   const ordered = state.tokens.filter((t) => (pcs ? (t.isPC || (state.dmView && !seenByParty(t))) : (!t.isPC && seenByParty(t))));
@@ -1592,12 +1731,16 @@ function renderTurnBar() {
 }
 
 function saveBoard() {
-  store.set('vtt.board', {
+  store.set(boardKey(), {
     mapUrl: state.map.url,
     tokens: state.tokens.map(serializeToken),
     activeIndex: state.activeIndex,
     fogEnabled: state.fogEnabled,
-    gridOpacity: state.gridOpacity
+    gridOpacity: state.gridOpacity,
+    zoomToParty: state.zoomToParty,
+    mapKind: state.mapKind,
+    mapMemory: state.mapMemory,
+    fogBeforeOverland: state.fogBeforeOverland
   });
 }
 
@@ -1659,7 +1802,7 @@ function addChat(role, content, lines) {
   if (Array.isArray(lines) && lines.length) m.lines = lines;
   state.chat.push(m);
   if (state.chat.length > 200) state.chat = state.chat.slice(-200);
-  store.set('vtt.chat', state.chat);
+  store.set(chatKey(), state.chat);
   const el = renderChatMessage(m);
   $('#chatLog').appendChild(el);
   scrollChat();
@@ -1700,14 +1843,16 @@ async function sendTurn(spokenText) {
       characters: state.characters.map(({ sheetLog, ...rest }) => rest),
       walls: state.walls.map(({ x1, y1, x2, y2, type, open }) => ({ x1, y1, x2, y2, type, open: !!open })),
       gridSize: GRID,
+      mapUrl: state.map.url || '',
       movementRule: state.moveRule,
       mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
       inputMode: isVoice ? 'voice' : 'text'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
-    applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
+    await applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
+    if (Array.isArray(data.journalAdded) && data.journalAdded.length) addChat('system', '📓 Journal: ' + data.journalAdded.map((e) => e.title).join(', '));
     if (lines.length) voice.speak(lines, msgEl);
   } catch (err) {
     addChat('system', `Could not reach the AI DM: ${err.message}`);
@@ -2135,8 +2280,10 @@ function applyCharacterUpdates(updates, problems) {
   }
 }
 
-function applyMapUpdates(updates) {
+async function applyMapUpdates(updates) {
   if (!updates.length) return;
+  const travel = updates.find((u) => u.type === 'changeMap');
+  if (travel) await travelTo(travel);
   let wallsTouched = false;
   const hpSaves = [];
   for (const u of updates) {
@@ -2214,6 +2361,8 @@ function applyMapUpdates(updates) {
         addChat('system', `↳ A ${u.wallType === 'door' ? 'door' : 'wall'} was added to the map`);
         break;
       }
+      case 'changeMap':
+        break;                                    // handled before the loop
       default:
         console.warn('Unknown map update', u);
     }
@@ -2285,6 +2434,20 @@ function bindUi() {
     store.set('vtt.moveRule', state.moveRule);
     requestRender();
   });
+  $('#mapPick').addEventListener('change', async (e) => {
+    const p = state.places.find((x) => x.url === e.target.value);
+    if (p) await travelTo({ mapUrl: p.url, mapName: p.name, kind: p.kind, col: p.start.col, row: p.start.row, px: p.startPx });
+  });
+  $('#resetFogBtn').addEventListener('click', () => {
+    if (!state.fogEnabled) { toast('Turn on Fog of war first.'); return; }
+    if (confirm('Cover the whole map in fog again? Explored areas will be forgotten.')) resetFog();
+  });
+  $('#fogToggle').addEventListener('change', (e) => {
+    state.fogEnabled = e.target.checked;
+    saveBoard();
+    revealFog();
+    renderTurnBar();
+  });
   $('#dmView').addEventListener('change', (e) => {
     state.dmView = e.target.checked;
     store.set('vtt.dmView', state.dmView);
@@ -2301,16 +2464,31 @@ function bindUi() {
   $('#chatInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendTurn(); }
   });
+  $('#recapBtn').addEventListener('click', async () => {
+    if (state.busy) return;
+    voice.cancelSpeech();
+    setBusy(true);
+    try {
+      const data = await jsonPost('/api/recap', {});
+      const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
+      const msgEl = addChat('assistant', '📖 Previously on…\n\n' + data.narrative, lines);
+      if (lines.length) voice.speak(lines, msgEl);
+    } catch (err) {
+      addChat('system', 'Could not get a recap: ' + err.message);
+    } finally {
+      setBusy(false);
+    }
+  });
   $('#clearChatBtn').addEventListener('click', () => {
     if (!confirm('Clear the whole chat log? The DM will lose this conversation history.')) return;
     state.chat = [];
-    store.set('vtt.chat', state.chat);
+    store.set(chatKey(), state.chat);
     renderChat();
   });
 
   new ResizeObserver(() => {
     resizeCanvas();
-    if (!sized && wrap.clientWidth && wrap.clientHeight) { sized = true; fitView(); }
+    if (!sized && wrap.clientWidth && wrap.clientHeight) { sized = true; focusStart(); }
   }).observe(wrap);
   window.matchMedia(`(resolution: ${dpr}dppx)`).addEventListener?.('change', resizeCanvas);
 }
@@ -2320,40 +2498,63 @@ function bindUi() {
    ===================================================================== */
 async function init() {
   bindUi();
-  const board = store.get('vtt.board', null);
+  // The active campaign decides which saved board and chat to load.
+  let active = null;
+  try { active = ((await api('/api/campaigns')).campaigns || []).find((c) => c.active) || null; } catch { /* the table still works without it */ }
+  state.campaignId = active ? active.id : 'default';
+  let board = store.get(boardKey(), null);
+  // A campaign with a ready-made starting scene (and no saved board yet) begins there.
+  if (!board && window.Scenes && Scenes.has(state.campaignId)) {
+    try {
+      board = await Scenes.create(state.campaignId);
+      if (board && board.mapUrl) store.remove('vtt.fog.' + board.mapUrl);
+    } catch (err) { toast(`Could not build the starting scene: ${err.message}`, 'error', 6000); }
+  }
   const savedRule = store.get('vtt.moveRule', 'circle');
   if (MOVE_RULES.includes(savedRule)) state.moveRule = savedRule;
   $('#moveRule').value = state.moveRule;
   state.dmView = store.get('vtt.dmView', false) === true;
   $('#dmView').checked = state.dmView;
-  state.chat = store.get('vtt.chat', []);
+  state.chat = store.get(chatKey(), []);
   if (!Array.isArray(state.chat)) state.chat = [];
   if (board && typeof board === 'object') {
     state.tokens = Array.isArray(board.tokens) ? board.tokens.filter((t) => t && t.id) : [];
     state.activeIndex = Number.isInteger(board.activeIndex) ? board.activeIndex : 0;
     state.fogEnabled = board.fogEnabled !== false;
     state.gridOpacity = Number.isFinite(board.gridOpacity) ? board.gridOpacity : 0.35;
+    state.zoomToParty = board.zoomToParty === true;
+    // Boards saved before the kind was recorded: the Sword Coast map is the overland one.
+    state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : 'battle';
+    state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
+    state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
   }
+  $('#fogToggle').checked = state.fogEnabled;
+  syncMapUi();
   renderChat();
   scrollChat();
   await loadCharacters();
   if (!state.tokens.length) createDefaultTokens();
   await setMap(board?.mapUrl || null);
+  if (state.zoomToParty) focusStart();
   if (!state.chat.length) {
     let campaignNote = '';
-    try {
-      const data = await api('/api/campaigns');
-      const active = (data.campaigns || []).find((x) => x.active);
-      if (active) campaignNote = active.totalChars ? ` Campaign: ${active.name} (${active.files.length} documents loaded).` : ` Campaign: ${active.name} has no text loaded, so the DM is improvising. Add it on the Campaigns page.`;
-      if (active && active.test && !/rusty-flagon/.test(state.map.url || '')) campaignNote += ' The scenario\'s map and NPCs are not loaded on this table: open the Test Lab and press Set up the table.';
-    } catch { /* the welcome line works without it */ }
+    if (active) campaignNote = active.totalChars ? ` Campaign: ${active.name} (${active.files.length} documents loaded).` : ` Campaign: ${active.name} has no text loaded, so the DM is improvising. Add it on the Campaigns page.`;
     addChat('system', `Welcome to AI-VTT. Drag the highlighted token to move (gold outline = legal range), press End Turn to pass, and describe actions here for the AI Dungeon Master.${campaignNote}`);
   }
   commitBoard();
+  loadPlaces();
+  // Coming back from the Campaigns page after switching: load the other campaign's board and chat.
+  window.addEventListener('focus', async () => {
+    if (state.campaignId === 'default') return;
+    try {
+      const now = ((await api('/api/campaigns')).campaigns || []).find((c) => c.active);
+      if (now && now.id !== state.campaignId) location.reload();
+    } catch { /* offline: stay where we are */ }
+  });
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo };
 
 init().catch((err) => {
   console.error(err);

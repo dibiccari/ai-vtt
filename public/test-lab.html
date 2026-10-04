@@ -49,7 +49,7 @@
 <body>
 <div class="page">
   <h1>Test <span>Lab</span></h1>
-  <p class="lead">Set up a ready-made scene on the tabletop, then try things with the AI Dungeon Master and see what it allows. This page only prepares the table; the AI is called only when you send a message on the tabletop.</p>
+  <p class="lead">Try things with the AI Dungeon Master in a ready-made scene. Choosing this scenario on the Campaigns page also builds it the first time; the button below starts it over. This page only prepares the table; the AI is called only when you send a message on the tabletop.</p>
 
   <div class="card hero">
     <div>
@@ -57,13 +57,13 @@
       <p class="meta">A crowded tavern, eight NPCs and a fight waiting to happen. It exercises social interaction, exploration and combat with real 5e stat blocks.</p>
       <p>Your party starts just inside the front door. The barkeep, a bouncer, two regulars, a loud mercenary with his two friends, and a nervous stranger in the back booth are all in the room.</p>
       <div class="row">
-        <label class="check"><input type="checkbox" id="optFog"> Fog of war on (enemies you cannot see are hidden)</label>
+        <label class="check"><input type="checkbox" id="optFog" checked> Fog of war on (enemies you cannot see are hidden)</label>
         <label class="check"><input type="checkbox" id="optDm" checked> Start with DM view on (shows hidden things as faint ghosts)</label>
         <label class="check"><input type="checkbox" id="optChat" checked> Start a fresh chat</label>
       </div>
       <div class="row">
-        <button class="primary" id="setupBtn">Set up the table and open it</button>
-        <button id="resetBtn" title="Switch back to the Lost Mine campaign and clear the board">Back to Lost Mine</button>
+        <button class="primary" id="setupBtn">Start the scenario fresh and open it</button>
+        <button id="resetBtn" title="Switch the AI back to the Lost Mine campaign. Its board and chat are kept.">Switch back to Lost Mine</button>
       </div>
       <ul class="steps" id="steps"></ul>
       <div class="now" id="now"></div>
@@ -105,6 +105,7 @@
 
 <script src="/nav.js"></script>
 <script src="/uvtt.js"></script>
+<script src="/scenes.js"></script>
 <script>
 (function () {
   'use strict';
@@ -121,21 +122,7 @@
   }
   const post = (url, body) => api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-  // Player characters start just inside the front door, in this order.
-  const PARTY_SPOTS = [[14, 16], [15, 17], [13, 15], [15, 15], [16, 16], [12, 16]];
-
-  // Matches the scenario text (public/scenarios/rusty-flagon-campaign.md).
-  const CAST = [
-    { id: 'npc-marta', name: 'Marta Ironbrew', role: 'Barkeep and owner', stat: 'Commoner (club)', col: 9, row: 2, color: '#d98f4e', speed: 25, words: ['innkeeper', 'barmaid', 'tavern', 'halfling', 'matron'] },
-    { id: 'npc-bruno', name: 'Bruno', role: 'Bouncer', stat: 'Thug', col: 13, row: 17, color: '#7d8da6', speed: 30, words: ['bouncer', 'brawler', 'thug', 'guard'] },
-    { id: 'npc-gruk', name: 'Gruk Tannerson', role: 'Loud mercenary', stat: 'Thug (mace)', col: 13, row: 10, color: '#c0504d', speed: 30, words: ['mercenary', 'sellsword', 'brute', 'thug'] },
-    { id: 'npc-dan', name: 'Dagger Dan', role: "Gruk's crew", stat: 'Bandit (scimitar, crossbow)', col: 10, row: 9, color: '#b35f2a', speed: 30, words: ['bandit', 'rogue', 'cutpurse'] },
-    { id: 'npc-jo', name: 'Skinny Jo', role: "Gruk's crew", stat: 'Bandit (scimitar)', col: 11, row: 11, color: '#a8742a', speed: 30, words: ['bandit', 'thief', 'rogue'] },
-    { id: 'npc-odo', name: 'Odo Pennywhistle', role: 'Regular', stat: 'Commoner', col: 5, row: 9, color: '#8fae6b', speed: 30, words: ['drunk', 'peasant', 'commoner', 'farmer', 'villager'] },
-    { id: 'npc-pell', name: 'Pell Brightwater', role: 'Regular', stat: 'Commoner', col: 7, row: 10, color: '#6ba58e', speed: 30, words: ['drunk', 'peasant', 'commoner', 'villager'] },
-    { id: 'npc-nim', name: 'Nim', role: 'Nervous stranger in the back booth', stat: 'Spy', col: 26, row: 12, color: '#7a6ea8', speed: 30, words: ['spy', 'cloaked', 'hooded', 'assassin', 'informant'] },
-    { id: 'trap-tripwire', name: 'Tripwire alarm', role: 'Hidden trap in the kitchen doorway (a secret: only visible in DM view)', stat: 'Perception DC 13 to notice', col: 22, row: 5, color: '#c9a64a', speed: 0, words: [], hidden: true, kind: 'trap' }
-  ];
+  const CAST = Scenes.cast();
 
   const PROMPTS = [
     { title: 'Social', items: [
@@ -143,6 +130,12 @@
       ['I try to calm Gruk down by buying him a drink.', 'Asks for a Persuasion check with a DC, and says what success or failure costs.'],
       ['I listen in on the table of mercenaries.', 'Perception check; a success reveals the Black Lantern boast.'],
       ['I tell Gruk he drinks like a child.', 'Insult: the brawl should start. Initiative is rolled for everyone.']
+    ] },
+    { title: 'Changing maps', items: [
+      ['We have had enough of this place. We walk out the front door and into the street.', 'The AI changes the map to Phandalin and places the party outside the tavern. The tavern\'s creatures are put away.'],
+      ['We go back into the Rusty Flagon.', 'The AI changes back to the tavern. Everyone is where they were left, and the party is at the front door.'],
+      ['I slip out through the kitchen and the back door.', 'Map change to Phandalin, arriving in the alley behind the tavern. Kitchen first: the tripwire is in the doorway.'],
+      ['Gruk grabs his mace and follows us out into the street.', 'On the town map the AI adds Gruk (and his crew) outside; you can then go back in without them.']
     ] },
     { title: 'Exploration', items: [
       ['I walk through the kitchen doorway.', 'There is a hidden tripwire here. A good AI says nothing about it unless someone notices (Perception DC 13) or triggers it.'],
@@ -208,44 +201,13 @@
     }
   }
 
-  // Look through the token library for art that fits each NPC (optional; falls back to a colour).
-  async function pickArt() {
-    const images = {};
-    try {
-      const res = await fetch('/tokens/manifest.json');
-      if (!res.ok) return images;
-      const tokens = (await res.json()).tokens || [];
-      for (const n of CAST) {
-        const hits = tokens.filter((t) => n.words.some((w) => String(t.name).toLowerCase().includes(w)));
-        if (hits.length) {
-          const hash = [...n.name].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-          images[n.id] = '/tokens/' + hits[hash % hits.length].file;
-        }
-      }
-    } catch { /* no art is fine */ }
-    return images;
-  }
-
   const stepsEl = $('#steps');
   function step(text) { const li = el('li', '', text); stepsEl.appendChild(li); return li; }
 
-  // The tavern map: reuse it if it is already imported, otherwise import the .dd2vtt that ships with the app.
-  async function ensureMap() {
-    const maps = (await api('/api/maps')).maps || [];
-    const existing = maps.find((u) => /\/rusty-flagon-[^/]+$/.test(u));
-    const text = await (await fetch('/scenarios/rusty-flagon.dd2vtt')).text();
-    const u = Uvtt.parse(text);
-    if (existing) {
-      const name = existing.split('/').pop();
-      const cfg = (await api('/api/map-config?map=' + encodeURIComponent(name))).config;
-      if (!cfg || !Array.isArray(cfg.walls) || !cfg.walls.length) {
-        await api('/api/map-config?map=' + encodeURIComponent(name), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ squares: 30, walls: Uvtt.toWalls(u, 1), source: 'dd2vtt' }) });
-      }
-      return existing;
-    }
-    return (await Uvtt.importAsMap(u, 'rusty-flagon')).url;
-  }
+  const boardKeyFor = (id) => 'vtt.board.' + id;
+  const chatKeyFor = (id) => 'vtt.chat.' + id;
 
+  // Start the scenario over: make its campaign the active one, build a fresh board, and open the tabletop.
   async function setup() {
     stepsEl.innerHTML = '';
     $('#setupBtn').disabled = true;
@@ -254,31 +216,14 @@
       await post('/api/campaigns/active', { id: TEST_CAMPAIGN });
       li.className = 'done';
 
-      li = step('Getting the tavern map and its walls');
-      const mapUrl = await ensureMap();
-      li.className = 'done';
-
-      li = step('Loading your party');
-      const chars = await api('/api/characters');
-      if (!chars.length) throw new Error('There are no characters yet. Make some on the Character Sheets page first.');
-      li.className = 'done';
-
-      li = step('Placing the party and the NPCs');
-      const art = await pickArt();
-      const tokens = [];
-      chars.slice(0, PARTY_SPOTS.length).forEach((c, i) => {
-        tokens.push({ id: `tok-${c.id}`, name: c.name, col: PARTY_SPOTS[i][0], row: PARTY_SPOTS[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' });
-      });
-      for (const n of CAST) {
-        tokens.push({ id: n.id, name: n.name, col: n.col, row: n.row, color: n.color, isPC: false, characterId: null, speed: n.speed, movementRemaining: n.speed, image: art[n.id] || '', hidden: Boolean(n.hidden), kind: n.kind || 'creature' });
-      }
-      localStorage.setItem('vtt.dmView', JSON.stringify($('#optDm').checked));
-      const board = { mapUrl, tokens, activeIndex: 0, fogEnabled: $('#optFog').checked, gridOpacity: 0.35 };
-      localStorage.setItem('vtt.board', JSON.stringify(board));
+      li = step('Building the scene: map, walls, your party and the NPCs');
+      const board = await Scenes.create(TEST_CAMPAIGN, { fog: $('#optFog').checked });
+      localStorage.setItem(boardKeyFor(TEST_CAMPAIGN), JSON.stringify(board));
       // Forget old walls and explored fog for this map so the saved walls load fresh.
-      localStorage.removeItem('vtt.walls.' + mapUrl);
-      localStorage.removeItem('vtt.fog.' + mapUrl);
-      if ($('#optChat').checked) localStorage.removeItem('vtt.chat');
+      localStorage.removeItem('vtt.walls.' + board.mapUrl);
+      localStorage.removeItem('vtt.fog.' + board.mapUrl);
+      localStorage.setItem('vtt.dmView', JSON.stringify($('#optDm').checked));
+      if ($('#optChat').checked) localStorage.removeItem(chatKeyFor(TEST_CAMPAIGN));
       li.className = 'done';
 
       li = step('Opening the tabletop');
@@ -291,17 +236,15 @@
     }
   }
 
+  // Switch back to the real campaign. Its own board and chat are untouched, so the tabletop returns to where you left off.
   async function reset() {
-    if (!confirm('Switch back to the Lost Mine campaign and clear the board and chat on this browser?')) return;
     stepsEl.innerHTML = '';
     try {
       await post('/api/campaigns/active', { id: HOME_CAMPAIGN });
-      localStorage.removeItem('vtt.board');
-      localStorage.removeItem('vtt.chat');
-      step('Back on the Lost Mine campaign, with a fresh board').className = 'done';
+      step('Back on the Lost Mine campaign. Open the tabletop to continue where you left off.').className = 'done';
       refreshNow();
     } catch (err) {
-      step('Could not reset: ' + err.message).className = 'bad';
+      step('Could not switch: ' + err.message).className = 'bad';
     }
   }
 
@@ -310,7 +253,7 @@
       const data = await api('/api/campaigns');
       const active = data.campaigns.find((c) => c.active);
       let map = '';
-      try { map = (JSON.parse(localStorage.getItem('vtt.board') || 'null') || {}).mapUrl || ''; } catch { /* ignore */ }
+      try { map = (JSON.parse(localStorage.getItem(boardKeyFor(active ? active.id : '')) || 'null') || {}).mapUrl || ''; } catch { /* ignore */ }
       const now = $('#now');
       now.innerHTML = '';
       now.append(document.createTextNode('Right now the AI is running '), Object.assign(el('b'), { textContent: active ? active.name : 'no campaign' }), document.createTextNode(map ? ' on the map ' + map.split('/').pop() + '.' : ' on the blank grid.'));
@@ -320,7 +263,7 @@
   async function start() {
     renderPrompts();
     renderCast({});
-    pickArt().then(renderCast);
+    Scenes.pickArt().then(renderCast);
     $('#setupBtn').addEventListener('click', setup);
     $('#resetBtn').addEventListener('click', reset);
     refreshNow();

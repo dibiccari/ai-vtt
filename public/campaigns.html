@@ -102,7 +102,7 @@
     const tests = campaigns.filter((x) => x.test);
     if (tests.length) {
       list.appendChild(el('h2', '', 'Test scenarios'));
-      list.appendChild(el('p', 'note', 'Short scenes for trying out the table and the AI. Set them up from the Test Lab page, which also prepares the map and tokens.'));
+      list.appendChild(el('p', 'note', 'Short scenes for trying out the table and the AI. Each one builds its own map and tokens the first time you open it.'));
       for (const c of tests) list.appendChild(card(c));
     }
   }
@@ -125,29 +125,40 @@
     }
     box.appendChild(stats);
 
-    if (c.test) {
-      box.appendChild(el('div', c.active ? 'warnbox' : 'okbox', c.active
-        ? 'The AI is running this scenario, but choosing it here only changes what the AI knows. The tabletop still shows its old map and tokens until you set the table up in the Test Lab.'
-        : 'This scenario needs its own map, tokens and party positions, so it is set up from the Test Lab. Choosing it here would only change what the AI knows.'));
-    } else if (!c.totalChars) {
+    if (!c.totalChars) {
       box.appendChild(el('div', 'warnbox', 'This campaign has no text, so the DM is improvising without a module. Import the adventure PDF below.'));
     } else if (c.active) {
       box.appendChild(el('div', 'okbox', 'The DM is running this campaign now. Changes to its documents apply on the next message, with no restart.'));
     }
 
     const row = el('div', 'row');
-    let use;
-    if (c.test) {
-      use = el('button', 'primary', 'Set up the table in the Test Lab');
-      use.addEventListener('click', () => { location.href = '/test-lab.html'; });
-    } else {
-      use = el('button', 'primary', c.active ? 'Currently in use' : 'Use this campaign');
-      use.disabled = c.active;
-      use.addEventListener('click', () => activate(c));
-    }
+    const use = el('button', 'primary', c.active ? 'Currently in use' : 'Use this campaign');
+    use.disabled = c.active;
+    use.addEventListener('click', () => activate(c));
+    const openBtn = el('button', '', 'Open the tabletop');
+    openBtn.title = 'Go to the table with this campaign\'s own map, characters and chat';
+    openBtn.addEventListener('click', async () => {
+      if (!c.active) await activate(c);
+      location.href = '/';
+    });
+    const startOver = el('button', 'danger', 'Start over');
+    startOver.title = 'Forget this campaign\'s saved board, chat and journal. The next time you open it, it begins from its starting scene.';
+    startOver.addEventListener('click', async () => {
+      if (!confirm('Clear the saved board, chat and journal of ' + c.name + '? Its documents and the characters stay. The table will begin again from the starting scene.')) return;
+      // Forget the explored fog of the map that campaign was on, along with its board and chat.
+      try {
+        const saved = JSON.parse(localStorage.getItem('vtt.board.' + c.id) || 'null');
+        if (saved && saved.mapUrl) localStorage.removeItem('vtt.fog.' + saved.mapUrl);
+      } catch { /* nothing saved */ }
+      for (const key of ['vtt.board.' + c.id, 'vtt.chat.' + c.id]) { try { localStorage.removeItem(key); } catch { /* storage blocked */ } }
+      try {
+        await fetch('/api/campaigns/' + c.id + '/journal', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: [] }) });
+      } catch { /* the board is cleared even if the journal could not be */ }
+      setStatus(c.name + ' will start fresh the next time you open it.', 'ok');
+    });
     const docs = el('button', '', open.has(c.id) ? 'Hide documents' : 'Show documents');
     docs.addEventListener('click', () => { if (open.has(c.id)) open.delete(c.id); else open.add(c.id); render(); });
-    row.append(use, docs);
+    row.append(use, openBtn, docs, startOver);
     box.appendChild(row);
 
     if (open.has(c.id)) box.appendChild(documents(c));
@@ -158,7 +169,7 @@
   async function activate(c) {
     try {
       await api('/api/campaigns/active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
-      setStatus(c.name + ' is now the active campaign.', 'ok');
+      setStatus(c.name + ' is now the active campaign. The tabletop will open on its own map, characters and chat.', 'ok');
       await load();
     } catch (err) {
       setStatus('Could not switch campaign: ' + err.message, 'bad');
