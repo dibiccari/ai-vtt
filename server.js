@@ -238,6 +238,12 @@ function normalizeMapConfig(body) {
   if (lights.length) config.lights = lights;
   if (/^[0-9a-f]{6,8}$/i.test(String(body?.ambient ?? ''))) config.ambient = String(body.ambient).toLowerCase();
   if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
+  // Versions of one place (a day and a night map, a summer and a winter map) share a group and have a variant name each.
+  const slug = (v, max) => String(v ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max);
+  if (slug(body?.group, 40)) {
+    config.group = slug(body.group, 40);
+    config.variant = slug(body?.variant, 20) || 'main';
+  }
   return config;
 }
 
@@ -257,7 +263,7 @@ app.get('/api/map-configs', asyncRoute(async (_req, res) => {
     if (!f.endsWith('.json')) continue;
     try {
       const c = JSON.parse(await readFile(path.join(MAP_CONFIG_DIR, f), 'utf8'));
-      out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0 });
+      out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0, group: c.group || null, variant: c.variant || null });
     } catch { /* skip unreadable config */ }
   }
   res.json({ configs: out });

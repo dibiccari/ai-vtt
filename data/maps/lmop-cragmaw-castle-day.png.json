@@ -5380,5 +5380,7 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ffffffff"
+  "ambient": "ffffffff",
+  "group": "cragmaw-castle",
+  "variant": "day"
 }

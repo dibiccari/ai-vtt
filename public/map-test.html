@@ -32,6 +32,11 @@
   .readout .in { color:var(--ok); } .readout .exp { color:var(--gold); } .readout .un { color:var(--danger); }
   .tests { font:12px Consolas, monospace; display:flex; flex-direction:column; gap:2px; }
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
+  .variant-switch { position:absolute; left:12px; top:12px; display:flex; gap:0; z-index:5; }
+  .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
+  .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
+  .variant-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  .banner.with-switch { top:56px; }
   .banner { position:absolute; left:12px; top:12px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:70%; }
 </style>
 </head>
@@ -50,6 +55,13 @@
       <input type="number" id="squares" min="5" max="400" step="1" value="50">
     </label>
     <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
+    <label class="field"><span>Group (versions of one place)</span>
+      <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
+    </label>
+    <label class="field"><span>This version is called</span>
+      <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
+    </label>
+    <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
   </div>
 
   <div class="group">
@@ -119,6 +131,7 @@
 
 <main id="stage">
   <canvas id="cv"></canvas>
+  <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
   <div class="banner" id="banner">Loading maps...</div>
 </main>
 
@@ -144,7 +157,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], tokens: [], visionFt: 60, source: null,
+    squares: 50, walls: [], starts: [], group: '', variant: '', configs: [], tokens: [], visionFt: 60, source: null,
     tool: 'token', fog: true, dm: false, showPoly: false, showWalls: false, showGrid: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
@@ -227,7 +240,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, source: S.source });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, source: S.source, group: S.group, variant: S.variant });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -423,6 +436,41 @@
     ctx.restore();
   }
 
+  // The Day/Night (or any versions) switch in the top left of the map: the other maps in this map's group.
+  async function refreshVariants() {
+    try {
+      const res = await fetch('/api/map-configs');
+      S.configs = (await res.json()).configs || [];
+    } catch { S.configs = []; }
+    renderVariantSwitch();
+  }
+
+  function renderVariantSwitch() {
+    const box = $('#variantSwitch');
+    box.innerHTML = '';
+    const mates = S.group ? S.configs.filter((c) => c.group === S.group) : [];
+    const order = ['day', 'night'];
+    mates.sort((a, b) => (order.indexOf(a.variant) + 1 || 99) - (order.indexOf(b.variant) + 1 || 99) || String(a.variant).localeCompare(String(b.variant)));
+    box.hidden = mates.length < 2;
+    $('#banner').classList.toggle('with-switch', mates.length >= 2);
+    for (const c of mates) {
+      const b = document.createElement('button');
+      const url = '/uploads/' + c.map;
+      b.textContent = c.variant;
+      b.setAttribute('aria-pressed', String(url === S.url));
+      b.title = 'Show the ' + c.variant + ' version of this map';
+      b.addEventListener('click', async () => {
+        if (url === S.url) return;
+        const keep = { ...S.view };
+        $('#mapSelect').value = url;
+        await loadMap(url);
+        S.view = keep;                      // keep the same zoom and position so the versions line up
+        requestRender();
+      });
+      box.appendChild(b);
+    }
+  }
+
   // The other maps that pins can be copied to; the day/night twin of this map is preselected.
   function fillCopyTargets() {
     const sel = $('#copyTarget');
@@ -465,6 +513,8 @@
         walls: Array.isArray(cfg.walls) ? cfg.walls : [],
         starts: merged,
         source: cfg.source,
+        group: cfg.group,
+        variant: cfg.variant,
         lights: cfg.lights,
         ambient: cfg.ambient
       };
@@ -590,6 +640,8 @@
           S.walls = cleanWalls(remote.walls);
           if (remote.squares > 0) S.squares = remote.squares;
         }
+        S.group = remote && remote.group ? remote.group : '';
+        S.variant = remote && remote.variant ? remote.variant : '';
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         syncControls();
         resetFog();
@@ -662,6 +714,9 @@
     renderStartList();
     suggestPinName();
     fillCopyTargets();
+    $('#groupName').value = S.group;
+    $('#variantName').value = S.variant;
+    refreshVariants();
   }
 
   function setTool(tool) {
@@ -848,6 +903,15 @@
   document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
   $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
   $('#copyPinsBtn').addEventListener('click', copyPins);
+  const groupChanged = () => {
+    S.group = $('#groupName').value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    S.variant = S.group ? ($('#variantName').value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'main') : '';
+    save();
+    // The server file is written a moment after save(); refresh the switch once it is there.
+    setTimeout(refreshVariants, 900);
+  };
+  $('#groupName').addEventListener('change', groupChanged);
+  $('#variantName').addEventListener('change', groupChanged);
   $('#onlyUvtt').checked = S.onlyUvtt;
   $('#onlyUvtt').addEventListener('change', (e) => {
     S.onlyUvtt = e.target.checked;

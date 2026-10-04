@@ -5380,5 +5380,7 @@
     }
   ],
   "ambient": "ff6f759b",
-  "source": "dd2vtt"
+  "source": "dd2vtt",
+  "group": "cragmaw-castle",
+  "variant": "night"
 }
