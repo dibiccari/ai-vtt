@@ -68,6 +68,14 @@
   .turn-chip .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); }
   .turn-chip.active { background: var(--gold-soft); border-color: var(--gold); color: var(--text); }
   .turn-chip.npc { border-style: dashed; }
+  .cond-dot { display: inline-block; min-width: 18px; padding: 0 4px; border-radius: 9px; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; color: #fff; text-shadow: 0 0 2px #000; }
+  .cond-panel { position: fixed; z-index: 60; width: 270px; max-height: 80vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 13px; }
+  .cond-panel h4 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .cond-panel .cond-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .cond-panel .cond-row label { flex: 1; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .cond-panel input[type=number] { width: 58px; }
+  .cond-panel input[type=text] { flex: 1; min-width: 0; }
+  .cond-panel .hint { color: var(--muted); font-size: 12px; margin: 8px 0 4px; }
   .move-info { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .move-info strong { color: var(--text); }
   .move-rule { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
@@ -777,7 +785,59 @@ const activeToken = () => state.tokens[state.activeIndex] || null;
 const characterFor = (t) => (t?.characterId ? state.characters.find((c) => c.id === t.characterId) : null);
 
 function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '', hidden = false, kind = 'creature' }) {
-  return { id, name, color, characterId, isPC, col, row, speed, image, hidden: Boolean(hidden), kind: kind === 'trap' ? 'trap' : 'creature', movementRemaining: speed };
+  return { id, name, color, characterId, isPC, col, row, speed, image, hidden: Boolean(hidden), kind: kind === 'trap' ? 'trap' : 'creature', conditions: [], movementRemaining: speed };
+}
+
+// ---- Conditions and lasting effects on tokens ----
+// A token's conditions are { name, rounds }; rounds is how many rounds are left (0 = until removed). The names below are the
+// 5e conditions plus concentration; anything else is a short effect name such as "bless".
+const CONDITIONS = {
+  blinded: ['Bl', '#8e8e9a'], charmed: ['Ch', '#ff7ac8'], deafened: ['De', '#9a8e7a'], frightened: ['Fr', '#b06bff'],
+  grappled: ['Gr', '#d98a3d'], incapacitated: ['In', '#cc5555'], invisible: ['Iv', '#6fd0e8'], paralyzed: ['Pa', '#e0c040'],
+  petrified: ['Pe', '#9aa0a6'], poisoned: ['Po', '#4cc46a'], prone: ['Pr', '#c08a5a'], restrained: ['Re', '#d9a43d'],
+  stunned: ['St', '#f0a040'], unconscious: ['Un', '#e05050'], exhaustion: ['Ex', '#a07850'], concentrating: ['Co', '#4f9dff']
+};
+const tokenConditions = (t) => (Array.isArray(t?.conditions) ? t.conditions.filter((c) => c && c.name) : []);
+const conditionKey = (name) => String(name ?? '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 30);
+const hasCondition = (t, name) => tokenConditions(t).some((c) => c.name === name);
+const conditionBadge = (name) => CONDITIONS[name] || [name.slice(0, 2).toUpperCase(), '#4f9dff'];
+const conditionLabel = (c) => c.name + (c.rounds > 0 ? ` (${c.rounds} round${c.rounds === 1 ? '' : 's'})` : '');
+// A blinded or unconscious character feels only their own square (1 ft) instead of seeing the usual distance.
+const sightFeetOf = (t) => (hasCondition(t, 'blinded') || hasCondition(t, 'unconscious') ? 1 : VISION_FT);
+
+function setCondition(t, name, rounds) {
+  const key = conditionKey(name);
+  if (!t || !key) return false;
+  if (!Array.isArray(t.conditions)) t.conditions = [];
+  const left = Number.isFinite(rounds) && rounds > 0 ? Math.min(Math.round(rounds), 999) : 0;
+  const have = t.conditions.find((c) => c.name === key);
+  if (have) have.rounds = left; else t.conditions.push({ name: key, rounds: left });
+  return true;
+}
+
+function clearCondition(t, name) {
+  const key = conditionKey(name);
+  if (!t || !Array.isArray(t.conditions)) return false;
+  const before = t.conditions.length;
+  t.conditions = t.conditions.filter((c) => c.name !== key);
+  return t.conditions.length !== before;
+}
+
+// At the start of a new round every timed condition loses a round; the ones that run out are removed.
+function tickConditions() {
+  let changed = false;
+  for (const t of state.tokens) {
+    for (const c of tokenConditions(t)) {
+      if (!(c.rounds > 0)) continue;
+      c.rounds -= 1;
+      if (c.rounds <= 0) {
+        clearCondition(t, c.name);
+        if (seenByParty(t)) addChat('system', `↳ ${t.name} is no longer ${c.name}`);
+        changed = true;
+      }
+    }
+  }
+  return changed;
 }
 
 // ---- What the players can see ----
@@ -794,7 +854,7 @@ function pointInPolygon(x, y, poly) {
 
 function seenByParty(t) {
   if (t.isPC) return true;
-  if (t.hidden) return false;
+  if (t.hidden || hasCondition(t, 'invisible')) return false;
   if (!state.fogEnabled || state.gmOverride) return true;
   const x = centerOf(t.col), y = centerOf(t.row);
   return state.sight.some((s) => Math.hypot(x - s.cx, y - s.cy) <= s.radius * 0.9 && pointInPolygon(x, y, s.poly));
@@ -904,18 +964,20 @@ function doorAt(wx, wy) {
 function endTurn() {
   if (!state.tokens.length) return;
   // Creatures the party cannot see are skipped: the AI plays their turns in the narration.
+  const was = state.activeIndex;
   for (let n = 0; n < state.tokens.length; n++) {
     state.activeIndex = (state.activeIndex + 1) % state.tokens.length;
     if (seenByParty(activeToken())) break;
   }
   const next = activeToken();
   next.movementRemaining = next.speed;
+  if (state.activeIndex <= was && tickConditions()) revealFog();     // the order came round: a new round
   toast(`${next.name}'s turn — ${next.speed} ft of movement`, 'ok');
   commitBoard();
 }
 
 function serializeToken(t) {
-  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature' };
+  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })) };
 }
 
 /* =====================================================================
@@ -950,10 +1012,10 @@ function revealFog() {
   vctx.clearRect(0, 0, W, H);
   vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
   vctx.fillRect(0, 0, W, H);
-  const radius = (VISION_FT / FT_PER_SQUARE) * GRID;
   state.sight = [];
   for (const t of state.tokens) {
     if (!t.isPC) continue;
+    const radius = (sightFeetOf(t) / FT_PER_SQUARE) * GRID;
     const cx = centerOf(t.col), cy = centerOf(t.row);
     const poly = visibilityPolygon(cx, cy);
     if (poly.length < 3) continue;
@@ -1393,6 +1455,33 @@ function drawTokens(pcs, now) {
       ctx.fillStyle = pct > 0.5 ? '#3fd27f' : pct > 0.25 ? '#f0c048' : '#ff6b6b';
       ctx.fillRect(bx, by, bw * pct, bh);
     }
+    const conds = tokenConditions(t);
+    if (conds.length) {
+      // Condition badges sit along the top of the token: two letters each, colour by condition.
+      const cr = Math.max(7, GRID * 0.14);
+      conds.slice(0, 4).forEach((c, i) => {
+        const [abbr, color] = conditionBadge(c.name);
+        const bx = x - radius + cr + i * (cr * 2 + 2), by = y - radius - cr - 1;
+        ctx.beginPath();
+        ctx.arc(bx, by, cr, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `800 ${Math.round(cr * 0.95)}px Inter, "Segoe UI", system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(abbr, bx, by + 0.5);
+      });
+      if (conds.length > 4) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `800 ${Math.round(cr)}px Inter, "Segoe UI", system-ui, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`+${conds.length - 4}`, x - radius + 4 * (cr * 2 + 2), y - radius - cr - 1);
+      }
+    }
     if (state.view.scale > 0.45 || isActive) {
       ctx.font = `700 ${Math.round(GRID * 0.22)}px Inter, "Segoe UI", system-ui, sans-serif`;
       ctx.textAlign = 'center';
@@ -1682,6 +1771,113 @@ canvas.addEventListener('contextmenu', (e) => {
   const t = tokenAt(world.x, world.y);
   if (t) removeTokenAt(t);
 });
+// Double-click a token to set its conditions and lasting effects.
+let condPanel = null;
+function closeConditionPanel() {
+  if (condPanel) { condPanel.remove(); condPanel = null; }
+}
+function conditionsChanged() {
+  revealFog();
+  commitBoard();
+}
+function openConditionPanel(t, clientX, clientY) {
+  closeConditionPanel();
+  const panel = document.createElement('div');
+  panel.className = 'cond-panel';
+  condPanel = panel;
+  const numberBox = () => {
+    const box = document.createElement('input');
+    box.type = 'number';
+    box.min = '1';
+    box.max = '999';
+    box.placeholder = 'rounds';
+    box.title = 'How many rounds it lasts. Leave empty until it is removed.';
+    return box;
+  };
+  const render = () => {
+    panel.innerHTML = '';
+    const head = document.createElement('h4');
+    const title = document.createElement('span');
+    title.textContent = `Conditions: ${t.name}`;
+    const close = document.createElement('button');
+    close.className = 'btn btn-sm';
+    close.textContent = '✕';
+    close.title = 'Close';
+    close.addEventListener('click', closeConditionPanel);
+    head.append(title, close);
+    panel.appendChild(head);
+    for (const name of Object.keys(CONDITIONS)) {
+      const have = tokenConditions(t).find((c) => c.name === name);
+      const row = document.createElement('div');
+      row.className = 'cond-row';
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = Boolean(have);
+      const dot = document.createElement('span');
+      dot.className = 'cond-dot';
+      dot.style.background = CONDITIONS[name][1];
+      dot.textContent = CONDITIONS[name][0];
+      label.append(box, dot, document.createTextNode(' ' + name));
+      const rounds = numberBox();
+      rounds.value = have && have.rounds > 0 ? String(have.rounds) : '';
+      const apply = () => {
+        if (box.checked) setCondition(t, name, Number(rounds.value)); else clearCondition(t, name);
+        conditionsChanged();
+      };
+      box.addEventListener('change', () => { apply(); render(); });
+      rounds.addEventListener('change', () => { if (box.checked) apply(); });
+      row.append(label, rounds);
+      panel.appendChild(row);
+    }
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = 'Other effect (a spell, a curse):';
+    panel.appendChild(hint);
+    for (const c of tokenConditions(t).filter((x) => !CONDITIONS[x.name])) {
+      const row = document.createElement('div');
+      row.className = 'cond-row';
+      const label = document.createElement('span');
+      label.style.flex = '1';
+      label.textContent = conditionLabel(c);
+      const del = document.createElement('button');
+      del.className = 'btn btn-sm';
+      del.textContent = 'Remove';
+      del.addEventListener('click', () => { clearCondition(t, c.name); conditionsChanged(); render(); });
+      row.append(label, del);
+      panel.appendChild(row);
+    }
+    const add = document.createElement('div');
+    add.className = 'cond-row';
+    const name = document.createElement('input');
+    name.type = 'text';
+    name.placeholder = 'e.g. bless';
+    name.maxLength = 30;
+    const rounds = numberBox();
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-sm';
+    addBtn.textContent = 'Add';
+    const submit = () => { if (setCondition(t, name.value, Number(rounds.value))) { conditionsChanged(); render(); } };
+    addBtn.addEventListener('click', submit);
+    name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    add.append(name, rounds, addBtn);
+    panel.appendChild(add);
+  };
+  render();
+  document.body.appendChild(panel);
+  const w = panel.offsetWidth, h = panel.offsetHeight;
+  panel.style.left = clamp(clientX + 12, 8, window.innerWidth - w - 8) + 'px';
+  panel.style.top = clamp(clientY - 20, 8, window.innerHeight - h - 8) + 'px';
+}
+canvas.addEventListener('dblclick', (e) => {
+  if (plainMap() || state.drawWalls) return;
+  const pos = eventPos(e);
+  const world = screenToWorld(pos.x, pos.y);
+  const t = tokenAt(world.x, world.y);
+  if (t) openConditionPanel(t, e.clientX, e.clientY);
+});
+document.addEventListener('pointerdown', (e) => { if (condPanel && !condPanel.contains(e.target) && e.target !== canvas) closeConditionPanel(); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeConditionPanel(); });
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const pos = eventPos(e);
@@ -1715,7 +1911,7 @@ function renderTurnBar() {
     chip.type = 'button';
     chip.className = `turn-chip${i === state.activeIndex ? ' active' : ''}${t.isPC ? '' : ' npc'}`;
     chip.title = state.gmOverride ? `Make ${t.name} active` : `Center on ${t.name}`;
-    chip.innerHTML = `<span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}`;
+    chip.innerHTML = `<span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}` + tokenConditions(t).map((c) => `<span class="cond-dot" style="background:${conditionBadge(c.name)[1]}" title="${esc(conditionLabel(c))}">${esc(conditionBadge(c.name)[0])}</span>`).join('');
     chip.addEventListener('click', () => {
       if (state.gmOverride) { state.activeIndex = i; commitBoard(); }
       centerOnToken(t);
@@ -2359,6 +2555,18 @@ async function applyMapUpdates(updates) {
         state.walls.push({ x1: u.x1, y1: u.y1, x2: u.x2, y2: u.y2, type: u.wallType === 'door' ? 'door' : 'wall', open: false });
         wallsTouched = true;
         addChat('system', `↳ A ${u.wallType === 'door' ? 'door' : 'wall'} was added to the map`);
+        break;
+      }
+      case 'addCondition': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        const rounds = Number(u.rounds);
+        if (!t || !setCondition(t, u.condition, rounds)) break;
+        if (seenByParty(t)) addChat('system', `↳ ${t.name} is ${conditionKey(u.condition)}${rounds > 0 ? ` (${rounds} round${rounds === 1 ? '' : 's'})` : ''}`);
+        break;
+      }
+      case 'removeCondition': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (t && clearCondition(t, u.condition) && seenByParty(t)) addChat('system', `↳ ${t.name} is no longer ${conditionKey(u.condition)}`);
         break;
       }
       case 'changeMap':
