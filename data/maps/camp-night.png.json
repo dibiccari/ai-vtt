@@ -9929,7 +9929,10 @@
       "y": 975
     }
   ],
+  "light": "dark",
   "source": "dd2vtt",
+  "group": "camp",
+  "variant": "night",
   "lights": [
     {
       "x": 1000,
@@ -9964,8 +9967,5 @@
       "name": "lantern-se"
     }
   ],
-  "ambient": "ff1a2240",
-  "group": "camp",
-  "variant": "night",
-  "light": "dark"
+  "ambient": "ff1a2240"
 }

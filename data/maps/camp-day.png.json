@@ -9929,9 +9929,9 @@
       "y": 975
     }
   ],
+  "light": "bright",
   "source": "dd2vtt",
-  "ambient": "ffffffff",
   "group": "camp",
   "variant": "day",
-  "light": "bright"
+  "ambient": "ffffffff"
 }

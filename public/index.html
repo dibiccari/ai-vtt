@@ -85,6 +85,7 @@
   .cb-hpbar { flex: 1; height: 8px; background: #0d1117; border-radius: 4px; overflow: hidden; min-width: 40px; }
   .cb-hpbar i { display: block; height: 100%; }
   .cb-hptext { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+  .map-controls select#scenePick { width: auto; max-width: 150px; padding: 4px 8px; }
   .combat input.cb-num { width: 56px; }
   .cb-pip { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #3a4558; background: none; padding: 0; cursor: pointer; font-size: 10px; color: var(--muted); }
   .cb-pip.on { background: var(--ok); color: #04101f; border-color: var(--ok); }
@@ -1123,6 +1124,79 @@ function resetShroud() {
   sctx.fillRect(0, 0, shroud.width, shroud.height);
 }
 
+// Small closed shapes made of wall segments (a tent, a boulder, a crate, a tree trunk) are things you see the top of, not rooms you
+// stand in: line of sight stops at their edge, but the top should show when its edge is in view. Rooms and big structures
+// (larger than 9 squares across) are left alone. Found by chaining the wall segments into loops; cached until the walls change.
+let objectCache = { version: -1, loops: [] };
+function objectLoops() {
+  if (objectCache.version === state.wallsVersion) return objectCache.loops;
+  const key = (x, y) => Math.round(x * 2) + ',' + Math.round(y * 2);
+  const verts = new Map();
+  const add = (x, y, seg) => { const k = key(x, y); if (!verts.has(k)) verts.set(k, { x, y, segs: [] }); verts.get(k).segs.push(seg); };
+  const segs = state.walls.filter((w) => w.type !== 'door');
+  segs.forEach((w, i) => { add(w.x1, w.y1, i); add(w.x2, w.y2, i); });
+  const seen = new Set();
+  const loops = [];
+  segs.forEach((w, i) => {
+    if (seen.has(i)) return;
+    // Walk from this segment, always taking the other segment at each end, until we get back (a loop) or run out (an open wall).
+    const pts = [];
+    let cur = i, from = key(w.x1, w.y1), closed = false, guard = 0;
+    const chain = [];
+    while (guard++ < 400) {
+      seen.add(cur);
+      chain.push(cur);
+      const sg = segs[cur];
+      const toKey = key(sg.x1, sg.y1) === from ? key(sg.x2, sg.y2) : key(sg.x1, sg.y1);
+      pts.push(verts.get(from));
+      const v = verts.get(toKey);
+      if (v.segs.length !== 2) break;
+      const next = v.segs.find((n) => n !== cur);
+      if (next === undefined) break;
+      if (next === i) { closed = true; break; }
+      if (seen.has(next)) break;
+      from = toKey;
+      cur = next;
+    }
+    if (!closed || pts.length < 3) return;
+    const xs = pts.map((q) => q.x), ys = pts.map((q) => q.y);
+    const size = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    if (size <= 9 * GRID) loops.push(pts.map((q) => ({ x: q.x, y: q.y })));
+  });
+  objectCache = { version: state.wallsVersion, loops };
+  return loops;
+}
+
+// After the fog is cut for what each party member sees: reveal the top of any small object whose edge someone can see.
+function revealObjectTops() {
+  if (!state.sight.length) return;
+  for (const loop of objectLoops()) {
+    let cx = 0, cy = 0;
+    for (const q of loop) { cx += q.x; cy += q.y; }
+    cx /= loop.length; cy /= loop.length;
+    let seenEdge = false;
+    for (let i = 0; i < loop.length && !seenEdge; i++) {
+      const a = loop[i], b = loop[(i + 1) % loop.length];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const d = Math.hypot(mx - cx, my - cy) || 1;
+      const ox = mx + ((mx - cx) / d) * 5, oy = my + ((my - cy) / d) * 5;      // a hair outside the edge
+      seenEdge = state.sight.some((s) => visibleFrom(s, ox, oy));
+    }
+    if (!seenEdge) continue;
+    for (const c of [sctx, vctx]) {
+      c.save();
+      c.globalCompositeOperation = 'destination-out';
+      c.fillStyle = '#000';
+      c.beginPath();
+      c.moveTo(loop[0].x, loop[0].y);
+      for (let i = 1; i < loop.length; i++) c.lineTo(loop[i].x, loop[i].y);
+      c.closePath();
+      c.fill();
+      c.restore();
+    }
+  }
+}
+
 function revealFog() {
   // With fog off the whole map is shown and nothing is remembered as explored. Turning fog on later starts from what the party sees then.
   if (!state.fogEnabled) {
@@ -1173,6 +1247,7 @@ function revealFog() {
       c.restore();
     }
   }
+  revealObjectTops();
   scheduleFogSave();
   renderTurnBar();
   requestRender();
@@ -3710,7 +3785,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn };
 
 init().catch((err) => {
   console.error(err);
