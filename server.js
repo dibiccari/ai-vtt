@@ -769,6 +769,7 @@ You are the authority on rules, narrative, and the world. Narrate vividly but co
 
 The board is a square grid; each square is 5 ft. Positions are given as integer (col,row), origin top-left. Walls are line segments in pixel coordinates where one square = gridSize pixels.
 Maps of kind "regional" (a Sword Coast map) and "town" (Phandalin) are just pictures: the party's tokens are not shown on it, there is no fog and no movement limit, so do not use moveToken or addToken there. Describe the journey or the scene instead of counting squares, and use changeMap when the party reaches a place that has its own map.
+If the board state has moveCorrections, they are moves you asked for earlier that the table could not do exactly (a wall or the token's speed stopped it): the token ended where the note says. Keep your narration consistent with where it really is.
 Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
 Return mechanical changes in mapUpdates:
@@ -975,7 +976,7 @@ async function partyForPrompt(campaign) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
-  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting } = req.body ?? {};
+  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
@@ -1002,6 +1003,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     characters: Array.isArray(characters) ? characters : [],
     walls: Array.isArray(walls) ? walls : [],
     diceMode: diceMode === 'player' ? 'player' : 'ai',
+    ...(Array.isArray(corrections) && corrections.length ? { moveCorrections: corrections.slice(0, 8).map((c) => String(c).slice(0, 200)) } : {}),
     lighting: lighting && typeof lighting === 'object' ? { ambient: ['bright', 'dim', 'dark'].includes(lighting.ambient) ? lighting.ambient : 'bright', mapLights: (Array.isArray(lighting.mapLights) ? lighting.mapLights : []).slice(0, 40) } : { ambient: 'bright', mapLights: [] },
     combat: combat && typeof combat === 'object' ? { active: Boolean(combat.active), round: Number(combat.round) || 0, currentTokenId: String(combat.currentTokenId ?? ''), order: (Array.isArray(combat.order) ? combat.order : []).slice(0, 60).map((o) => ({ tokenId: String(o?.tokenId ?? ''), initiative: Number.isFinite(Number(o?.initiative)) ? Number(o.initiative) : null })) } : { active: false },
     party: await partyForPrompt(activeCampaign)

@@ -462,6 +462,7 @@ const state = {
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
   wallsInPicture: false,
+  pendingCorrections: [],            // moves the table adjusted; told to the DM with the next message
   ambience: '',                      // the map's ambient sound ('' = pick one from the kind of place)
   mood: '',                          // a mood the DM asked for ('' = none; combat sets its own)
   ambient: 'bright',                 // the map's light level: 'bright', 'dim' or 'dark' (from its config)
@@ -2888,6 +2889,7 @@ async function sendTurn(spokenText, opts) {
       mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
       inputMode: isVoice ? 'voice' : 'text',
       combat: combatForAi(),
+      corrections: state.pendingCorrections.splice(0, 8),
       lighting: lightingForAi(),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
@@ -3341,8 +3343,28 @@ async function applyMapUpdates(updates) {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
         const fromX = centerOf(t.col), fromY = centerOf(t.row);
-        t.col = clamp(u.col, 0, cols() - 1);
-        t.row = clamp(u.row, 0, rows() - 1);
+        let col = clamp(u.col, 0, cols() - 1), row = clamp(u.row, 0, rows() - 1);
+        // The DM's moves obey the table's walls and the token's speed: a move that cannot be done stops at the nearest square that can.
+        if (!plainMap() && !(col === t.col && row === t.row)) {
+          const saved = t.movementRemaining;
+          t.movementRemaining = effectiveSpeed(t);
+          const reach = reachable(t);
+          t.movementRemaining = saved;
+          if (!reach.has(sqKey(col, row))) {
+            let best = null, bestD = Math.hypot(col - t.col, row - t.row);
+            for (const k of reach.keys()) {
+              const [c, r] = k.split(',').map(Number);
+              const d = Math.hypot(col - c, row - r);
+              if (d < bestD) { bestD = d; best = { c, r }; }
+            }
+            const note = `${t.name} could not reach (${col}, ${row}) (speed ${effectiveSpeed(t)} ft and the walls): it went to (${best ? best.c : t.col}, ${best ? best.r : t.row}) instead`;
+            state.pendingCorrections.push(note);
+            if (seenByParty(t)) addChat('system', '↳ ' + note);
+            if (best) { col = best.c; row = best.r; } else { col = t.col; row = t.row; }
+          }
+        }
+        t.col = col;
+        t.row = row;
         animateToken(t, fromX, fromY);
         if (seenByParty(t)) addChat('system', `↳ ${t.name} moved to (${t.col}, ${t.row})`);
         break;
@@ -3688,7 +3710,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn };
 
 init().catch((err) => {
   console.error(err);
