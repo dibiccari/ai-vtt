@@ -85,6 +85,8 @@
   const open = new Set();      // campaign ids with the document list showing
   const preview = {};          // "id/name" -> text
   const openMaps = new Set();  // campaign ids with the maps editor showing
+  const openSafety = new Set(); // campaign ids with the safety editor showing
+  const safetyData = {};       // campaign id -> { lines, veils, notes } being edited
   const mapData = {};          // campaign id -> { custom, maps, uploads, kinds } being edited
 
   async function load() {
@@ -168,11 +170,19 @@
       try { mapData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps'); openMaps.add(c.id); } catch (err) { setStatus('Could not load the maps: ' + err.message, 'bad'); }
       render();
     });
-    row.append(use, openBtn, docs, mapsBtn, startOver);
+    const safetyBtn = el('button', '', openSafety.has(c.id) ? 'Hide safety' : 'Safety');
+    safetyBtn.title = 'Lines and veils the DM must respect';
+    safetyBtn.addEventListener('click', async () => {
+      if (openSafety.has(c.id)) { openSafety.delete(c.id); render(); return; }
+      try { safetyData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/safety'); openSafety.add(c.id); } catch (err) { setStatus('Could not load the safety settings: ' + err.message, 'bad'); }
+      render();
+    });
+    row.append(use, openBtn, docs, mapsBtn, safetyBtn, startOver);
     box.appendChild(row);
 
     if (open.has(c.id)) box.appendChild(documents(c));
     if (openMaps.has(c.id) && mapData[c.id]) box.appendChild(mapsEditor(c));
+    if (openSafety.has(c.id) && safetyData[c.id]) box.appendChild(safetyEditor(c));
     if (!c.test) box.appendChild(importer(c));
     return box;
   }
@@ -185,6 +195,36 @@
     } catch (err) {
       setStatus('Could not switch campaign: ' + err.message, 'bad');
     }
+  }
+
+  // Safety tools: what the table has agreed the game will not show. The DM is given this every turn; the tabletop has a Pause button.
+  function safetyEditor(c) {
+    const d = safetyData[c.id];
+    const wrap = el('div');
+    wrap.appendChild(el('h2', '', 'Safety'));
+    wrap.appendChild(el('p', 'note', 'Agree this before you play. Lines are things that never appear in the game, not even as a hint. Veils are things that may happen but only off-screen or in a single sentence, never described. The Dungeon Master is told both every turn and keeps to them quietly. Anyone can also press the Pause button on the tabletop at any moment to stop the scene, with no questions asked.'));
+    const box = (label, hint, key, rows) => {
+      const l = el('label', 'field'); l.style.display = 'block'; l.style.marginBottom = '10px';
+      l.appendChild(el('div', '', label));
+      const ta = el('textarea'); ta.rows = rows; ta.style.width = '100%'; ta.placeholder = hint;
+      ta.value = Array.isArray(d[key]) ? d[key].join('\n') : d[key];
+      ta.addEventListener('input', () => { d[key] = key === 'notes' ? ta.value : ta.value.split(/\r?\n/); });
+      l.appendChild(ta);
+      return l;
+    };
+    wrap.appendChild(box('Lines (one per line)', 'for example: harm to children', 'lines', 4));
+    wrap.appendChild(box('Veils (one per line)', 'for example: torture, romance', 'veils', 4));
+    wrap.appendChild(box('Anything else the DM should know', 'for example: one player has arachnophobia, so go easy on spiders', 'notes', 3));
+    const save = el('button', 'primary', 'Save safety settings');
+    save.addEventListener('click', async () => {
+      try {
+        safetyData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/safety', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+        setStatus('Safety settings saved for ' + c.name + '.', 'ok');
+      } catch (err) { setStatus('Could not save: ' + err.message, 'bad'); }
+      render();
+    });
+    wrap.appendChild(save);
+    return wrap;
   }
 
   // Which maps a campaign can use. The AI is offered exactly these (with the description), and the Map picker lists them.

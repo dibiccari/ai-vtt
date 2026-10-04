@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry } from './lib/compendium.js';
+import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
 import { restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
@@ -403,6 +404,18 @@ app.put('/api/party/stash', asyncRoute(async (req, res) => {
   const campaign = await getActiveCampaignId();
   res.json({ stash: await writeStash(path.join(CAMPAIGNS_DIR, campaign), req.body) });
 }));
+// ---------------------------------------------------------------- safety tools
+
+app.get('/api/campaigns/:id/safety', asyncRoute(async (req, res) => {
+  res.json(await readSafety(path.join(CAMPAIGNS_DIR, safeCampaignId(req.params.id))));
+}));
+
+app.put('/api/campaigns/:id/safety', localOnly, asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.params.id);
+  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
+  res.json(await writeSafety(path.join(CAMPAIGNS_DIR, id), req.body));
+}));
+
 // ---------------------------------------------------------------- journal / save file API
 
 const campaignDir = (id) => {
@@ -776,6 +789,8 @@ Lighting: the lighting block of the board state gives the place's ambient light 
 
 Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
 
+Safety: the table may have agreed lines (never appear) and veils (off-screen or one sentence), given to you in the TABLE SAFETY block when there is one. Keep to them without ever mentioning that you are doing so. If a player's message contains [PAUSE], they pressed the pause button (the X-card): stop at once, do not continue the scene, do not ask who pressed it or why, say calmly that you are pausing, and offer to skip past it, rewind, or take the story in another direction, then wait for their answer. Never push back or make anyone justify it.
+
 Keeping the journal: the campaign journal is the party's shared memory, and the current journal is given to you below the campaign text. After a turn in which something worth remembering happened, add a journal update: category "event" for what happened (a short title and one or two sentences), "npc" for a person met (title is the name, text says who they are and how they feel about the party), "quest" for a goal (status "open" until finished, then send the same title again with status "done"), "place" for somewhere important, "loot" for treasure or magic items found, "promise" for something the party promised or is owed. Sending an npc, quest, place, loot or promise title that already exists updates that entry instead of adding another. Use when for the in-game time (for example "Day 2, evening") whenever you know it. Write only what the party knows or witnessed, never DM secrets. Do not journal small talk or every combat round, and use no journal update when nothing noteworthy happened. Read the journal before you narrate so that you stay consistent with promises, names and earlier events.
 
 Keeping sheets up to date: apply routine changes from play with updateCharacter as they happen (XP, temporary HP, spell slots used; gear and coins have their own updates, see Gear). Award XP after a fight or goal using the rules and the monsters' XP values, split among the living party, and say what each character gained.
@@ -990,6 +1005,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
 
   try {
     const campaignText = await loadCampaignText(activeCampaign);
+    const safetyText = safetyForPrompt(await readSafety(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const journalText = journalForPrompt((await readSave(path.join(CAMPAIGNS_DIR, activeCampaign))).entries);
     const response = await anthropic.beta.messages.create({
       model: MODEL,
@@ -998,7 +1014,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         { type: 'text', text: DM_SYSTEM },
         ...(campaignText ? [{ type: 'text', text: `${CAMPAIGN_RULES}\n\n${campaignText}`, cache_control: { type: 'ephemeral' } }] : []),
         // The journal changes every few turns, so it comes after the cached campaign text.
-        { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' }
+        { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
+        ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       messages: buildHistory(history, text, state, inputMode),
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: DM_SCHEMA } },
