@@ -61,6 +61,7 @@
   <p class="lead">Gear, coins, attunement and the shared stash for <b id="campName">the active campaign</b>. Magic items change the numbers below (Ring of Protection, Gauntlets of Ogre Power), and the AI Dungeon Master reads and updates all of this as you play. Hover a number to see where it comes from.</p>
   <div class="status" id="status" role="status"></div>
   <div class="grid" id="grid"></div>
+  <datalist id="srdItems"></datalist>
 </div>
 <script src="/nav.js"></script>
 <script>
@@ -139,7 +140,35 @@
       onAdd(item);
     });
     row.append(name, qty, wt, attLabel, kind, val, ab, add);
-    return row;
+
+    // The same, from the SRD: pick a magic item or a piece of gear by name and it arrives with its weight, attunement and (for the common ones) effects.
+    var srdRow = el('div', 'row');
+    var srd = el('input'); srd.setAttribute('list', 'srdItems'); srd.placeholder = 'Add from the SRD (Ring of Protection, Rope…)'; srd.style.width = '280px';
+    srd.addEventListener('focus', loadSrdNames);
+    var srdBtn = el('button', '', 'Add SRD item');
+    srdBtn.addEventListener('click', async function () {
+      var found = srdNames.filter(function (n) { return n.name.toLowerCase() === srd.value.trim().toLowerCase(); })[0];
+      if (!found) { setStatus('"' + srd.value + '" is not in the SRD list.', 'err'); return; }
+      try { onAdd((await api('/api/party/srd-item?kind=' + found.kind + '&index=' + encodeURIComponent(found.index))).item); }
+      catch (err) { setStatus(err.message, 'err'); }
+    });
+    srdRow.append(srd, srdBtn);
+    var box = el('div');
+    box.append(row, srdRow);
+    return box;
+  }
+
+  var srdNames = null;
+  async function loadSrdNames() {
+    if (srdNames) return;
+    srdNames = [];
+    try {
+      var magic = (await api('/api/compendium/magic-items')).entries.map(function (e) { return { name: e.name, kind: 'magic-items', index: e.index }; });
+      var gear = (await api('/api/compendium/equipment')).entries.map(function (e) { return { name: e.name, kind: 'equipment', index: e.index }; });
+      srdNames = magic.concat(gear);
+      var list = document.getElementById('srdItems');
+      srdNames.forEach(function (n) { var o = document.createElement('option'); o.value = n.name; list.appendChild(o); });
+    } catch (err) { srdNames = null; }
   }
 
   function coinRow(coins, onChange) {

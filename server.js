@@ -10,7 +10,7 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
-import { restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
+import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -385,6 +385,15 @@ app.put('/api/party/characters/:id', asyncRoute(async (req, res) => {
   const saved = normalizeCharacter(syncSheet(next));
   await saveCharacter(saved);
   res.json({ character: partyView(saved), problems });
+}));
+
+// A party item built from an SRD magic item or piece of equipment (with its weight, attunement and, for the common ones, effects).
+app.get('/api/party/srd-item', asyncRoute(async (req, res) => {
+  const kind = req.query.kind === 'equipment' ? 'equipment' : 'magic-items';
+  const entry = await getEntry(kind, String(req.query.index ?? '').toLowerCase().replace(/[^a-z0-9-]/g, ''));
+  const item = itemFromSrd(kind === 'equipment' ? 'equipment' : 'magic', entry);
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  res.json({ item });
 }));
 
 // Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).
