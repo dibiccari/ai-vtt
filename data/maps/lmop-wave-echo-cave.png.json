@@ -1341,5 +1341,6 @@
       "color": "ff80beff"
     }
   ],
-  "ambient": "ff8a95a9"
+  "ambient": "ff8a95a9",
+  "light": "dark"
 }

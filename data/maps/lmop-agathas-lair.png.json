@@ -387,5 +387,6 @@
       "color": "ff0b0905"
     }
   ],
-  "ambient": "ffffffff"
+  "ambient": "ffffffff",
+  "light": "dim"
 }

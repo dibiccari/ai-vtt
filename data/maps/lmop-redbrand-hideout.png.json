@@ -3359,5 +3359,6 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ff888888"
+  "ambient": "ff888888",
+  "light": "dark"
 }

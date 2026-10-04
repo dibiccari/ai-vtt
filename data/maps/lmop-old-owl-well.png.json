@@ -502,5 +502,6 @@
       "color": "ffeccd8b"
     }
   ],
-  "ambient": "ffffffff"
+  "ambient": "ffffffff",
+  "light": "bright"
 }

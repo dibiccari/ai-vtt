@@ -15,5 +15,6 @@
     "wis": 16,
     "cha": 12
   },
-  "color": "#e3b341"
+  "color": "#e3b341",
+  "darkvision": 60
 }

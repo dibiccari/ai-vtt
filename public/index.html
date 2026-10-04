@@ -336,6 +336,7 @@
     <label class="move-rule" title="Show tokens the players cannot see (hidden, invisible, hiding, traps, or out of sight) as faint ghosts. Only for the person running the test.">
       <input type="checkbox" id="dmView"> <span>DM view</span>
     </label>
+    <button class="btn btn-sm" id="lightBtn" title="Light level of this place and its light sources">💡 Light</button>
     <label class="move-rule" title="How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.">
       <span>Movement</span>
       <select id="moveRule" aria-label="Movement range rule">
@@ -454,6 +455,10 @@ const state = {
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
   wallsInPicture: false,
+  ambient: 'bright',                 // the map's light level: 'bright', 'dim' or 'dark' (from its config)
+  ambientOverride: '',               // the table's own choice, '' = use the map's
+  lights: [],                        // the map's own light sources
+  lightsOff: {},                     // per map: ids of map lights that were put out
   places: [],                 // the maps this campaign can move to
   dmView: false,
   sight: []
@@ -846,8 +851,7 @@ const conditionKey = (name) => String(name ?? '').trim().toLowerCase().replace(/
 const hasCondition = (t, name) => tokenConditions(t).some((c) => c.name === name);
 const conditionBadge = (name) => CONDITIONS[name] || [name.slice(0, 2).toUpperCase(), '#4f9dff'];
 const conditionLabel = (c) => c.name + (c.rounds > 0 ? ` (${c.rounds} round${c.rounds === 1 ? '' : 's'})` : '');
-// A blinded or unconscious character feels only their own square (1 ft) instead of seeing the usual distance.
-const sightFeetOf = (t) => (hasCondition(t, 'blinded') || hasCondition(t, 'unconscious') ? 1 : VISION_FT);
+// A blinded or unconscious character feels only their own square (1 ft); see revealFog().
 
 function setCondition(t, name, rounds) {
   const key = conditionKey(name);
@@ -901,7 +905,7 @@ function seenByParty(t) {
   if (t.hidden || hasCondition(t, 'invisible')) return false;
   if (!state.fogEnabled || state.gmOverride) return true;
   const x = centerOf(t.col), y = centerOf(t.row);
-  return state.sight.some((s) => Math.hypot(x - s.cx, y - s.cy) <= s.radius * 0.9 && pointInPolygon(x, y, s.poly));
+  return state.sight.some((s) => visibleFrom(s, x, y));
 }
 const canSee = (t) => seenByParty(t) || state.dmView;
 
@@ -1023,7 +1027,7 @@ function endTurn() {
 
 function serializeToken(t) {
   return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
-    hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
+    lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
 /* =====================================================================
@@ -1059,25 +1063,39 @@ function revealFog() {
   vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
   vctx.fillRect(0, 0, W, H);
   state.sight = [];
+  const dark = ambientNow() === 'dark';
+  let needCanvases = dark;
+  const members = [];
   for (const t of state.tokens) {
     if (!t.isPC) continue;
-    const radius = (sightFeetOf(t) / FT_PER_SQUARE) * GRID;
     const cx = centerOf(t.col), cy = centerOf(t.row);
     const poly = visibilityPolygon(cx, cy);
     if (poly.length < 3) continue;
-    state.sight.push({ cx, cy, poly, radius });
+    const c = characterFor(t);
+    const feel = hasCondition(t, 'blinded') || hasCondition(t, 'unconscious') ? feetToPx(1) : 0;
+    const s = { cx, cy, poly, dv: feetToPx((c && c.darkvision) || 0), feel };
+    if (feel) needCanvases = true;
+    members.push(s);
+    state.sight.push(s);
+  }
+  if (needCanvases) { sizeLightCanvases(W, H); if (dark) buildLitMask(); }
+  for (const s of members) {
+    // Bright or dim light: line of sight is all it takes. Darkness (or blindness): only what is lit, or the darkvision / touch range.
+    const simple = !dark && !s.feel;
+    if (!simple) drawSightShape(s);
     for (const c of [sctx, vctx]) {
       c.save();
       c.globalCompositeOperation = 'destination-out';
-      const grad = c.createRadialGradient(cx, cy, radius * 0.65, cx, cy, radius);
-      grad.addColorStop(0, 'rgba(0,0,0,1)');
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      c.fillStyle = grad;
-      c.beginPath();
-      c.moveTo(poly[0].x, poly[0].y);
-      for (let i = 1; i < poly.length; i++) c.lineTo(poly[i].x, poly[i].y);
-      c.closePath();
-      c.fill();
+      if (simple) {
+        c.fillStyle = '#000';
+        c.beginPath();
+        c.moveTo(s.poly[0].x, s.poly[0].y);
+        for (let i = 1; i < s.poly.length; i++) c.lineTo(s.poly[i].x, s.poly[i].y);
+        c.closePath();
+        c.fill();
+      } else {
+        c.drawImage(sightTmp, 0, 0, W, H);
+      }
       c.restore();
     }
   }
@@ -1263,6 +1281,7 @@ async function serverWalls() {
 
 async function onMapChanged() {
   state.wallsInPicture = false;
+  await loadMapLighting();
   state.walls = store.get(wallsKey(), []);
   if (!Array.isArray(state.walls)) state.walls = [];
   if (!state.walls.length) state.walls = await serverWalls();
@@ -1921,6 +1940,18 @@ function openConditionPanel(t, clientX, clientY) {
     name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
     add.append(name, rounds, addBtn);
     panel.appendChild(add);
+    const lightRow = document.createElement('div');
+    lightRow.className = 'cond-row';
+    const lightLabel = document.createElement('label');
+    lightLabel.textContent = 'Carries a light';
+    const lightSel = document.createElement('select');
+    for (const [v, text] of [['', 'none']].concat(Object.keys(LIGHT_KINDS).map((k) => [k, `${LIGHT_KINDS[k][2]} (${LIGHT_KINDS[k][0]}/${LIGHT_KINDS[k][1]} ft)`]))) {
+      const o = document.createElement('option'); o.value = v; o.textContent = text; lightSel.appendChild(o);
+    }
+    lightSel.value = t.lightKind || '';
+    lightSel.addEventListener('change', () => { t.lightKind = lightSel.value; conditionsChanged(); });
+    lightRow.append(lightLabel, lightSel);
+    panel.appendChild(lightRow);
   };
   render();
   document.body.appendChild(panel);
@@ -1996,7 +2027,9 @@ function saveBoard() {
     mapKind: state.mapKind,
     mapMemory: state.mapMemory,
     fogBeforeOverland: state.fogBeforeOverland,
-    combat: state.combat
+    combat: state.combat,
+    lightsOff: state.lightsOff,
+    ambientOverride: state.ambientOverride
   });
 }
 
@@ -2006,6 +2039,217 @@ function commitBoard() {
   renderCombat();
   requestRender();
 }
+
+/* =====================================================================
+   LIGHTING: ambient light, light sources (map lights and lights tokens carry), darkvision
+   ===================================================================== */
+// A place is bright (daylight), dim (a lit room, dusk) or dark. In the dark a character sees only what a light source lights
+// (bright light out to the bright radius, dim light out to the dim radius) or what their darkvision reaches; darkvision turns
+// dark into dim. In bright or dim light, line of sight is all it takes.
+const LIGHT_KINDS = { torch: [20, 40, 'Torch'], lantern: [30, 60, 'Lantern'], candle: [5, 10, 'Candle'], light: [20, 40, 'Light spell'] };
+const ambientNow = () => state.ambientOverride || state.ambient;
+const feetToPx = (ft) => (ft / FT_PER_SQUARE) * GRID;
+
+// Lights that are on: the map's own (campfire, wall torches) and the ones tokens carry. Sizes in board pixels.
+function allLights() {
+  const out = [];
+  const off = state.lightsOff[state.map.url || ''] || [];
+  for (const l of state.lights) if (!off.includes(l.id)) out.push(l);
+  for (const t of state.tokens) {
+    const k = LIGHT_KINDS[t.lightKind];
+    if (k && !t.dead) out.push({ id: `token-${t.id}`, name: `${t.name}'s ${k[2].toLowerCase()}`, x: centerOf(t.col), y: centerOf(t.row), bright: feetToPx(k[0]), dim: feetToPx(k[1]) });
+  }
+  return out;
+}
+
+let lightPolyCache = { version: -1, map: new Map() };
+function lightPoly(L) {
+  if (lightPolyCache.version !== state.wallsVersion) lightPolyCache = { version: state.wallsVersion, map: new Map() };
+  const key = `${Math.round(L.x)},${Math.round(L.y)}`;
+  let poly = lightPolyCache.map.get(key);
+  if (!poly) { poly = visibilityPolygon(L.x, L.y); lightPolyCache.map.set(key, poly); }
+  return poly;
+}
+
+// 0 dark, 1 dim, 2 bright at a board point.
+function lightLevelAt(x, y) {
+  const amb = ambientNow();
+  if (amb !== 'dark') return amb === 'bright' ? 2 : 1;
+  let best = 0;
+  for (const L of allLights()) {
+    const d = Math.hypot(x - L.x, y - L.y);
+    if (d > L.dim || !pointInPolygon(x, y, lightPoly(L))) continue;
+    best = Math.max(best, d <= L.bright ? 2 : 1);
+    if (best === 2) break;
+  }
+  return best;
+}
+
+// Can the party member whose sight is `s` see this board point?
+function visibleFrom(s, x, y) {
+  if (!pointInPolygon(x, y, s.poly)) return false;
+  const d = Math.hypot(x - s.cx, y - s.cy);
+  if (s.feel) return d <= s.feel;                      // blinded or unconscious: only their own square
+  if (ambientNow() !== 'dark') return true;
+  return d <= s.dv || lightLevelAt(x, y) > 0;
+}
+
+const litMask = document.createElement('canvas');
+const lmctx = litMask.getContext('2d');
+const sightTmp = document.createElement('canvas');
+const stctx = sightTmp.getContext('2d');
+const maskTmp = document.createElement('canvas');
+const mtctx = maskTmp.getContext('2d');
+
+// The lighting canvases are drawn at reduced size on big maps (the edges are soft anyway); drawing code keeps using board pixels.
+let lightScale = 1;
+function sizeLightCanvases(W, H) {
+  lightScale = Math.min(1, 1400 / Math.max(W, H));
+  const w = Math.ceil(W * lightScale), h = Math.ceil(H * lightScale);
+  for (const c of [litMask, sightTmp, maskTmp]) { c.width = w; c.height = h; }
+}
+const scaled = (ctx) => ctx.setTransform(lightScale, 0, 0, lightScale, 0, 0);
+const plainTransform = (ctx) => ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+// Where the light sources reach (in the dark): each light fills its sight polygon out to its dim radius, bright in the middle.
+function buildLitMask() {
+  scaled(lmctx);
+  lmctx.globalCompositeOperation = 'lighter';
+  for (const L of allLights()) {
+    const poly = lightPoly(L);
+    if (poly.length < 3) continue;
+    lmctx.save();
+    lmctx.beginPath();
+    lmctx.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) lmctx.lineTo(poly[i].x, poly[i].y);
+    lmctx.closePath();
+    lmctx.clip();
+    const g = lmctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, L.dim);
+    const mid = Math.min(0.98, L.bright / L.dim);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(mid, 'rgba(255,255,255,1)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    lmctx.fillStyle = g;
+    lmctx.fillRect(L.x - L.dim, L.y - L.dim, L.dim * 2, L.dim * 2);
+    lmctx.restore();
+  }
+  lmctx.globalCompositeOperation = 'source-over';
+}
+
+// What one party member sees right now, drawn as an opaque shape onto sightTmp: their line-of-sight polygon, cut down to what is lit
+// or within their darkvision when it is dark (and to their own square when they are blind).
+function drawSightShape(s) {
+  for (const c of [stctx, mtctx]) { plainTransform(c); c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, sightTmp.width, sightTmp.height); scaled(c); }
+  stctx.fillStyle = '#fff';
+  stctx.beginPath();
+  stctx.moveTo(s.poly[0].x, s.poly[0].y);
+  for (let i = 1; i < s.poly.length; i++) stctx.lineTo(s.poly[i].x, s.poly[i].y);
+  stctx.closePath();
+  stctx.fill();
+  const dark = ambientNow() === 'dark';
+  if (!s.feel && !dark) return;
+  if (!s.feel) { plainTransform(mtctx); mtctx.drawImage(litMask, 0, 0); scaled(mtctx); }
+  const reach = s.feel || s.dv;
+  if (reach > 0) {
+    const g = mtctx.createRadialGradient(s.cx, s.cy, reach * 0.7, s.cx, s.cy, reach);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    mtctx.fillStyle = g;
+    mtctx.fillRect(s.cx - reach, s.cy - reach, reach * 2, reach * 2);
+  }
+  plainTransform(stctx);
+  stctx.globalCompositeOperation = 'destination-in';
+  stctx.drawImage(maskTmp, 0, 0);
+  stctx.globalCompositeOperation = 'source-over';
+}
+
+async function loadMapLighting() {
+  state.ambient = 'bright';
+  state.lights = [];
+  if (!state.map.url || !state.map.img) return;
+  try {
+    const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
+    const { config } = await res.json();
+    if (!config) return;
+    state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
+    const f = state.map.drawW / state.map.img.naturalWidth;
+    const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
+    state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
+      id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2
+    }));
+  } catch { /* no config: bright, no lights */ }
+}
+
+// A small panel: the place's light level and the map lights, with a switch for each.
+let lightPanel = null;
+function closeLightPanel() { if (lightPanel) { lightPanel.remove(); lightPanel = null; } }
+function openLightPanel() {
+  if (lightPanel) { closeLightPanel(); return; }
+  const panel = document.createElement('div');
+  panel.className = 'cond-panel';
+  lightPanel = panel;
+  const render = () => {
+    panel.innerHTML = '';
+    const head = document.createElement('h4');
+    const title = document.createElement('span');
+    title.textContent = 'Light';
+    const close = document.createElement('button');
+    close.className = 'btn btn-sm';
+    close.textContent = '✕';
+    close.addEventListener('click', closeLightPanel);
+    head.append(title, close);
+    panel.appendChild(head);
+    const row = document.createElement('div');
+    row.className = 'cond-row';
+    const sel = document.createElement('select');
+    for (const [v, label] of [['', `Map default (${state.ambient})`], ['bright', 'Bright (daylight)'], ['dim', 'Dim (lit room, dusk)'], ['dark', 'Dark']]) {
+      const o = document.createElement('option'); o.value = v; o.textContent = label; sel.appendChild(o);
+    }
+    sel.value = state.ambientOverride || '';
+    sel.addEventListener('change', () => { state.ambientOverride = sel.value; commitBoard(); revealFog(); });
+    const lab = document.createElement('label'); lab.textContent = 'Light level'; lab.style.flex = '0 0 auto';
+    row.append(lab, sel);
+    panel.appendChild(row);
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = state.lights.length ? 'Lights on this map (put one out and the dark returns):' : 'This map has no light sources of its own. Tokens can carry a torch or lantern (double-click a token).';
+    panel.appendChild(hint);
+    const off = state.lightsOff[state.map.url || ''] || [];
+    for (const L of state.lights.slice(0, 40)) {
+      const r = document.createElement('div');
+      r.className = 'cond-row';
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = !off.includes(L.id);
+      box.addEventListener('change', () => setMapLight(L.id, box.checked));
+      label.append(box, document.createTextNode(` ${L.name} (${Math.floor(L.x / GRID)}, ${Math.floor(L.y / GRID)})`));
+      r.appendChild(label);
+      panel.appendChild(r);
+    }
+  };
+  render();
+  document.body.appendChild(panel);
+  const b = $('#lightBtn').getBoundingClientRect();
+  panel.style.left = clamp(b.left, 8, window.innerWidth - panel.offsetWidth - 8) + 'px';
+  panel.style.top = (b.bottom + 6) + 'px';
+}
+
+function setMapLight(id, on) {
+  const url = state.map.url || '';
+  const list = (state.lightsOff[url] || []).filter((x) => x !== id);
+  if (!on) list.push(id);
+  state.lightsOff[url] = list;
+  revealFog();
+  commitBoard();
+}
+
+const lightingForAi = () => ({
+  ambient: ambientNow(),
+  mapLights: state.lights.slice(0, 40).map((l) => ({ id: l.id, name: l.name, col: Math.floor(l.x / GRID), row: Math.floor(l.y / GRID), brightFt: Math.round(l.bright / GRID * FT_PER_SQUARE), dimFt: Math.round(l.dim / GRID * FT_PER_SQUARE), on: !(state.lightsOff[state.map.url || ''] || []).includes(l.id) }))
+});
+
+document.addEventListener('pointerdown', (e) => { if (lightPanel && !lightPanel.contains(e.target) && e.target.id !== 'lightBtn') closeLightPanel(); });
 
 /* =====================================================================
    COMBAT TRACKER: initiative, rounds, hit points, death saves, action economy
@@ -2468,6 +2712,7 @@ async function sendTurn(spokenText, opts) {
       mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
       inputMode: isVoice ? 'voice' : 'text',
       combat: combatForAi(),
+      lighting: lightingForAi(),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
@@ -3022,6 +3267,13 @@ async function applyMapUpdates(updates) {
       case 'restParty':
         restTokens(u.kind);
         break;
+      case 'lightToken': {
+        // A token that carries a light, or one of the map's own lights (a campfire, a torch).
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (t) { t.lightKind = LIGHT_KINDS[u.kind] ? u.kind : ''; if (seenByParty(t)) addChat('system', `↳ ${t.name} ${t.lightKind ? 'lights a ' + LIGHT_KINDS[t.lightKind][2].toLowerCase() : 'puts out their light'}`); }
+        else if (state.lights.some((l) => l.id === u.tokenId)) { setMapLight(u.tokenId, Number(u.value) !== 0); addChat('system', `↳ The ${u.tokenId} ${Number(u.value) !== 0 ? 'is lit' : 'goes out'}`); }
+        break;
+      }
       case 'startCombat':
         if (!state.combat.active) startCombat();
         break;
@@ -3122,6 +3374,7 @@ function bindUi() {
     requestRender();
   });
   $('#endTurnBtn').addEventListener('click', endTurn);
+  $('#lightBtn').addEventListener('click', openLightPanel);
   $('#diceMode').addEventListener('change', (e) => { store.set('vtt.diceMode', e.target.value); syncDiceUi(); });
   $('#sendAttackRoll').addEventListener('click', () => sendAttackRoll($('#attackRoll').value));
   $('#attackRoll').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAttackRoll($('#attackRoll').value); });
@@ -3198,6 +3451,8 @@ async function init() {
     state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : board.mapKind === 'camp' ? 'camp' : 'battle';
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
     state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
+    state.lightsOff = board.lightsOff && typeof board.lightsOff === 'object' ? board.lightsOff : {};
+    state.ambientOverride = ['bright', 'dim', 'dark'].includes(board.ambientOverride) ? board.ambientOverride : '';
     state.combat = board.combat && board.combat.active && Array.isArray(board.combat.order) ? { active: true, round: Math.max(1, Number(board.combat.round) || 1), order: board.combat.order.map(String) } : { active: false, round: 0, order: [] };
   }
   $('#fogToggle').checked = state.fogEnabled;
@@ -3227,7 +3482,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, changeHp, startCombat, endCombat, nextCombatTurn };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn };
 
 init().catch((err) => {
   console.error(err);

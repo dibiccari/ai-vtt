@@ -58,6 +58,9 @@
     <label class="field"><span>Group (versions of one place)</span>
       <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
     </label>
+    <label class="field"><span>Light level of this place</span>
+      <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
+    </label>
     <label class="field"><span>This version is called</span>
       <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
     </label>
@@ -157,7 +160,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], group: '', variant: '', configs: [], tokens: [], visionFt: 60, source: null,
+    squares: 50, walls: [], starts: [], group: '', variant: '', light: '', configs: [], tokens: [], visionFt: 60, source: null,
     tool: 'token', fog: true, dm: false, showPoly: false, showWalls: false, showGrid: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
@@ -240,7 +243,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, source: S.source, group: S.group, variant: S.variant });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, source: S.source, group: S.group, variant: S.variant, light: S.light });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -515,6 +518,7 @@
         source: cfg.source,
         group: cfg.group,
         variant: cfg.variant,
+        light: cfg.light,
         lights: cfg.lights,
         ambient: cfg.ambient
       };
@@ -640,6 +644,7 @@
           S.walls = cleanWalls(remote.walls);
           if (remote.squares > 0) S.squares = remote.squares;
         }
+        S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
@@ -714,6 +719,7 @@
     renderStartList();
     suggestPinName();
     fillCopyTargets();
+    $('#lightLevel').value = S.light;
     $('#groupName').value = S.group;
     $('#variantName').value = S.variant;
     refreshVariants();
@@ -910,6 +916,7 @@
     // The server file is written a moment after save(); refresh the switch once it is there.
     setTimeout(refreshVariants, 900);
   };
+  $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; save(); });
   $('#groupName').addEventListener('change', groupChanged);
   $('#variantName').addEventListener('change', groupChanged);
   $('#onlyUvtt').checked = S.onlyUvtt;

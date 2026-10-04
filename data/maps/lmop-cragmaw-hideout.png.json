@@ -156,5 +156,6 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ffffffff"
+  "ambient": "ffffffff",
+  "light": "dim"
 }

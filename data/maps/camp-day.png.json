@@ -9932,5 +9932,6 @@
   "source": "dd2vtt",
   "ambient": "ffffffff",
   "group": "camp",
-  "variant": "day"
+  "variant": "day",
+  "light": "bright"
 }

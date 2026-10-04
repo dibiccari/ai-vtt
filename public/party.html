@@ -104,7 +104,7 @@
 
   async function saveCharacter(c) {
     try {
-      var out = await put('/api/party/characters/' + encodeURIComponent(c.id), { inventory: c.inventory, coins: c.coins });
+      var out = await put('/api/party/characters/' + encodeURIComponent(c.id), { inventory: c.inventory, coins: c.coins, darkvision: c.darkvision });
       var i = state.characters.findIndex(function (x) { return x.id === c.id; });
       state.characters[i] = out.character;
       setStatus(out.problems.length ? out.problems.join(' ') : 'Saved.', out.problems.length ? 'err' : 'ok');
@@ -238,6 +238,14 @@
       conds.forEach(function (k) { var ch = el('span', 'chip', k.name + (k.rounds > 0 ? ' (' + k.rounds + ')' : '')); ch.style.background = CONDITION_COLORS[k.name] || '#4f9dff'; chips.appendChild(ch); });
       card.appendChild(chips);
     }
+
+    var dv = el('div', 'row');
+    var dvLab = el('label'); dvLab.title = 'How far they see in darkness (darkvision turns darkness into dim light). Humans have none.';
+    var dvInp = el('input'); dvInp.type = 'number'; dvInp.min = '0'; dvInp.max = '120'; dvInp.step = '30'; dvInp.value = c.darkvision || 0;
+    dvInp.addEventListener('change', function () { c.darkvision = Math.max(0, Math.min(120, Math.round(Number(dvInp.value) || 0))); saveCharacter(c); });
+    dvLab.append(document.createTextNode('Darkvision (ft) '), dvInp);
+    dv.appendChild(dvLab);
+    card.appendChild(dv);
 
     var slots = el('div', 'slots');
     slots.appendChild(el('span', 'meta', 'Attuned ' + e.attuned.length + '/' + state.maxAttuned + ':'));

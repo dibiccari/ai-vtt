@@ -9936,31 +9936,36 @@
       "y": 750,
       "range": 9,
       "intensity": 1,
-      "color": "ffff9a3c"
+      "color": "ffff9a3c",
+      "name": "campfire"
     },
     {
       "x": 550,
       "y": 410,
       "range": 2.5,
       "intensity": 0.35,
-      "color": "ffffd27a"
+      "color": "ffffd27a",
+      "name": "lantern-nw"
     },
     {
       "x": 1475,
       "y": 430,
       "range": 2.5,
       "intensity": 0.35,
-      "color": "ffffd27a"
+      "color": "ffffd27a",
+      "name": "lantern-ne"
     },
     {
       "x": 1560,
       "y": 1075,
       "range": 2.5,
       "intensity": 0.35,
-      "color": "ffffd27a"
+      "color": "ffffd27a",
+      "name": "lantern-se"
     }
   ],
   "ambient": "ff1a2240",
   "group": "camp",
-  "variant": "night"
+  "variant": "night",
+  "light": "dark"
 }
