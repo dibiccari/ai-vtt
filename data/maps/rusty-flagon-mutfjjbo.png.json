@@ -218,5 +218,6 @@
       "y": 825
     }
   ],
-  "light": "dim"
+  "light": "dim",
+  "ambience": "tavern"
 }

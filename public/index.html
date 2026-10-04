@@ -386,6 +386,8 @@
       <div class="voice-opts">
         <label><input type="checkbox" id="speakToggle" checked> DM speaks replies</label>
         <label><input type="checkbox" id="autoSendToggle" checked> Auto-send what I say</label>
+        <label title="Background sound and mood music, made in the browser"><input type="checkbox" id="ambienceToggle" checked> Ambient sound</label>
+        <input type="range" id="ambienceVol" min="0" max="100" value="50" aria-label="Ambient volume" style="width:90px">
       </div>
       <div class="voice-status"><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
       <div class="dice-box">
@@ -414,6 +416,7 @@
 
 <script src="/uvtt.js"></script>
 <script src="/scenes.js"></script>
+<script src="/ambience.js"></script>
 <script>
 'use strict';
 
@@ -459,6 +462,8 @@ const state = {
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
   wallsInPicture: false,
+  ambience: '',                      // the map's ambient sound ('' = pick one from the kind of place)
+  mood: '',                          // a mood the DM asked for ('' = none; combat sets its own)
   ambient: 'bright',                 // the map's light level: 'bright', 'dim' or 'dark' (from its config)
   ambientOverride: '',               // the table's own choice, '' = use the map's
   lights: [],                        // the map's own light sources
@@ -1352,6 +1357,7 @@ async function onMapChanged() {
   await loadMapLighting();
   state.walls = store.get(wallsKey(), []);
   if (!Array.isArray(state.walls)) state.walls = [];
+  syncAmbience();
   if (!state.walls.length) state.walls = await serverWalls();
   state.wallsVersion++;
   clampTokensToMap();
@@ -2233,6 +2239,7 @@ function drawSightShape(s) {
 }
 
 async function loadMapLighting() {
+  state.ambience = '';
   state.ambient = 'bright';
   state.lights = [];
   if (!state.map.url || !state.map.img) return;
@@ -2241,6 +2248,7 @@ async function loadMapLighting() {
     const { config } = await res.json();
     if (!config) return;
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
+    state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
@@ -2311,6 +2319,27 @@ function setMapLight(id, on) {
   state.lightsOff[url] = list;
   revealFog();
   commitBoard();
+}
+
+// Ambient sound and mood (public/ambience.js). The map can name its sound; otherwise it follows the kind of place and its light.
+function ambienceScene() {
+  if (state.ambience) return state.ambience;
+  if (state.mapKind === 'regional') return 'wind';
+  if (state.mapKind === 'town') return 'town';
+  if (state.mapKind === 'camp') return ambientNow() === 'dark' ? 'night' : 'forest';
+  return ambientNow() === 'dark' ? 'dungeon' : 'wind';
+}
+function syncAmbience() {
+  if (!window.Ambience) return;
+  Ambience.setScene(ambienceScene());
+  Ambience.setMood(state.combat.active ? 'combat' : (state.mood || 'calm'));
+}
+function syncAmbienceUi() {
+  const on = store.get('vtt.ambience', true) !== false;
+  $('#ambienceToggle').checked = on;
+  const vol = Number(store.get('vtt.ambienceVol', 50));
+  $('#ambienceVol').value = Number.isFinite(vol) ? vol : 50;
+  if (window.Ambience) { Ambience.setEnabled(on); Ambience.setVolume($('#ambienceVol').value / 100); }
 }
 
 const lightingForAi = () => ({
@@ -2447,6 +2476,7 @@ function startCombat() {
   const first = combatTokens()[0];
   if (first) state.activeIndex = state.tokens.indexOf(first);
   addChat('system', '⚔ Combat begins. Players: enter your initiative, or press "Roll for players".');
+  syncAmbience();
   commitBoard();
   renderCombat();
 }
@@ -2498,6 +2528,7 @@ function endCombat() {
   state.combat = { active: false, round: 0, order: [] };
   for (const t of state.tokens) { t.initiative = null; t.spent = null; }
   addChat('system', '⚔ Combat ends');
+  syncAmbience();
   commitBoard();
   renderCombat();
 }
@@ -3191,6 +3222,7 @@ const voice = (() => {
   /* ---------- speaking: shared mic muting ---------- */
   function beginSpeaking() {
     cancelSpeech();
+    if (window.Ambience) Ambience.duck(true);
     const gen = speakGen;
     // Pause the recognizer while the DM talks so it does not transcribe the speakers.
     if (listening && (continuous || holding)) stopRecognition();
@@ -3201,6 +3233,7 @@ const voice = (() => {
 
   function endSpeaking(gen) {
     if (gen !== speakGen) return;
+    if (window.Ambience) Ambience.duck(false);
     // Keep the mic deaf briefly after the last word so the tail of the narration is not transcribed.
     ignoreUntil = Date.now() + TAIL_GRACE_MS;
     setTimeout(() => {
@@ -3414,6 +3447,14 @@ async function applyMapUpdates(updates) {
       case 'restParty':
         restTokens(u.kind);
         break;
+      case 'setMood':
+        state.mood = Ambience.moods.includes(u.mood) && u.mood !== 'calm' ? u.mood : '';
+        syncAmbience();
+        if (u.mood === 'triumph') Ambience.setMood('triumph');
+        break;
+      case 'playSound':
+        Ambience.sfx(u.sound);
+        break;
       case 'summonToken': {
         const owner = state.tokens.find((x) => x.id === u.ownerId) || activeToken();
         const t = SUMMONS[u.kind] ? conjure(u.kind, owner, u.tokenId, u.col, u.row) : null;
@@ -3528,6 +3569,12 @@ function bindUi() {
   });
   $('#endTurnBtn').addEventListener('click', endTurn);
   $('#lightBtn').addEventListener('click', openLightPanel);
+  $('#ambienceToggle').addEventListener('change', (e) => { store.set('vtt.ambience', e.target.checked); Ambience.setEnabled(e.target.checked); if (e.target.checked) { Ambience.resume(); syncAmbience(); } });
+  $('#ambienceVol').addEventListener('input', (e) => { store.set('vtt.ambienceVol', Number(e.target.value)); Ambience.setVolume(e.target.value / 100); });
+  // Browsers allow sound only after a click or key press: the first one starts the ambience.
+  const startAudio = () => { if (store.get('vtt.ambience', true) !== false) { Ambience.resume(); syncAmbience(); } };
+  document.addEventListener('pointerdown', startAudio, { once: true });
+  document.addEventListener('keydown', startAudio, { once: true });
   $('#sceneSave').addEventListener('click', saveScene);
   $('#scenePick').addEventListener('change', (e) => { $('#sceneDelete').disabled = !e.target.value; if (e.target.value) applyScene(e.target.value); });
   $('#sceneDelete').addEventListener('click', () => deleteScene($('#scenePick').value));
@@ -3616,6 +3663,7 @@ async function init() {
   syncMapUi();
   syncDiceUi();
   syncScenePick();
+  syncAmbienceUi();
   renderChat();
   scrollChat();
   await loadCharacters();

@@ -1342,5 +1342,6 @@
     }
   ],
   "ambient": "ff8a95a9",
-  "light": "dark"
+  "light": "dark",
+  "ambience": "cave"
 }

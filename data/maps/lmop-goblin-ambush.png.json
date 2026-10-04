@@ -40,5 +40,6 @@
     }
   ],
   "ambient": "ffffffff",
-  "light": "bright"
+  "light": "bright",
+  "ambience": "forest"
 }

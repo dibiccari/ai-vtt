@@ -16,6 +16,14 @@
     { href: '/settings.html', label: '⚙ Settings' }
   ];
 
+  // A tiny emoji favicon so browsers stop asking for /favicon.ico.
+  if (!document.querySelector('link[rel~="icon"]')) {
+    var icon = document.createElement('link');
+    icon.rel = 'icon';
+    icon.href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎲</text></svg>');
+    document.head.appendChild(icon);
+  }
+
   var here = location.pathname === '/index.html' ? '/' : location.pathname;
 
   var style = document.createElement('style');

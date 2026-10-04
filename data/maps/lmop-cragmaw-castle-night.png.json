@@ -5383,5 +5383,6 @@
   "source": "dd2vtt",
   "group": "cragmaw-castle",
   "variant": "night",
-  "light": "dark"
+  "light": "dark",
+  "ambience": "night"
 }

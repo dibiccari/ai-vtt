@@ -157,5 +157,6 @@
     }
   ],
   "ambient": "ffffffff",
-  "light": "dim"
+  "light": "dim",
+  "ambience": "cave"
 }
