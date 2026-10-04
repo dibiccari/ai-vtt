@@ -3,5 +3,7 @@ node_modules/
 public/uploads/*
 !public/uploads/.gitkeep
 data/campaign/
+data/campaigns/
 public/tokens/
+public/sheets/
 data/tts-cache/

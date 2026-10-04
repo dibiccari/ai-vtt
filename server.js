@@ -2,10 +2,11 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
-import { mkdir, readdir, readFile, writeFile, unlink } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, unlink, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -17,13 +18,29 @@ let MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
 const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 const TOKEN_DIR = path.join(PUBLIC_DIR, 'tokens');
-const CAMPAIGN_DIR = path.join(__dirname, 'data', 'campaign');
+// Each campaign is a folder in data/campaigns/<id>/ holding its text (*.md / *.txt), campaign.json and voices.json.
+const CAMPAIGNS_DIR = path.join(__dirname, 'data', 'campaigns');
+const LEGACY_CAMPAIGN_DIR = path.join(__dirname, 'data', 'campaign');
+const DEFAULT_CAMPAIGN_ID = 'lost-mine-of-phandelver';
+const TEST_CAMPAIGN_ID = 'tavern-brawl-test';
+const ACTIVE_CAMPAIGN_FILE = path.join(CAMPAIGNS_DIR, 'active.json');
 const TOKEN_URL_RE = /^\/tokens\/[a-z0-9-]{1,40}\.(png|webp|jpg)$/;
 
 await mkdir(UPLOAD_DIR, { recursive: true });
 await mkdir(CHAR_DIR, { recursive: true });
 await mkdir(TOKEN_DIR, { recursive: true });
-await mkdir(CAMPAIGN_DIR, { recursive: true });
+await mkdir(CAMPAIGNS_DIR, { recursive: true });
+// One-time move of the old single-campaign folder (data/campaign) into the first campaign.
+try {
+  await stat(LEGACY_CAMPAIGN_DIR);
+  try {
+    await stat(path.join(CAMPAIGNS_DIR, DEFAULT_CAMPAIGN_ID));
+  } catch {
+    await rename(LEGACY_CAMPAIGN_DIR, path.join(CAMPAIGNS_DIR, DEFAULT_CAMPAIGN_ID));
+    console.log('Moved data/campaign to data/campaigns/' + DEFAULT_CAMPAIGN_ID);
+  }
+} catch { /* no old folder */ }
+await mkdir(path.join(CAMPAIGNS_DIR, DEFAULT_CAMPAIGN_ID), { recursive: true });
 const TTS_CACHE_DIR = path.join(__dirname, 'data', 'tts-cache');
 await mkdir(TTS_CACHE_DIR, { recursive: true });
 
@@ -35,6 +52,18 @@ const int = (v, def, min = -Infinity, max = Infinity) => {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
 };
 
+// The official 5E sheet's form values, keyed by PDF field name (text as strings, checkboxes as booleans).
+function normalizeSheet(raw) {
+  const sheet = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return sheet;
+  for (const [key, value] of Object.entries(raw).slice(0, 700)) {
+    const name = String(key).slice(0, 80);
+    if (typeof value === 'boolean') sheet[name] = value;
+    else if (typeof value === 'string' || typeof value === 'number') sheet[name] = String(value).slice(0, 5000);
+  }
+  return sheet;
+}
+
 function normalizeCharacter(body) {
   const name = String(body.name ?? '').trim().slice(0, 60);
   if (!name) throw Object.assign(new Error('Character name is required'), { status: 400 });
@@ -42,6 +71,14 @@ function normalizeCharacter(body) {
   const maxHp = int(body.maxHp, 10, 1, 999);
   const abilities = {};
   for (const key of ABILITIES) abilities[key] = int(body.abilities?.[key], 10, 1, 30);
+  const sheet = normalizeSheet(body.sheet);
+  const expertise = Array.isArray(body.expertise) ? [...new Set(body.expertise.filter((s) => typeof s === 'string' && SKILLS[s]))] : [];
+  const sheetLog = (Array.isArray(body.sheetLog) ? body.sheetLog : []).slice(-40).map((e) => ({
+    at: String(e?.at ?? '').slice(0, 40),
+    by: String(e?.by ?? 'ai').slice(0, 20),
+    reason: String(e?.reason ?? '').slice(0, 200),
+    changes: (Array.isArray(e?.changes) ? e.changes : []).slice(0, 80).map((c) => ({ field: String(c?.field ?? '').slice(0, 80), from: String(c?.from ?? '').slice(0, 200), to: String(c?.to ?? '').slice(0, 200) }))
+  }));
   return {
     id,
     name,
@@ -53,7 +90,10 @@ function normalizeCharacter(body) {
     speed: int(body.speed, 30, 0, 120),
     abilities,
     color: /^#[0-9a-f]{6}$/i.test(body.color ?? '') ? body.color : '#4f9dff',
-    image: TOKEN_URL_RE.test(body.image ?? '') ? body.image : ''
+    image: TOKEN_URL_RE.test(body.image ?? '') ? body.image : '',
+    ...(Object.keys(sheet).length ? { sheet } : {}),
+    ...(expertise.length ? { expertise } : {}),
+    ...(sheetLog.length ? { sheetLog } : {})
   };
 }
 
@@ -99,6 +139,15 @@ app.get('/api/characters', asyncRoute(async (_req, res) => {
 
 app.post('/api/characters', asyncRoute(async (req, res) => {
   const character = normalizeCharacter(req.body ?? {});
+  // Saves that do not carry the full sheet (the tabletop's quick form, HP buttons) keep the one already stored.
+  if (req.body?.sheet === undefined) {
+    try {
+      const old = JSON.parse(await readFile(path.join(CHAR_DIR, `${character.id}.json`), 'utf8'));
+      if (old.sheet && Object.keys(old.sheet).length) character.sheet = old.sheet;
+      if (req.body?.expertise === undefined && old.expertise?.length) character.expertise = old.expertise;
+      if (req.body?.sheetLog === undefined && old.sheetLog?.length) character.sheetLog = old.sheetLog;
+    } catch { /* new character: nothing to keep */ }
+  }
   await saveCharacter(character);
   res.json(character);
 }));
@@ -203,6 +252,70 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   res.json({ ok: true, walls: config.walls.length });
 }));
 
+// ---------------------------------------------------------------- campaign selector API
+
+app.get('/api/campaigns', asyncRoute(async (_req, res) => {
+  const active = await getActiveCampaignId();
+  const campaigns = [];
+  for (const id of await campaignIds()) {
+    const meta = await readCampaignMeta(id);
+    const files = await campaignFiles(id);
+    const totalChars = files.reduce((n, f) => n + f.chars, 0);
+    let voiceCount = 0;
+    try { voiceCount = Object.keys(await loadCharacterVoices(id)).length; } catch { /* none */ }
+    campaigns.push({
+      id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test),
+      active: id === active,
+      files: files.map((f) => ({ name: f.name, chars: f.chars })),
+      totalChars, approxTokens: Math.round(totalChars / 4), voiceCount
+    });
+  }
+  res.json({ active, campaigns });
+}));
+
+app.post('/api/campaigns/active', localOnly, asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.body?.id);
+  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
+  await writeFile(ACTIVE_CAMPAIGN_FILE, JSON.stringify({ id }, null, 2));
+  res.json({ ok: true, active: id });
+}));
+
+function campaignFilePath(id, name) {
+  const cid = safeCampaignId(id);
+  if (!cid || !CAMPAIGN_FILE_RE.test(String(name ?? ''))) throw Object.assign(new Error('Invalid campaign or file name'), { status: 400 });
+  return path.join(CAMPAIGNS_DIR, cid, path.basename(String(name)));
+}
+
+app.get('/api/campaigns/:id/files/:name', asyncRoute(async (req, res) => {
+  try {
+    const text = await readFile(campaignFilePath(req.params.id, req.params.name), 'utf8');
+    res.json({ name: req.params.name, chars: text.length, text: text.slice(0, 200000) });
+  } catch (err) {
+    if (err.code === 'ENOENT') return res.status(404).json({ error: 'File not found' });
+    throw err;
+  }
+}));
+
+app.put('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, res) => {
+  const text = String(req.body?.text ?? '');
+  if (!text.trim()) return res.status(400).json({ error: 'text is required' });
+  if (text.length > 3_000_000) return res.status(413).json({ error: 'File is too large (3 million characters at most)' });
+  const file = campaignFilePath(req.params.id, req.params.name);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, text);
+  res.json({ ok: true, chars: text.trim().length });
+}));
+
+app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, res) => {
+  try {
+    await unlink(campaignFilePath(req.params.id, req.params.name));
+  } catch (err) {
+    if (err.code === 'ENOENT') return res.status(404).json({ error: 'File not found' });
+    throw err;
+  }
+  res.json({ ok: true });
+}));
+
 // ---------------------------------------------------------------- cloud voices (OpenAI text-to-speech)
 
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
@@ -222,8 +335,7 @@ const TTS_PROFILES = {
   masculine: { voices: ['onyx', 'ash'], style: 'A big, burly man in his forties. Natural baritone, warm and chesty, with a confident edge. Strong, steady and commanding, unmistakably male.' }
 };
 
-// Named characters get their own voice and acting direction. Edit data/campaign/voices.json to change them.
-const VOICES_FILE = path.join(CAMPAIGN_DIR, 'voices.json');
+// Named characters get their own voice and acting direction. Edit data/campaigns/<campaign>/voices.json to change them.
 const DEFAULT_CHARACTER_VOICES = {
   'Sildar Hallwinter': { voice: 'echo', style: 'A noble, honorable human knight. Steady and sincere, a little weary from hard travel, speaking with quiet resolve.' },
   'Gundren Rockseeker': { voice: 'ash', style: 'A gruff, excitable dwarf prospector with a rough burr. Proud and brusque, thrilled about treasure.' },
@@ -240,17 +352,21 @@ const DEFAULT_CHARACTER_VOICES = {
 };
 const KNOWN_OPENAI_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse']);
 
-async function loadCharacterVoices() {
+// The active campaign's named-character voices. The first campaign is seeded with the Phandelver cast.
+async function loadCharacterVoices(id = null) {
+  const campaignId = id || await getActiveCampaignId();
+  const file = path.join(CAMPAIGNS_DIR, campaignId, 'voices.json');
+  const fallback = campaignId === DEFAULT_CAMPAIGN_ID ? DEFAULT_CHARACTER_VOICES : campaignId === TEST_CAMPAIGN_ID ? TEST_CAMPAIGN_VOICES : {};
   try {
-    const parsed = JSON.parse(await readFile(VOICES_FILE, 'utf8'));
+    const parsed = JSON.parse(await readFile(file, 'utf8'));
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch (err) {
     if (err.code === 'ENOENT') {
-      await writeFile(VOICES_FILE, JSON.stringify(DEFAULT_CHARACTER_VOICES, null, 2));
-      return DEFAULT_CHARACTER_VOICES;
+      if (Object.keys(fallback).length) await writeFile(file, JSON.stringify(fallback, null, 2));
+      return fallback;
     }
-    console.warn(`Could not read ${VOICES_FILE}: ${err.message}`);
-    return DEFAULT_CHARACTER_VOICES;
+    console.warn(`Could not read ${file}: ${err.message}`);
+    return fallback;
   }
 }
 
@@ -338,17 +454,103 @@ app.post('/api/tts', asyncRoute(async (req, res) => {
 // ---------------------------------------------------------------- campaign
 
 // Every .txt/.md file in data/campaign is given to the DM as reference material (cached between turns).
-async function loadCampaign() {
-  const files = (await readdir(CAMPAIGN_DIR)).filter((f) => /\.(txt|md)$/i.test(f)).sort();
-  const parts = [];
-  for (const file of files) {
-    const text = (await readFile(path.join(CAMPAIGN_DIR, file), 'utf8')).trim();
-    if (text) parts.push(`##### CAMPAIGN DOCUMENT: ${file} #####\n${text}`);
+// ---------------------------------------------------------------- campaigns
+
+const BUILT_IN_CAMPAIGNS = {
+  [DEFAULT_CAMPAIGN_ID]: {
+    name: 'Lost Mine of Phandelver',
+    system: 'D&D 5th Edition',
+    levels: '1-5',
+    description: 'The classic starter adventure. Gundren Rockseeker has vanished on the road to Phandalin, and the party is drawn into a hunt for the lost Wave Echo Cave and its Forge of Spells.'
   }
-  return parts.join('\n\n');
+};
+BUILT_IN_CAMPAIGNS[TEST_CAMPAIGN_ID] = {
+  name: 'The Rusty Flagon: Tavern Brawl',
+  system: 'D&D 5th Edition',
+  levels: '3',
+  test: true,
+  description: 'A short test scenario for the table: a tavern full of NPCs where a brawl can break out. It exercises social interaction, exploration and combat so you can see what the AI Dungeon Master allows. Set it up from the Test Lab page.'
+};
+const TEST_CAMPAIGN_VOICES = {
+  'Marta Ironbrew': { voice: 'nova', style: 'A broad, sharp-eyed halfling innkeeper in her fifties. Warm, brisk and funny, with a no-nonsense edge when her furniture is at risk.' },
+  'Bruno': { voice: 'onyx', style: 'A huge, calm bouncer. Slow, deep and patient, like a man who hates raising his voice and always wins anyway.' },
+  'Gruk Tannerson': { voice: 'ash', style: 'A loud, scarred sellsword three drinks in. Boastful and gravelly, quick to take offence, laughing at his own jokes.' },
+  'Dagger Dan': { voice: 'echo', style: 'A grinning, sly hanger-on. Quick, smug and sneering, always backing his boss.' },
+  'Skinny Jo': { voice: 'verse', style: 'A nervous, eager hanger-on. High, quick and jumpy, laughing too soon.' },
+  'Odo Pennywhistle': { voice: 'fable', style: 'A cheerful, slightly drunk regular. Warm and rambling, delighted by gossip.' },
+  'Pell Brightwater': { voice: 'alloy', style: 'A cheerful, slightly drunk regular. Friendly and slurry, ready to throw a mug for the fun of it.' },
+  'Nim': { voice: 'ballad', style: 'A thin, nervous spy in a gray cloak. Quiet, hurried and wary, glancing at the door between phrases.' }
+};
+
+// Make sure the built-in test campaign exists and has its text. Existing files are never overwritten, so edits stay.
+{
+  const dir = path.join(CAMPAIGNS_DIR, TEST_CAMPAIGN_ID);
+  await mkdir(dir, { recursive: true });
+  try {
+    const seed = await readFile(path.join(PUBLIC_DIR, 'scenarios', 'rusty-flagon-campaign.md'), 'utf8');
+    try { await stat(path.join(dir, '01-the-rusty-flagon.md')); } catch { await writeFile(path.join(dir, '01-the-rusty-flagon.md'), seed); }
+  } catch { /* the seed file is optional */ }
 }
-const campaignText = await loadCampaign();
-if (campaignText) console.log(`Loaded campaign reference (~${Math.round(campaignText.length / 4000)}k tokens)`);
+const safeCampaignId = (id) => String(id ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60);
+const CAMPAIGN_FILE_RE = /^[a-z0-9][a-z0-9._-]{0,80}\.(md|txt)$/i;
+
+async function campaignIds() {
+  const entries = await readdir(CAMPAIGNS_DIR, { withFileTypes: true });
+  return entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+}
+
+async function readCampaignMeta(id) {
+  const base = BUILT_IN_CAMPAIGNS[id] || { name: id.replace(/-/g, ' '), system: 'D&D 5th Edition', levels: '', description: '' };
+  try {
+    const saved = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), 'utf8'));
+    return { ...base, ...saved };
+  } catch {
+    return base;
+  }
+}
+
+async function campaignFiles(id) {
+  const dir = path.join(CAMPAIGNS_DIR, id);
+  let names;
+  try { names = (await readdir(dir)).filter((f) => /\.(txt|md)$/i.test(f)).sort(); } catch { return []; }
+  const files = [];
+  for (const name of names) {
+    const [text, st] = await Promise.all([readFile(path.join(dir, name), 'utf8'), stat(path.join(dir, name))]);
+    files.push({ name, chars: text.trim().length, size: st.size, mtimeMs: st.mtimeMs, text });
+  }
+  return files;
+}
+
+async function getActiveCampaignId() {
+  const ids = await campaignIds();
+  try {
+    const saved = safeCampaignId(JSON.parse(await readFile(ACTIVE_CAMPAIGN_FILE, 'utf8')).id);
+    if (ids.includes(saved)) return saved;
+  } catch { /* nothing chosen yet */ }
+  return ids.includes(DEFAULT_CAMPAIGN_ID) ? DEFAULT_CAMPAIGN_ID : (ids[0] || DEFAULT_CAMPAIGN_ID);
+}
+
+// The text the DM is given for a campaign, cached until a file in the folder changes.
+const campaignTextCache = new Map();
+async function loadCampaignText(id) {
+  const files = await campaignFiles(id);
+  const sig = files.map((f) => `${f.name}:${f.size}:${f.mtimeMs}`).join('|');
+  const hit = campaignTextCache.get(id);
+  if (hit && hit.sig === sig) return hit.text;
+  const parts = [];
+  for (const f of files) {
+    const text = f.text.trim();
+    if (text) parts.push(`##### CAMPAIGN DOCUMENT: ${f.name} #####\n${text}`);
+  }
+  const text = parts.join('\n\n');
+  campaignTextCache.set(id, { sig, text });
+  return text;
+}
+{
+  const id = await getActiveCampaignId();
+  const text = await loadCampaignText(id);
+  console.log(text ? `Active campaign: ${id} (~${Math.round(text.length / 4000)}k tokens of reference text)` : `Active campaign: ${id} (no campaign text yet, the DM runs without a module)`);
+}
 
 // ---------------------------------------------------------------- AI DM
 
@@ -358,15 +560,24 @@ const DM_SYSTEM = `You are the Dungeon Master for a Dungeons & Dragons 5th Editi
 You are the authority on rules, narrative, and the world. Narrate vividly but concisely (1-3 short paragraphs), adjudicate the players' declared actions using 5e rules, roll dice yourself when needed and show the results (e.g. "Attack: d20+5 = 17 vs AC 13 - hit"), and end by prompting the active player.
 
 The board is a square grid; each square is 5 ft. Positions are given as integer (col,row), origin top-left. Walls are line segments in pixel coordinates where one square = gridSize pixels.
-Respect each token's remaining movement (movementRemaining, in feet) and the walls.
+Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
 Return mechanical changes in mapUpdates:
 - moveToken: move an existing token (tokenId, col, row).
-- addToken: place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb).
+- addToken: place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard.
 - removeToken: remove a token (tokenId), e.g. a defeated monster.
+- revealToken: make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks.
+- hideToken: hide a token again (tokenId), for example a creature that turns invisible or slips into hiding.
+- updateCharacter: change a player character's sheet. Always send characterId, a short reason, and all four lists (use an empty list when you have nothing for it). edits is a list of { field, value }, where field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. skills sets each named skill to none, proficient or expertise. saves sets saving throw proficiency. spells adds (remove false) or removes (remove true) a spell by level, 0 for cantrips. slots sets the total spell slots of a level. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
 - setHp: set a player character's current HP (characterId, hp).
 - addWall: add a wall or door (x1, y1, x2, y2 in pixels, wallType "wall" or "door").
 Only include updates that actually happened. Use an empty array when nothing changes on the board.
+
+Keeping sheets up to date: apply routine changes from play with updateCharacter as they happen (gold, XP, equipment, temporary HP, spell slots used). Award XP after a fight or goal using the rules and the monsters' XP values, split among the living party, and say what each character gained.
+
+Levelling up is a conversation. When a character has enough XP for the next level (300, 900, 2,700, 6,500, 14,000, 23,000, 34,000, 48,000, 64,000, 85,000 and so on), tell the player and ask what they want. Do not change the sheet until they have answered. List what they gain at that level: hit points (offer the fixed average for the hit die plus Constitution modifier, or a roll), the class features of that level, a subclass at 3 for most classes, new spells or slots for casters, and at levels 4, 8, 12, 16 and 19 a choice between ability score increases and a feat. Ask them to pick (which skills or expertise, which ability scores, which spells, which feat), one short question at a time, then call updateCharacter once with everything they chose (classLevel, maxHp and hp, abilities, skills, spells, slots, and an edit to Features and Traits that lists the new features), and summarise what changed. Only use options that exist in 5th edition for their class and level, and say so if a request is not allowed.
+
+Secrets stay secret. Each token in the board state has hidden, kind and visibleToParty. Never mention, name, describe or hint at a token that is hidden or not visibleToParty (a hiding or invisible creature, a trap, an enemy in another room): not in the narrative, not in the voice lines, not in a rules note. An undiscovered trap is not mentioned at all until a character finds it with a check, triggers it, or it is revealed. Narrate only what the characters can perceive from where they stand. When a hidden thing is found or acts, call revealToken and then describe it.
 
 The table plays in voice mode: your reply is read aloud. Split the full reply into voiceLines, in order, so that
 the voiceLines texts joined together equal the narrative. Use speaker "Narrator" with voice "narrator" for narration and
@@ -379,6 +590,16 @@ const CAMPAIGN_RULES = `A campaign module follows. You are running it. Treat it 
 
 const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine'];
 
+// The AI's reply format. Each kind of board or sheet update lists exactly its own fields (all required): the API
+// limits how many optional fields a schema may have, and this also keeps the AI from sending half-formed updates.
+const upd = (types, properties) => ({
+  type: 'object',
+  properties: { type: { type: 'string', enum: types }, ...properties },
+  required: ['type', ...Object.keys(properties)],
+  additionalProperties: false
+});
+const INT = { type: 'integer' };
+const STR = { type: 'string' };
 const DM_SCHEMA = {
   type: 'object',
   properties: {
@@ -386,24 +607,22 @@ const DM_SCHEMA = {
     mapUpdates: {
       type: 'array',
       items: {
-        type: 'object',
-        properties: {
-          type: { type: 'string', enum: ['moveToken', 'addToken', 'removeToken', 'setHp', 'addWall'] },
-          tokenId: { type: 'string' },
-          characterId: { type: 'string' },
-          name: { type: 'string' },
-          color: { type: 'string' },
-          col: { type: 'integer' },
-          row: { type: 'integer' },
-          hp: { type: 'integer' },
-          x1: { type: 'number' },
-          y1: { type: 'number' },
-          x2: { type: 'number' },
-          y2: { type: 'number' },
-          wallType: { type: 'string', enum: ['wall', 'door'] }
-        },
-        required: ['type'],
-        additionalProperties: false
+        anyOf: [
+          upd(['moveToken'], { tokenId: STR, col: INT, row: INT }),
+          upd(['addToken'], { tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] } }),
+          upd(['removeToken', 'revealToken', 'hideToken'], { tokenId: STR }),
+          upd(['setHp'], { characterId: STR, hp: INT }),
+          upd(['addWall'], { x1: { type: 'number' }, y1: { type: 'number' }, x2: { type: 'number' }, y2: { type: 'number' }, wallType: { type: 'string', enum: ['wall', 'door'] } }),
+          upd(['updateCharacter'], {
+            characterId: STR,
+            reason: STR,
+            edits: { type: 'array', items: { type: 'object', properties: { field: STR, value: STR }, required: ['field', 'value'], additionalProperties: false } },
+            skills: { type: 'array', items: { type: 'object', properties: { name: { type: 'string', enum: Object.keys(SKILLS) }, proficiency: { type: 'string', enum: ['none', 'proficient', 'expertise'] } }, required: ['name', 'proficiency'], additionalProperties: false } },
+            saves: { type: 'array', items: { type: 'object', properties: { ability: { type: 'string', enum: ['str', 'dex', 'con', 'int', 'wis', 'cha'] }, proficient: { type: 'boolean' } }, required: ['ability', 'proficient'], additionalProperties: false } },
+            spells: { type: 'array', items: { type: 'object', properties: { level: INT, name: STR, remove: { type: 'boolean' } }, required: ['level', 'name', 'remove'], additionalProperties: false } },
+            slots: { type: 'array', items: { type: 'object', properties: { level: INT, total: INT }, required: ['level', 'total'], additionalProperties: false } }
+          })
+        ]
       }
     }
   },
@@ -456,7 +675,7 @@ function buildHistory(history, message, state, inputMode) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
-  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName } = req.body ?? {};
+  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
@@ -472,6 +691,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
 
   const state = {
     mapName: String(mapName ?? 'blank grid').slice(0, 120),
+    movementRule: ['standard', 'alternating', 'circle'].includes(movementRule) ? movementRule : 'standard',
     activeTokenId: activeTokenId ?? null,
     gridSize: Number(gridSize) || 50,
     tokens: Array.isArray(tokens) ? tokens : [],
@@ -480,6 +700,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   };
 
   try {
+    const campaignText = await loadCampaignText(await getActiveCampaignId());
     const response = await anthropic.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
@@ -505,10 +726,19 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const parsed = JSON.parse(block.text);
     const narrative = String(parsed.narrative ?? '');
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
+    // Sheet edits are applied and saved here; the table gets the updated characters back to show.
+    const allUpdates = Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : [];
+    const boardUpdates = allUpdates.filter((u) => u && u.type !== 'updateCharacter');
+    const sheetResults = await processCharacterUpdates(allUpdates.filter((u) => u && u.type === 'updateCharacter'), {
+      list: listCharacters,
+      save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
+    }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
     res.json({
       narrative,
       voiceLines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
-      mapUpdates: Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []
+      mapUpdates: boardUpdates,
+      characterUpdates: sheetResults.results,
+      characterProblems: sheetResults.problems
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {

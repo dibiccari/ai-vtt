@@ -67,6 +67,9 @@
   .turn-chip.npc { border-style: dashed; }
   .move-info { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .move-info strong { color: var(--text); }
+  .move-rule { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .move-rule input { accent-color: var(--accent); }
+  .move-rule select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font: inherit; }
   .canvas-wrap { position: relative; flex: 1; min-height: 0; background: var(--canvas-bg); overflow: hidden; }
   #board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: default; }
   .hud {
@@ -279,11 +282,21 @@
     <div class="brand">AI<span>·</span>VTT</div>
     <div class="turn-tracker" id="turnTracker" aria-label="Turn order"></div>
     <div class="move-info" id="moveInfo"></div>
+    <label class="move-rule" title="Show tokens the players cannot see (hidden, invisible, hiding, traps, or out of sight) as faint ghosts. Only for the person running the test.">
+      <input type="checkbox" id="dmView"> <span>DM view</span>
+    </label>
+    <label class="move-rule" title="How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.">
+      <span>Movement</span>
+      <select id="moveRule" aria-label="Movement range rule">
+        <option value="circle">Round (straight line)</option>
+        <option value="standard">Standard 5e (square)</option>
+        <option value="alternating">5-10-5 diagonals</option>
+      </select>
+    </label>
     <button class="btn btn-gold btn-sm" id="endTurnBtn" title="End the active token's turn">End Turn ⏭</button>
   </div>
   <div class="canvas-wrap" id="canvasWrap">
     <canvas id="board" aria-label="Battlemap canvas"></canvas>
-    <div class="mode-badge" id="modeBadge">DRAW WALLS MODE</div>
     <div class="hud"><span class="pill" id="hudCoords">—</span><span class="pill" id="hudZoom">100%</span></div>
     <div class="zoom-controls">
       <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
@@ -295,11 +308,6 @@
 
 <!-- ================================================================ RIGHT: SIDEBAR -->
 <aside class="sidebar">
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-chat" aria-controls="panel-chat" aria-selected="true" data-tab="chat">AI DM Chat</button>
-    <button class="tab" role="tab" id="tab-chars" aria-controls="panel-chars" aria-selected="false" data-tab="chars">Character Sheets</button>
-    <button class="tab" role="tab" id="tab-map" aria-controls="panel-map" aria-selected="false" data-tab="map">Map Tools</button>
-  </div>
 
   <!-- ---------------------------------------------------- TAB 1: CHAT -->
   <section class="tab-panel active" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
@@ -320,16 +328,7 @@
         <label><input type="checkbox" id="speakToggle" checked> DM speaks replies</label>
         <label><input type="checkbox" id="autoSendToggle" checked> Auto-send what I say</label>
       </div>
-      <label class="field">Voice engine
-        <select id="engineSel">
-          <option value="cloud">ChatGPT voices (OpenAI)</option>
-          <option value="browser">Microsoft voices</option>
-        </select>
-      </label>
-      <div class="voice-status" id="voiceEngine">Voices: checking…</div>
-      <label class="field">Microsoft narrator voice (used when the engine is Microsoft)
-        <select id="narratorVoice"><option value="">Auto (best available)</option></select>
-      </label>
+      <div class="voice-status"><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
       <textarea id="chatInput" placeholder="Describe your action… e.g. &quot;I draw my longsword and charge the goblin by the door.&quot;"></textarea>
       <div class="row">
         <span class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to send · map, sheets &amp; walls are attached</span>
@@ -339,112 +338,7 @@
     </div>
   </section>
 
-  <!-- ---------------------------------------------------- TAB 2: CHARACTERS -->
-  <section class="tab-panel" id="panel-chars" role="tabpanel" aria-labelledby="tab-chars">
-    <div class="scroll">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <h2 class="section-title" style="margin:0;">Party</h2>
-        <button class="btn btn-primary btn-sm" id="newCharBtn">+ New Character</button>
-      </div>
 
-      <form class="card" id="charForm" hidden autocomplete="off">
-        <h2 class="section-title" id="charFormTitle">New Character</h2>
-        <input type="hidden" name="id">
-        <div class="form-grid">
-          <label class="field full">Name<input type="text" name="name" required maxlength="60" placeholder="Character name"></label>
-          <label class="field">Class<input type="text" name="class" maxlength="40" placeholder="Fighter"></label>
-          <label class="field">Level<input type="number" name="level" min="1" max="20" value="1"></label>
-          <label class="field">Max HP<input type="number" name="maxHp" min="1" max="999" value="10"></label>
-          <label class="field">Current HP<input type="number" name="hp" min="0" max="999" value="10"></label>
-          <label class="field">Armor Class<input type="number" name="ac" min="1" max="40" value="12"></label>
-          <label class="field">Speed (ft)<input type="number" name="speed" min="0" max="120" step="5" value="30"></label>
-          <label class="field full">Token Color<input type="color" name="color" value="#4f9dff"></label>
-          <div class="field full">Token art
-            <div class="art-pick">
-              <img id="charArtPreview" alt="" hidden>
-              <button type="button" class="btn btn-sm" id="charArtBtn">Choose art…</button>
-              <button type="button" class="btn btn-sm" id="charArtClear">Use color only</button>
-            </div>
-            <input type="hidden" name="image">
-            <div class="token-gallery" id="charArtGallery" hidden></div>
-          </div>
-        </div>
-        <h2 class="section-title" style="margin-top:14px;">Ability Scores</h2>
-        <div class="ability-inputs" id="abilityInputs"></div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" style="flex:1;">Save Character</button>
-          <button type="button" class="btn" id="cancelCharBtn">Cancel</button>
-        </div>
-      </form>
-
-      <div id="charList"></div>
-    </div>
-  </section>
-
-  <!-- ---------------------------------------------------- TAB 3: MAP TOOLS -->
-  <section class="tab-panel" id="panel-map" role="tabpanel" aria-labelledby="tab-map">
-    <div class="scroll">
-      <div class="card">
-        <h2 class="section-title">Battlemap Image</h2>
-        <label class="dropzone" id="dropzone" tabindex="0">
-          <strong>Upload a map</strong>
-          Drop an image here or click to browse (PNG, JPG, WEBP, GIF · max 15 MB)
-          <input type="file" id="mapFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-        </label>
-        <div class="upload-status" id="uploadStatus"></div>
-        <div class="gallery" id="mapGallery"></div>
-        <div class="field" style="margin-top:14px;">
-          <span>Grid opacity <span id="gridOpacityVal" style="color:var(--text)"></span></span>
-          <input type="range" id="gridOpacity" min="0" max="1" step="0.05">
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="section-title">Token Library</h2>
-        <div class="form-grid">
-          <label class="field full">Name for the next token<input type="text" id="libName" maxlength="40" placeholder="e.g. Klarg, Goblin 1, Sildar"></label>
-          <label class="switch-row full" style="grid-column:1/-1; padding:0;"><span><span class="label">Party member</span><span class="desc" style="display:block">Reveals fog and joins the turn order like a hero</span></span>
-            <span class="switch"><input type="checkbox" id="libParty" aria-label="Party member"><span class="track"></span></span></label>
-        </div>
-        <div class="meta">Click a portrait to place it in the middle of the map. Right-click a token on the map to remove it.</div>
-        <div class="token-gallery" id="libGallery"></div>
-      </div>
-
-      <div class="card">
-        <h2 class="section-title">Walls &amp; Doors</h2>
-        <div class="switch-row">
-          <div><div class="label">Draw Walls</div><div class="desc">Click &amp; drag on the map to draw blocking segments. Endpoints snap to grid corners. Right-click undoes.</div></div>
-          <label class="switch danger"><input type="checkbox" id="drawWallsToggle" aria-label="Draw walls"><span class="track"></span></label>
-        </div>
-        <div class="segmented" id="wallTypeSeg" role="group" aria-label="Segment type" style="margin-top:8px;">
-          <button type="button" data-type="wall" aria-pressed="true">▬ Stone Wall</button>
-          <button type="button" data-type="door" aria-pressed="false">▭ Door</button>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-sm" id="undoWallBtn">↶ Undo last</button>
-          <button class="btn btn-sm btn-danger" id="clearWallsBtn">Clear all walls</button>
-        </div>
-        <div class="meta" id="wallMeta"></div>
-        <div class="meta">Outside draw mode, click a door to open or close it.</div>
-      </div>
-
-      <div class="card">
-        <h2 class="section-title">Vision &amp; Control</h2>
-        <div class="switch-row">
-          <div><div class="label">Fog of War</div><div class="desc">Raycast line-of-sight (60 ft) permanently clears explored areas.</div></div>
-          <label class="switch"><input type="checkbox" id="fogToggle" aria-label="Fog of war"><span class="track"></span></label>
-        </div>
-        <div class="switch-row">
-          <div><div class="label">GM Override</div><div class="desc">Move any token freely, ignore walls &amp; movement, see through fog.</div></div>
-          <label class="switch"><input type="checkbox" id="gmToggle" aria-label="GM override"><span class="track"></span></label>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-sm" id="resetFogBtn">Reset explored fog</button>
-          <button class="btn btn-sm" id="resetTokensBtn">Reset token positions</button>
-        </div>
-      </div>
-    </div>
-  </section>
 </aside>
 
 <div class="toasts" id="toasts" aria-live="assertive"></div>
@@ -486,8 +380,9 @@ const state = {
   wallType: 'wall',
   gmOverride: false,
   busy: false,
-  mapList: [],
-  tokenList: []
+  moveRule: 'circle',
+  dmView: false,
+  sight: []
 };
 
 const interaction = {
@@ -708,19 +603,20 @@ function moveBlocked(c1, r1, c2, r2, walls) {
    ===================================================================== */
 let reachCache = { sig: '', map: new Map() };
 
-function reachable(token) {
-  if (!token) return new Map();
-  const sig = `${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|` +
-    state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
-  if (reachCache.sig === sig) return reachCache.map;
+// Movement range, by rule. Every function returns a Map of square key -> feet of movement needed.
+//   standard    (PHB)  every square costs 5 ft, diagonals too, so the range is a square
+//   alternating (DMG)  diagonals cost 5 ft, then 10 ft, then 5 ft...
+//   circle      (house rule) straight-line distance; a diagonal step is about 7 ft
+const MOVE_RULES = ['circle', 'standard', 'alternating'];
+const SQRT2 = Math.SQRT2;
 
-  const maxSteps = state.gmOverride ? Infinity : Math.floor(token.movementRemaining / FT_PER_SQUARE);
-  const walls = state.gmOverride ? [] : blockingWalls();
-  const dist = new Map([[sqKey(token.col, token.row), 0]]);
+function reachStandard(token, radiusFt, near) {
+  const maxSteps = Number.isFinite(radiusFt) ? Math.floor(radiusFt / FT_PER_SQUARE) : Infinity;
+  const steps = new Map([[sqKey(token.col, token.row), 0]]);
   const queue = [[token.col, token.row]];
   for (let i = 0; i < queue.length; i++) {
     const [c, r] = queue[i];
-    const d = dist.get(sqKey(c, r));
+    const d = steps.get(sqKey(c, r));
     if (d >= maxSteps) continue;
     for (let dc = -1; dc <= 1; dc++) {
       for (let dr = -1; dr <= 1; dr++) {
@@ -728,19 +624,110 @@ function reachable(token) {
         const nc = c + dc, nr = r + dr;
         if (!inBounds(nc, nr)) continue;
         const k = sqKey(nc, nr);
-        if (dist.has(k)) continue;
-        if (walls.length && moveBlocked(c, r, nc, nr, walls)) continue;
-        dist.set(k, d + 1);
+        if (steps.has(k)) continue;
+        if (near.length && moveBlocked(c, r, nc, nr, near)) continue;
+        steps.set(k, d + 1);
         queue.push([nc, nr]);
       }
     }
   }
+  const cost = new Map();
+  for (const [k, n] of steps) cost.set(k, n * FT_PER_SQUARE);
+  return cost;
+}
+
+function reachAlternating(token, radiusFt, near) {
+  // State is (square, diagonal steps so far mod 2): the first diagonal costs 5 ft, the second 10 ft, and so on.
+  const best = new Map([[`${token.col},${token.row},0`, 0]]);
+  const queue = [[token.col, token.row, 0]];
+  for (let i = 0; i < queue.length; i++) {
+    const [c, r, p] = queue[i];
+    const here = best.get(`${c},${r},${p}`);
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        const nc = c + dc, nr = r + dr;
+        if (!inBounds(nc, nr) || (near.length && moveBlocked(c, r, nc, nr, near))) continue;
+        const diagonal = dc !== 0 && dr !== 0;
+        const next = here + (diagonal ? (p === 0 ? 5 : 10) : 5);
+        const np = diagonal ? 1 - p : p;
+        const k = `${nc},${nr},${np}`;
+        if (next > radiusFt + 1e-9 || next >= (best.get(k) ?? Infinity)) continue;
+        best.set(k, next);
+        queue.push([nc, nr, np]);
+      }
+    }
+  }
+  const cost = new Map();
+  for (const [k, v] of best) {
+    const sq = k.slice(0, k.lastIndexOf(','));
+    if (v < (cost.get(sq) ?? Infinity)) cost.set(sq, v);
+  }
+  return cost;
+}
+
+function reachCircle(token, radiusFt, R, near) {
+  const cost = new Map([[sqKey(token.col, token.row), 0]]);
+  // Squares with a clear straight line cost their straight-line distance.
+  for (let dc = -R; dc <= R; dc++) {
+    for (let dr = -R; dr <= R; dr++) {
+      if (dc === 0 && dr === 0) continue;
+      const d = Math.hypot(dc, dr) * FT_PER_SQUARE;
+      if (d > radiusFt + 1e-9) continue;
+      const c = token.col + dc, r = token.row + dr;
+      if (!inBounds(c, r)) continue;
+      if (near.length && moveBlocked(token.col, token.row, c, r, near)) continue;
+      cost.set(sqKey(c, r), d);
+    }
+  }
+  if (near.length) {
+    // Squares hidden behind a wall cost the walk around it: relax outward one step at a time.
+    const queue = [...cost.keys()];
+    for (let i = 0; i < queue.length; i++) {
+      const [c, r] = queue[i].split(',').map(Number);
+      const here = cost.get(queue[i]);
+      for (let dc = -1; dc <= 1; dc++) {
+        for (let dr = -1; dr <= 1; dr++) {
+          if (dc === 0 && dr === 0) continue;
+          const nc = c + dc, nr = r + dr;
+          if (!inBounds(nc, nr) || moveBlocked(c, r, nc, nr, near)) continue;
+          const next = here + (dc !== 0 && dr !== 0 ? SQRT2 : 1) * FT_PER_SQUARE;
+          const k = sqKey(nc, nr);
+          if (next > radiusFt + 1e-9 || next >= (cost.get(k) ?? Infinity) - 1e-9) continue;
+          cost.set(k, next);
+          queue.push(k);
+        }
+      }
+    }
+  }
+  return cost;
+}
+
+function reachable(token) {
+  if (!token) return new Map();
+  const rule = state.gmOverride ? 'standard' : state.moveRule;
+  const sig = `${rule}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|` +
+    state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
+  if (reachCache.sig === sig) return reachCache.map;
+
+  const radiusFt = state.gmOverride ? Infinity : token.movementRemaining;
+  const R = Number.isFinite(radiusFt) ? Math.ceil(radiusFt / FT_PER_SQUARE) : Math.max(cols(), rows());
+  const x0 = centerOf(token.col), y0 = centerOf(token.row);
+  const reachPx = (R + 1) * GRID;
+  // Only walls near the token can matter.
+  const near = state.gmOverride ? [] : blockingWalls().filter((w) =>
+    Math.min(w.x1, w.x2) <= x0 + reachPx && Math.max(w.x1, w.x2) >= x0 - reachPx &&
+    Math.min(w.y1, w.y2) <= y0 + reachPx && Math.max(w.y1, w.y2) >= y0 - reachPx);
+
+  const cost = rule === 'circle' ? reachCircle(token, radiusFt, R, near)
+    : rule === 'alternating' ? reachAlternating(token, radiusFt, near)
+    : reachStandard(token, radiusFt, near);
   // Allies may be passed through, but a move cannot end on an occupied square.
   for (const other of state.tokens) {
-    if (other !== token) dist.delete(sqKey(other.col, other.row));
+    if (other !== token) cost.delete(sqKey(other.col, other.row));
   }
-  reachCache = { sig, map: dist };
-  return dist;
+  reachCache = { sig, map: cost };
+  return cost;
 }
 
 /* =====================================================================
@@ -749,9 +736,30 @@ function reachable(token) {
 const activeToken = () => state.tokens[state.activeIndex] || null;
 const characterFor = (t) => (t?.characterId ? state.characters.find((c) => c.id === t.characterId) : null);
 
-function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '' }) {
-  return { id, name, color, characterId, isPC, col, row, speed, image, movementRemaining: speed };
+function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '', hidden = false, kind = 'creature' }) {
+  return { id, name, color, characterId, isPC, col, row, speed, image, hidden: Boolean(hidden), kind: kind === 'trap' ? 'trap' : 'creature', movementRemaining: speed };
 }
+
+// ---- What the players can see ----
+// Player tokens are always shown. Anything else is hidden when it is marked hidden (invisible, hiding, an undiscovered trap),
+// and, while fog of war is on, whenever it is outside the party's current line of sight.
+function pointInPolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+function seenByParty(t) {
+  if (t.isPC) return true;
+  if (t.hidden) return false;
+  if (!state.fogEnabled || state.gmOverride) return true;
+  const x = centerOf(t.col), y = centerOf(t.row);
+  return state.sight.some((s) => Math.hypot(x - s.cx, y - s.cy) <= s.radius * 0.9 && pointInPolygon(x, y, s.poly));
+}
+const canSee = (t) => seenByParty(t) || state.dmView;
 
 // Token art cache: url -> HTMLImageElement (loads lazily, re-renders when ready).
 const tokenArt = new Map();
@@ -809,6 +817,13 @@ function syncTokensWithCharacters() {
       t.movementRemaining = Math.min(t.movementRemaining, c.speed);
     }
   }
+  // Characters made on the Character Sheets page get a token the first time the tabletop sees them.
+  for (const c of state.characters) {
+    if (state.tokens.some((t) => t.characterId === c.id)) continue;
+    const [col, row] = START_SQUARES[state.tokens.filter((t) => t.isPC).length % START_SQUARES.length];
+    const spot = freeSquareNear(clamp(col, 0, cols() - 1), clamp(row, 0, rows() - 1));
+    state.tokens.push(makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.speed, image: c.image || '' }));
+  }
   const idx = state.tokens.findIndex((t) => t.id === activeId);
   state.activeIndex = idx >= 0 ? idx : clamp(state.activeIndex, 0, Math.max(0, state.tokens.length - 1));
 }
@@ -828,6 +843,7 @@ function animateToken(t, fromX, fromY) {
 function tokenAt(wx, wy) {
   for (let i = state.tokens.length - 1; i >= 0; i--) {
     const t = state.tokens[i];
+    if (!canSee(t)) continue;
     if (Math.hypot(wx - centerOf(t.col), wy - centerOf(t.row)) <= GRID * 0.45) return t;
   }
   return null;
@@ -846,7 +862,11 @@ function doorAt(wx, wy) {
 
 function endTurn() {
   if (!state.tokens.length) return;
-  state.activeIndex = (state.activeIndex + 1) % state.tokens.length;
+  // Creatures the party cannot see are skipped: the AI plays their turns in the narration.
+  for (let n = 0; n < state.tokens.length; n++) {
+    state.activeIndex = (state.activeIndex + 1) % state.tokens.length;
+    if (seenByParty(activeToken())) break;
+  }
   const next = activeToken();
   next.movementRemaining = next.speed;
   toast(`${next.name}'s turn — ${next.speed} ft of movement`, 'ok');
@@ -854,7 +874,7 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '' };
+  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature' };
 }
 
 /* =====================================================================
@@ -883,11 +903,13 @@ function revealFog() {
   vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
   vctx.fillRect(0, 0, W, H);
   const radius = (VISION_FT / FT_PER_SQUARE) * GRID;
+  state.sight = [];
   for (const t of state.tokens) {
     if (!t.isPC) continue;
     const cx = centerOf(t.col), cy = centerOf(t.row);
     const poly = visibilityPolygon(cx, cy);
     if (poly.length < 3) continue;
+    state.sight.push({ cx, cy, poly, radius });
     for (const c of [sctx, vctx]) {
       c.save();
       c.globalCompositeOperation = 'destination-out';
@@ -904,6 +926,7 @@ function revealFog() {
     }
   }
   scheduleFogSave();
+  renderTurnBar();
   requestRender();
 }
 
@@ -999,39 +1022,6 @@ async function onMapChanged() {
   fitView();
   await loadFog();
   commitBoard();
-  renderMapTools();
-}
-
-async function uploadMap(file) {
-  if (!file) return;
-  if (!file.type.startsWith('image/')) { toast('Please choose an image file', 'error'); return; }
-  const status = $('#uploadStatus');
-  status.textContent = `Uploading ${file.name}…`;
-  const form = new FormData();
-  form.append('map', file);
-  try {
-    const data = await api('/api/upload', { method: 'POST', body: form });
-    status.textContent = `Uploaded ${file.name}`;
-    await setMap(data.url);
-    await refreshMapGallery();
-    toast('Map loaded', 'ok');
-  } catch (err) {
-    status.textContent = `Upload failed: ${err.message}`;
-    toast(`Upload failed: ${err.message}`, 'error');
-  } finally {
-    $('#mapFile').value = '';
-  }
-}
-
-async function refreshMapGallery() {
-  try {
-    const data = await api('/api/maps');
-    state.mapList = Array.isArray(data.maps) ? data.maps : [];
-  } catch (err) {
-    state.mapList = [];
-    console.warn('Could not list maps:', err.message);
-  }
-  renderMapTools();
 }
 
 /* =====================================================================
@@ -1048,21 +1038,7 @@ function wallsChanged() {
   state.wallsVersion++;
   store.set(wallsKey(), state.walls);
   revealFog();
-  renderMapTools();
   renderTurnBar();
-}
-
-function undoWall() {
-  if (!state.walls.length) { toast('No walls to undo'); return; }
-  state.walls.pop();
-  wallsChanged();
-}
-
-function clearWalls() {
-  if (!state.walls.length) return;
-  if (!confirm(`Remove all ${state.walls.length} wall segments from this map?`)) return;
-  state.walls = [];
-  wallsChanged();
 }
 
 /* =====================================================================
@@ -1174,18 +1150,23 @@ function drawReachable() {
     const [c, r] = k.split(',').map(Number);
     ctx.fillRect(c * GRID, r * GRID, GRID, GRID);
   }
-  // Boundary outline: edges whose neighbour is outside the reachable set.
   ctx.strokeStyle = 'rgba(240, 192, 72, 0.85)';
   ctx.lineWidth = 2 / state.view.scale;
   ctx.setLineDash([6 / state.view.scale, 4 / state.view.scale]);
   ctx.beginPath();
-  for (const k of set) {
-    const [c, r] = k.split(',').map(Number);
-    const x = c * GRID, y = r * GRID;
-    if (!set.has(sqKey(c, r - 1))) { ctx.moveTo(x, y); ctx.lineTo(x + GRID, y); }
-    if (!set.has(sqKey(c, r + 1))) { ctx.moveTo(x, y + GRID); ctx.lineTo(x + GRID, y + GRID); }
-    if (!set.has(sqKey(c - 1, r))) { ctx.moveTo(x, y); ctx.lineTo(x, y + GRID); }
-    if (!set.has(sqKey(c + 1, r))) { ctx.moveTo(x + GRID, y); ctx.lineTo(x + GRID, y + GRID); }
+  if (state.moveRule === 'circle') {
+    // Round rule: the true circle at the movement radius.
+    ctx.arc(centerOf(t.col), centerOf(t.row), (t.movementRemaining / FT_PER_SQUARE) * GRID, 0, Math.PI * 2);
+  } else {
+    // Boundary outline: edges whose neighbour is outside the reachable set.
+    for (const k of set) {
+      const [c, r] = k.split(',').map(Number);
+      const x = c * GRID, y = r * GRID;
+      if (!set.has(sqKey(c, r - 1))) { ctx.moveTo(x, y); ctx.lineTo(x + GRID, y); }
+      if (!set.has(sqKey(c, r + 1))) { ctx.moveTo(x, y + GRID); ctx.lineTo(x + GRID, y + GRID); }
+      if (!set.has(sqKey(c - 1, r))) { ctx.moveTo(x, y); ctx.lineTo(x, y + GRID); }
+      if (!set.has(sqKey(c + 1, r))) { ctx.moveTo(x + GRID, y); ctx.lineTo(x + GRID, y + GRID); }
+    }
   }
   ctx.stroke();
   ctx.restore();
@@ -1209,14 +1190,17 @@ function tokenDisplayPos(t, now) {
 function drawTokens(pcs, now) {
   const active = activeToken();
   const radius = GRID * 0.4;
-  const ordered = state.tokens.filter((t) => t.isPC === pcs);
+  const ordered = state.tokens.filter((t) => (pcs ? (t.isPC || (state.dmView && !seenByParty(t))) : (!t.isPC && seenByParty(t))));
   // Draw the dragged token last so it floats above the others.
   ordered.sort((a, b) => (a === interaction.token) - (b === interaction.token));
   for (const t of ordered) {
     const { x, y } = tokenDisplayPos(t, now);
     const isActive = t === active;
     const dragging = interaction.mode === 'drag' && interaction.token === t;
+    const ghost = !t.isPC && !seenByParty(t);
+    const glyph = t.kind === 'trap' ? '⚠' : initials(t.name);
     ctx.save();
+    if (ghost) ctx.globalAlpha = 0.45;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     ctx.shadowBlur = dragging ? 18 : 8;
     ctx.shadowOffsetY = dragging ? 6 : 2;
@@ -1257,8 +1241,8 @@ function drawTokens(pcs, now) {
       ctx.textBaseline = 'middle';
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-      ctx.strokeText(initials(t.name), x, y + 1);
-      ctx.fillText(initials(t.name), x, y + 1);
+      ctx.strokeText(glyph, x, y + 1);
+      ctx.fillText(glyph, x, y + 1);
     }
 
     const c = characterFor(t);
@@ -1274,7 +1258,7 @@ function drawTokens(pcs, now) {
       ctx.font = `700 ${Math.round(GRID * 0.22)}px Inter, "Segoe UI", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const label = t.name;
+      const label = ghost ? `${t.name} (${t.hidden ? (t.kind === 'trap' ? 'hidden trap' : 'hidden') : 'out of sight'})` : t.name;
       const tw = ctx.measureText(label).width + 10;
       const ly = y - radius - 11;
       ctx.fillStyle = 'rgba(7, 9, 13, 0.85)';
@@ -1295,8 +1279,8 @@ function dragTarget() {
   const { col, row } = worldToCell(x, y);
   const cell = { col: clamp(col, 0, cols() - 1), row: clamp(row, 0, rows() - 1) };
   const same = cell.col === t.col && cell.row === t.row;
-  const steps = reachable(t).get(sqKey(cell.col, cell.row));
-  return { ...cell, same, steps, legal: same || steps !== undefined };
+  const cost = reachable(t).get(sqKey(cell.col, cell.row));
+  return { ...cell, same, cost, legal: same || cost !== undefined };
 }
 
 function drawDragPreview() {
@@ -1318,7 +1302,7 @@ function drawDragPreview() {
   ctx.stroke();
   ctx.setLineDash([]);
   const label = target.same ? '0 ft'
-    : target.legal ? (state.gmOverride ? 'GM move' : `${target.steps * FT_PER_SQUARE} ft`)
+    : target.legal ? (state.gmOverride ? 'GM move' : `${Math.round(target.cost)} ft`)
     : 'Out of range';
   ctx.font = `700 ${14 / s}px Inter, "Segoe UI", system-ui, sans-serif`;
   ctx.textAlign = 'center';
@@ -1521,7 +1505,7 @@ function finishPointer(e, cancelled) {
     } else if (target.legal) {
       t.col = target.col;
       t.row = target.row;
-      if (!state.gmOverride) t.movementRemaining = Math.max(0, t.movementRemaining - target.steps * FT_PER_SQUARE);
+      if (!state.gmOverride) t.movementRemaining = Math.max(0, t.movementRemaining - Math.min(t.movementRemaining, Math.round(target.cost)));
       animateToken(t, fromX, fromY);
       revealFog();
       commitBoard();
@@ -1554,7 +1538,6 @@ canvas.addEventListener('pointerup', (e) => finishPointer(e, false));
 canvas.addEventListener('pointercancel', (e) => finishPointer(e, true));
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  if (state.drawWalls) { undoWall(); return; }
   const pos = eventPos(e);
   const world = screenToWorld(pos.x, pos.y);
   const t = tokenAt(world.x, world.y);
@@ -1573,7 +1556,6 @@ window.addEventListener('keydown', (e) => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
   if (e.key === 'Escape' && interaction.mode) cancelInteraction();
   if (typing) return;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && state.drawWalls) { e.preventDefault(); undoWall(); }
 });
 
 /* =====================================================================
@@ -1589,6 +1571,7 @@ function renderTurnBar() {
   const tracker = $('#turnTracker');
   tracker.innerHTML = '';
   state.tokens.forEach((t, i) => {
+    if (!canSee(t)) return;
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = `turn-chip${i === state.activeIndex ? ' active' : ''}${t.isPC ? '' : ' npc'}`;
@@ -1621,23 +1604,12 @@ function saveBoard() {
 function commitBoard() {
   saveBoard();
   renderTurnBar();
-  renderCharacters();
   requestRender();
 }
 
 /* =====================================================================
    UI: TABS
    ===================================================================== */
-function selectTab(name) {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    const on = tab.dataset.tab === name;
-    tab.setAttribute('aria-selected', String(on));
-    document.getElementById(tab.getAttribute('aria-controls')).classList.toggle('active', on);
-  });
-  store.set('vtt.tab', name);
-  if (name === 'chat') scrollChat();
-}
-
 /* =====================================================================
    UI: AI DM CHAT
    ===================================================================== */
@@ -1724,16 +1696,18 @@ async function sendTurn(spokenText) {
       message: content,
       history,
       activeTokenId: active ? active.id : null,
-      tokens: state.tokens.map(serializeToken),
-      characters: state.characters,
+      tokens: state.tokens.map((t) => ({ ...serializeToken(t), visibleToParty: seenByParty(t) })),
+      characters: state.characters.map(({ sheetLog, ...rest }) => rest),
       walls: state.walls.map(({ x1, y1, x2, y2, type, open }) => ({ x1, y1, x2, y2, type, open: !!open })),
       gridSize: GRID,
+      movementRule: state.moveRule,
       mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
       inputMode: isVoice ? 'voice' : 'text'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
     applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
+    applyCharacterUpdates(data.characterUpdates, data.characterProblems);
     if (lines.length) voice.speak(lines, msgEl);
   } catch (err) {
     addChat('system', `Could not reach the AI DM: ${err.message}`);
@@ -1974,14 +1948,6 @@ const voice = (() => {
     return choice;
   }
 
-  function populateVoicePicker() {
-    const sel = $('#narratorVoice');
-    const voices = synth ? synth.getVoices().filter((v) => /^en/i.test(v.lang)) : [];
-    const saved = store.get('vtt.narratorVoice', '');
-    sel.innerHTML = '<option value="">Auto (best available)</option>' + voices
-      .map((v) => `<option value="${esc(v.name)}"${v.name === saved ? ' selected' : ''}>${esc(v.name)}</option>`).join('');
-  }
-
   function cancelSpeech() {
     speakGen++;
     if (speaking) setMicMuted(false);
@@ -1999,7 +1965,6 @@ const voice = (() => {
   const wantCloud = () => cloud.enabled && enginePref() === 'cloud';
 
   function updateEngineNote() {
-    $('#engineSel').value = enginePref();
     $('#voiceEngine').textContent = enginePref() === 'browser'
       ? 'Voices: Microsoft'
       : cloud.enabled
@@ -2124,20 +2089,10 @@ const voice = (() => {
 
   function init() {
     if (synth) synth.getVoices(); // kick off async voice loading in Chrome
-    if (synth && 'onvoiceschanged' in synth) synth.onvoiceschanged = () => { assigned.clear(); populateVoicePicker(); };
-    populateVoicePicker();
+    if (synth && 'onvoiceschanged' in synth) synth.onvoiceschanged = () => { assigned.clear(); };
     checkCloud();
-    $('#engineSel').addEventListener('change', (e) => {
-      store.set('vtt.voiceEngine', e.target.value);
-      cancelSpeech();
-      checkCloud();
-    });
-    window.addEventListener('focus', checkCloud); // pick up a key saved on the Settings page
-    $('#narratorVoice').addEventListener('change', (e) => {
-      store.set('vtt.narratorVoice', e.target.value);
-      assigned.clear();
-      speak([{ speaker: 'Narrator', voice: 'narrator', text: 'The torchlight flickers, and the door creaks open.' }], null);
-    });
+    // Back from the Settings page: pick up a new key, engine or narrator voice.
+    window.addEventListener('focus', () => { assigned.clear(); checkCloud(); });
     const btn = $('#micBtn');
     btn.addEventListener('pointerdown', (e) => { e.preventDefault(); btn.setPointerCapture(e.pointerId); beginHold(); });
     btn.addEventListener('pointerup', endHold);
@@ -2162,6 +2117,24 @@ const voice = (() => {
   return { init, speak, cancelSpeech, ensureMic };
 })();
 
+// Sheet changes the DM made were already saved by the server; show them and refresh the table's copy of each character.
+function applyCharacterUpdates(updates, problems) {
+  let changed = false;
+  for (const u of Array.isArray(updates) ? updates : []) {
+    if (!u || !u.character) continue;
+    const i = state.characters.findIndex((c) => c.id === u.character.id);
+    if (i >= 0) state.characters[i] = u.character; else state.characters.push(u.character);
+    for (const note of Array.isArray(u.notes) ? u.notes : []) addChat('system', `↳ ${u.name}: ${note}`);
+    if (u.readyLevel) addChat('system', `★ ${u.name} has enough XP to reach level ${u.readyLevel}. Ask the DM to level up.`);
+    changed = true;
+  }
+  for (const p of Array.isArray(problems) ? problems : []) addChat('system', `⚠ ${p}`);
+  if (changed) {
+    syncTokensWithCharacters();
+    commitBoard();
+  }
+}
+
 function applyMapUpdates(updates) {
   if (!updates.length) return;
   let wallsTouched = false;
@@ -2175,33 +2148,53 @@ function applyMapUpdates(updates) {
         t.col = clamp(u.col, 0, cols() - 1);
         t.row = clamp(u.row, 0, rows() - 1);
         animateToken(t, fromX, fromY);
-        addChat('system', `↳ ${t.name} moved to (${t.col}, ${t.row})`);
+        if (seenByParty(t)) addChat('system', `↳ ${t.name} moved to (${t.col}, ${t.row})`);
         break;
       }
       case 'addToken': {
         if (!u.tokenId || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
         const existing = state.tokens.find((x) => x.id === u.tokenId);
         const spot = existing ? { col: clamp(u.col, 0, cols() - 1), row: clamp(u.row, 0, rows() - 1) } : freeSquareNear(u.col, u.row);
+        let token = existing;
         if (existing) {
           Object.assign(existing, spot, { name: u.name || existing.name, color: /^#[0-9a-f]{6}$/i.test(u.color || '') ? u.color : existing.color });
+          if (typeof u.hidden === 'boolean') existing.hidden = u.hidden;
+          if (u.kind === 'trap' || u.kind === 'creature') existing.kind = u.kind;
         } else {
-          state.tokens.push(makeToken({
+          token = makeToken({
             id: String(u.tokenId),
             name: u.name || 'Creature',
             color: /^#[0-9a-f]{6}$/i.test(u.color || '') ? u.color : '#a04545',
             isPC: false,
+            hidden: u.hidden === true,
+            kind: u.kind,
             ...spot
-          }));
+          });
+          state.tokens.push(token);
         }
-        addChat('system', `↳ ${u.name || u.tokenId} appears at (${spot.col}, ${spot.row})`);
+        // Nothing is said in the chat about a token the players cannot see.
+        if (seenByParty(token)) addChat('system', `↳ ${u.name || u.tokenId} appears at (${spot.col}, ${spot.row})`);
         break;
       }
       case 'removeToken': {
         const idx = state.tokens.findIndex((x) => x.id === u.tokenId);
         if (idx < 0) break;
+        const wasSeen = seenByParty(state.tokens[idx]);
         const [removed] = state.tokens.splice(idx, 1);
         if (idx < state.activeIndex || state.activeIndex >= state.tokens.length) state.activeIndex = Math.max(0, state.activeIndex - 1);
-        addChat('system', `↳ ${removed.name} removed from the board`);
+        if (wasSeen) addChat('system', `↳ ${removed.name} removed from the board`);
+        break;
+      }
+      case 'revealToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t) break;
+        t.hidden = false;
+        addChat('system', `↳ ${t.name} is revealed at (${t.col}, ${t.row})`);
+        break;
+      }
+      case 'hideToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (t && !t.isPC) t.hidden = true;
         break;
       }
       case 'setHp': {
@@ -2247,122 +2240,6 @@ async function loadCharacters() {
   syncTokensWithCharacters();
 }
 
-function renderCharacters() {
-  const list = $('#charList');
-  if (!state.characters.length) {
-    list.innerHTML = '<div class="empty">No characters yet. Create one to place it on the map.</div>';
-    return;
-  }
-  const active = activeToken();
-  list.innerHTML = state.characters.map((c) => {
-    const pct = c.maxHp ? clamp((c.hp / c.maxHp) * 100, 0, 100) : 0;
-    const barColor = pct > 50 ? 'var(--ok)' : pct > 25 ? 'var(--gold)' : 'var(--danger)';
-    const onBoard = state.tokens.some((t) => t.characterId === c.id);
-    const isActive = active?.characterId === c.id;
-    const abilities = ABILITIES.map((k) => `
-      <div class="ability"><div class="k">${k.toUpperCase()}</div><div class="m">${fmtMod(mod(c.abilities?.[k] ?? 10))}</div><div class="s">${esc(c.abilities?.[k] ?? 10)}</div></div>`).join('');
-    return `
-      <article class="card char-card${isActive ? ' is-active' : ''}" data-id="${esc(c.id)}">
-        <div class="char-head">
-          <div class="char-avatar" style="background:${esc(c.color)}">${esc(initials(c.name))}</div>
-          <div style="flex:1; min-width:0;">
-            <div class="char-name">${esc(c.name)}${isActive ? ' <span style="color:var(--gold); font-size:12px;">· ACTIVE TURN</span>' : ''}</div>
-            <div class="char-sub">Level ${esc(c.level)} ${esc(c.class)}${onBoard ? '' : ' · not on map'}</div>
-          </div>
-        </div>
-        <div class="hp-row">
-          <button class="btn btn-sm" data-act="hp" data-delta="-1" title="Damage 1 (Shift: 5)" aria-label="Decrease HP">−</button>
-          <div class="hp-bar"><div style="width:${pct}%; background:${barColor}"></div></div>
-          <span class="hp-text">${esc(c.hp)}/${esc(c.maxHp)} HP</span>
-          <button class="btn btn-sm" data-act="hp" data-delta="1" title="Heal 1 (Shift: 5)" aria-label="Increase HP">+</button>
-        </div>
-        <div class="stat-row">
-          <div class="stat"><div class="k">Armor Class</div><div class="v">${esc(c.ac)}</div></div>
-          <div class="stat"><div class="k">Speed</div><div class="v">${esc(c.speed)} ft</div></div>
-          <div class="stat"><div class="k">Initiative</div><div class="v">${fmtMod(mod(c.abilities?.dex ?? 10))}</div></div>
-        </div>
-        <div class="abilities">${abilities}</div>
-        <div class="char-actions">
-          <button class="btn btn-sm" data-act="place">${onBoard ? '◎ Find token' : '＋ Place token'}</button>
-          <button class="btn btn-sm" data-act="edit">✎ Edit</button>
-          <button class="btn btn-sm btn-danger" data-act="delete">Delete</button>
-        </div>
-      </article>`;
-  }).join('');
-}
-
-function buildAbilityInputs() {
-  $('#abilityInputs').innerHTML = ABILITIES.map((k) => `
-    <label class="field">${k.toUpperCase()} <span class="mod" data-mod="${k}">+0</span>
-      <input type="number" name="ab_${k}" min="1" max="30" value="10">
-    </label>`).join('');
-}
-
-function refreshFormMods() {
-  const form = $('#charForm');
-  for (const k of ABILITIES) {
-    form.querySelector(`[data-mod="${k}"]`).textContent = fmtMod(mod(form.elements[`ab_${k}`].value || 10));
-  }
-}
-
-function openCharForm(c = null) {
-  const form = $('#charForm');
-  form.reset();
-  form.hidden = false;
-  $('#charFormTitle').textContent = c ? `Edit ${c.name}` : 'New Character';
-  form.elements.id.value = c?.id ?? '';
-  form.elements.name.value = c?.name ?? '';
-  form.elements.class.value = c?.class ?? '';
-  form.elements.level.value = c?.level ?? 1;
-  form.elements.maxHp.value = c?.maxHp ?? 10;
-  form.elements.hp.value = c?.hp ?? 10;
-  form.elements.ac.value = c?.ac ?? 12;
-  form.elements.speed.value = c?.speed ?? 30;
-  form.elements.color.value = c?.color ?? '#4f9dff';
-  setCharArt(c?.image ?? '');
-  for (const k of ABILITIES) form.elements[`ab_${k}`].value = c?.abilities?.[k] ?? 10;
-  refreshFormMods();
-  form.elements.name.focus();
-  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function closeCharForm() {
-  $('#charForm').hidden = true;
-}
-
-async function submitCharForm(e) {
-  e.preventDefault();
-  const f = e.target.elements;
-  const maxHp = Number(f.maxHp.value);
-  const payload = {
-    name: f.name.value.trim(),
-    class: f.class.value.trim(),
-    level: Number(f.level.value),
-    maxHp,
-    hp: Math.min(Number(f.hp.value), maxHp),
-    ac: Number(f.ac.value),
-    speed: Number(f.speed.value),
-    color: f.color.value,
-    image: f.image.value,
-    abilities: Object.fromEntries(ABILITIES.map((k) => [k, Number(f[`ab_${k}`].value)]))
-  };
-  if (f.id.value) payload.id = f.id.value;
-  if (!payload.name) { toast('Name is required', 'error'); return; }
-  try {
-    const saved = await jsonPost('/api/characters', payload);
-    const idx = state.characters.findIndex((c) => c.id === saved.id);
-    if (idx >= 0) state.characters[idx] = saved; else state.characters.push(saved);
-    state.characters.sort((a, b) => a.name.localeCompare(b.name));
-    if (idx < 0) placeCharacterToken(saved, false);
-    syncTokensWithCharacters();
-    closeCharForm();
-    commitBoard();
-    toast(`${saved.name} saved`, 'ok');
-  } catch (err) {
-    toast(`Save failed: ${err.message}`, 'error');
-  }
-}
-
 function placeCharacterToken(c, center = true) {
   let t = state.tokens.find((x) => x.characterId === c.id);
   if (!t) {
@@ -2377,97 +2254,12 @@ function placeCharacterToken(c, center = true) {
   return t;
 }
 
-async function onCharListClick(e) {
-  const btn = e.target.closest('button[data-act]');
-  if (!btn) return;
-  const id = btn.closest('[data-id]').dataset.id;
-  const c = state.characters.find((x) => x.id === id);
-  if (!c) return;
-  switch (btn.dataset.act) {
-    case 'hp': {
-      const delta = Number(btn.dataset.delta) * (e.shiftKey ? 5 : 1);
-      c.hp = clamp(c.hp + delta, 0, c.maxHp);
-      commitBoard();
-      try { await jsonPost('/api/characters', c); } catch (err) { toast(`Could not save HP: ${err.message}`, 'error'); }
-      break;
-    }
-    case 'place':
-      placeCharacterToken(c, true);
-      commitBoard();
-      break;
-    case 'edit':
-      openCharForm(c);
-      break;
-    case 'delete':
-      if (!confirm(`Delete ${c.name}? This removes the sheet from the server and the token from the map.`)) return;
-      try {
-        await api(`/api/characters/${encodeURIComponent(c.id)}`, { method: 'DELETE' });
-        state.characters = state.characters.filter((x) => x.id !== c.id);
-        syncTokensWithCharacters();
-        revealFog();
-        commitBoard();
-        toast(`${c.name} deleted`);
-      } catch (err) {
-        toast(`Delete failed: ${err.message}`, 'error');
-      }
-      break;
-  }
-}
-
 /* =====================================================================
    TOKEN LIBRARY & TOKEN ART
    ===================================================================== */
 function prettyMapName(url) {
   const base = String(url || '').split('/').pop().replace(/\.[a-z0-9]+$/i, '').replace(/-[0-9a-z]{6,10}$/, (m) => (/\d/.test(m) && /[a-z]/.test(m) ? '' : m));
   return base.split('-').filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') || 'Map';
-}
-
-async function loadTokenList() {
-  try {
-    const data = await api('/api/tokens');
-    state.tokenList = Array.isArray(data.tokens) ? data.tokens : [];
-  } catch (err) {
-    state.tokenList = [];
-    console.warn('Could not list tokens:', err.message);
-  }
-  fillTokenGallery($('#libGallery'), placeLibraryToken);
-}
-
-function fillTokenGallery(container, onPick, selectedUrl = '') {
-  container.innerHTML = '';
-  if (!state.tokenList.length) {
-    container.textContent = 'No token art found in public/tokens.';
-    return;
-  }
-  state.tokenList.forEach((url, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.title = `Token ${i + 1}`;
-    b.setAttribute('aria-label', `Token art ${i + 1}`);
-    if (url === selectedUrl) b.className = 'selected';
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = '';
-    img.loading = 'lazy';
-    b.appendChild(img);
-    b.addEventListener('click', () => onPick(url, b));
-    container.appendChild(b);
-  });
-}
-
-function placeLibraryToken(url) {
-  const nameInput = $('#libName');
-  const name = nameInput.value.trim() || `Token ${state.tokenList.indexOf(url) + 1}`;
-  const party = $('#libParty').checked;
-  const mid = screenToWorld(wrap.clientWidth / 2, wrap.clientHeight / 2);
-  const cell = worldToCell(mid.x, mid.y);
-  const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
-  const id = `tok-lib-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
-  state.tokens.push(makeToken({ id, name, color: party ? '#4f9dff' : '#a04545', isPC: party, image: url, ...spot }));
-  nameInput.value = '';
-  revealFog();
-  commitBoard();
-  toast(`${name} placed at (${spot.col}, ${spot.row})`, 'ok');
 }
 
 function removeTokenAt(t) {
@@ -2480,60 +2272,25 @@ function removeTokenAt(t) {
   commitBoard();
 }
 
-function setCharArt(url) {
-  const form = $('#charForm');
-  form.elements.image.value = url || '';
-  const img = $('#charArtPreview');
-  img.hidden = !url;
-  if (url) img.src = url;
-  $('#charArtGallery').hidden = true;
-}
-
 /* =====================================================================
    UI: MAP TOOLS
    ===================================================================== */
-function renderMapTools() {
-  const gallery = $('#mapGallery');
-  gallery.innerHTML = '';
-  const def = document.createElement('button');
-  def.type = 'button';
-  def.textContent = 'Default grid';
-  def.className = state.map.url ? '' : 'current';
-  def.addEventListener('click', () => setMap(null));
-  gallery.appendChild(def);
-  for (const url of state.mapList) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    const pretty = prettyMapName(url);
-    b.title = pretty;
-    b.setAttribute('aria-label', `Use map ${pretty}`);
-    b.style.backgroundImage = `url("${encodeURI(url)}")`;
-    const cap = document.createElement('span');
-    cap.className = 'cap';
-    cap.textContent = pretty;
-    b.appendChild(cap);
-    if (url === state.map.url) b.className = 'current';
-    b.addEventListener('click', () => setMap(url));
-    gallery.appendChild(b);
-  }
-  const doors = state.walls.filter((w) => w.type === 'door').length;
-  $('#wallMeta').textContent = `${state.walls.length - doors} wall segment(s), ${doors} door(s) on this map · saved in this browser`;
-  $('#drawWallsToggle').checked = state.drawWalls;
-  $('#fogToggle').checked = state.fogEnabled;
-  $('#gmToggle').checked = state.gmOverride;
-  $('#gridOpacity').value = state.gridOpacity;
-  $('#gridOpacityVal').textContent = `${Math.round(state.gridOpacity * 100)}%`;
-  document.querySelectorAll('#wallTypeSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.type === state.wallType)));
-  $('#modeBadge').classList.toggle('show', state.drawWalls);
-  $('#modeBadge').textContent = `DRAW ${state.wallType === 'door' ? 'DOORS' : 'WALLS'} MODE`;
-}
-
 /* =====================================================================
    EVENT BINDINGS
    ===================================================================== */
 function bindUi() {
-  document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => selectTab(tab.dataset.tab)));
-
+  $('#moveRule').addEventListener('change', (e) => {
+    if (!MOVE_RULES.includes(e.target.value)) return;
+    state.moveRule = e.target.value;
+    store.set('vtt.moveRule', state.moveRule);
+    requestRender();
+  });
+  $('#dmView').addEventListener('change', (e) => {
+    state.dmView = e.target.checked;
+    store.set('vtt.dmView', state.dmView);
+    renderTurnBar();
+    requestRender();
+  });
   $('#endTurnBtn').addEventListener('click', endTurn);
   $('#zoomInBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 1.25));
   $('#zoomOutBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 0.8));
@@ -2551,66 +2308,6 @@ function bindUi() {
     renderChat();
   });
 
-  buildAbilityInputs();
-  $('#charArtBtn').addEventListener('click', () => {
-    const g = $('#charArtGallery');
-    if (g.hidden) fillTokenGallery(g, (url) => setCharArt(url), $('#charForm').elements.image.value);
-    g.hidden = !g.hidden;
-  });
-  $('#charArtClear').addEventListener('click', () => setCharArt(''));
-  $('#newCharBtn').addEventListener('click', () => openCharForm(null));
-  $('#cancelCharBtn').addEventListener('click', closeCharForm);
-  $('#charForm').addEventListener('submit', submitCharForm);
-  $('#charForm').addEventListener('input', refreshFormMods);
-  $('#charList').addEventListener('click', onCharListClick);
-
-  const dz = $('#dropzone');
-  $('#mapFile').addEventListener('change', (e) => uploadMap(e.target.files[0]));
-  dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#mapFile').click(); } });
-  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
-  dz.addEventListener('drop', (e) => uploadMap(e.dataTransfer.files[0]));
-
-  $('#gridOpacity').addEventListener('input', (e) => {
-    state.gridOpacity = Number(e.target.value);
-    $('#gridOpacityVal').textContent = `${Math.round(state.gridOpacity * 100)}%`;
-    saveBoard();
-    requestRender();
-  });
-  $('#drawWallsToggle').addEventListener('change', (e) => {
-    state.drawWalls = e.target.checked;
-    if (interaction.mode === 'wall') cancelInteraction();
-    renderMapTools();
-    updateCursor(null);
-    requestRender();
-  });
-  document.querySelectorAll('#wallTypeSeg button').forEach((b) => b.addEventListener('click', () => {
-    state.wallType = b.dataset.type;
-    renderMapTools();
-  }));
-  $('#undoWallBtn').addEventListener('click', undoWall);
-  $('#clearWallsBtn').addEventListener('click', clearWalls);
-  $('#fogToggle').addEventListener('change', (e) => {
-    state.fogEnabled = e.target.checked;
-    saveBoard();
-    requestRender();
-  });
-  $('#gmToggle').addEventListener('change', (e) => {
-    state.gmOverride = e.target.checked;
-    renderTurnBar();
-    requestRender();
-  });
-  $('#resetFogBtn').addEventListener('click', () => {
-    if (confirm('Re-cover the whole map in fog? Explored areas will be forgotten.')) resetFog();
-  });
-  $('#resetTokensBtn').addEventListener('click', () => {
-    if (!confirm('Remove all NPCs and move party tokens back to the start?')) return;
-    createDefaultTokens();
-    clampTokensToMap();
-    revealFog();
-    commitBoard();
-  });
-
   new ResizeObserver(() => {
     resizeCanvas();
     if (!sized && wrap.clientWidth && wrap.clientHeight) { sized = true; fitView(); }
@@ -2624,6 +2321,11 @@ function bindUi() {
 async function init() {
   bindUi();
   const board = store.get('vtt.board', null);
+  const savedRule = store.get('vtt.moveRule', 'circle');
+  if (MOVE_RULES.includes(savedRule)) state.moveRule = savedRule;
+  $('#moveRule').value = state.moveRule;
+  state.dmView = store.get('vtt.dmView', false) === true;
+  $('#dmView').checked = state.dmView;
   state.chat = store.get('vtt.chat', []);
   if (!Array.isArray(state.chat)) state.chat = [];
   if (board && typeof board === 'object') {
@@ -2632,21 +2334,26 @@ async function init() {
     state.fogEnabled = board.fogEnabled !== false;
     state.gridOpacity = Number.isFinite(board.gridOpacity) ? board.gridOpacity : 0.35;
   }
-  selectTab(store.get('vtt.tab', 'chat'));
   renderChat();
+  scrollChat();
   await loadCharacters();
   if (!state.tokens.length) createDefaultTokens();
   await setMap(board?.mapUrl || null);
-  await refreshMapGallery();
-  await loadTokenList();
   if (!state.chat.length) {
-    addChat('system', 'Welcome to AI-VTT. Drag the highlighted token to move (gold outline = legal range), press End Turn to pass, and describe actions here for the AI Dungeon Master.');
+    let campaignNote = '';
+    try {
+      const data = await api('/api/campaigns');
+      const active = (data.campaigns || []).find((x) => x.active);
+      if (active) campaignNote = active.totalChars ? ` Campaign: ${active.name} (${active.files.length} documents loaded).` : ` Campaign: ${active.name} has no text loaded, so the DM is improvising. Add it on the Campaigns page.`;
+      if (active && active.test && !/rusty-flagon/.test(state.map.url || '')) campaignNote += ' The scenario\'s map and NPCs are not loaded on this table: open the Test Lab and press Set up the table.';
+    } catch { /* the welcome line works without it */ }
+    addChat('system', `Welcome to AI-VTT. Drag the highlighted token to move (gold outline = legal range), press End Turn to pass, and describe actions here for the AI Dungeon Master.${campaignNote}`);
   }
   commitBoard();
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty };
 
 init().catch((err) => {
   console.error(err);
