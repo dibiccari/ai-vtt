@@ -156,15 +156,15 @@ let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
 // Each DM voice tag maps to a few OpenAI voices plus an acting direction.
 const TTS_PROFILES = {
   narrator:  { voices: ['fable', 'sage'], style: 'A warm, expressive fantasy game-master narrator. Measured pace, rich storytelling, subtle drama. Slow down for tension and speed up for action.' },
-  gruff:     { voices: ['onyx', 'ash'], style: 'Gruff, weathered and blunt. Low and rough, impatient, as if tired of fools.' },
-  sly:       { voices: ['ash', 'echo'], style: 'Sly and smooth, quick and amused, a little mischievous, with a hint of a smirk in every line.' },
-  noble:     { voices: ['echo', 'fable'], style: 'Dignified and confident, crisp diction, an air of authority and good breeding.' },
-  elderly:   { voices: ['sage', 'fable'], style: 'Voice: a very old man or woman, ninety years old, frail and thin, breathy, hoarse and cracked, with a trembling quaver. Pacing: slow and halting, long pauses between phrases to catch breath, words dragging at the ends. Tone: tired, wistful and gentle, a little confused. Never strong, smooth, clear or young.' },
+  gruff:     { voices: ['onyx', 'ash'], style: 'A gruff, weathered old soldier. Gravelly, hoarse and rough, like he smokes and shouts a lot. Blunt and clipped, impatient, as if tired of fools.' },
+  sly:       { voices: ['ash', 'echo'], style: 'A sly, scheming rogue. Silky and low, almost conspiratorial, as if sharing a secret. Smirking and amused, drawing out key words, with a sly purr and sudden quick, quiet asides.' },
+  noble:     { voices: ['echo', 'fable'], style: 'A refined aristocrat with a polished upper-class British accent. Dignified, poised and commanding, with crisp, precise diction and a measured, unhurried pace. Courteous but faintly condescending, born to rule.' },
+  elderly:   { voices: ['ash', 'onyx'], style: 'A very old man. Raspy, gravelly and hoarse, with a weak, shaky, breathy voice. Speak slowly, with pauses to catch his breath. Weary and gentle.' },
   child:     { voices: ['shimmer', 'coral'], style: 'Voice: a tiny child of six or seven. Extremely high-pitched, squeaky, light and breathy, with a sing-song childlike lilt. Pacing: quick and uneven, tumbling over words, sometimes giggling or gasping. Tone: wide-eyed, excited and innocent. Never sound like an adult doing a child impression.' },
-  monstrous: { voices: ['onyx'], style: 'A monstrous creature. Very deep and guttural, growling, menacing, with slow heavy phrasing.' },
+  monstrous: { voices: ['onyx'], style: 'A snarling monster, not a person. Extremely deep, growling and guttural, with a wet rasp and snarls between words. Slow, heavy and menacing.' },
   ethereal:  { voices: ['shimmer', 'sage'], style: 'Ethereal and otherworldly. Airy, soft and haunting, with long pauses.' },
-  feminine:  { voices: ['nova', 'coral', 'shimmer'], style: 'A warm, expressive woman. Natural, conversational and lively.' },
-  masculine: { voices: ['ash', 'echo', 'onyx'], style: 'A strong, steady man. Natural, firm and clear.' }
+  feminine:  { voices: ['nova', 'coral', 'shimmer'], style: 'A woman in her thirties. High, light, soft and clearly feminine, warm and expressive, natural and conversational.' },
+  masculine: { voices: ['onyx', 'ash'], style: 'A big, burly man in his forties. Natural baritone, warm and chesty, with a confident edge. Strong, steady and commanding, unmistakably male.' }
 };
 
 // Named characters get their own voice and acting direction. Edit data/campaign/voices.json to change them.
@@ -173,15 +173,15 @@ const DEFAULT_CHARACTER_VOICES = {
   'Sildar Hallwinter': { voice: 'echo', style: 'A noble, honorable human knight. Steady and sincere, a little weary from hard travel, speaking with quiet resolve.' },
   'Gundren Rockseeker': { voice: 'ash', style: 'A gruff, excitable dwarf prospector with a rough burr. Proud and brusque, thrilled about treasure.' },
   'Toblen Stonehill': { voice: 'alloy', style: 'A warm, friendly innkeeper. Cheerful and hospitable, but worried about the town underneath the welcome.' },
-  'Elmar Barthen': { voice: 'fable', style: 'An old, tidy shopkeeper in his seventies. Polite, patient and a little fussy, with a thin, creaky, aged voice that wavers slightly and slows down to think.' },
+  'Elmar Barthen': { voice: 'ash', style: 'An old, tidy shopkeeper in his seventies. Polite, patient and a little fussy, with a thin, creaky, aged voice that wavers slightly and slows down to think.' },
   'Sister Garaele': { voice: 'coral', style: 'A calm elven priestess and secret Harper. Soft, graceful and measured, with a hint of mystery.' },
   'Halia Thornton': { voice: 'nova', style: 'A brisk, ambitious businesswoman. Polished, calculating and cool, every sentence a negotiation.' },
   'Iarno Glasstaff': { voice: 'verse', style: 'A smug, arrogant wizard who thinks he is the cleverest person in the room. Silky, contemptuous and controlled.' },
   'Klarg': { voice: 'onyx', style: 'A brutish bugbear boss. Very deep and guttural, loud and bullying, speaking in broken short sentences.' },
-  'Yeemik': { voice: 'shimmer', style: 'A scheming goblin leader. Raspy, high and fast, nervous, sneaky and eager to make a deal.' },
-  'Nezznar': { voice: 'sage', style: 'A cold, patient drow spellcaster known as the Black Spider. Quiet, silky and venomous, never raising his voice.' },
+  'Yeemik': { voice: 'alloy', style: 'A scheming goblin leader. Raspy, high and fast, nervous, sneaky and eager to make a deal.' },
+  'Nezznar': { voice: 'echo', style: 'A cold, patient drow spellcaster known as the Black Spider. Quiet, silky and venomous, never raising his voice.' },
   'Agatha': { voice: 'ballad', style: 'A haunting banshee. Whispering, mournful and echoing, with long eerie pauses and sudden sharpness.' },
-  'Reidoth': { voice: 'echo', style: 'A very old, solitary druid. Slow, gravelly and weathered, a gentle rasp and a quaver of age, with the calm of someone who prefers trees to people.' }
+  'Reidoth': { voice: 'onyx', style: 'A very old, solitary druid. Slow, gravelly and weathered, a gentle rasp and a quaver of age, with the calm of someone who prefers trees to people.' }
 };
 const KNOWN_OPENAI_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse']);
 

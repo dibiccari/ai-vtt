@@ -4,8 +4,20 @@
   'use strict';
 
   var FX = {
-    elderly: { rate: 0.88, keepPitch: true, thin: 190, vibrato: { hz: 5.2, depth: 0.0009 } },
-    child: { rate: 1.22, keepPitch: false }
+    elderly: { rate: 0.8, keepPitch: true, thin: 260, vibrato: { hz: 4.6, depth: 0.0019 } },
+    child: { rate: 1.22, keepPitch: false },
+    // Light distortion adds grit and the highs are rolled off a little, for a rough, weathered voice.
+    gruff: { rate: 0.95, keepPitch: false, distort: 2.5, lowpass: 4500 },
+    // A touch quicker, with the pitch kept, for a glib, slippery delivery.
+    sly: { rate: 1.06, keepPitch: true },
+    // A slightly slower, unhurried pace (pitch kept) reads as poised and authoritative.
+    noble: { rate: 0.95, keepPitch: true },
+    // A small pitch lift (pitch not preserved) makes the voice read clearly female.
+    feminine: { rate: 1.08, keepPitch: false },
+    // A small pitch drop (pitch not preserved) makes the voice read clearly male.
+    masculine: { rate: 0.92, keepPitch: false, bass: 4 },
+    // Slower with pitch not preserved = deeper, then crunch it and roll off the highs for a growl.
+    monstrous: { rate: 0.78, keepPitch: false, distort: 14, lowpass: 2600 }
   };
 
   var ctx = null;
@@ -38,7 +50,7 @@
     el.playbackRate = rate;
     setPitchPreserve(el, fx ? fx.keepPitch : true);
 
-    var needsGraph = Boolean(fx && (fx.thin || fx.vibrato));
+    var needsGraph = Boolean(fx && (fx.thin || fx.vibrato || fx.distort || fx.lowpass || fx.bass));
     if (!needsGraph && !source) return; // nothing to route; leave the element alone
 
     try {
@@ -77,6 +89,42 @@
       tail.connect(delay);
       tail = delay;
       nodes.push(delay, lfo, depth);
+    }
+
+    if (needsGraph && fx.bass) {
+      // A low-shelf boost (dB) adds chest resonance.
+      var shelf = ctx.createBiquadFilter();
+      shelf.type = 'lowshelf';
+      shelf.frequency.value = 220;
+      shelf.gain.value = fx.bass;
+      tail.connect(shelf);
+      tail = shelf;
+      nodes.push(shelf);
+    }
+
+    if (needsGraph && fx.distort) {
+      // Soft clipping adds harsh harmonics, which reads as a rough, inhuman growl.
+      var shaper = ctx.createWaveShaper();
+      var curve = new Float32Array(1024);
+      for (var i = 0; i < curve.length; i++) {
+        var x = (i / (curve.length - 1)) * 2 - 1;
+        curve[i] = Math.tanh(x * fx.distort) * 0.6;
+      }
+      shaper.curve = curve;
+      shaper.oversample = '2x';
+      tail.connect(shaper);
+      tail = shaper;
+      nodes.push(shaper);
+    }
+
+    if (needsGraph && fx.lowpass) {
+      var lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = fx.lowpass;
+      lp.Q.value = 0.7;
+      tail.connect(lp);
+      tail = lp;
+      nodes.push(lp);
     }
 
     tail.connect(ctx.destination);
