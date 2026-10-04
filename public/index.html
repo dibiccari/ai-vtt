@@ -453,6 +453,7 @@ const state = {
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
+  wallsInPicture: false,
   places: [],                 // the maps this campaign can move to
   dmView: false,
   sight: []
@@ -590,8 +591,9 @@ function zoomAt(sx, sy, factor) {
   requestRender();
 }
 
-// Regional and town maps are plain pictures: no tokens, no fog, no movement, shown whole.
-function plainMap() { return state.mapKind !== 'battle'; }
+// Regional and town maps are plain pictures: no tokens, no fog, no movement, shown whole. A camp map shows tokens and the grid but has no fog of war.
+function plainMap() { return state.mapKind === 'regional' || state.mapKind === 'town'; }
+function noFogMap() { return state.mapKind !== 'battle'; }
 
 // Opening view for boards that ask for it (a big battle map is too large to show whole): close on the active token.
 function focusStart() {
@@ -1165,9 +1167,9 @@ async function travelTo(u) {
     npcs: state.tokens.filter((t) => !t.isPC).map(serializeToken),
     party: Object.fromEntries(state.tokens.filter((t) => t.isPC).map((t) => [t.id, { col: t.col, row: t.row }]))
   };
-  if (!plainMap() && u.kind !== 'battle') state.fogBeforeOverland = state.fogEnabled;
+  if (!noFogMap() && u.kind !== 'battle') state.fogBeforeOverland = state.fogEnabled;
   await setMap(u.mapUrl);
-  state.mapKind = u.kind === 'regional' || u.kind === 'town' ? u.kind : 'battle';
+  state.mapKind = u.kind === 'regional' || u.kind === 'town' || u.kind === 'camp' ? u.kind : 'battle';
   // An arrival spot saved on the Map Test page is in image pixels; turn it into a board square at this map's scale.
   if (u.px && state.map.img) {
     const f = state.map.drawW / state.map.img.naturalWidth;
@@ -1191,7 +1193,8 @@ async function travelTo(u) {
     state.fogEnabled = false;
   } else {
     state.gridOpacity = 0.35;
-    if (state.fogBeforeOverland !== null) { state.fogEnabled = state.fogBeforeOverland; state.fogBeforeOverland = null; }
+    if (state.mapKind === 'camp') state.fogEnabled = false;
+    else if (state.fogBeforeOverland !== null) { state.fogEnabled = state.fogBeforeOverland; state.fogBeforeOverland = null; }
   }
   state.zoomToParty = !plainMap() && cols() > 45;
   $('#fogToggle').checked = state.fogEnabled;
@@ -1206,14 +1209,15 @@ async function travelTo(u) {
 
 // Controls that make no sense on a regional map are switched off while one is showing.
 function syncMapUi() {
-  const regional = plainMap();
+  const regional = noFogMap();
+  const plain = plainMap();
   $('#fogToggle').disabled = regional;
   $('#resetFogBtn').disabled = regional;
-  $('#moveRule').disabled = regional;
-  const why = 'Not used on a regional or town map';
+  $('#moveRule').disabled = plain;
+  const why = plain ? 'Not used on a regional or town map' : 'No fog of war on a camp map';
   $('#fogToggle').parentElement.title = regional ? why : "Fog of war: only what the party can see from where they stand is shown, and explored areas are remembered. Enemies outside the party's sight are hidden.";
   $('#resetFogBtn').title = regional ? why : 'Cover the whole map in fog again. Explored areas are forgotten.';
-  $('#moveRule').parentElement.title = regional ? why : 'How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.';
+  $('#moveRule').parentElement.title = plain ? why : 'How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.';
 }
 
 // The maps this campaign can move to, offered in the top bar.
@@ -1247,6 +1251,7 @@ async function serverWalls() {
     if (!res.ok) return [];
     const { config } = await res.json();
     if (!config || !Array.isArray(config.walls)) return [];
+    state.wallsInPicture = config.source === 'dd2vtt';        // the picture already shows its own walls: only doors are marked on top
     const f = state.map.drawW / state.map.img.naturalWidth;
     return config.walls.map((w) => ({
       x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open)
@@ -1257,6 +1262,7 @@ async function serverWalls() {
 }
 
 async function onMapChanged() {
+  state.wallsInPicture = false;
   state.walls = store.get(wallsKey(), []);
   if (!Array.isArray(state.walls)) state.walls = [];
   if (!state.walls.length) state.walls = await serverWalls();
@@ -1353,6 +1359,7 @@ function drawWallSegments(alpha) {
   ctx.lineCap = 'round';
   for (const w of state.walls) {
     const isDoor = w.type === 'door';
+    if (state.wallsInPicture && !isDoor && !state.drawWalls && !state.gmOverride) continue;
     ctx.setLineDash(isDoor && w.open ? [10, 8] : []);
     ctx.lineWidth = 10;
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
@@ -2280,6 +2287,8 @@ function renderCombat() {
     btn('Roll for players', 'Roll initiative for every player character that has none yet', rollForPlayers);
     btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
   } else {
+    btn('Short rest', 'The party takes a short rest', () => takeRest('short'));
+    btn('Long rest', 'The party camps for the night: hit points and spell slots are restored', () => takeRest('long'));
     btn('Start combat', 'Roll initiative for the creatures on the board and begin tracking rounds', startCombat, 'btn-primary');
   }
   const add = document.createElement('div');
@@ -2319,6 +2328,29 @@ function renderCombat() {
     // Out of combat the tracker still shows hit points of anything that has them, so damage can be tracked before a fight too.
     for (const t of state.tokens.filter((x) => canSee(x) && maxHpOf(x) !== null && (x.isPC ? false : true))) box.appendChild(combatRow(t));
   }
+}
+
+// A rest ends lasting effects on the player tokens; a long rest also clears exhaustion and the dying state. (Hit points and spell
+// slots are restored on the server; the characters are reloaded after.)
+function restTokens(kind) {
+  for (const t of state.tokens.filter((x) => x.isPC)) {
+    t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(kind === 'long' && (c.name === 'exhaustion' || c.name === 'unconscious')));
+    if (kind === 'long') { t.deathSaves = null; t.stable = false; t.dead = false; }
+  }
+  revealFog();
+  addChat('system', kind === 'long' ? '☾ The party takes a long rest: hit points and spell slots are restored' : '☾ The party takes a short rest');
+  commitBoard();
+}
+
+async function takeRest(kind) {
+  if (state.busy) return;
+  try {
+    await jsonPost('/api/party/rest', { kind });
+    await loadCharacters();
+    restTokens(kind);
+    // Let the Dungeon Master narrate it (and handle anything that happens in the night).
+    await sendTurn(`The party takes a ${kind} rest here. (The table has already restored hit points and spell slots.)`, { typed: true });
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 // Attack d20 for tables where the player rolls their own dice.
@@ -2987,6 +3019,9 @@ async function applyMapUpdates(updates) {
         if (state.combat.active) { if (!state.combat.order.includes(t.id)) joinCombat(t); sortCombat(); }
         break;
       }
+      case 'restParty':
+        restTokens(u.kind);
+        break;
       case 'startCombat':
         if (!state.combat.active) startCombat();
         break;
@@ -3160,7 +3195,7 @@ async function init() {
     state.gridOpacity = Number.isFinite(board.gridOpacity) ? board.gridOpacity : 0.35;
     state.zoomToParty = board.zoomToParty === true;
     // Boards saved before the kind was recorded: the Sword Coast map is the overland one.
-    state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : 'battle';
+    state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : board.mapKind === 'camp' ? 'camp' : 'battle';
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
     state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
     state.combat = board.combat && board.combat.active && Array.isArray(board.combat.order) ? { active: true, round: Math.max(1, Number(board.combat.round) || 1), order: board.combat.order.map(String) } : { active: false, round: 0, order: [] };
@@ -3192,7 +3227,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, changeHp, startCombat, endCombat, nextCombatTurn };
 
 init().catch((err) => {
   console.error(err);

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap } from './lib/campaign-maps.js';
 import { listEntries, getEntry } from './lib/compendium.js';
-import { MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
+import { restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -345,6 +345,21 @@ app.put('/api/party/characters/:id', asyncRoute(async (req, res) => {
   const saved = normalizeCharacter(syncSheet(next));
   await saveCharacter(saved);
   res.json({ character: partyView(saved), problems });
+}));
+
+// Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).
+async function restParty(kind) {
+  const rested = [];
+  for (const c of await listCharacters()) {
+    const { character, note } = restCharacter(c, kind);
+    if (note) { await saveCharacter(normalizeCharacter(character)); rested.push(c.id); }
+  }
+  return rested;
+}
+
+app.post('/api/party/rest', asyncRoute(async (req, res) => {
+  const kind = req.body?.kind === 'long' ? 'long' : 'short';
+  res.json({ kind, rested: await restParty(kind) });
 }));
 
 app.put('/api/party/stash', asyncRoute(async (req, res) => {
@@ -703,7 +718,7 @@ Maps of kind "regional" (a Sword Coast map) and "town" (Phandalin) are just pict
 Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
 Return mechanical changes in mapUpdates:
-- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "damage" or "heal": change a creature's or character's hit points by value (tokenId). action "initiative": set a token's initiative to value (tokenId). action "startCombat" or "endCombat": begin or finish combat on the table's combat tracker. For action "add", monster is the SRD index of the creature (lowercase with hyphens, for example "goblin" or "adult-red-dragon"): the table then fills in its hit points, Armor Class and speed from the SRD stat block, so leave value and ac as 0. For a creature that is not in the SRD (an adventure's named villain, a custom monster) leave monster as "" and give its hit points in value and its Armor Class in ac. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
+- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "damage" or "heal": change a creature's or character's hit points by value (tokenId). action "initiative": set a token's initiative to value (tokenId). action "startCombat" or "endCombat": begin or finish combat on the table's combat tracker. action "rest": the party finishes a rest, value 1 for a short rest or 2 for a long rest (a long rest restores every character's hit points and spell slots and clears lasting effects: send it only once the rest has actually been completed, not if it was interrupted). When the party makes camp, change the map to the campsite (camp-day, or camp-night after dark) if the maps list has one. For action "add", monster is the SRD index of the creature (lowercase with hyphens, for example "goblin" or "adult-red-dragon"): the table then fills in its hit points, Armor Class and speed from the SRD stat block, so leave value and ac as 0. For a creature that is not in the SRD (an adventure's named villain, a custom monster) leave monster as "" and give its hit points in value and its Armor Class in ac. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
 - changeMap: move the whole table to another place (mapId from the maps list in the board state, arrive: one of that map's arrivalSpots, or "default", and a short reason). The party's tokens are moved to the arrival spot, and the creatures of the scene you are leaving are put away until you return. Put changeMap first in the list, then add the creatures of the new scene with addToken (hidden ones with hidden true).
 - updateCharacter: change a player character's sheet. Always send characterId, a short reason, and edits, a list of { field, value }. field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. A skill is set with field "skill <name>" (for example "skill Stealth") and value none, proficient or expertise. Saving throw proficiency uses field "save <ability>" (for example "save dex") and value proficient or none. A spell is added with field "spell add <level>" and removed with "spell remove <level>", the value being the spell name (level 0 for cantrips). The total spell slots of a level use field "slots <level>" and the number as value. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
 - setHp: set a player character's current HP (characterId, hp).
@@ -775,6 +790,7 @@ async function expandTokenUpdates(updates) {
     else if (u.action === 'damage') out.push({ type: 'damageToken', ...base, value: u.value });
     else if (u.action === 'heal') out.push({ type: 'healToken', ...base, value: u.value });
     else if (u.action === 'initiative') out.push({ type: 'setInitiative', ...base, value: u.value });
+    else if (u.action === 'rest') out.push({ type: 'restParty', kind: Number(u.value) === 2 ? 'long' : 'short' });
     else if (u.action === 'startCombat') out.push({ type: 'startCombat' });
     else if (u.action === 'endCombat') out.push({ type: 'endCombat' });
     else if (u.action === 'remove') out.push({ type: 'removeToken', ...base });
@@ -821,7 +837,7 @@ const DM_SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
+          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'rest'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
           upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
@@ -966,6 +982,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     }
     // A map change comes first, so the creatures that follow are placed on the new map.
     const boardUpdates = [...travel.slice(0, 1), ...allUpdates.filter((u) => u && u.type !== 'updateCharacter' && u.type !== 'changeMap' && u.type !== 'journal' && u.type !== 'gear')];
+    const restedIds = [];
+    for (const u of allUpdates.filter((x) => x && x.type === 'restParty')) restedIds.push(...await restParty(u.kind));
     const partyResult = await processPartyUpdates(gearToPartyUpdates(allUpdates), {
       list: listCharacters,
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; },
@@ -984,7 +1002,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       mapUpdates: boardUpdates,
       characterUpdates: sheetResults.results,
       partyNotes: partyResult.notes,
-      partyChanged: partyResult.changed,
+      partyChanged: [...new Set([...partyResult.changed, ...restedIds])],
       journalAdded: journalAdded.map((e) => ({ category: e.category, title: e.title })),
       characterProblems: [...mapProblems, ...sheetResults.problems, ...partyResult.problems]
     });

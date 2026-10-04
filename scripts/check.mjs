@@ -24,7 +24,7 @@ check('server.js', path.join(root, 'server.js'));
 const { CAMPAIGN_MAPS, mapsFor } = await import(path.join(root, 'lib', 'campaign-maps.js'));
 const uploads = await readdir(path.join(root, 'public', 'uploads'));
 for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
-  for (const m of mapsFor(campaign, uploads).filter((x) => x.kind === 'battle')) {
+  for (const m of mapsFor(campaign, uploads).filter((x) => x.kind === 'battle' || x.kind === 'camp')) {
     let starts = [];
     try { starts = JSON.parse(await readFile(path.join(root, 'data', 'maps', m.url.split('/').pop() + '.json'), 'utf8')).starts || []; } catch { /* no config */ }
     if (starts.some((s) => s.name === 'start')) console.log(`OK   start spot: ${campaign}/${m.id}`);
