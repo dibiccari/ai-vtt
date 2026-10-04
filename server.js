@@ -88,7 +88,7 @@ await seedCharacters();
 // ---------------------------------------------------------------- app
 
 const app = express();
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(PUBLIC_DIR));
 
 const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -126,7 +126,7 @@ const upload = multer({
       cb(null, `${base}-${Date.now().toString(36)}${ext}`);
     }
   }),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ok = file.mimetype.startsWith('image/') && IMAGE_EXT.has(path.extname(file.originalname).toLowerCase());
     cb(ok ? null : Object.assign(new Error('Only PNG, JPG, WEBP or GIF images are allowed'), { status: 400 }), ok);
@@ -146,6 +146,61 @@ app.get('/api/maps', asyncRoute(async (_req, res) => {
 app.get('/api/tokens', asyncRoute(async (_req, res) => {
   const files = (await readdir(TOKEN_DIR)).filter((f) => TOKEN_URL_RE.test(`/tokens/${f}`)).sort();
   res.json({ tokens: files.map((f) => `/tokens/${f}`) });
+}));
+
+// ---------------------------------------------------------------- per-map config (walls + grid calibration)
+// Stored in data/maps/<image file name>.json so it survives browser changes. Wall coordinates are in image pixels.
+
+const MAP_CONFIG_DIR = path.join(__dirname, 'data', 'maps');
+await mkdir(MAP_CONFIG_DIR, { recursive: true });
+
+function mapConfigFile(name) {
+  const base = path.basename(String(name ?? ''));
+  if (!/^[a-z0-9][a-z0-9._-]{0,80}$/i.test(base) || !IMAGE_EXT.has(path.extname(base).toLowerCase())) {
+    throw Object.assign(new Error('map must be the file name of an uploaded image'), { status: 400 });
+  }
+  return path.join(MAP_CONFIG_DIR, `${base}.json`);
+}
+
+function normalizeMapConfig(body) {
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
+  const walls = [];
+  for (const w of Array.isArray(body?.walls) ? body.walls.slice(0, 20000) : []) {
+    const [x1, y1, x2, y2] = [num(w?.x1), num(w?.y1), num(w?.x2), num(w?.y2)];
+    if ([x1, y1, x2, y2].includes(null)) continue;
+    walls.push({ x1, y1, x2, y2, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open) });
+  }
+  const config = { squares: int(body?.squares, 50, 5, 400), walls };
+  if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
+  return config;
+}
+
+app.get('/api/map-config', asyncRoute(async (req, res) => {
+  try {
+    res.json({ config: JSON.parse(await readFile(mapConfigFile(req.query.map), 'utf8')) });
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+    res.json({ config: null });
+  }
+}));
+
+// Which maps have saved config, and where it came from (source is 'dd2vtt' for maps set up from a Universal VTT file).
+app.get('/api/map-configs', asyncRoute(async (_req, res) => {
+  const out = [];
+  for (const f of await readdir(MAP_CONFIG_DIR)) {
+    if (!f.endsWith('.json')) continue;
+    try {
+      const c = JSON.parse(await readFile(path.join(MAP_CONFIG_DIR, f), 'utf8'));
+      out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0 });
+    } catch { /* skip unreadable config */ }
+  }
+  res.json({ configs: out });
+}));
+
+app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
+  const config = normalizeMapConfig(req.body);
+  await writeFile(mapConfigFile(req.query.map), JSON.stringify(config, null, 2));
+  res.json({ ok: true, walls: config.walls.length });
 }));
 
 // ---------------------------------------------------------------- cloud voices (OpenAI text-to-speech)
@@ -490,7 +545,7 @@ function localOnly(req, res, next) {
   if (origin) {
     try { originOk = new URL(origin).host === host; } catch { originOk = false; }
   }
-  if (!loopback || !hostOk || !originOk) return res.status(403).json({ error: 'Settings can only be changed from this computer.' });
+  if (!loopback || !hostOk || !originOk) return res.status(403).json({ error: 'This can only be done from this computer.' });
   next();
 }
 

@@ -972,9 +972,27 @@ function setMap(url) {
   });
 }
 
+// Walls saved for this map on the server (data/maps/, made on the Map Test page), converted from image pixels to board pixels.
+async function serverWalls() {
+  if (!state.map.url || !state.map.img) return [];
+  try {
+    const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
+    if (!res.ok) return [];
+    const { config } = await res.json();
+    if (!config || !Array.isArray(config.walls)) return [];
+    const f = state.map.drawW / state.map.img.naturalWidth;
+    return config.walls.map((w) => ({
+      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open)
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function onMapChanged() {
   state.walls = store.get(wallsKey(), []);
   if (!Array.isArray(state.walls)) state.walls = [];
+  if (!state.walls.length) state.walls = await serverWalls();
   state.wallsVersion++;
   clampTokensToMap();
   resetShroud();
