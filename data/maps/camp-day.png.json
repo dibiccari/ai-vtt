@@ -9933,5 +9933,16 @@
   "source": "dd2vtt",
   "group": "camp",
   "variant": "day",
+  "lights": [
+    {
+      "x": 1000,
+      "y": 750,
+      "range": 9,
+      "intensity": 1,
+      "color": "ffff9a3c",
+      "name": "campfire",
+      "flicker": true
+    }
+  ],
   "ambient": "ffffffff"
 }

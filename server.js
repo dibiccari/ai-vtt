@@ -241,7 +241,7 @@ function normalizeMapConfig(body) {
   for (const l of Array.isArray(body?.lights) ? body.lights.slice(0, 500) : []) {
     const [x, y, range, intensity] = [num(l?.x), num(l?.y), num(l?.range), num(l?.intensity)];
     if ([x, y, range].includes(null)) continue;
-    lights.push({ x, y, range, intensity: intensity ?? 1, color: /^[0-9a-f]{6,8}$/i.test(String(l?.color ?? '')) ? String(l.color).toLowerCase() : 'ffffff', ...(String(l?.name ?? '').trim() ? { name: String(l.name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) } : {}) });
+    lights.push({ x, y, range, intensity: intensity ?? 1, color: /^[0-9a-f]{6,8}$/i.test(String(l?.color ?? '')) ? String(l.color).toLowerCase() : 'ffffff', ...(l?.flicker === true ? { flicker: true } : {}), ...(String(l?.name ?? '').trim() ? { name: String(l.name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) } : {}) });
   }
   const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
   if (lights.length) config.lights = lights;

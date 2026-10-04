@@ -418,6 +418,7 @@
 <script src="/uvtt.js"></script>
 <script src="/scenes.js"></script>
 <script src="/wallobjects.js"></script>
+<script src="/flicker.js"></script>
 <script src="/ambience.js"></script>
 <script>
 'use strict';
@@ -1469,8 +1470,20 @@ function drawBackground() {
   if (img) {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, drawW, drawH);
+    drawFlickeringLights();
   }
 }
+
+// Fires and torches marked "flicker" in the map config are animated over the picture (not when put out).
+function flickerLights() {
+  const off = state.lightsOff[state.map.url || ''] || [];
+  return state.lights.filter((l) => l.flicker && !off.includes(l.id));
+}
+function drawFlickeringLights() {
+  const t = performance.now() / 1000;
+  for (const L of flickerLights()) Flicker.draw(ctx, L.x, L.y, GRID, t);
+}
+setInterval(() => { if (document.visibilityState === 'visible' && !plainMap() && flickerLights().length) requestRender(); }, 66);
 
 function drawGrid() {
   const { width, height } = state.map;
@@ -2296,7 +2309,7 @@ async function loadMapLighting() {
     const f = state.map.drawW / state.map.img.naturalWidth;
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
-      id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2
+      id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2, flicker: l.flicker === true
     }));
   } catch { /* no config: bright, no lights */ }
 }

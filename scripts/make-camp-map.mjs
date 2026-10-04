@@ -144,7 +144,7 @@ function drawCampfire() {
   disc(cx, cy, sq(0.32), [255, 150, 40], 0.95);
   disc(cx, cy, sq(0.17), [255, 226, 120]);
   props.push({ x: FIRE.x, y: FIRE.y, r: 1.4 });
-  lights.push({ x: FIRE.x, y: FIRE.y, range: 9, intensity: 1, color: 'ffff9a3c', name: 'campfire' });
+  lights.push({ x: FIRE.x, y: FIRE.y, range: 9, intensity: 1, color: 'ffff9a3c', name: 'campfire', flicker: true });
 }
 
 function drawLog(cx, cy, len, rot) {
@@ -343,7 +343,7 @@ function uvtt(pixels, night) {
     objects_line_of_sight: [],
     portals: [],
     environment: { baked_lighting: true, ambient_light: night ? 'ff1a2240' : 'ffffffff' },
-    lights: (night ? lights : lights.filter((l) => l.intensity < 0)).map((l) => ({ position: { x: l.x, y: l.y }, range: l.range, intensity: l.intensity, color: l.color, shadows: true, name: l.name })),
+    lights: (night ? lights : lights.filter((l) => l.name === 'campfire')).map((l) => ({ position: { x: l.x, y: l.y }, range: l.range, intensity: l.intensity, color: l.color, shadows: true, name: l.name, ...(l.flicker ? { flicker: true } : {}) })),
     image: encodePng(pixels).toString('base64')
   };
 }

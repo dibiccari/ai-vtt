@@ -9940,7 +9940,8 @@
       "range": 9,
       "intensity": 1,
       "color": "ffff9a3c",
-      "name": "campfire"
+      "name": "campfire",
+      "flicker": true
     },
     {
       "x": 550,

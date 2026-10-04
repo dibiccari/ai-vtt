@@ -32,12 +32,13 @@
   .readout .in { color:var(--ok); } .readout .exp { color:var(--gold); } .readout .un { color:var(--danger); }
   .tests { font:12px Consolas, monospace; display:flex; flex-direction:column; gap:2px; }
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
-  .variant-switch { position:absolute; left:12px; top:12px; display:flex; gap:0; z-index:5; }
+  .stage-bar { position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5; }
+  .stage-bar > button { padding:6px 14px; border-radius:8px; }
+  .variant-switch { display:flex; gap:0; }
   .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
   .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
   .variant-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
-  .banner.with-switch { top:56px; }
-  .banner { position:absolute; left:12px; top:12px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:70%; }
+  .banner { position:absolute; left:12px; top:56px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:70%; }
 </style>
 </head>
 <body>
@@ -110,12 +111,8 @@
     <h2>Walls</h2>
     <div class="row">
       <button id="clearBtn" class="danger">Clear walls</button>
-      <button id="resetFogBtn">Reset explored</button>
-      <button id="fitBtn">Fit view</button>
     </div>
     <div class="row">
-      <button id="toTableBtn" title="Copy these walls into the tabletop for this map">Send walls to tabletop</button>
-      <button id="fromTableBtn" title="Replace these walls with the ones saved in the tabletop for this map">Load walls from tabletop</button>
     </div>
     <div class="row">
       <button id="importNewBtn" title="Create a new map from a Universal VTT file: its picture, walls and doors">Import .dd2vtt as new map</button>
@@ -137,13 +134,18 @@
 
 <main id="stage">
   <canvas id="cv"></canvas>
-  <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
+  <div class="stage-bar" id="stageBar">
+    <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
+    <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
+    <button id="fitBtn" title="Fit the whole map in view">Fit view</button>
+  </div>
   <div class="banner" id="banner">Loading maps...</div>
 </main>
 
 <script src="/nav.js"></script>
 <script src="/uvtt.js"></script>
 <script src="/wallobjects.js"></script>
+<script src="/flicker.js"></script>
 <script>
 (function () {
   'use strict';
@@ -164,7 +166,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], group: '', variant: '', light: '', ambience: '', configs: [], tokens: [], visionFt: 60, source: null,
+    squares: 50, walls: [], starts: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
     tool: 'token', fog: true, dm: false, showPoly: false, showWalls: false, showGrid: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
@@ -172,9 +174,6 @@
   const cell = () => S.W / S.squares;
   S.onlyUvtt = store.get('vtt.maptest.onlyUvtt', true) !== false;
   const testKey = () => `vtt.maptest.${S.url}`;
-  const tabletopWallsKey = () => `vtt.walls.${S.url}`;
-  // The tabletop scales maps up so the short side is at least 12 squares of 50 px.
-  const tabletopScale = () => Math.max(1, 600 / Math.min(S.W, S.H));
 
   const cv = $('#cv');
   const ctx = cv.getContext('2d');
@@ -406,6 +405,8 @@
     const v = S.view;
     ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
     ctx.drawImage(S.img, 0, 0, S.W, S.H);
+    // Fires marked "flicker" in the config are animated over the picture.
+    for (const l of S.lights) Flicker.draw(ctx, l.x, l.y, cell(), performance.now() / 1000);
 
     const px = 1 / v.scale;
     if (S.showGrid) drawGrid(px);
@@ -493,7 +494,6 @@
     const order = ['day', 'night'];
     mates.sort((a, b) => (order.indexOf(a.variant) + 1 || 99) - (order.indexOf(b.variant) + 1 || 99) || String(a.variant).localeCompare(String(b.variant)));
     box.hidden = mates.length < 2;
-    $('#banner').classList.toggle('with-switch', mates.length >= 2);
     for (const c of mates) {
       const b = document.createElement('button');
       const url = '/uploads/' + c.map;
@@ -684,6 +684,7 @@
           if (remote.squares > 0) S.squares = remote.squares;
         }
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
+        S.lights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && l.flicker === true && isFinite(l.x) && isFinite(l.y)) : [];
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
@@ -997,24 +998,6 @@
   });
   $('#resetFogBtn').addEventListener('click', resetFog);
   $('#fitBtn').addEventListener('click', fitView);
-
-  $('#toTableBtn').addEventListener('click', () => {
-    if (!S.url) return;
-    if (!confirm('Replace the walls the tabletop has saved for this map with these?')) return;
-    const f = tabletopScale();
-    const ok = store.set(tabletopWallsKey(), S.walls.map((w) => ({ ...w, x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f })));
-    $('#banner').textContent = ok ? 'Walls sent to the tabletop.' : 'Could not save (browser storage unavailable).';
-  });
-  $('#fromTableBtn').addEventListener('click', () => {
-    if (!S.url) return;
-    const f = tabletopScale();
-    const list = cleanWalls(store.get(tabletopWallsKey(), [])).map((w) => ({ ...w, x1: w.x1 / f, y1: w.y1 / f, x2: w.x2 / f, y2: w.y2 / f }));
-    if (!list.length) { $('#banner').textContent = 'The tabletop has no walls saved for this map.'; return; }
-    if (S.walls.length && !confirm('Replace the walls here with the tabletop\'s?')) return;
-    S.walls = list;
-    wallsChanged();
-    $('#banner').textContent = `Loaded ${list.length} walls from the tabletop.`;
-  });
 
   /* ---------------- Universal VTT (.dd2vtt) import ---------------- */
   const uvttToWalls = Uvtt.toWalls;
