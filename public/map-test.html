@@ -393,12 +393,17 @@
     ctx.restore();
   }
 
-  // Saved arrival spots: a flag with its name.
+  // Saved arrival spots: a flag with its name. Under fog of war they follow the fog like everything else: hidden in unexplored
+  // ground, dimmed in explored ground (the DM view shows them all).
   function drawStarts(px) {
     ctx.save();
     ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
     ctx.textBaseline = 'middle';
+    const fogged = S.fog && S.tokens.length > 0 && !S.dm;
     for (const s of S.starts) {
+      const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
+      if (seen === 'unseen' || seen === null) continue;
+      ctx.globalAlpha = seen === 'explored' ? 0.5 : 1;
       ctx.fillStyle = s.name === 'start' ? 'rgba(63, 210, 127, 0.95)' : 'rgba(79, 157, 255, 0.95)';
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2 * px;
