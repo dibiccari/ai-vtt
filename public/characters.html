@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Character Sheets</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; display:grid; grid-template-columns:260px 1fr; grid-template-rows:auto 1fr; overflow:hidden; }
+  aside { background:var(--panel); border-right:1px solid var(--border); overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  aside h1 { margin:0; font-size:18px; } aside h1 span { color:var(--gold); }
+  main { min-width:0; min-height:0; display:flex; flex-direction:column; }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 12px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  .charbtn { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:8px; background:var(--panel2); font-weight:600; }
+  .charbtn[aria-current="true"] { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+  .charbtn .sw { width:36px; height:36px; border-radius:50%; flex:none; background:var(--c, #4f9dff); border:2px solid var(--gold); object-fit:cover; display:block; }
+  .charbtn small { display:block; color:var(--muted); font-weight:500; }
+  .toolbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--border); }
+  .toolbar .tok { display:block; width:56px; height:56px; border-radius:50%; border:3px solid var(--gold); background:var(--c, #4f9dff); object-fit:cover; flex:none; cursor:pointer; }
+  .toolbar .who { min-width:140px; }
+  .toolbar .who input { display:block; width:100%; font:700 16px "Segoe UI", system-ui, sans-serif; color:var(--text); background:transparent; border:1px solid transparent; border-radius:6px; padding:2px 6px; margin-left:-6px; }
+  .toolbar .who input:hover { border-color:#3a4558; }
+  .toolbar .who input:focus { background:var(--bg); border-color:var(--accent); outline:none; }
+  .toolbar .who span { color:var(--muted); font-size:12px; }
+  .toolbar label { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); font-weight:600; }
+  input[type=color] { width:34px; height:28px; padding:0; border:1px solid #3a4558; border-radius:6px; background:none; }
+  .status { margin-left:auto; font-size:13px; color:var(--muted); }
+  .status.ok { color:var(--ok); } .status.bad { color:var(--danger); } .status.dirty { color:var(--gold); }
+  details.log { background:var(--panel2); border-bottom:1px solid var(--border); padding:8px 16px; font-size:13px; }
+  details.log summary { cursor:pointer; color:var(--gold); font-weight:600; }
+  .logentry { border-top:1px solid var(--border); padding:8px 0; display:flex; gap:12px; align-items:flex-start; justify-content:space-between; }
+  .logentry:first-child { border-top:0; }
+  .logentry b { color:var(--text); } .logentry small { color:var(--muted); display:block; }
+  .logentry ul { margin:4px 0 0; padding-left:18px; color:var(--muted); }
+  .pages { overflow:auto; padding:16px; flex:1; background:#0d1117; }
+  .empty { margin:40px auto; max-width:480px; text-align:center; color:var(--muted); }
+  .paper { position:relative; margin:0 auto 18px; box-shadow:0 4px 24px rgba(0,0,0,.6); background:#fff; }
+  .paper canvas { display:block; width:100%; height:100%; }
+  .paper .lbl { position:absolute; left:8px; top:-1px; transform:translateY(-100%); font-size:11px; color:var(--muted); }
+  .fld { position:absolute; margin:0; padding:0 2px; border:1px solid transparent; background:transparent; color:#10131a; font-family:"Segoe UI", Arial, sans-serif; line-height:1.15; border-radius:2px; }
+  .fld:hover { border-color:rgba(79,157,255,.55); }
+  .fld:focus { background:rgba(79,157,255,.14); border-color:var(--accent); outline:none; }
+  textarea.fld { resize:none; padding:2px 3px; overflow:auto; }
+  input.chk { appearance:none; -webkit-appearance:none; cursor:pointer; border:1px solid rgba(16,19,26,.55); background:rgba(255,255,255,.55); }
+  input.chk:checked { background:#10131a; box-shadow:0 0 0 2px rgba(255,255,255,.8) inset; }
+  .imgbox { position:absolute; display:grid; place-items:center; border:2px dashed rgba(79,157,255,.7); background:rgba(79,157,255,.08); cursor:pointer; overflow:hidden; color:#33415c; font:600 12px "Segoe UI", sans-serif; text-align:center; }
+  .imgbox img { width:100%; height:100%; object-fit:contain; display:block; }
+  .modal { position:fixed; inset:0; background:rgba(5,7,10,.88); display:none; align-items:center; justify-content:center; z-index:60; padding:20px; }
+  .modal.open { display:flex; }
+  .modal .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; width:min(1000px, 96vw); max-height:92vh; display:flex; flex-direction:column; gap:12px; }
+  .modal .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .modal input[type=text], .modal select { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:7px 10px; font:inherit; }
+  .modal .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:8px; overflow-y:auto; padding:2px; }
+  .modal .tile { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:6px; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; color:var(--muted); text-align:center; word-break:break-word; }
+  .modal .tile img { width:100%; aspect-ratio:1; object-fit:contain; display:block; }
+  .modal .tile.sel { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+  .modal .count { margin-left:auto; color:var(--muted); font-size:13px; }
+  .note { font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Character <span>Sheets</span></h1>
+  <button class="primary" id="newBtn">+ New character</button>
+  <div id="list" style="display:flex; flex-direction:column; gap:8px;"></div>
+  <p class="note">The sheet is the official D&amp;D 5E fillable character sheet from Wizards of the Coast. Click a box and type. Saving also updates the name, class, level, HP, AC, speed and ability scores the tabletop uses.</p>
+</aside>
+
+<main>
+  <div class="toolbar" id="toolbar" hidden>
+    <img class="tok" id="tokImg" alt="" title="Choose a token" tabindex="0">
+    <div class="who"><input type="text" id="nameInput" maxlength="60" placeholder="Character name" aria-label="Character name (rename here or on the sheet)" autocomplete="off"><span id="whoSub"></span></div>
+    <button id="pickBtn">Choose token…</button>
+    <button id="clearTokBtn">Use color only</button>
+    <label>Color <input type="color" id="color" value="#4f9dff"></label>
+    <button class="primary" id="saveBtn">Save</button>
+    <button id="pdfBtn" title="Download the filled sheet as a PDF">Download PDF</button>
+    <button class="danger" id="delBtn">Delete</button>
+    <span class="status" id="status" role="status" aria-live="polite"></span>
+  </div>
+  <details class="log" id="logBox" hidden>
+    <summary id="logSummary">Recent changes by the DM</summary>
+    <div id="logList"></div>
+  </details>
+  <div class="pages" id="pages">
+    <div class="empty" id="empty">Pick a character on the left, or create a new one.</div>
+  </div>
+</main>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Choose a token">
+  <div class="card">
+    <div class="row">
+      <b>Choose a token</b>
+      <select id="mCat" aria-label="Category"><option value="">All categories</option></select>
+      <input type="text" id="mFind" placeholder="Search by name, e.g. goblin" aria-label="Search tokens" autocomplete="off">
+      <span class="count" id="mCount"></span>
+      <button id="mClose">Close</button>
+    </div>
+    <div class="grid" id="mGrid"></div>
+  </div>
+</div>
+
+<script src="/nav.js"></script>
+<script src="/vendor/pdf.min.js"></script>
+<script src="/vendor/pdf-lib.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const SHEET_URL = '/sheets/5E_CharacterSheet_Fillable.pdf';
+  const ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+  // Exact PDF field names (some carry a trailing space in the official file).
+  const SCORE_FIELD = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' };
+  const MOD_FIELD = { str: 'STRmod', dex: 'DEXmod ', con: 'CONmod', int: 'INTmod', wis: 'WISmod', cha: 'CHamod' };
+  const IMAGE_FIELD = 'CHARACTER IMAGE';
+
+  const $ = (sel) => document.querySelector(sel);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem(key); return v == null ? fallback : v; } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } }
+  };
+  async function api(url, options) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    return data;
+  }
+
+  const S = {
+    chars: [],            // everything the server has
+    cur: null,            // the character being edited (working copy)
+    sheet: {},            // working copy of the PDF field values
+    dirty: false,
+    tokens: [], meta: {}, // token library
+    fields: new Map(),    // field name -> [elements]
+    pdf: null, rendering: 0, lastWidth: 0
+  };
+
+  /* ---------------- character <-> sheet fields ---------------- */
+  const modText = (score) => { const m = Math.floor((clamp(Number(score) || 10, 1, 30) - 10) / 2); return (m >= 0 ? '+' : '') + m; };
+  const profFor = (level) => '+' + (2 + Math.floor((clamp(level, 1, 20) - 1) / 4));
+
+  const levelOfText = (text) => { const nums = [...String(text || '').matchAll(/\d+/g)].map((m) => Number(m[0])); return nums.length ? clamp(nums.reduce((a, b) => a + b, 0), 1, 20) : null; };
+  const classOfText = (text) => String(text || '').replace(/\d+/g, '').replace(/[\s\/,+]+$/, '').replace(/^[\s\/,+]+/, '').replace(/\s{2,}/g, ' ').trim();
+
+  function blankChar() {
+    return { id: '', name: '', class: '', level: 1, hp: 10, maxHp: 10, ac: 10, speed: 30, color: '#4f9dff', image: '', abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 } };
+  }
+
+  // The character record (the tabletop's copy) is the truth for these fields; the rest of the sheet comes from the saved sheet.
+  function sheetFromChar(c) {
+    const sheet = Object.assign({}, c.sheet || {});
+    const cls = c.class && c.class !== 'Adventurer' ? c.class : '';
+    const stored = (c.sheet || {}).ClassLevel;
+    // Keep what was typed (for example "Fighter 2 / Rogue 1") while it still agrees with the saved class and level.
+    const keep = c.id && stored && levelOfText(stored) === c.level && classOfText(stored) === cls;
+    const classLevel = keep ? stored : (cls + ' ' + (c.id ? c.level : '')).trim();
+    Object.assign(sheet, {
+      CharacterName: c.name || '', 'CharacterName 2': c.name || '',
+      ClassLevel: c.id ? classLevel : (sheet.ClassLevel || ''),
+      HPMax: String(c.maxHp), HPCurrent: String(c.hp), AC: String(c.ac), Speed: String(c.speed)
+    });
+    for (const k of ABIL) {
+      sheet[SCORE_FIELD[k]] = String(c.abilities[k]);
+      sheet[MOD_FIELD[k]] = modText(c.abilities[k]);
+    }
+    if (!sheet.ProfBonus) sheet.ProfBonus = profFor(c.level);
+    return sheet;
+  }
+
+  // First whole number in the box, so "30 ft., climb 30 ft." reads as 30 (not 3030).
+  const intOf = (v, def, min, max) => { const m = String(v == null ? '' : v).match(/-?\d+/); const n = m ? parseInt(m[0], 10) : NaN; return Number.isFinite(n) ? clamp(n, min, max) : def; };
+
+  function charFromSheet(base, sheet) {
+    const c = JSON.parse(JSON.stringify(base));
+    const name = String(sheet.CharacterName || '').trim() || String(sheet['CharacterName 2'] || '').trim();
+    c.name = name.slice(0, 60);
+    const cl = String(sheet.ClassLevel || '');
+    if (levelOfText(cl)) c.level = levelOfText(cl);
+    const cls = classOfText(cl);
+    c.class = (cls || c.class || 'Adventurer').slice(0, 40);
+    c.maxHp = intOf(sheet.HPMax, c.maxHp, 1, 999);
+    c.hp = intOf(sheet.HPCurrent, c.hp, 0, c.maxHp);
+    c.ac = intOf(sheet.AC, c.ac, 1, 40);
+    c.speed = intOf(sheet.Speed, c.speed, 0, 120);
+    for (const k of ABIL) c.abilities[k] = intOf(sheet[SCORE_FIELD[k]], c.abilities[k], 1, 30);
+    c.sheet = sheet;
+    return c;
+  }
+
+  /* ---------------- status / dirty ---------------- */
+  function setStatus(text, kind) {
+    const el = $('#status');
+    el.textContent = text || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function markDirty() {
+    if (!S.cur) return;
+    S.dirty = true;
+    setStatus('Unsaved changes', 'dirty');
+  }
+  function updateWho() {
+    const input = $('#nameInput');
+    if (document.activeElement !== input) input.value = S.sheet.CharacterName || '';
+    $('#whoSub').textContent = (S.sheet.ClassLevel || '').trim() || 'No class yet';
+    const img = $('#tokImg');
+    img.style.setProperty('--c', S.cur ? S.cur.color : '#4f9dff');
+    if (S.cur && S.cur.image) { img.src = S.cur.image; } else { img.removeAttribute('src'); }
+  }
+
+  /* ---------------- changes made by the DM ---------------- */
+  function renderLog() {
+    const box = $('#logBox');
+    const log = (S.cur && Array.isArray(S.cur.sheetLog)) ? S.cur.sheetLog.slice().reverse().slice(0, 10) : [];
+    box.hidden = !log.length;
+    const list = $('#logList');
+    list.innerHTML = '';
+    $('#logSummary').textContent = 'Recent changes by the DM (' + log.length + ')';
+    log.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'logentry';
+      const left = document.createElement('div');
+      const when = new Date(entry.at);
+      const title = document.createElement('b');
+      title.textContent = entry.reason || 'Updated by the DM';
+      const sub = document.createElement('small');
+      sub.textContent = (isNaN(when) ? '' : when.toLocaleString() + ' · ') + entry.changes.length + ' field' + (entry.changes.length === 1 ? '' : 's') + ' changed';
+      const ul = document.createElement('ul');
+      entry.changes.slice(0, 6).forEach((c) => {
+        const li = document.createElement('li');
+        li.textContent = c.field.trim() + ': ' + (c.from || '(blank)') + ' → ' + (c.to || '(blank)');
+        ul.appendChild(li);
+      });
+      if (entry.changes.length > 6) { const li = document.createElement('li'); li.textContent = '…and ' + (entry.changes.length - 6) + ' more'; ul.appendChild(li); }
+      left.append(title, sub, ul);
+      const undo = document.createElement('button');
+      undo.type = 'button';
+      undo.textContent = 'Undo';
+      undo.title = 'Put these fields back as they were. Press Save to keep it.';
+      undo.addEventListener('click', () => undoEntry(entry));
+      row.append(left, undo);
+      list.appendChild(row);
+    });
+  }
+
+  // Put every field of a logged change back to its earlier value. Nothing is saved until you press Save.
+  function undoEntry(entry) {
+    for (const c of entry.changes.slice().reverse()) {
+      const isBox = (S.fields.get(c.field) || []).some((el) => el.type === 'checkbox');
+      setValue(c.field, isBox ? c.from === 'true' : c.from, null);
+    }
+    setStatus('Reverted. Press Save to keep it.', 'dirty');
+  }
+
+  /* ---------------- list ---------------- */
+  function renderList() {
+    const list = $('#list');
+    list.innerHTML = '';
+    for (const c of S.chars) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'charbtn';
+      b.setAttribute('aria-current', String(S.cur && S.cur.id === c.id));
+      const sw = c.image ? document.createElement('img') : document.createElement('span');
+      sw.className = 'sw';
+      sw.style.setProperty('--c', c.color || '#4f9dff');
+      if (c.image) { sw.src = c.image; sw.alt = ''; }
+      const t = document.createElement('span');
+      t.append(document.createTextNode(c.name));
+      const sub = document.createElement('small');
+      sub.textContent = c.class + ' ' + c.level;
+      t.appendChild(sub);
+      b.append(sw, t);
+      b.addEventListener('click', () => choose(c.id));
+      list.appendChild(b);
+    }
+  }
+
+  function confirmLeave() {
+    return !S.dirty || confirm('You have unsaved changes to this sheet. Discard them?');
+  }
+
+  async function choose(id) {
+    if (S.cur && S.cur.id === id) return;
+    if (!confirmLeave()) return;
+    const c = S.chars.find((x) => x.id === id);
+    if (!c) return;
+    open(JSON.parse(JSON.stringify(c)));
+    try { history.replaceState(null, '', '?id=' + encodeURIComponent(id)); } catch { /* not critical */ }
+  }
+
+  function open(c) {
+    S.cur = c;
+    S.sheet = sheetFromChar(c);
+    S.dirty = false;
+    $('#toolbar').hidden = false;
+    $('#color').value = c.color || '#4f9dff';
+    $('#delBtn').disabled = !c.id;
+    setStatus(c.id ? '' : 'Fill in at least the name, then Save', c.id ? '' : 'dirty');
+    updateWho();
+    renderList();
+    renderLog();
+    renderSheet();
+  }
+
+  /* ---------------- sheet rendering ---------------- */
+  async function loadPdf() {
+    if (S.pdf) return S.pdf;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+    S.pdf = await pdfjsLib.getDocument(SHEET_URL).promise;
+    return S.pdf;
+  }
+
+  async function renderSheet() {
+    const token = ++S.rendering;
+    const host = $('#pages');
+    host.innerHTML = '';
+    S.fields = new Map();
+    let pdf;
+    try {
+      pdf = await loadPdf();
+    } catch (err) {
+      host.innerHTML = '';
+      const d = document.createElement('div');
+      d.className = 'empty';
+      d.textContent = 'Could not load the character sheet PDF (' + err.message + '). It should be at public/sheets/5E_CharacterSheet_Fillable.pdf.';
+      host.appendChild(d);
+      return;
+    }
+    const width = clamp(host.clientWidth - 32, 480, 980);
+    S.lastWidth = host.clientWidth;
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      if (token !== S.rendering) return;
+      const base = page.getViewport({ scale: 1 });
+      const scale = width / base.width;
+      const vp = page.getViewport({ scale });
+      const paper = document.createElement('div');
+      paper.className = 'paper';
+      paper.style.width = vp.width + 'px';
+      paper.style.height = vp.height + 'px';
+      const canvas = document.createElement('canvas');
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(vp.width * dpr);
+      canvas.height = Math.round(vp.height * dpr);
+      paper.appendChild(canvas);
+      host.appendChild(paper);
+      await page.render({
+        canvasContext: canvas.getContext('2d'),
+        viewport: page.getViewport({ scale: scale * dpr }),
+        annotationMode: pdfjsLib.AnnotationMode.DISABLE
+      }).promise;
+      if (token !== S.rendering) return;
+      const annots = await page.getAnnotations({ intent: 'display' });
+      for (const a of annots) {
+        if (a.subtype !== 'Widget') continue;
+        addField(paper, vp, a);
+      }
+    }
+  }
+
+  function box(vp, a) {
+    const r = vp.convertToViewportRectangle(a.rect);
+    return { x: Math.min(r[0], r[2]), y: Math.min(r[1], r[3]), w: Math.abs(r[2] - r[0]), h: Math.abs(r[3] - r[1]) };
+  }
+
+  function place(el, b) {
+    el.style.left = b.x + 'px';
+    el.style.top = b.y + 'px';
+    el.style.width = b.w + 'px';
+    el.style.height = b.h + 'px';
+  }
+
+  function register(name, el) {
+    if (!S.fields.has(name)) S.fields.set(name, []);
+    S.fields.get(name).push(el);
+  }
+
+  function addField(paper, vp, a) {
+    const name = a.fieldName;
+    if (!name) return;
+    const b = box(vp, a);
+    if (b.w < 3 || b.h < 3) return;
+
+    if (name === IMAGE_FIELD) {
+      if (paper.querySelector('.imgbox')) return; // the sheet repeats this field; draw it once
+      const ib = document.createElement('div');
+      ib.className = 'imgbox';
+      ib.tabIndex = 0;
+      ib.setAttribute('role', 'button');
+      ib.setAttribute('aria-label', 'Choose the character token');
+      place(ib, b);
+      ib.addEventListener('click', openPicker);
+      ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
+      paper.appendChild(ib);
+      registerImageBox(ib);
+      return;
+    }
+    if (a.fieldType === 'Btn' && !a.checkBox) return;
+
+    if (a.fieldType === 'Btn' && a.checkBox) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'fld chk';
+      cb.setAttribute('aria-label', name.trim());
+      place(cb, b);
+      cb.checked = S.sheet[name] === true;
+      cb.addEventListener('change', () => setValue(name, cb.checked, cb));
+      paper.appendChild(cb);
+      register(name, cb);
+      return;
+    }
+    if (a.fieldType !== 'Tx') return;
+
+    const multi = Boolean(a.multiLine);
+    const el = document.createElement(multi ? 'textarea' : 'input');
+    if (!multi) el.type = 'text';
+    el.className = 'fld';
+    el.setAttribute('aria-label', name.trim());
+    if (a.maxLen) el.maxLength = a.maxLen;
+    if (a.readOnly) el.readOnly = true;
+    place(el, b);
+    const declared = a.defaultAppearanceData && a.defaultAppearanceData.fontSize;
+    const pt = declared > 0 ? declared : (multi ? 9 : Math.min(b.h / vp.scale * 0.62, 12));
+    el.style.fontSize = Math.max(8, pt * vp.scale) + 'px';
+    el.style.textAlign = a.textAlignment === 1 ? 'center' : a.textAlignment === 2 ? 'right' : 'left';
+    el.value = S.sheet[name] == null ? '' : String(S.sheet[name]);
+    el.addEventListener('input', () => setValue(name, el.value, el));
+    paper.appendChild(el);
+    register(name, el);
+  }
+
+  let imageBoxes = [];
+  function registerImageBox(ib) {
+    imageBoxes.push(ib);
+    paintImageBox(ib);
+  }
+  function paintImageBox(ib) {
+    ib.innerHTML = '';
+    if (S.cur && S.cur.image) {
+      const img = document.createElement('img');
+      img.src = S.cur.image;
+      img.alt = 'Character token';
+      ib.appendChild(img);
+    } else {
+      ib.textContent = 'Click to choose the character token';
+    }
+  }
+  function paintImageBoxes() {
+    imageBoxes = imageBoxes.filter((ib) => ib.isConnected);
+    imageBoxes.forEach(paintImageBox);
+  }
+
+  // Set one field's value, mirror it to any twin field, and keep the ability modifiers in step.
+  function setValue(name, value, source) {
+    S.sheet[name] = value;
+    for (const el of S.fields.get(name) || []) {
+      if (el === source) continue;
+      if (el.type === 'checkbox') el.checked = value === true; else el.value = value;
+    }
+    if (name === 'CharacterName') setValue('CharacterName 2', value, null);
+    if (name === 'CharacterName 2' && source) setValue('CharacterName', value, null);
+    for (const k of ABIL) {
+      if (name === SCORE_FIELD[k]) {
+        const mod = MOD_FIELD[k];
+        S.sheet[mod] = modText(value);
+        for (const el of S.fields.get(mod) || []) el.value = S.sheet[mod];
+      }
+    }
+    if (name === 'ClassLevel') {
+      const nums = [...String(value).matchAll(/\d+/g)].map((m) => Number(m[0]));
+      if (nums.length) {
+        const level = clamp(nums.reduce((a, b) => a + b, 0), 1, 20);
+        S.sheet.ProfBonus = profFor(level);
+        for (const el of S.fields.get('ProfBonus') || []) el.value = S.sheet.ProfBonus;
+      }
+    }
+    updateWho();
+    markDirty();
+  }
+
+  /* ---------------- saving ---------------- */
+  async function save() {
+    if (!S.cur) return;
+    const sheetName = String(S.sheet.CharacterName || '').trim();
+    if (!sheetName) { setStatus('Enter a Character Name on the sheet first', 'bad'); return; }
+    const payload = charFromSheet(S.cur, S.sheet);
+    payload.color = $('#color').value;
+    payload.image = S.cur.image || '';
+    $('#saveBtn').disabled = true;
+    try {
+      const saved = await api('/api/characters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const i = S.chars.findIndex((c) => c.id === saved.id);
+      if (i >= 0) S.chars[i] = saved; else S.chars.push(saved);
+      S.chars.sort((a, b) => a.name.localeCompare(b.name));
+      S.cur = JSON.parse(JSON.stringify(saved));
+      S.dirty = false;
+      $('#delBtn').disabled = false;
+      renderList();
+      renderLog();
+      updateWho();
+      setStatus('Saved', 'ok');
+      try { history.replaceState(null, '', '?id=' + encodeURIComponent(saved.id)); } catch { /* not critical */ }
+    } catch (err) {
+      setStatus('Could not save: ' + err.message, 'bad');
+    } finally {
+      $('#saveBtn').disabled = false;
+    }
+  }
+
+  async function remove() {
+    if (!S.cur || !S.cur.id) return;
+    if (!confirm('Delete ' + S.cur.name + '? This removes the sheet from the server.')) return;
+    try {
+      await api('/api/characters/' + encodeURIComponent(S.cur.id), { method: 'DELETE' });
+      S.chars = S.chars.filter((c) => c.id !== S.cur.id);
+      S.cur = null;
+      S.dirty = false;
+      $('#toolbar').hidden = true;
+      $('#pages').innerHTML = '<div class="empty">Pick a character on the left, or create a new one.</div>';
+      renderList();
+    } catch (err) {
+      setStatus('Could not delete: ' + err.message, 'bad');
+    }
+  }
+
+  /* ---------------- PDF download (fills the official sheet) ---------------- */
+  async function downloadPdf() {
+    if (!S.cur) return;
+    if (!window.PDFLib) { setStatus('The PDF library did not load (public/vendor/pdf-lib.min.js is missing).', 'bad'); return; }
+    setStatus('Building the PDF...', '');
+    try {
+      const { PDFDocument } = PDFLib;
+      const bytes = await (await fetch(SHEET_URL)).arrayBuffer();
+      const doc = await PDFDocument.load(bytes);
+      const form = doc.getForm();
+      for (const [name, value] of Object.entries(S.sheet)) {
+        try {
+          const field = form.getField(name);
+          if (typeof value === 'boolean') { if (value) field.check(); else field.uncheck(); }
+          else if (field.setText) field.setText(String(value));
+        } catch { /* a field this PDF does not have */ }
+      }
+      if (S.cur.image) {
+        try {
+          const res = await fetch(S.cur.image);
+          const buf = await res.arrayBuffer();
+          const img = S.cur.image.endsWith('.png') ? await doc.embedPng(buf) : await doc.embedJpg(buf);
+          form.getButton(IMAGE_FIELD).setImage(img);
+        } catch { /* the sheet is still useful without the picture */ }
+      }
+      const out = await doc.save();
+      const url = URL.createObjectURL(new Blob([out], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ((S.sheet.CharacterName || 'character').trim().replace(/[^\w.-]+/g, '-') || 'character') + '-sheet.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setStatus('PDF downloaded', 'ok');
+    } catch (err) {
+      setStatus('Could not build the PDF: ' + err.message, 'bad');
+    }
+  }
+
+  /* ---------------- token picker ---------------- */
+  const UNNAMED = 'Lost Mine set (unnamed)';
+  const fileOf = (u) => u.split('/').pop().replace(/\.[^.]+$/, '');
+  const nameOf = (u) => (S.meta[u] && S.meta[u].name) || fileOf(u);
+  const catOf = (u) => (S.meta[u] && S.meta[u].category) || UNNAMED;
+
+  async function loadTokens() {
+    try { S.tokens = (await api('/api/tokens')).tokens || []; } catch { S.tokens = []; }
+    try {
+      const res = await fetch('/tokens/manifest.json');
+      if (res.ok) {
+        for (const t of (await res.json()).tokens || []) if (t && t.file) S.meta['/tokens/' + t.file] = { name: String(t.name || ''), category: String(t.category || ''), sub: t.sub ? String(t.sub) : '' };
+      }
+    } catch { /* no manifest: tokens show their file names */ }
+    const counts = {};
+    for (const u of S.tokens) counts[catOf(u)] = (counts[catOf(u)] || 0) + 1;
+    const sel = $('#mCat');
+    for (const n of Object.keys(counts).sort((a, b) => (a === UNNAMED) - (b === UNNAMED) || a.localeCompare(b))) {
+      const o = document.createElement('option');
+      o.value = n;
+      o.textContent = n + ' (' + counts[n] + ')';
+      sel.appendChild(o);
+    }
+  }
+
+  function renderPicker() {
+    const q = $('#mFind').value.trim().toLowerCase();
+    const cat = $('#mCat').value;
+    const shown = S.tokens.filter((u) => {
+      if (cat && catOf(u) !== cat) return false;
+      if (!q) return true;
+      return (nameOf(u) + ' ' + catOf(u) + ' ' + fileOf(u)).toLowerCase().includes(q);
+    });
+    const grid = $('#mGrid');
+    grid.innerHTML = '';
+    for (const u of shown) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tile' + (S.cur && S.cur.image === u ? ' sel' : '');
+      b.title = nameOf(u) + ' (' + catOf(u) + ')';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = '';
+      img.src = u;
+      const t = document.createElement('span');
+      t.textContent = nameOf(u);
+      b.append(img, t);
+      b.addEventListener('click', () => pickToken(u));
+      grid.appendChild(b);
+    }
+    $('#mCount').textContent = shown.length === S.tokens.length ? S.tokens.length + ' tokens' : shown.length + ' of ' + S.tokens.length;
+  }
+
+  function openPicker() {
+    if (!S.cur) return;
+    $('#modal').classList.add('open');
+    renderPicker();
+    $('#mFind').focus();
+  }
+  function closePicker() { $('#modal').classList.remove('open'); }
+
+  function pickToken(url) {
+    if (!S.cur) return;
+    S.cur.image = url;
+    updateWho();
+    paintImageBoxes();
+    closePicker();
+    markDirty();
+  }
+
+  /* ---------------- wiring ---------------- */
+  $('#newBtn').addEventListener('click', () => {
+    if (!confirmLeave()) return;
+    open(blankChar());
+    setTimeout(() => { const f = (S.fields.get('CharacterName') || [])[0]; if (f) f.focus(); }, 600);
+  });
+  $('#nameInput').addEventListener('input', (e) => { if (S.cur) setValue('CharacterName', e.target.value, null); });
+  $('#nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  $('#saveBtn').addEventListener('click', save);
+  $('#delBtn').addEventListener('click', remove);
+  $('#pdfBtn').addEventListener('click', downloadPdf);
+  $('#pickBtn').addEventListener('click', openPicker);
+  $('#tokImg').addEventListener('click', openPicker);
+  $('#tokImg').addEventListener('keydown', (e) => { if (e.key === 'Enter') openPicker(); });
+  $('#clearTokBtn').addEventListener('click', () => { if (S.cur) { S.cur.image = ''; updateWho(); paintImageBoxes(); markDirty(); } });
+  $('#color').addEventListener('input', (e) => { if (S.cur) { S.cur.color = e.target.value; updateWho(); markDirty(); } });
+  $('#mClose').addEventListener('click', closePicker);
+  $('#modal').addEventListener('click', (e) => { if (e.target === $('#modal')) closePicker(); });
+  $('#mFind').addEventListener('input', renderPicker);
+  $('#mCat').addEventListener('change', renderPicker);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePicker();
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  });
+  window.addEventListener('beforeunload', (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (S.cur && Math.abs($('#pages').clientWidth - S.lastWidth) > 40) renderSheet(); }, 250);
+  });
+
+  async function start() {
+    await loadTokens();
+    try { S.chars = await api('/api/characters'); } catch (err) { setStatus('Could not load characters: ' + err.message, 'bad'); S.chars = []; }
+    S.chars.sort((a, b) => a.name.localeCompare(b.name));
+    renderList();
+    const wanted = new URLSearchParams(location.search).get('id') || store.get('vtt.sheets.last', '');
+    const c = S.chars.find((x) => x.id === wanted) || S.chars[0];
+    if (c) open(JSON.parse(JSON.stringify(c)));
+  }
+  window.addEventListener('pagehide', () => { if (S.cur && S.cur.id) store.set('vtt.sheets.last', S.cur.id); });
+  window.sheetPage = { state: S, charFromSheet, sheetFromChar, setValue };
+  start();
+})();
+</script>
+</body>
+</html>

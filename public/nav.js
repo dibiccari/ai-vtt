@@ -3,7 +3,11 @@
   'use strict';
   var PAGES = [
     { href: '/', label: '🎲 Tabletop' },
+    { href: '/campaigns.html', label: '📖 Campaigns' },
+    { href: '/characters.html', label: '📜 Character Sheets' },
     { href: '/map-test.html', label: '🗺 Map Test' },
+    { href: '/tokens.html', label: '🧿 Tokens' },
+    { href: '/test-lab.html', label: '🧪 Test Lab' },
     { href: '/voice-test.html', label: '🔊 Voice Test' },
     { href: '/settings.html', label: '⚙ Settings' }
   ];

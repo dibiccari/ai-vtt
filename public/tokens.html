@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Tokens</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:1240px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 16px; }
+  .bar { display:flex; gap:16px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:16px; position:sticky; top:56px; z-index:5; }
+  .bar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); font-weight:600; }
+  .bar label b { color:var(--text); min-width:3ch; }
+  input[type=range] { accent-color:var(--accent); width:150px; }
+  input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; }
+  input[type=text], select { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:7px 10px; font:inherit; }
+  input[type=text] { width:150px; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .count { margin-left:auto; color:var(--muted); font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(var(--size, 120px), 1fr)); gap:12px; }
+  .tile { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; font:inherit; color:inherit; text-align:center; }
+  .tile:hover { border-color:var(--accent); }
+  .tile .art { width:100%; aspect-ratio:1; display:grid; place-items:center; border-radius:8px; background:var(--stage, #1b2230); overflow:hidden; }
+  .tile img { max-width:100%; max-height:100%; object-fit:contain; display:block; }
+  body.round .tile img { border-radius:50%; width:100%; height:100%; object-fit:cover; border:2px solid var(--gold); }
+  .tile .nm { font:600 12px "Segoe UI", system-ui, sans-serif; color:var(--text); word-break:break-word; }
+  .tile .cat { font-size:11px; color:var(--muted); }
+  .empty { background:var(--panel); border:1px dashed var(--border); border-radius:10px; padding:24px; color:var(--muted); }
+  .modal { position:fixed; inset:0; background:rgba(5,7,10,.88); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal.open { display:flex; }
+  .modal .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; max-width:min(92vw, 760px); max-height:92vh; display:flex; flex-direction:column; gap:10px; align-items:center; }
+  .modal .art { background:var(--stage, #1b2230); border-radius:8px; padding:8px; display:grid; place-items:center; }
+  .modal img { max-width:min(80vw, 640px); max-height:66vh; display:block; }
+  body.round .modal img { border-radius:50%; border:3px solid var(--gold); }
+  .modal .meta { color:var(--muted); font:13px Consolas, monospace; text-align:center; }
+  .modal .row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  button.btn { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button.btn:hover { border-color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+<h1>Token <span>Gallery</span></h1>
+<p class="lead">Every token in <code>public/tokens/</code>, with names and categories from <code>manifest.json</code>. Click one to see it large. Use the arrow keys to move between them.</p>
+
+<div class="bar">
+  <label>Size <input type="range" id="size" min="60" max="260" step="10" value="120"><b id="sizeVal">120</b></label>
+  <label><input type="checkbox" id="round"> Show as round tokens</label>
+  <label>Background
+    <select id="bg" aria-label="Background">
+      <option value="#1b2230">Dark</option>
+      <option value="#d9d4c7">Parchment</option>
+      <option value="#6f7f66">Grass</option>
+      <option value="#ffffff">White</option>
+      <option value="checker">Checker (shows transparency)</option>
+    </select>
+  </label>
+  <label>Category <select id="cat" aria-label="Category"><option value="">All</option></select></label>
+  <label>Find <input type="text" id="find" placeholder="e.g. goblin" aria-label="Find a token by name"></label>
+  <span class="count" id="count" aria-live="polite"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Token preview">
+  <div class="card">
+    <div class="art"><img id="big" alt=""></div>
+    <div class="meta" id="meta"></div>
+    <div class="row">
+      <button class="btn" id="prev">&larr; Previous</button>
+      <button class="btn" id="copy">Copy path</button>
+      <button class="btn" id="next">Next &rarr;</button>
+      <button class="btn" id="close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="/nav.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const $ = (sel) => document.querySelector(sel);
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem(key); return v == null ? fallback : v; } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } }
+  };
+
+  let tokens = [];     // every token url
+  const meta = {};     // url -> { name, category, sub } from public/tokens/manifest.json
+  const UNNAMED = 'Lost Mine set (unnamed)';
+  let shown = [];      // after the Find filter
+  let current = -1;    // index into `shown` while the preview is open
+
+  const grid = $('#grid');
+  const fileOf = (url) => url.split('/').pop().replace(/\.[^.]+$/, '');
+  const nameOf = (url) => (meta[url] && meta[url].name) || fileOf(url);
+  const catOf = (url) => (meta[url] && meta[url].category) || UNNAMED;
+
+  function applyStage() {
+    const bg = $('#bg').value;
+    const root = document.documentElement.style;
+    if (bg === 'checker') {
+      root.setProperty('--stage', 'repeating-conic-gradient(#3a4558 0% 25%, #222a38 0% 50%) 50% / 16px 16px');
+    } else {
+      root.setProperty('--stage', bg);
+    }
+  }
+
+  function render() {
+    const q = $('#find').value.trim().toLowerCase();
+    const cat = $('#cat').value;
+    shown = tokens.filter((u) => {
+      if (cat && catOf(u) !== cat) return false;
+      if (!q) return true;
+      const hay = (nameOf(u) + ' ' + catOf(u) + ' ' + ((meta[u] && meta[u].sub) || '') + ' ' + fileOf(u)).toLowerCase();
+      return hay.includes(q) || fileOf(u).replace(/\D/g, '').replace(/^0+/, '') === q.replace(/^0+/, '');
+    });
+    grid.innerHTML = '';
+    if (!tokens.length) {
+      const div = document.createElement('div');
+      div.className = 'empty';
+      div.textContent = 'No tokens found. Put PNG, JPG or WEBP files named like token-01.png in public/tokens/.';
+      grid.replaceWith(div);
+      $('#count').textContent = '0 tokens';
+      return;
+    }
+    shown.forEach((url, i) => {
+      const b = document.createElement('button');
+      b.className = 'tile';
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Open ' + nameOf(url));
+      b.title = nameOf(url) + ' (' + catOf(url) + ')';
+      const art = document.createElement('span');
+      art.className = 'art';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = '';
+      img.src = url;
+      art.appendChild(img);
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = nameOf(url);
+      const cat = document.createElement('span');
+      cat.className = 'cat';
+      cat.textContent = catOf(url);
+      b.append(art, nm, cat);
+      b.addEventListener('click', () => openPreview(i));
+      grid.appendChild(b);
+    });
+    $('#count').textContent = shown.length === tokens.length ? tokens.length + ' tokens' : shown.length + ' of ' + tokens.length + ' tokens';
+  }
+
+  function openPreview(i) {
+    if (!shown.length) return;
+    current = (i + shown.length) % shown.length;
+    const url = shown[current];
+    const img = $('#big');
+    img.src = url;
+    img.alt = nameOf(url);
+    const where = nameOf(url) + '  ·  ' + catOf(url) + ((meta[url] && meta[url].sub && meta[url].sub !== catOf(url)) ? ' / ' + meta[url].sub : '');
+    $('#meta').textContent = where + '  ·  ' + url + '  ·  ' + (current + 1) + ' of ' + shown.length;
+    img.onload = () => {
+      $('#meta').textContent = where + '  ·  ' + img.naturalWidth + ' x ' + img.naturalHeight + ' px  ·  ' + url + '  ·  ' + (current + 1) + ' of ' + shown.length;
+    };
+    $('#modal').classList.add('open');
+    $('#close').focus();
+  }
+
+  function closePreview() {
+    $('#modal').classList.remove('open');
+    current = -1;
+  }
+
+  $('#size').addEventListener('input', (e) => {
+    $('#sizeVal').textContent = e.target.value;
+    grid.style.setProperty('--size', e.target.value + 'px');
+    store.set('vtt.tokens.size', e.target.value);
+  });
+  $('#round').addEventListener('change', (e) => {
+    document.body.classList.toggle('round', e.target.checked);
+    store.set('vtt.tokens.round', e.target.checked ? '1' : '0');
+  });
+  $('#bg').addEventListener('change', () => { applyStage(); store.set('vtt.tokens.bg', $('#bg').value); });
+  $('#find').addEventListener('input', render);
+  $('#cat').addEventListener('change', () => { store.set('vtt.tokens.cat', $('#cat').value); render(); });
+
+  $('#close').addEventListener('click', closePreview);
+  $('#prev').addEventListener('click', () => openPreview(current - 1));
+  $('#next').addEventListener('click', () => openPreview(current + 1));
+  $('#modal').addEventListener('click', (e) => { if (e.target === $('#modal')) closePreview(); });
+  $('#copy').addEventListener('click', async () => {
+    const url = shown[current];
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); $('#copy').textContent = 'Copied'; } catch { $('#copy').textContent = 'Copy failed'; }
+    setTimeout(() => { $('#copy').textContent = 'Copy path'; }, 1500);
+  });
+  window.addEventListener('keydown', (e) => {
+    if (!$('#modal').classList.contains('open')) return;
+    if (e.key === 'Escape') closePreview();
+    if (e.key === 'ArrowRight') openPreview(current + 1);
+    if (e.key === 'ArrowLeft') openPreview(current - 1);
+  });
+
+  async function start() {
+    const size = store.get('vtt.tokens.size', '120');
+    $('#size').value = size;
+    $('#sizeVal').textContent = $('#size').value;
+    grid.style.setProperty('--size', $('#size').value + 'px');
+    const round = store.get('vtt.tokens.round', '0') === '1';
+    $('#round').checked = round;
+    document.body.classList.toggle('round', round);
+    const bg = store.get('vtt.tokens.bg', '#1b2230');
+    if ([...$('#bg').options].some((o) => o.value === bg)) $('#bg').value = bg;
+    applyStage();
+    try {
+      const res = await fetch('/api/tokens');
+      const data = await res.json();
+      tokens = Array.isArray(data.tokens) ? data.tokens : [];
+    } catch (err) {
+      $('#count').textContent = 'Could not load tokens: ' + err.message;
+      return;
+    }
+    try {
+      const res = await fetch('/tokens/manifest.json');
+      if (res.ok) {
+        const manifest = await res.json();
+        for (const t of Array.isArray(manifest.tokens) ? manifest.tokens : []) {
+          if (t && t.file) meta['/tokens/' + t.file] = { name: String(t.name || ''), category: String(t.category || ''), sub: t.sub ? String(t.sub) : '' };
+        }
+      }
+    } catch { /* no manifest: tokens show their file names */ }
+    const counts = {};
+    for (const u of tokens) counts[catOf(u)] = (counts[catOf(u)] || 0) + 1;
+    const select = $('#cat');
+    for (const name of Object.keys(counts).sort((a, b) => (a === UNNAMED) - (b === UNNAMED) || a.localeCompare(b))) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name + ' (' + counts[name] + ')';
+      select.appendChild(opt);
+    }
+    const savedCat = store.get('vtt.tokens.cat', '');
+    if (savedCat && counts[savedCat]) select.value = savedCat;
+    render();
+  }
+  start();
+})();
+</script>
+</div>
+</body>
+</html>

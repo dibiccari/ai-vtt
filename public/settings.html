@@ -7,7 +7,8 @@
 <style>
   :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin:0 auto; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; padding:24px 16px 60px; max-width:760px; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:24px 16px 60px; max-width:760px; }
   h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
   p.lead { color:var(--muted); margin:0 0 20px; }
   a { color:var(--accent); }
@@ -38,6 +39,7 @@
 </style>
 </head>
 <body>
+<div class="page">
 <script src="/nav.js"></script>
 <h1>AI<span>·</span>VTT Settings</h1>
 <p class="lead">Keys are saved to the <code>.env</code> file on this computer and take effect immediately, with no restart. They are never shown again once saved.</p>
@@ -83,10 +85,17 @@
 
 <div class="card">
   <h2>Who speaks the DM's words?</h2>
-  <p>Saved in this browser. You can switch any time, and the tabletop has the same switch in the chat tab.</p>
+  <p>Saved in this browser. You can switch any time. The tabletop shows which engine is on and links back here.</p>
   <label class="radio"><input type="radio" name="engine" value="cloud"><span><b>ChatGPT voices (OpenAI)</b><small>Natural, distinct voices for the narrator and each NPC. Needs the OpenAI key above. Falls back to Microsoft voices if it fails.</small></span></label>
   <label class="radio"><input type="radio" name="engine" value="browser"><span><b>Microsoft voices</b><small>Free and offline. Uses the voices installed on this computer.</small></span></label>
   <div class="msg" id="engMsg"></div>
+  <label style="margin-top:6px">Microsoft narrator voice <span class="help">(used when the engine is Microsoft)</span>
+    <select id="narratorVoice"><option value="">Auto (best available)</option></select>
+  </label>
+  <div class="row">
+    <button type="button" id="narratorTest">Play a sample</button>
+    <span class="help" id="narratorMsg">The list shows the English voices installed in this browser.</span>
+  </div>
 </div>
 
 <script>
@@ -191,7 +200,47 @@ document.querySelectorAll('input[name="engine"]').forEach((r) => {
   });
 });
 
+// Microsoft (browser) narrator voice, shared with the tabletop through the same saved setting.
+const synth = window.speechSynthesis || null;
+function readNarrator() { try { return JSON.parse(localStorage.getItem('vtt.narratorVoice') || '""') || ''; } catch { return ''; } }
+function fillNarrators() {
+  const sel = $('#narratorVoice');
+  const voices = synth ? synth.getVoices().filter((v) => /^en/i.test(v.lang)) : [];
+  const saved = readNarrator();
+  sel.innerHTML = '';
+  const auto = document.createElement('option');
+  auto.value = '';
+  auto.textContent = 'Auto (best available)';
+  sel.appendChild(auto);
+  for (const v of voices) {
+    const o = document.createElement('option');
+    o.value = v.name;
+    o.textContent = v.name;
+    sel.appendChild(o);
+  }
+  sel.value = voices.some((v) => v.name === saved) ? saved : '';
+  if (!synth) $('#narratorMsg').textContent = 'This browser has no built-in speech voices.';
+}
+if (synth) {
+  synth.getVoices();
+  if ('onvoiceschanged' in synth) synth.onvoiceschanged = fillNarrators;
+}
+fillNarrators();
+$('#narratorVoice').addEventListener('change', (e) => {
+  try { localStorage.setItem('vtt.narratorVoice', JSON.stringify(e.target.value)); setMsg($('#narratorMsg'), 'Narrator voice saved.', true); }
+  catch { setMsg($('#narratorMsg'), 'This browser blocked saving the choice.', false); }
+});
+$('#narratorTest').addEventListener('click', () => {
+  if (!synth) return;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance('The torchlight flickers, and the door creaks open.');
+  const v = synth.getVoices().find((x) => x.name === $('#narratorVoice').value);
+  if (v) u.voice = v;
+  synth.speak(u);
+});
+
 load();
 </script>
+</div>
 </body>
 </html>

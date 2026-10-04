@@ -1,4 +1,4 @@
-// Syntax-checks server.js and the inline <script> of public/index.html and public/map-test.html.
+// Syntax-checks server.js and the inline <script> of public/index.html, map-test.html, tokens.html, characters.html, campaigns.html and test-lab.html.
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -21,7 +21,7 @@ function check(label, file) {
 check('server.js', path.join(root, 'server.js'));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
-for (const page of ['index.html', 'map-test.html']) {
+for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html']) {
   const html = await readFile(path.join(root, 'public', page), 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   if (!scripts.length) {

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Campaigns</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:980px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  h2 { margin:26px 0 10px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  p.lead { color:var(--muted); margin:0 0 16px; }
+  a { color:var(--accent); }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:14px; }
+  .card.active { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+  .card h3 { margin:0; font-size:19px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .badge { font:700 11px "Segoe UI",sans-serif; letter-spacing:.08em; text-transform:uppercase; padding:3px 8px; border-radius:999px; background:rgba(240,192,72,.16); color:var(--gold); border:1px solid rgba(240,192,72,.45); }
+  .badge.warn { background:rgba(255,107,107,.12); color:var(--danger); border-color:rgba(255,107,107,.45); }
+  .meta { color:var(--muted); font-size:13px; margin:2px 0 8px; }
+  .stats { display:flex; gap:22px; flex-wrap:wrap; margin:12px 0; }
+  .stat b { display:block; font-size:20px; } .stat span { color:var(--muted); font-size:12px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .note { color:var(--muted); font-size:13px; }
+  .warnbox { background:rgba(255,107,107,.1); border:1px solid rgba(255,107,107,.4); border-radius:8px; padding:10px 12px; margin:10px 0; }
+  .okbox { background:rgba(63,210,127,.08); border:1px solid rgba(63,210,127,.3); border-radius:8px; padding:10px 12px; margin:10px 0; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--border); font-size:13px; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  td.act { text-align:right; white-space:nowrap; }
+  pre.preview { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin:6px 0 10px; max-height:340px; overflow:auto; white-space:pre-wrap; font:12.5px/1.5 Georgia, serif; color:#dfe4ec; }
+  .flow { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px; }
+  .flow div { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; }
+  .flow b { display:block; margin-bottom:2px; }
+  progress { width:100%; height:10px; accent-color:var(--accent); }
+  .status { min-height:20px; font-size:13px; }
+  .status.ok { color:var(--ok); } .status.bad { color:var(--danger); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Camp<span>aigns</span></h1>
+  <p class="lead">The active campaign is what the AI Dungeon Master runs. Its text is sent to the DM with every message, so the narration, NPCs, locations and secrets all come from it.</p>
+
+  <div id="list"></div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <h2>How the DM uses a campaign</h2>
+  <div class="flow">
+    <div><b>1. Campaign text</b>Every document of the active campaign is sent as the DM's reference. It is cached, so after the first message it costs a fraction.</div>
+    <div><b>2. Rules for the DM</b>It runs the module as secret DM material: no spoilers, it keeps track of where the party is, and uses the module's names.</div>
+    <div><b>3. The table</b>Each message also carries the map name, the tokens and walls, and the character sheets.</div>
+    <div><b>4. Voices</b>Named NPCs from the campaign get their own voice and acting direction.</div>
+  </div>
+</div>
+
+<script src="/nav.js"></script>
+<script src="/vendor/pdf.min.js"></script>
+<script src="/pdf-extract.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const $ = (sel) => document.querySelector(sel);
+  const fmt = (n) => Number(n).toLocaleString();
+  async function api(url, options) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+    return data;
+  }
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  function setStatus(text, kind) { const s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
+
+  let campaigns = [];
+  const open = new Set();      // campaign ids with the document list showing
+  const preview = {};          // "id/name" -> text
+
+  async function load() {
+    try {
+      const data = await api('/api/campaigns');
+      campaigns = data.campaigns || [];
+    } catch (err) {
+      setStatus('Could not load campaigns: ' + err.message, 'bad');
+      return;
+    }
+    render();
+  }
+
+  function render() {
+    const list = $('#list');
+    list.innerHTML = '';
+    for (const c of campaigns.filter((x) => !x.test)) list.appendChild(card(c));
+    const tests = campaigns.filter((x) => x.test);
+    if (tests.length) {
+      list.appendChild(el('h2', '', 'Test scenarios'));
+      list.appendChild(el('p', 'note', 'Short scenes for trying out the table and the AI. Set them up from the Test Lab page, which also prepares the map and tokens.'));
+      for (const c of tests) list.appendChild(card(c));
+    }
+  }
+
+  function card(c) {
+    const box = el('div', 'card' + (c.active ? ' active' : ''));
+    const h = el('h3');
+    h.appendChild(document.createTextNode(c.name));
+    if (c.active) h.appendChild(el('span', 'badge', 'Active'));
+    if (!c.totalChars) h.appendChild(el('span', 'badge warn', 'No text yet'));
+    box.appendChild(h);
+    box.appendChild(el('div', 'meta', [c.system, c.levels ? 'levels ' + c.levels : ''].filter(Boolean).join(' · ')));
+    if (c.description) box.appendChild(el('p', '', c.description));
+
+    const stats = el('div', 'stats');
+    for (const [value, label] of [[fmt(c.files.length), 'documents'], ['~' + fmt(c.approxTokens), 'tokens sent each turn'], [fmt(c.voiceCount), 'named NPC voices']]) {
+      const s = el('div', 'stat');
+      s.append(el('b', '', value), el('span', '', label));
+      stats.appendChild(s);
+    }
+    box.appendChild(stats);
+
+    if (c.test) {
+      box.appendChild(el('div', c.active ? 'warnbox' : 'okbox', c.active
+        ? 'The AI is running this scenario, but choosing it here only changes what the AI knows. The tabletop still shows its old map and tokens until you set the table up in the Test Lab.'
+        : 'This scenario needs its own map, tokens and party positions, so it is set up from the Test Lab. Choosing it here would only change what the AI knows.'));
+    } else if (!c.totalChars) {
+      box.appendChild(el('div', 'warnbox', 'This campaign has no text, so the DM is improvising without a module. Import the adventure PDF below.'));
+    } else if (c.active) {
+      box.appendChild(el('div', 'okbox', 'The DM is running this campaign now. Changes to its documents apply on the next message, with no restart.'));
+    }
+
+    const row = el('div', 'row');
+    let use;
+    if (c.test) {
+      use = el('button', 'primary', 'Set up the table in the Test Lab');
+      use.addEventListener('click', () => { location.href = '/test-lab.html'; });
+    } else {
+      use = el('button', 'primary', c.active ? 'Currently in use' : 'Use this campaign');
+      use.disabled = c.active;
+      use.addEventListener('click', () => activate(c));
+    }
+    const docs = el('button', '', open.has(c.id) ? 'Hide documents' : 'Show documents');
+    docs.addEventListener('click', () => { if (open.has(c.id)) open.delete(c.id); else open.add(c.id); render(); });
+    row.append(use, docs);
+    box.appendChild(row);
+
+    if (open.has(c.id)) box.appendChild(documents(c));
+    if (!c.test) box.appendChild(importer(c));
+    return box;
+  }
+
+  async function activate(c) {
+    try {
+      await api('/api/campaigns/active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
+      setStatus(c.name + ' is now the active campaign.', 'ok');
+      await load();
+    } catch (err) {
+      setStatus('Could not switch campaign: ' + err.message, 'bad');
+    }
+  }
+
+  function documents(c) {
+    const wrap = el('div');
+    wrap.appendChild(el('h2', '', 'Documents'));
+    if (!c.files.length) { wrap.appendChild(el('p', 'note', 'No documents.')); return wrap; }
+    const table = el('table');
+    const head = el('tr');
+    ['Document', 'Characters', ''].forEach((t, i) => { const th = el('th', '', t); if (i === 1) th.style.textAlign = 'right'; head.appendChild(th); });
+    table.appendChild(head);
+    for (const f of c.files) {
+      const tr = el('tr');
+      tr.appendChild(el('td', '', f.name));
+      tr.appendChild(el('td', 'num', fmt(f.chars)));
+      const act = el('td', 'act');
+      const key = c.id + '/' + f.name;
+      const view = el('button', '', preview[key] != null ? 'Hide' : 'Read');
+      view.addEventListener('click', async () => {
+        if (preview[key] != null) { delete preview[key]; render(); return; }
+        try { preview[key] = (await api('/api/campaigns/' + encodeURIComponent(c.id) + '/files/' + encodeURIComponent(f.name))).text; } catch (err) { setStatus(err.message, 'bad'); return; }
+        render();
+      });
+      const del = el('button', 'danger', 'Delete');
+      del.style.marginLeft = '6px';
+      del.addEventListener('click', async () => {
+        if (!confirm('Delete ' + f.name + '? The DM will no longer know what it says.')) return;
+        try { await api('/api/campaigns/' + encodeURIComponent(c.id) + '/files/' + encodeURIComponent(f.name), { method: 'DELETE' }); delete preview[key]; setStatus('Deleted ' + f.name, 'ok'); await load(); } catch (err) { setStatus(err.message, 'bad'); }
+      });
+      act.append(view, del);
+      tr.appendChild(act);
+      table.appendChild(tr);
+      if (preview[key] != null) {
+        const pr = el('tr');
+        const td = el('td');
+        td.colSpan = 3;
+        td.appendChild(el('pre', 'preview', preview[key].slice(0, 6000) + (preview[key].length > 6000 ? '\n\n… (' + fmt(preview[key].length) + ' characters in all)' : '')));
+        pr.appendChild(td);
+        table.appendChild(pr);
+      }
+    }
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  // Import: read a PDF in this browser, split it into chapters, show what was found, then save.
+  function importer(c) {
+    const wrap = el('div');
+    wrap.appendChild(el('h2', '', 'Import the adventure from a PDF'));
+    wrap.appendChild(el('p', 'note', 'Pick the adventure PDF. Its text is read here in your browser (nothing is uploaded anywhere else) and split into chapters using the PDF\'s bookmarks. You see the result before it replaces anything.'));
+    const input = el('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,.pdf';
+    input.setAttribute('aria-label', 'Adventure PDF');
+    const out = el('div');
+    wrap.append(input, out);
+
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      input.value = '';
+      if (!file) return;
+      out.innerHTML = '';
+      const bar = el('progress');
+      bar.max = 1;
+      bar.value = 0;
+      const msg = el('p', 'note', 'Reading ' + file.name + '…');
+      out.append(msg, bar);
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+        const result = await PdfExtract.extractDocument(pdf, (d, t) => { bar.value = d / t; msg.textContent = 'Reading page ' + d + ' of ' + t + '…'; });
+        const files = PdfExtract.toFiles(result.chapters);
+        const chars = files.reduce((n, f) => n + f.text.length, 0);
+        out.innerHTML = '';
+        if (!files.length || chars < 2000) {
+          out.appendChild(el('div', 'warnbox', 'Almost no text could be read. This PDF is probably scanned images, which this tool cannot read yet.'));
+          return;
+        }
+        out.appendChild(el('div', 'okbox', 'Found ' + files.length + ' documents, about ' + fmt(chars) + ' characters (~' + fmt(Math.round(chars / 4)) + ' tokens)' + (result.fromBookmarks ? ', split by the PDF\'s chapters.' : '. The PDF has no bookmarks, so it was split by page ranges.')));
+        const table = el('table');
+        const head = el('tr');
+        ['Document', 'Characters'].forEach((t, i) => { const th = el('th', '', t); if (i === 1) th.style.textAlign = 'right'; head.appendChild(th); });
+        table.appendChild(head);
+        files.forEach((f) => { const tr = el('tr'); tr.append(el('td', '', f.name), el('td', 'num', fmt(f.text.length))); table.appendChild(tr); });
+        out.appendChild(table);
+        const save = el('button', 'primary', c.files.length ? 'Replace the current ' + c.files.length + ' documents' : 'Save these documents');
+        save.style.marginTop = '10px';
+        save.addEventListener('click', async () => {
+          if (c.files.length && !confirm('Delete the current documents of ' + c.name + ' and save these instead?')) return;
+          save.disabled = true;
+          try {
+            for (const old of c.files) await api('/api/campaigns/' + encodeURIComponent(c.id) + '/files/' + encodeURIComponent(old.name), { method: 'DELETE' });
+            for (const f of files) {
+              await api('/api/campaigns/' + encodeURIComponent(c.id) + '/files/' + encodeURIComponent(f.name), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.text }) });
+            }
+            out.innerHTML = '';
+            setStatus('Saved ' + files.length + ' documents to ' + c.name + '.', 'ok');
+            await load();
+          } catch (err) {
+            setStatus('Could not save: ' + err.message, 'bad');
+            save.disabled = false;
+          }
+        });
+        out.appendChild(save);
+      } catch (err) {
+        out.innerHTML = '';
+        out.appendChild(el('div', 'warnbox', 'Could not read that PDF: ' + err.message));
+      }
+    });
+    return wrap;
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -119,6 +119,7 @@
 </main>
 
 <script src="/nav.js"></script>
+<script src="/uvtt.js"></script>
 <script>
 (function () {
   'use strict';
@@ -818,83 +819,16 @@
   });
 
   /* ---------------- Universal VTT (.dd2vtt) import ---------------- */
-  // Convert a parsed Universal VTT file to wall segments in image pixels. `scale` maps the file's image pixels to the target image.
-  function uvttToWalls(u, scale) {
-    const res = u && u.resolution;
-    const ppg = Number(res && res.pixels_per_grid);
-    if (!(ppg > 0)) throw new Error('This is not a Universal VTT file (no pixels_per_grid).');
-    const ox = Number(res.map_origin && res.map_origin.x) || 0;
-    const oy = Number(res.map_origin && res.map_origin.y) || 0;
-    const px = (p) => ({ x: (Number(p.x) - ox) * ppg * scale, y: (Number(p.y) - oy) * ppg * scale });
-    const walls = [];
-    const add = (a, b, type, open) => {
-      if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) return;
-      if (type === 'wall' && Math.hypot(b.x - a.x, b.y - a.y) < 0.5) return;
-      walls.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, type, open });
-    };
-    for (const line of [].concat(u.line_of_sight || [], u.objects_line_of_sight || [])) {
-      if (!Array.isArray(line)) continue;
-      const pts = line.map(px).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-      // Drop points that sit on a straight run so cave outlines do not become thousands of tiny walls.
-      const keep = [];
-      for (let i = 0; i < pts.length; i++) {
-        const a = keep[keep.length - 1], b = pts[i], c = pts[i + 1];
-        if (a && c) {
-          const abx = b.x - a.x, aby = b.y - a.y, bcx = c.x - b.x, bcy = c.y - b.y;
-          const lens = Math.hypot(abx, aby) * Math.hypot(bcx, bcy);
-          if (lens > 0 && Math.abs(cross(abx, aby, bcx, bcy)) / lens < 1e-3 && abx * bcx + aby * bcy > 0) continue;
-        }
-        keep.push(b);
-      }
-      for (let i = 0; i < keep.length - 1; i++) add(keep[i], keep[i + 1], 'wall', false);
-    }
-    for (const p of u.portals || []) {
-      if (!p || !Array.isArray(p.bounds) || p.bounds.length < 2) continue;
-      add(px(p.bounds[0]), px(p.bounds[1]), 'door', p.closed === false);
-    }
-    return walls;
-  }
-
-  function sniffImage(bytes) {
-    if (bytes[0] === 0x89 && bytes[1] === 0x50) return { ext: 'png', type: 'image/png' };
-    if (bytes[0] === 0xff && bytes[1] === 0xd8) return { ext: 'jpg', type: 'image/jpeg' };
-    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[8] === 0x57) return { ext: 'webp', type: 'image/webp' };
-    return null;
-  }
-
-  async function readUvtt(file) {
-    let u;
-    try { u = JSON.parse(await file.text()); } catch { throw new Error('That file is not valid JSON, so it is not a Universal VTT file.'); }
-    uvttToWalls(u, 1); // validates the header
-    return u;
-  }
-
-  async function putConfig(name, squares, walls, source) {
-    const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ squares, walls, source })
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'HTTP ' + res.status);
-  }
+  const uvttToWalls = Uvtt.toWalls;
+  const readUvtt = async (file) => Uvtt.parse(await file.text());
 
   async function importUvttAsNewMap(file) {
     const u = await readUvtt(file);
-    if (typeof u.image !== 'string' || !u.image) throw new Error('This file has no embedded picture. Use "Import walls" on a map you already have.');
-    const bin = atob(u.image.replace(/^data:[^,]*,/, ''));
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const kind = sniffImage(bytes);
-    if (!kind) throw new Error('The embedded picture is not a PNG, JPG or WEBP.');
-    const base = file.name.replace(/\.[^.]+$/, '') || 'map';
-    const form = new FormData();
-    form.append('map', new File([bytes], base + '.' + kind.ext, { type: kind.type }));
-    const up = await fetch('/api/upload', { method: 'POST', body: form });
-    const upData = await up.json().catch(() => ({}));
-    if (!up.ok) throw new Error(upData.error || 'Upload failed (HTTP ' + up.status + ')');
-    const walls = uvttToWalls(u, 1);
-    await putConfig(upData.url.split('/').pop(), Math.round(Number(u.resolution.map_size && u.resolution.map_size.x)) || 50, walls, 'dd2vtt');
-    store.set('vtt.maptest.lastMap', upData.url);
+    const made = await Uvtt.importAsMap(u, file.name.replace(/\.[^.]+$/, '') || 'map');
+    store.set('vtt.maptest.lastMap', made.url);
+    try { history.replaceState(null, '', location.pathname); } catch { /* not critical */ }
     await loadMapList();
-    $('#banner').textContent = 'Imported ' + walls.length + ' wall segments and doors from ' + file.name;
+    $('#banner').textContent = 'Imported ' + made.walls + ' wall segments and doors from ' + file.name;
   }
 
   async function importUvttWalls(file) {

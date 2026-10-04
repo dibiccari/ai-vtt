@@ -7,7 +7,8 @@
 <style>
   :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin:0 auto; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; padding:20px; max-width:1040px; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:1040px; }
   h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
   h2.sec { margin:26px 0 10px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
   p.lead { color:var(--muted); margin:0 0 18px; }
@@ -62,6 +63,7 @@
 </style>
 </head>
 <body>
+<div class="page">
 <script src="/nav.js"></script>
 <script src="/voice-fx.js"></script>
 <h1>AI<span>·</span>VTT Voice Test</h1>
@@ -866,5 +868,6 @@ $('#stop2').addEventListener('click', dmSilence);
 
 window.addEventListener('beforeunload', () => { if (synth) synth.cancel(); stopMic(); });
 </script>
+</div>
 </body>
 </html>
