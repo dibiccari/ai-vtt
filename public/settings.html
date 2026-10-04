@@ -18,6 +18,7 @@
   .badge { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
   .badge.on { color:var(--ok); border-color:rgba(63,210,127,.5); background:rgba(63,210,127,.1); }
   .badge.off { color:var(--danger); border-color:rgba(255,107,107,.5); background:rgba(255,107,107,.1); }
+  .links { font-size:13px; margin-top:-4px; }
   label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:12px; }
   .inline { display:flex; gap:8px; }
   input[type=password], input[type=text], select { flex:1; width:100%; background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:9px 10px; font:inherit; }
@@ -46,7 +47,8 @@
 
 <div class="card">
   <h2>Claude (AI Dungeon Master) <span class="badge" id="anBadge">checking…</span></h2>
-  <p>Claude, from Anthropic, runs the Dungeon Master: all narration, rules and NPC dialogue. Get a Claude API key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+  <p>Claude, from Anthropic, runs the Dungeon Master: all narration, rules and NPC dialogue. </p>
+  <p class="links">Get a key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">create a Claude API key</a> · <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">add credit / reload balance</a> · <a href="https://console.anthropic.com/settings/usage" target="_blank" rel="noopener">usage</a></p>
   <label>Claude API key (Anthropic) <span class="help" id="anHint"></span>
     <div class="inline"><input type="password" id="anKey" placeholder="sk-ant-… (Claude key)" autocomplete="off" spellcheck="false"><button type="button" data-show="anKey">Show</button></div>
   </label>
@@ -63,7 +65,8 @@
 
 <div class="card">
   <h2>ChatGPT voices (OpenAI) <span class="badge" id="oaBadge">checking…</span></h2>
-  <p>ChatGPT's text-to-speech (from OpenAI) gives the narrator and each NPC a natural voice. It only speaks the words Claude writes. Get an OpenAI API key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> (needs credit on the account).</p>
+  <p>ChatGPT's text-to-speech (from OpenAI) gives the narrator and each NPC a natural voice. It only speaks the words Claude writes. It needs credit on the account.</p>
+  <p class="links">Get a key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">create an OpenAI API key</a> · <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener">add credit / reload balance</a> · <a href="https://platform.openai.com/usage" target="_blank" rel="noopener">usage</a></p>
   <label>ChatGPT / OpenAI API key <span class="help" id="oaHint"></span>
     <div class="inline"><input type="password" id="oaKey" placeholder="sk-… (OpenAI key)" autocomplete="off" spellcheck="false"><button type="button" data-show="oaKey">Show</button></div>
   </label>
