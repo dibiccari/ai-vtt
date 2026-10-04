@@ -7,7 +7,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
-import { mapsFor, mapsForPrompt, resolveChangeMap } from './lib/campaign-maps.js';
+import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry } from './lib/compendium.js';
 import { restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
@@ -296,6 +296,38 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
 }));
 
 // The places the active campaign can move the table to (only maps that are installed).
+// The maps a campaign can use: the list saved on the Campaigns page (maps.json), or the built-in registry for the shipped campaigns.
+const pictureFiles = async () => (await readdir(UPLOAD_DIR)).filter((f) => IMAGE_EXT.has(path.extname(f).toLowerCase()));
+async function savedMapList(id) {
+  try { return JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, safeCampaignId(id), 'maps.json'), 'utf8')).maps; } catch { return null; }
+}
+async function mapsForCampaign(id) {
+  const files = await pictureFiles();
+  const saved = await savedMapList(id);
+  return Array.isArray(saved) ? mapsFromList(saved, files) : mapsFor(id, files);
+}
+
+app.get('/api/campaigns/:id/maps', asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.params.id);
+  const saved = await savedMapList(id);
+  const files = await pictureFiles();
+  res.json({ custom: Array.isArray(saved), maps: Array.isArray(saved) ? cleanMapList(saved, files).list : entriesToList(mapsFor(id, files)), uploads: files.sort(), kinds: MAP_KINDS });
+}));
+
+app.put('/api/campaigns/:id/maps', localOnly, asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.params.id);
+  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
+  const { list, problems } = cleanMapList(req.body?.maps, await pictureFiles());
+  await writeFile(path.join(CAMPAIGNS_DIR, id, 'maps.json'), JSON.stringify({ version: 1, maps: list }, null, 2));
+  res.json({ ok: true, maps: list, problems });
+}));
+
+// Back to the built-in list (only the shipped campaigns have one).
+app.delete('/api/campaigns/:id/maps', localOnly, asyncRoute(async (req, res) => {
+  try { await unlink(path.join(CAMPAIGNS_DIR, safeCampaignId(req.params.id), 'maps.json')); } catch { /* nothing saved */ }
+  res.json({ ok: true });
+}));
+
 // Arrival spots saved on the Map Test page (image pixels) are added to each map, and win over the built-in guesses.
 async function withSavedStarts(maps) {
   const out = [];
@@ -309,7 +341,7 @@ async function withSavedStarts(maps) {
 
 app.get('/api/maps/available', asyncRoute(async (_req, res) => {
   const campaign = await getActiveCampaignId();
-  const maps = await withSavedStarts(mapsFor(campaign, await readdir(UPLOAD_DIR)));
+  const maps = await withSavedStarts(await mapsForCampaign(campaign));
   res.json({ campaign, maps: maps.map((m) => ({ id: m.id, name: m.name, kind: m.kind, description: m.description, url: m.url, startPx: m.startPx ? { x: m.startPx.x, y: m.startPx.y } : null, start: { col: m.start[0], row: m.start[1] }, spots: Object.fromEntries(Object.entries(m.spots).map(([k, [col, row]]) => [k, { col, row }])) })) });
 }));
 
@@ -937,7 +969,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   }
 
   const activeCampaign = await getActiveCampaignId();
-  const availableMaps = await withSavedStarts(mapsFor(activeCampaign, await readdir(UPLOAD_DIR)));
+  const availableMaps = await withSavedStarts(await mapsForCampaign(activeCampaign));
   const state = {
     mapName: String(mapName ?? 'blank grid').slice(0, 120),
     movementRule: ['standard', 'alternating', 'circle'].includes(movementRule) ? movementRule : 'standard',

@@ -159,7 +159,7 @@
 
   $('#exportBtn').addEventListener('click', function () {
     var local = {};
-    ['vtt.board.', 'vtt.chat.'].forEach(function (p) {
+    ['vtt.board.', 'vtt.chat.', 'vtt.scenes.'].forEach(function (p) {
       try { var v = localStorage.getItem(p + state.campaign); if (v) local[p + state.campaign] = JSON.parse(v); } catch (e) { /* storage blocked */ }
     });
     var save = { app: 'ai-vtt', version: 1, campaign: state.campaign, exportedAt: new Date().toISOString(), entries: state.entries, local: local };
@@ -183,7 +183,7 @@
       if (!confirm('Replace the journal, board and chat of ' + state.name + ' with this save?')) return;
       await put(save.entries);
       var local = save.local && typeof save.local === 'object' ? save.local : {};
-      ['vtt.board.', 'vtt.chat.'].forEach(function (p) {
+      ['vtt.board.', 'vtt.chat.', 'vtt.scenes.'].forEach(function (p) {
         var from = p + save.campaign;
         try {
           if (local[from] !== undefined) localStorage.setItem(p + state.campaign, JSON.stringify(local[from]));

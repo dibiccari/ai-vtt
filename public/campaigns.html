@@ -13,6 +13,7 @@
   h2 { margin:26px 0 10px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
   p.lead { color:var(--muted); margin:0 0 16px; }
   a { color:var(--accent); }
+  input, select, textarea { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
   button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
   button:hover:not(:disabled) { border-color:var(--accent); }
   button:disabled { opacity:.55; cursor:not-allowed; }
@@ -83,6 +84,8 @@
   let campaigns = [];
   const open = new Set();      // campaign ids with the document list showing
   const preview = {};          // "id/name" -> text
+  const openMaps = new Set();  // campaign ids with the maps editor showing
+  const mapData = {};          // campaign id -> { custom, maps, uploads, kinds } being edited
 
   async function load() {
     try {
@@ -158,10 +161,18 @@
     });
     const docs = el('button', '', open.has(c.id) ? 'Hide documents' : 'Show documents');
     docs.addEventListener('click', () => { if (open.has(c.id)) open.delete(c.id); else open.add(c.id); render(); });
-    row.append(use, openBtn, docs, startOver);
+    const mapsBtn = el('button', '', openMaps.has(c.id) ? 'Hide maps' : 'Maps');
+    mapsBtn.title = 'Choose which maps this campaign can use, what kind each is, and what the DM is told about it';
+    mapsBtn.addEventListener('click', async () => {
+      if (openMaps.has(c.id)) { openMaps.delete(c.id); render(); return; }
+      try { mapData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps'); openMaps.add(c.id); } catch (err) { setStatus('Could not load the maps: ' + err.message, 'bad'); }
+      render();
+    });
+    row.append(use, openBtn, docs, mapsBtn, startOver);
     box.appendChild(row);
 
     if (open.has(c.id)) box.appendChild(documents(c));
+    if (openMaps.has(c.id) && mapData[c.id]) box.appendChild(mapsEditor(c));
     if (!c.test) box.appendChild(importer(c));
     return box;
   }
@@ -174,6 +185,76 @@
     } catch (err) {
       setStatus('Could not switch campaign: ' + err.message, 'bad');
     }
+  }
+
+  // Which maps a campaign can use. The AI is offered exactly these (with the description), and the Map picker lists them.
+  function mapsEditor(c) {
+    const d = mapData[c.id];
+    const wrap = el('div');
+    wrap.appendChild(el('h2', '', 'Maps'));
+    wrap.appendChild(el('p', 'note', 'The Dungeon Master can move the table to any map listed here, and the Map picker on the tabletop offers them. Kind decides how the map behaves: battle (grid, tokens, fog of war), camp (grid and tokens, no fog), town or regional (a plain picture, no tokens or fog). Set where the party arrives with the Pins tool on the Map Test page.' + (d.custom ? '' : ' This campaign is using its built-in list; saving here replaces it with your own.')));
+    const table = el('table');
+    const head = el('tr');
+    ['Picture', 'Name', 'Kind', 'What the DM is told', ''].forEach((t) => head.appendChild(el('th', '', t)));
+    table.appendChild(head);
+    d.maps.forEach((m, i) => {
+      const tr = el('tr');
+      const fileCell = el('td');
+      const a = el('a', '', m.file); a.href = '/uploads/' + encodeURIComponent(m.file); a.target = '_blank'; a.rel = 'noopener';
+      fileCell.appendChild(a);
+      const nameCell = el('td');
+      const name = el('input'); name.value = m.name; name.style.width = '170px'; name.setAttribute('aria-label', 'Name'); name.addEventListener('input', () => { m.name = name.value; });
+      nameCell.appendChild(name);
+      const kindCell = el('td');
+      const kind = el('select'); kind.setAttribute('aria-label', 'Kind');
+      d.kinds.forEach((k) => { const o = el('option', '', k); o.value = k; kind.appendChild(o); });
+      kind.value = m.kind; kind.addEventListener('change', () => { m.kind = kind.value; });
+      kindCell.appendChild(kind);
+      const descCell = el('td');
+      const desc = el('textarea'); desc.value = m.description; desc.rows = 3; desc.style.width = '100%'; desc.setAttribute('aria-label', 'Description'); desc.addEventListener('input', () => { m.description = desc.value; });
+      descCell.appendChild(desc);
+      const actCell = el('td', 'act');
+      const del = el('button', 'danger', 'Remove');
+      del.addEventListener('click', () => { d.maps.splice(i, 1); render(); });
+      actCell.appendChild(del);
+      tr.append(fileCell, nameCell, kindCell, descCell, actCell);
+      table.appendChild(tr);
+    });
+    wrap.appendChild(table);
+    const unused = d.uploads.filter((f) => !d.maps.some((m) => m.file === f));
+    const addRow = el('div', 'row');
+    addRow.style.marginTop = '10px';
+    const pick = el('select'); pick.setAttribute('aria-label', 'Map picture to add');
+    unused.forEach((f) => { const o = el('option', '', f); o.value = f; pick.appendChild(o); });
+    const add = el('button', '', 'Add this map');
+    add.disabled = !unused.length;
+    add.addEventListener('click', () => {
+      if (!pick.value) return;
+      const base = pick.value.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ');
+      d.maps.push({ id: base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''), file: pick.value, name: base.replace(/\b\w/g, (ch) => ch.toUpperCase()), kind: 'battle', description: '' });
+      render();
+    });
+    const save = el('button', 'primary', 'Save maps');
+    save.addEventListener('click', async () => {
+      try {
+        const out = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maps: d.maps }) });
+        d.maps = out.maps; d.custom = true;
+        setStatus(out.problems.length ? out.problems.join(' ') : 'Maps saved for ' + c.name + '.', out.problems.length ? 'bad' : 'ok');
+      } catch (err) { setStatus('Could not save: ' + err.message, 'bad'); }
+      render();
+    });
+    const reset = el('button', '', 'Back to the built-in list');
+    reset.title = 'Forget your list and use the maps that came with this campaign (only the shipped campaigns have one)';
+    reset.disabled = !d.custom;
+    reset.addEventListener('click', async () => {
+      if (!confirm('Go back to the built-in maps of ' + c.name + '?')) return;
+      try { await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps', { method: 'DELETE' }); mapData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps'); setStatus('Using the built-in maps again.', 'ok'); }
+      catch (err) { setStatus('Could not reset: ' + err.message, 'bad'); }
+      render();
+    });
+    addRow.append(pick, add, save, reset);
+    wrap.appendChild(addRow);
+    return wrap;
   }
 
   function documents(c) {
