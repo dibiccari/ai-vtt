@@ -1137,7 +1137,19 @@ function objectLoops() {
 function revealObjectTops() {
   if (!state.sight.length) return;
   for (const loop of objectLoops()) {
-    if (!WallObjects.samples(loop, 14).some((p) => state.sight.some((s) => visibleFrom(s, p.x, p.y)))) continue;
+    const points = WallObjects.samples(loop, 14);
+    const seers = state.sight.filter((s) => points.some((p) => visibleFrom(s, p.x, p.y)));
+    if (!seers.length) continue;
+    // In the dark (or for the blind) only the part of the top that is lit, or within reach, shows; otherwise the whole top does.
+    const partial = ambientNow() === 'dark' || seers.some((s) => s.feel);
+    if (partial) {
+      const W = state.map.width, H = state.map.height;
+      for (const s of seers) {
+        drawSightShape(s, loop);
+        for (const c of [sctx, vctx]) { c.save(); c.globalCompositeOperation = 'destination-out'; c.drawImage(sightTmp, 0, 0, W, H); c.restore(); }
+      }
+      continue;
+    }
     for (const c of [sctx, vctx]) {
       c.save();
       c.globalCompositeOperation = 'destination-out';
@@ -2244,12 +2256,13 @@ function buildLitMask() {
 
 // What one party member sees right now, drawn as an opaque shape onto sightTmp: their line-of-sight polygon, cut down to what is lit
 // or within their darkvision when it is dark (and to their own square when they are blind).
-function drawSightShape(s) {
+function drawSightShape(s, shape) {
+  const poly = shape || s.poly;                       // the party member's sight polygon, or another shape to cut down the same way
   for (const c of [stctx, mtctx]) { plainTransform(c); c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, sightTmp.width, sightTmp.height); scaled(c); }
   stctx.fillStyle = '#fff';
   stctx.beginPath();
-  stctx.moveTo(s.poly[0].x, s.poly[0].y);
-  for (let i = 1; i < s.poly.length; i++) stctx.lineTo(s.poly[i].x, s.poly[i].y);
+  stctx.moveTo(poly[0].x, poly[0].y);
+  for (let i = 1; i < poly.length; i++) stctx.lineTo(poly[i].x, poly[i].y);
   stctx.closePath();
   stctx.fill();
   const dark = ambientNow() === 'dark';

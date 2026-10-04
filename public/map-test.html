@@ -339,19 +339,27 @@
     const k = S.walls.length + ':' + (S.walls[0] ? S.walls[0].x1 + ',' + S.walls[0].y1 : '') + ':' + cell();
     if (objectCache.key !== k) objectCache = { key: k, loops: WallObjects.loops(S.walls, 9 * cell()) };
     for (const loop of objectCache.loops) {
-      const visible = WallObjects.samples(loop, Math.max(6, cell() / 3)).some((p) => S.polys.some((poly, i) => Math.hypot(p.x - S.polyOwners[i].x, p.y - S.polyOwners[i].y) <= radius * 0.9 && inside(poly, p.x, p.y)));
-      if (!visible) continue;
-      for (const c of [sctx, vctx]) {
-        c.save();
-        c.globalCompositeOperation = 'destination-out';
-        c.fillStyle = '#000';
-        c.beginPath();
-        c.moveTo(loop[0].x, loop[0].y);
-        for (let i = 1; i < loop.length; i++) c.lineTo(loop[i].x, loop[i].y);
-        c.closePath();
-        c.fill();
-        c.restore();
-      }
+      const points = WallObjects.samples(loop, Math.max(6, cell() / 3));
+      // Each token reveals only the part of the top that is inside its own vision (the same soft edge as the rest of the map).
+      S.polys.forEach((poly, i) => {
+        const t = S.polyOwners[i];
+        if (!points.some((p) => Math.hypot(p.x - t.x, p.y - t.y) <= radius * 0.9 && inside(poly, p.x, p.y))) return;
+        for (const c of [sctx, vctx]) {
+          c.save();
+          c.globalCompositeOperation = 'destination-out';
+          c.beginPath();
+          c.moveTo(loop[0].x, loop[0].y);
+          for (let k = 1; k < loop.length; k++) c.lineTo(loop[k].x, loop[k].y);
+          c.closePath();
+          c.clip();
+          const grad = c.createRadialGradient(t.x, t.y, radius * 0.65, t.x, t.y, radius);
+          grad.addColorStop(0, 'rgba(0,0,0,1)');
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+          c.fillStyle = grad;
+          c.fillRect(t.x - radius, t.y - radius, radius * 2, radius * 2);
+          c.restore();
+        }
+      });
     }
   }
 
