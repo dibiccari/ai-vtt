@@ -15,5 +15,28 @@
     "wis": 12,
     "cha": 10
   },
-  "color": "#4f9dff"
+  "color": "#4f9dff",
+  "image": "/tokens/aether-wielding-archer-40f81.png",
+  "sheet": {
+    "CharacterName": "Lyra",
+    "CharacterName 2": "Lyra",
+    "ClassLevel": "Wizard 3",
+    "HPMax": "17",
+    "HPCurrent": "17",
+    "AC": "12",
+    "Speed": "30",
+    "STR": "8",
+    "STRmod": "-1",
+    "DEX": "14",
+    "DEXmod ": "+2",
+    "CON": "14",
+    "CONmod": "+2",
+    "INT": "17",
+    "INTmod": "+3",
+    "WIS": "12",
+    "WISmod": "+1",
+    "CHA": "10",
+    "CHamod": "+0",
+    "ProfBonus": "+2"
+  }
 }

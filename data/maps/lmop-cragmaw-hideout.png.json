@@ -6,6 +6,11 @@
       "name": "start",
       "x": 122,
       "y": 1196
+    },
+    {
+      "name": "cave-mouth",
+      "x": 887,
+      "y": 946
     }
   ],
   "source": "dd2vtt",

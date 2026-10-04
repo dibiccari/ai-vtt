@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap } from './lib/campaign-maps.js';
+import { MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -94,6 +95,8 @@ function normalizeCharacter(body) {
     color: /^#[0-9a-f]{6}$/i.test(body.color ?? '') ? body.color : '#4f9dff',
     image: TOKEN_URL_RE.test(body.image ?? '') ? body.image : '',
     ...(Object.keys(sheet).length ? { sheet } : {}),
+    ...(Array.isArray(body.inventory) ? { inventory: normalizeInventory(body.inventory) } : {}),
+    ...(body.coins && typeof body.coins === 'object' ? { coins: normalizeCoins(body.coins) } : {}),
     ...(expertise.length ? { expertise } : {}),
     ...(sheetLog.length ? { sheetLog } : {})
   };
@@ -148,6 +151,8 @@ app.post('/api/characters', asyncRoute(async (req, res) => {
       if (old.sheet && Object.keys(old.sheet).length) character.sheet = old.sheet;
       if (req.body?.expertise === undefined && old.expertise?.length) character.expertise = old.expertise;
       if (req.body?.sheetLog === undefined && old.sheetLog?.length) character.sheetLog = old.sheetLog;
+      if (req.body?.inventory === undefined && old.inventory) character.inventory = normalizeInventory(old.inventory);
+      if (req.body?.coins === undefined && old.coins) character.coins = normalizeCoins(old.coins);
     } catch { /* new character: nothing to keep */ }
   }
   await saveCharacter(character);
@@ -302,6 +307,35 @@ app.get('/api/maps/available', asyncRoute(async (_req, res) => {
   res.json({ campaign, maps: maps.map((m) => ({ id: m.id, name: m.name, kind: m.kind, description: m.description, url: m.url, startPx: m.startPx ? { x: m.startPx.x, y: m.startPx.y } : null, start: { col: m.start[0], row: m.start[1] }, spots: Object.fromEntries(Object.entries(m.spots).map(([k, [col, row]]) => [k, { col, row }])) })) });
 }));
 
+// ---------------------------------------------------------------- party API (gear, coins, attunement, stash)
+
+const partyView = (c) => {
+  const seeded = seedFromSheet(c);
+  return { id: seeded.id, name: seeded.name, class: seeded.class, level: seeded.level, hp: seeded.hp, maxHp: seeded.maxHp, color: seeded.color, image: seeded.image, abilities: seeded.abilities, ac: seeded.ac, speed: seeded.speed, inventory: normalizeInventory(seeded.inventory), coins: normalizeCoins(seeded.coins), effective: computeEffective(seeded) };
+};
+
+app.get('/api/party', asyncRoute(async (_req, res) => {
+  const campaign = await getActiveCampaignId();
+  const characters = (await listCharacters()).map(partyView);
+  res.json({ campaign, characters, stash: await readStash(path.join(CAMPAIGNS_DIR, campaign)), maxAttuned: MAX_ATTUNED });
+}));
+
+// Replace one character's gear (the party page saves the whole list). Extra attunements beyond three are dropped and reported.
+app.put('/api/party/characters/:id', asyncRoute(async (req, res) => {
+  const id = safeId(req.params.id);
+  let old;
+  try { old = JSON.parse(await readFile(path.join(CHAR_DIR, `${id}.json`), 'utf8')); } catch { return res.status(404).json({ error: 'Character not found' }); }
+  const problems = [];
+  const next = { ...old, inventory: normalizeInventory(req.body?.inventory, problems), coins: normalizeCoins(req.body?.coins) };
+  const saved = normalizeCharacter(syncSheet(next));
+  await saveCharacter(saved);
+  res.json({ character: partyView(saved), problems });
+}));
+
+app.put('/api/party/stash', asyncRoute(async (req, res) => {
+  const campaign = await getActiveCampaignId();
+  res.json({ stash: await writeStash(path.join(CAMPAIGNS_DIR, campaign), req.body) });
+}));
 // ---------------------------------------------------------------- journal / save file API
 
 const campaignDir = (id) => {
@@ -654,26 +688,24 @@ Maps of kind "regional" (a Sword Coast map) and "town" (Phandalin) are just pict
 Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
 Return mechanical changes in mapUpdates:
-- moveToken: move an existing token (tokenId, col, row).
-- addToken: place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard.
-- removeToken: remove a token (tokenId), e.g. a defeated monster.
-- revealToken: make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks.
+- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
 - changeMap: move the whole table to another place (mapId from the maps list in the board state, arrive: one of that map's arrivalSpots, or "default", and a short reason). The party's tokens are moved to the arrival spot, and the creatures of the scene you are leaving are put away until you return. Put changeMap first in the list, then add the creatures of the new scene with addToken (hidden ones with hidden true).
-- hideToken: hide a token again (tokenId), for example a creature that turns invisible or slips into hiding.
-- updateCharacter: change a player character's sheet. Always send characterId, a short reason, and all four lists (use an empty list when you have nothing for it). edits is a list of { field, value }, where field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. skills sets each named skill to none, proficient or expertise. saves sets saving throw proficiency. spells adds (remove false) or removes (remove true) a spell by level, 0 for cantrips. slots sets the total spell slots of a level. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
-- addCondition / removeCondition: put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
+- updateCharacter: change a player character's sheet. Always send characterId, a short reason, and edits, a list of { field, value }. field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. A skill is set with field "skill <name>" (for example "skill Stealth") and value none, proficient or expertise. Saving throw proficiency uses field "save <ability>" (for example "save dex") and value proficient or none. A spell is added with field "spell add <level>" and removed with "spell remove <level>", the value being the spell name (level 0 for cantrips). The total spell slots of a level use field "slots <level>" and the number as value. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
 - setHp: set a player character's current HP (characterId, hp).
 - addWall: add a wall or door (x1, y1, x2, y2 in pixels, wallType "wall" or "door").
+- gear: change items, coins and attunement. See Gear.
 - journal: write something into the campaign journal (category, title, text, status, when). See Keeping the journal.
 Only include updates that actually happened. Use an empty array when nothing changes on the board.
 
 Changing maps: the board state lists the maps you can use (maps) and the one in use (currentMap). When the party travels or enters a place that has its own map, change to it: a regional map for travel between places, a town map for scenes in a town, a battle map for an encounter or a dungeon. When they say they head to a place (for example "we go to town"), use changeMap to the matching map, then narrate the arrival. Do not change maps for a short walk inside the same place, and do not invent map ids. Going back to a map you left restores its creatures, so you do not need to place them again.
 
+Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
+
 Keeping the journal: the campaign journal is the party's shared memory, and the current journal is given to you below the campaign text. After a turn in which something worth remembering happened, add a journal update: category "event" for what happened (a short title and one or two sentences), "npc" for a person met (title is the name, text says who they are and how they feel about the party), "quest" for a goal (status "open" until finished, then send the same title again with status "done"), "place" for somewhere important, "loot" for treasure or magic items found, "promise" for something the party promised or is owed. Sending an npc, quest, place, loot or promise title that already exists updates that entry instead of adding another. Use when for the in-game time (for example "Day 2, evening") whenever you know it. Write only what the party knows or witnessed, never DM secrets. Do not journal small talk or every combat round, and use no journal update when nothing noteworthy happened. Read the journal before you narrate so that you stay consistent with promises, names and earlier events.
 
-Keeping sheets up to date: apply routine changes from play with updateCharacter as they happen (gold, XP, equipment, temporary HP, spell slots used). Award XP after a fight or goal using the rules and the monsters' XP values, split among the living party, and say what each character gained.
+Keeping sheets up to date: apply routine changes from play with updateCharacter as they happen (XP, temporary HP, spell slots used; gear and coins have their own updates, see Gear). Award XP after a fight or goal using the rules and the monsters' XP values, split among the living party, and say what each character gained.
 
-Levelling up is a conversation. When a character has enough XP for the next level (300, 900, 2,700, 6,500, 14,000, 23,000, 34,000, 48,000, 64,000, 85,000 and so on), tell the player and ask what they want. Do not change the sheet until they have answered. List what they gain at that level: hit points (offer the fixed average for the hit die plus Constitution modifier, or a roll), the class features of that level, a subclass at 3 for most classes, new spells or slots for casters, and at levels 4, 8, 12, 16 and 19 a choice between ability score increases and a feat. Ask them to pick (which skills or expertise, which ability scores, which spells, which feat), one short question at a time, then call updateCharacter once with everything they chose (classLevel, maxHp and hp, abilities, skills, spells, slots, and an edit to Features and Traits that lists the new features), and summarise what changed. Only use options that exist in 5th edition for their class and level, and say so if a request is not allowed.
+Levelling up is a conversation. When a character has enough XP for the next level (300, 900, 2,700, 6,500, 14,000, 23,000, 34,000, 48,000, 64,000, 85,000 and so on), tell the player and ask what they want. Do not change the sheet until they have answered. List what they gain at that level: hit points (offer the fixed average for the hit die plus Constitution modifier, or a roll), the class features of that level, a subclass at 3 for most classes, new spells or slots for casters, and at levels 4, 8, 12, 16 and 19 a choice between ability score increases and a feat. Ask them to pick (which skills or expertise, which ability scores, which spells, which feat), one short question at a time, then call updateCharacter once with everything they chose (classLevel, maxHp and hp, abilities, skill, spell and slots edits, and an edit to Features and Traits that lists the new features), and summarise what changed. Only use options that exist in 5th edition for their class and level, and say so if a request is not allowed.
 
 Secrets stay secret. Each token in the board state has hidden, kind and visibleToParty. Never mention, name, describe or hint at a token that is hidden or not visibleToParty (a hiding or invisible creature, a trap, an enemy in another room): not in the narrative, not in the voice lines, not in a rules note. An undiscovered trap is not mentioned at all until a character finds it with a check, triggers it, or it is revealed. Narrate only what the characters can perceive from where they stand. When a hidden thing is found or acts, call revealToken and then describe it.
 
@@ -685,6 +717,56 @@ same NPC across turns. Write dice math in a speakable way. When the player's inp
 transcribed from speech and may contain recognition errors - interpret it charitably.`;
 
 const CAMPAIGN_RULES = `A campaign module follows. You are running it. Treat it as secret DM material: never read boxed text or stat blocks verbatim unless it is the right moment, never reveal secrets, traps, or monster stats before the players earn them, and keep track of where the party is. Use the module's NPC names, personalities, and locations. The board state tells you which map is loaded (mapName); the players move tokens themselves, so describe what their position can see.`;
+
+// The sheet update arrives as one list of { field, value } edits; skills, saves, spells and slots are written as
+// "skill Stealth" / "save dex" / "spell add 2" / "slots 3" and turned back into the lists lib/sheet-edit.js applies.
+function expandSheetEdits(u) {
+  const rest = [], skills = [], saves = [], spells = [], slots = [];
+  for (const e of Array.isArray(u.edits) ? u.edits : []) {
+    const field = String(e?.field ?? '').trim();
+    const value = String(e?.value ?? '').trim();
+    let m;
+    if ((m = /^skill\s+(.+)$/i.exec(field))) skills.push({ name: m[1], proficiency: value.toLowerCase() });
+    else if ((m = /^save\s+(\w+)$/i.exec(field))) saves.push({ ability: m[1], proficient: /^(proficient|true|yes)$/i.test(value) });
+    else if ((m = /^spell\s+(add|remove)\s+(\d+)$/i.exec(field))) spells.push({ level: Number(m[2]), name: value, remove: m[1].toLowerCase() === 'remove' });
+    else if ((m = /^slots?\s+(\d+)$/i.exec(field))) slots.push({ level: Number(m[1]), total: Number(value) });
+    else rest.push({ field, value });
+  }
+  return { ...u, edits: rest, skills, saves, spells, slots };
+}
+
+// The DM's flat "token" update, turned into the specific board updates the tabletop applies.
+function expandTokenUpdates(updates) {
+  const out = [];
+  for (const u of updates) {
+    if (!u) continue;
+    if (u.type !== 'token') { out.push(u); continue; }
+    const base = { tokenId: u.tokenId };
+    if (u.action === 'move') out.push({ type: 'moveToken', ...base, col: u.col, row: u.row });
+    else if (u.action === 'add') out.push({ type: 'addToken', ...base, name: u.name, col: u.col, row: u.row, color: u.color, hidden: u.hidden, kind: u.kind });
+    else if (u.action === 'remove') out.push({ type: 'removeToken', ...base });
+    else if (u.action === 'reveal') out.push({ type: 'revealToken', ...base });
+    else if (u.action === 'hide') out.push({ type: 'hideToken', ...base });
+    else if (u.action === 'addCondition' || u.action === 'removeCondition') out.push({ type: u.action, ...base, condition: u.condition, rounds: u.rounds });
+  }
+  return out;
+}
+
+// The DM's single flat "gear" update, turned into the specific updates lib/party.js applies.
+function gearToPartyUpdates(updates) {
+  const out = [];
+  for (const u of updates) {
+    if (!u || u.type !== 'gear') continue;
+    if (u.action === 'add') {
+      const kind = EFFECT_KINDS.includes(u.effectKind) ? u.effectKind : null;
+      out.push({ type: 'addItem', target: u.target, name: u.name, qty: u.qty, weight: u.weight, requiresAttunement: u.requiresAttunement, effects: kind ? [{ kind, value: u.effectValue, ability: u.effectAbility }] : [] });
+    } else if (u.action === 'remove') out.push({ type: 'removeItem', target: u.target, name: u.name, qty: u.qty });
+    else if (u.action === 'move') out.push({ type: 'moveItem', from: u.target, to: u.to, name: u.name, qty: u.qty });
+    else if (u.action === 'attune' || u.action === 'unattune') out.push({ type: u.action === 'attune' ? 'attuneItem' : 'unattuneItem', characterId: u.target, name: u.name });
+    else if (u.action === 'coins') out.push({ type: 'adjustCoins', target: u.target, cp: u.cp, sp: u.sp, ep: u.ep, gp: u.gp, pp: u.pp });
+  }
+  return out;
+}
 
 const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine'];
 
@@ -706,22 +788,16 @@ const DM_SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          upd(['moveToken'], { tokenId: STR, col: INT, row: INT }),
-          upd(['addToken'], { tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] } }),
-          upd(['removeToken', 'revealToken', 'hideToken'], { tokenId: STR }),
+          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
-          upd(['addCondition', 'removeCondition'], { tokenId: STR, condition: STR, rounds: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
+          upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
           upd(['journal'], { category: { type: 'string', enum: CATEGORIES }, title: STR, text: STR, status: { type: 'string', enum: STATUSES }, when: STR }),
-          upd(['addWall'], { x1: { type: 'number' }, y1: { type: 'number' }, x2: { type: 'number' }, y2: { type: 'number' }, wallType: { type: 'string', enum: ['wall', 'door'] } }),
+          upd(['addWall'], { x1: INT, y1: INT, x2: INT, y2: INT, wallType: { type: 'string', enum: ['wall', 'door'] } }),
           upd(['updateCharacter'], {
             characterId: STR,
             reason: STR,
             edits: { type: 'array', items: { type: 'object', properties: { field: STR, value: STR }, required: ['field', 'value'], additionalProperties: false } },
-            skills: { type: 'array', items: { type: 'object', properties: { name: { type: 'string', enum: Object.keys(SKILLS) }, proficiency: { type: 'string', enum: ['none', 'proficient', 'expertise'] } }, required: ['name', 'proficiency'], additionalProperties: false } },
-            saves: { type: 'array', items: { type: 'object', properties: { ability: { type: 'string', enum: ['str', 'dex', 'con', 'int', 'wis', 'cha'] }, proficient: { type: 'boolean' } }, required: ['ability', 'proficient'], additionalProperties: false } },
-            spells: { type: 'array', items: { type: 'object', properties: { level: INT, name: STR, remove: { type: 'boolean' } }, required: ['level', 'name', 'remove'], additionalProperties: false } },
-            slots: { type: 'array', items: { type: 'object', properties: { level: INT, total: INT }, required: ['level', 'total'], additionalProperties: false } }
           })
         ]
       }
@@ -775,6 +851,18 @@ function buildHistory(history, message, state, inputMode) {
   return messages;
 }
 
+// What the DM is told about the party's gear: per character the items, coins and effective stats, and the shared stash.
+async function partyForPrompt(campaign) {
+  const brief = (i) => ({ name: i.name, qty: i.qty, weight: i.weight, requiresAttunement: i.requiresAttunement, attuned: i.attuned, equipped: i.equipped, effects: i.effects });
+  const characters = (await listCharacters()).map((c) => {
+    const s = seedFromSheet(c);
+    const eff = computeEffective(s);
+    return { id: s.id, name: s.name, inventory: normalizeInventory(s.inventory).map(brief), coins: normalizeCoins(s.coins), effective: { ac: eff.ac, speed: eff.speed, saveBonus: eff.saveBonus, abilities: eff.abilities, attuned: eff.attuned, weight: eff.weight } };
+  });
+  const stash = await readStash(path.join(CAMPAIGNS_DIR, campaign));
+  return { characters, stash: { items: stash.items.map(brief), coins: stash.coins } };
+}
+
 app.post('/api/chat', asyncRoute(async (req, res) => {
   const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl } = req.body ?? {};
   const text = String(message ?? '').trim();
@@ -801,7 +889,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     gridSize: Number(gridSize) || 50,
     tokens: Array.isArray(tokens) ? tokens : [],
     characters: Array.isArray(characters) ? characters : [],
-    walls: Array.isArray(walls) ? walls : []
+    walls: Array.isArray(walls) ? walls : [],
+    party: await partyForPrompt(activeCampaign)
   };
 
   try {
@@ -833,7 +922,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const narrative = String(parsed.narrative ?? '');
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
-    const allUpdates = Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : [];
+    const allUpdates = expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []);
     const mapProblems = [];
     const travel = [];
     for (const u of allUpdates.filter((x) => x && x.type === 'changeMap')) {
@@ -841,10 +930,16 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       if (out.error) mapProblems.push(out.error); else travel.push(out.update);
     }
     // A map change comes first, so the creatures that follow are placed on the new map.
-    const boardUpdates = [...travel.slice(0, 1), ...allUpdates.filter((u) => u && u.type !== 'updateCharacter' && u.type !== 'changeMap' && u.type !== 'journal')];
+    const boardUpdates = [...travel.slice(0, 1), ...allUpdates.filter((u) => u && u.type !== 'updateCharacter' && u.type !== 'changeMap' && u.type !== 'journal' && u.type !== 'gear')];
+    const partyResult = await processPartyUpdates(gearToPartyUpdates(allUpdates), {
+      list: listCharacters,
+      save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; },
+      stash: () => readStash(path.join(CAMPAIGNS_DIR, activeCampaign)),
+      saveStash: (st) => writeStash(path.join(CAMPAIGNS_DIR, activeCampaign), st)
+    }).catch((err) => { console.warn('Party update failed:', err.message); return { notes: [], problems: ['The DM tried to change the party\'s gear, but it could not be saved.'], changed: [] }; });
     const journalAdded = await addJournalUpdates(path.join(CAMPAIGNS_DIR, activeCampaign), allUpdates.filter((u) => u && u.type === 'journal'))
       .catch((err) => { console.warn('Journal update failed:', err.message); return []; });
-    const sheetResults = await processCharacterUpdates(allUpdates.filter((u) => u && u.type === 'updateCharacter'), {
+    const sheetResults = await processCharacterUpdates(allUpdates.filter((u) => u && u.type === 'updateCharacter').map(expandSheetEdits), {
       list: listCharacters,
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
@@ -853,8 +948,10 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       voiceLines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
       mapUpdates: boardUpdates,
       characterUpdates: sheetResults.results,
+      partyNotes: partyResult.notes,
+      partyChanged: partyResult.changed,
       journalAdded: journalAdded.map((e) => ({ category: e.category, title: e.title })),
-      characterProblems: [...mapProblems, ...sheetResults.problems]
+      characterProblems: [...mapProblems, ...sheetResults.problems, ...partyResult.problems]
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {

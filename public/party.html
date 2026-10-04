@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Party</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:1180px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 16px; }
+  a { color:var(--accent); }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:5px 12px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.small { padding:2px 8px; font-size:12px; }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  input, select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
+  input[type=number] { width:70px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(520px, 1fr)); gap:14px; align-items:start; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .card h3 { margin:0; font-size:18px; }
+  .head { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+  .head img, .head .dot { width:48px; height:48px; border-radius:50%; object-fit:cover; border:2px solid var(--border); flex:none; }
+  .head .meta { color:var(--muted); font-size:12px; }
+  .bar { height:6px; background:#0d1117; border-radius:3px; overflow:hidden; margin-top:4px; width:160px; }
+  .bar i { display:block; height:100%; background:var(--ok); }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin:8px 0; }
+  .stat { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:4px 10px; text-align:center; min-width:62px; cursor:help; }
+  .stat b { display:block; font-size:18px; } .stat span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .stat.up b { color:var(--gold); }
+  .abil { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .abil .stat { min-width:48px; padding:2px 6px; } .abil .stat b { font-size:15px; }
+  .slots { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+  .slot { border:1px dashed #3a4558; border-radius:999px; padding:2px 10px; font-size:12px; color:var(--muted); }
+  .slot.full { border-style:solid; border-color:var(--gold); color:var(--gold); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+  .chip { border-radius:999px; padding:1px 10px; font-size:12px; font-weight:700; color:#fff; text-shadow:0 0 2px #000; }
+  .weight { font-size:12px; color:var(--muted); margin:4px 0 8px; }
+  .weight.warn { color:var(--gold); } .weight.bad { color:var(--danger); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.06em; padding:4px 6px; border-bottom:1px solid var(--border); }
+  td { padding:4px 6px; border-bottom:1px solid #1c2330; vertical-align:middle; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .fx { color:var(--gold); font-size:12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  .row label { display:flex; gap:4px; align-items:center; color:var(--muted); font-size:12px; }
+  .coins input { width:62px; }
+  h4 { margin:12px 0 4px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .status { min-height:20px; margin:0 0 10px; color:var(--muted); }
+  .status.err { color:var(--danger); } .status.ok { color:var(--ok); }
+  .empty { color:var(--muted); padding:6px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>The <span>Party</span></h1>
+  <p class="lead">Gear, coins, attunement and the shared stash for <b id="campName">the active campaign</b>. Magic items change the numbers below (Ring of Protection, Gauntlets of Ogre Power), and the AI Dungeon Master reads and updates all of this as you play. Hover a number to see where it comes from.</p>
+  <div class="status" id="status" role="status"></div>
+  <div class="grid" id="grid"></div>
+</div>
+<script src="/nav.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var CONDITION_COLORS = { blinded: '#8e8e9a', charmed: '#ff7ac8', deafened: '#9a8e7a', frightened: '#b06bff', grappled: '#d98a3d', incapacitated: '#cc5555', invisible: '#6fd0e8', paralyzed: '#e0c040', petrified: '#9aa0a6', poisoned: '#4cc46a', prone: '#c08a5a', restrained: '#d9a43d', stunned: '#f0a040', unconscious: '#e05050', exhaustion: '#a07850', concentrating: '#4f9dff' };
+  var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+  var COINS = ['cp', 'sp', 'ep', 'gp', 'pp'];
+  var state = { campaign: '', characters: [], stash: { items: [], coins: {} }, maxAttuned: 3 };
+
+  function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
+  async function api(url, options) {
+    var res = await fetch(url, options);
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+    return data;
+  }
+  function put(url, body) { return api(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  var signed = function (n) { return (n > 0 ? '+' : '') + n; };
+
+  function effectText(e) {
+    if (e.kind === 'ac') return signed(e.value) + ' AC';
+    if (e.kind === 'save') return signed(e.value) + ' to saves';
+    if (e.kind === 'speed') return signed(e.value) + ' ft speed';
+    if (e.kind === 'abilityMin') return e.ability.toUpperCase() + ' becomes ' + e.value;
+    return '';
+  }
+
+  // Conditions come from the tabletop's saved board (this browser): the tokens of the active campaign.
+  function conditionsFor(character) {
+    try {
+      var board = JSON.parse(localStorage.getItem('vtt.board.' + state.campaign) || 'null');
+      var tok = board && Array.isArray(board.tokens) ? board.tokens.filter(function (t) { return t.characterId === character.id; })[0] : null;
+      return tok && Array.isArray(tok.conditions) ? tok.conditions : [];
+    } catch (e) { return []; }
+  }
+
+  function breakdownText(list) { return list.map(function (b) { return b.label + ' ' + (b.label === 'Sheet' ? b.value : signed(b.value)); }).join('\n'); }
+
+  async function saveCharacter(c) {
+    try {
+      var out = await put('/api/party/characters/' + encodeURIComponent(c.id), { inventory: c.inventory, coins: c.coins });
+      var i = state.characters.findIndex(function (x) { return x.id === c.id; });
+      state.characters[i] = out.character;
+      setStatus(out.problems.length ? out.problems.join(' ') : 'Saved.', out.problems.length ? 'err' : 'ok');
+    } catch (err) { setStatus(err.message, 'err'); await load(); return; }
+    render();
+  }
+  async function saveStash() {
+    try { state.stash = (await put('/api/party/stash', state.stash)).stash; setStatus('Saved.', 'ok'); }
+    catch (err) { setStatus(err.message, 'err'); await load(); return; }
+    render();
+  }
+
+  // The add-item form shared by every character and the stash.
+  function addForm(onAdd) {
+    var row = el('div', 'row');
+    var name = el('input'); name.placeholder = 'New item'; name.maxLength = 80; name.style.width = '170px';
+    var qty = el('input'); qty.type = 'number'; qty.min = '1'; qty.value = '1'; qty.title = 'Quantity';
+    var wt = el('input'); wt.type = 'number'; wt.min = '0'; wt.step = '0.1'; wt.value = '0'; wt.title = 'Weight of one, in pounds';
+    var att = el('input'); att.type = 'checkbox';
+    var attLabel = el('label'); attLabel.append(att, document.createTextNode('needs attunement'));
+    var kind = el('select');
+    [['', 'no effect'], ['ac', '+ AC'], ['save', '+ saves'], ['speed', '+ speed (ft)'], ['abilityMin', 'raises ability to']].forEach(function (o) { var op = el('option', '', o[1]); op.value = o[0]; kind.appendChild(op); });
+    var val = el('input'); val.type = 'number'; val.value = '1'; val.title = 'Amount';
+    var ab = el('select'); ABIL.forEach(function (a) { var op = el('option', '', a.toUpperCase()); op.value = a; ab.appendChild(op); }); ab.hidden = true;
+    kind.addEventListener('change', function () { ab.hidden = kind.value !== 'abilityMin'; val.hidden = !kind.value; });
+    val.hidden = true;
+    var add = el('button', '', 'Add');
+    add.addEventListener('click', function () {
+      if (!name.value.trim()) { name.focus(); return; }
+      var item = { name: name.value.trim(), qty: Number(qty.value) || 1, weight: Number(wt.value) || 0, requiresAttunement: att.checked, attuned: false, equipped: true, effects: [] };
+      if (kind.value) item.effects.push({ kind: kind.value, value: Number(val.value) || 0, ability: kind.value === 'abilityMin' ? ab.value : undefined });
+      onAdd(item);
+    });
+    row.append(name, qty, wt, attLabel, kind, val, ab, add);
+    return row;
+  }
+
+  function coinRow(coins, onChange) {
+    var row = el('div', 'row coins');
+    COINS.forEach(function (k) {
+      var lab = el('label'); var inp = el('input'); inp.type = 'number'; inp.min = '0'; inp.value = coins[k] || 0;
+      inp.addEventListener('change', function () { coins[k] = Math.max(0, Math.round(Number(inp.value) || 0)); onChange(); });
+      lab.append(document.createTextNode(k.toUpperCase()), inp);
+      row.appendChild(lab);
+    });
+    return row;
+  }
+
+  function itemTable(items, opts) {
+    if (!items.length) return el('div', 'empty', opts.emptyText);
+    var t = el('table');
+    var head = el('tr');
+    ['Item', 'Qty', 'lb', opts.attune ? 'Attuned' : '', opts.attune ? 'Worn' : '', ''].forEach(function (h) { head.appendChild(el('th', '', h)); });
+    t.appendChild(head);
+    items.forEach(function (it) {
+      var tr = el('tr');
+      var nameCell = el('td');
+      nameCell.appendChild(document.createTextNode(it.name));
+      if (it.effects.length) { var fx = el('div', 'fx', it.effects.map(effectText).join(', ') + (it.requiresAttunement ? ' (needs attunement)' : '')); nameCell.appendChild(fx); }
+      else if (it.requiresAttunement) nameCell.appendChild(el('div', 'fx', 'needs attunement'));
+      tr.appendChild(nameCell);
+      tr.appendChild(el('td', 'num', String(it.qty)));
+      tr.appendChild(el('td', 'num', String(it.weight)));
+      var attCell = el('td');
+      var wornCell = el('td');
+      if (opts.attune) {
+        if (it.requiresAttunement) {
+          var box = el('input'); box.type = 'checkbox'; box.checked = it.attuned; box.title = 'Attune (three at most)';
+          box.addEventListener('change', function () { it.attuned = box.checked; opts.save(); });
+          attCell.appendChild(box);
+        }
+        if (it.effects.length) {
+          var worn = el('input'); worn.type = 'checkbox'; worn.checked = it.equipped !== false; worn.title = 'Worn or wielded: only worn items change the numbers';
+          worn.addEventListener('change', function () { it.equipped = worn.checked; opts.save(); });
+          wornCell.appendChild(worn);
+        }
+      }
+      tr.append(attCell, wornCell);
+      var act = el('td');
+      var give = el('select'); give.title = opts.giveTitle;
+      var first = el('option', '', opts.giveLabel); first.value = ''; give.appendChild(first);
+      opts.targets.forEach(function (tg) { var op = el('option', '', tg.name); op.value = tg.id; give.appendChild(op); });
+      give.addEventListener('change', function () { if (give.value) opts.move(it, give.value); });
+      var del = el('button', 'small danger', '✕'); del.title = 'Delete this item';
+      del.addEventListener('click', function () { items.splice(items.indexOf(it), 1); opts.save(); });
+      act.append(give, document.createTextNode(' '), del);
+      tr.appendChild(act);
+      t.appendChild(tr);
+    });
+    return t;
+  }
+
+  function moveBetween(fromItems, item, toItems, afterSave) {
+    var have = toItems.filter(function (x) { return x.name.toLowerCase() === item.name.toLowerCase(); })[0];
+    fromItems.splice(fromItems.indexOf(item), 1);
+    if (have) have.qty += item.qty; else { item.attuned = false; toItems.push(item); }
+    afterSave();
+  }
+
+  function characterCard(c) {
+    var card = el('div', 'card');
+    var head = el('div', 'head');
+    if (c.image) { var img = el('img'); img.src = c.image; img.alt = ''; head.appendChild(img); }
+    else { var dot = el('div', 'dot'); dot.style.background = c.color; head.appendChild(dot); }
+    var who = el('div');
+    who.appendChild(el('h3', '', c.name));
+    who.appendChild(el('div', 'meta', c.class + ' ' + c.level + ' · HP ' + c.hp + '/' + c.maxHp));
+    var bar = el('div', 'bar'); var fill = el('i'); fill.style.width = Math.max(0, Math.min(100, c.maxHp ? c.hp / c.maxHp * 100 : 0)) + '%'; bar.appendChild(fill); who.appendChild(bar);
+    head.appendChild(who);
+    card.appendChild(head);
+
+    var e = c.effective;
+    var stats = el('div', 'stats');
+    var stat = function (value, label, tip, up) { var s = el('div', 'stat' + (up ? ' up' : '')); s.appendChild(el('b', '', String(value))); s.appendChild(el('span', '', label)); if (tip) s.title = tip; return s; };
+    stats.append(
+      stat(e.ac, 'AC', breakdownText(e.breakdown.ac), e.ac !== c.ac),
+      stat(e.speed, 'Speed', breakdownText(e.breakdown.speed), e.speed !== c.speed),
+      stat(e.saveBonus ? signed(e.saveBonus) : '0', 'Saves', e.breakdown.saves.length ? breakdownText(e.breakdown.saves) : 'No item bonus to saving throws', e.saveBonus !== 0)
+    );
+    card.appendChild(stats);
+    var abil = el('div', 'abil');
+    ABIL.forEach(function (a) {
+      var changed = e.abilities[a] !== c.abilities[a];
+      abil.appendChild(stat(e.abilities[a], a, changed ? 'Base ' + c.abilities[a] + ', set by ' + e.breakdown.abilities[a] : 'Base ' + c.abilities[a], changed));
+    });
+    card.appendChild(abil);
+
+    var conds = conditionsFor(c);
+    if (conds.length) {
+      var chips = el('div', 'chips');
+      conds.forEach(function (k) { var ch = el('span', 'chip', k.name + (k.rounds > 0 ? ' (' + k.rounds + ')' : '')); ch.style.background = CONDITION_COLORS[k.name] || '#4f9dff'; chips.appendChild(ch); });
+      card.appendChild(chips);
+    }
+
+    var slots = el('div', 'slots');
+    slots.appendChild(el('span', 'meta', 'Attuned ' + e.attuned.length + '/' + state.maxAttuned + ':'));
+    for (var i = 0; i < state.maxAttuned; i++) slots.appendChild(el('span', 'slot' + (e.attuned[i] ? ' full' : ''), e.attuned[i] || 'empty'));
+    card.appendChild(slots);
+
+    var w = e.weight;
+    var wText = 'Carrying ' + w.carried + ' lb of ' + w.capacity + ' lb capacity' + (w.status !== 'normal' ? ' · ' + w.status : '');
+    var wEl = el('div', 'weight' + (w.status === 'normal' ? '' : w.status === 'encumbered' ? ' warn' : ' bad'), wText);
+    wEl.title = 'Variant rule: encumbered over ' + w.encumberedAt + ' lb, heavily encumbered over ' + w.heavilyAt + ' lb, capacity ' + w.capacity + ' lb (Strength x 15).';
+    card.appendChild(wEl);
+
+    var others = state.characters.filter(function (x) { return x.id !== c.id; }).map(function (x) { return { id: x.id, name: x.name }; });
+    var targets = [{ id: 'stash', name: 'Party stash' }].concat(others);
+    card.appendChild(el('h4', '', 'Inventory'));
+    card.appendChild(itemTable(c.inventory, {
+      emptyText: 'Nothing carried.', attune: true, targets: targets, giveLabel: 'Give to…', giveTitle: 'Give this item to someone else or put it in the stash',
+      save: function () { saveCharacter(c); },
+      move: function (it, to) {
+        if (to === 'stash') { moveBetween(c.inventory, it, state.stash.items, async function () { await saveStash(); await saveCharacter(c); }); return; }
+        var other = state.characters.filter(function (x) { return x.id === to; })[0];
+        moveBetween(c.inventory, it, other.inventory, async function () { await saveCharacter(other); await saveCharacter(c); });
+      }
+    }));
+    card.appendChild(addForm(function (item) { c.inventory.push(item); saveCharacter(c); }));
+    card.appendChild(el('h4', '', 'Coins'));
+    card.appendChild(coinRow(c.coins, function () { saveCharacter(c); }));
+    return card;
+  }
+
+  function stashCard() {
+    var card = el('div', 'card');
+    card.appendChild(el('h3', '', 'Party stash'));
+    card.appendChild(el('div', 'meta', 'Shared loot and supplies. Give an item to a character from here.'));
+    card.appendChild(el('h4', '', 'Items'));
+    var targets = state.characters.map(function (x) { return { id: x.id, name: x.name }; });
+    card.appendChild(itemTable(state.stash.items, {
+      emptyText: 'The stash is empty.', attune: false, targets: targets, giveLabel: 'Give to…', giveTitle: 'Give this item to a character',
+      save: saveStash,
+      move: function (it, to) {
+        var other = state.characters.filter(function (x) { return x.id === to; })[0];
+        moveBetween(state.stash.items, it, other.inventory, async function () { await saveCharacter(other); await saveStash(); });
+      }
+    }));
+    card.appendChild(addForm(function (item) { state.stash.items.push(item); saveStash(); }));
+    card.appendChild(el('h4', '', 'Coins'));
+    card.appendChild(coinRow(state.stash.coins, saveStash));
+    var total = state.characters.reduce(function (n, c) { return n + (c.coins.gp || 0); }, state.stash.coins.gp || 0);
+    card.appendChild(el('div', 'weight', 'Gold on hand across the party and stash: ' + total + ' gp'));
+    return card;
+  }
+
+  function render() {
+    var grid = $('#grid');
+    grid.innerHTML = '';
+    if (!state.characters.length) { grid.appendChild(el('div', 'empty', 'No characters yet. Create them on the Character Sheets page.')); }
+    state.characters.forEach(function (c) { grid.appendChild(characterCard(c)); });
+    grid.appendChild(stashCard());
+  }
+
+  async function load() {
+    var data = await api('/api/party');
+    state.campaign = data.campaign;
+    state.characters = data.characters;
+    state.stash = data.stash;
+    state.maxAttuned = data.maxAttuned;
+    $('#campName').textContent = data.campaign;
+    render();
+  }
+
+  load().catch(function (err) { setStatus(err.message, 'err'); });
+  window.addEventListener('focus', function () { load().catch(function () { /* keep what is shown */ }); });
+})();
+</script>
+</body>
+</html>

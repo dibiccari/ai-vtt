@@ -5,6 +5,7 @@
     { href: '/', label: '🎲 Tabletop' },
     { href: '/campaigns.html', label: '📖 Campaigns' },
     { href: '/journal.html', label: '📓 Journal' },
+    { href: '/party.html', label: '🎒 Party' },
     { href: '/characters.html', label: '📜 Character Sheets' },
     { href: '/map-test.html', label: '🗺 Map Test' },
     { href: '/tokens.html', label: '🧿 Tokens' },

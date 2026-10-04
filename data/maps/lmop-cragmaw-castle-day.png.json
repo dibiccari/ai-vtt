@@ -5308,6 +5308,8 @@
     }
   ],
   "source": "dd2vtt",
+  "group": "cragmaw-castle",
+  "variant": "day",
   "lights": [
     {
       "x": 1227.83,
@@ -5380,7 +5382,5 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ffffffff",
-  "group": "cragmaw-castle",
-  "variant": "day"
+  "ambient": "ffffffff"
 }

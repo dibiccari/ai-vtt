@@ -2048,6 +2048,8 @@ async function sendTurn(spokenText) {
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
     await applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
+    if (Array.isArray(data.partyNotes) && data.partyNotes.length) addChat('system', '🎒 ' + data.partyNotes.join('; '));
+    if (Array.isArray(data.partyChanged) && data.partyChanged.length) await loadCharacters();
     if (Array.isArray(data.journalAdded) && data.journalAdded.length) addChat('system', '📓 Journal: ' + data.journalAdded.map((e) => e.title).join(', '));
     if (lines.length) voice.speak(lines, msgEl);
   } catch (err) {
