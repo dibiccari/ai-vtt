@@ -5290,7 +5290,23 @@
       "open": false
     }
   ],
-  "starts": [],
+  "starts": [
+    {
+      "name": "start",
+      "x": 595,
+      "y": 1505
+    },
+    {
+      "name": "outside-path",
+      "x": 595,
+      "y": 1505
+    },
+    {
+      "name": "castle-steps",
+      "x": 875,
+      "y": 1505
+    }
+  ],
   "source": "dd2vtt",
   "lights": [
     {

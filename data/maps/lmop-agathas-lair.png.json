@@ -258,7 +258,18 @@
       "open": false
     }
   ],
-  "starts": [],
+  "starts": [
+    {
+      "name": "start",
+      "x": 1715,
+      "y": 1575
+    },
+    {
+      "name": "approach",
+      "x": 1715,
+      "y": 1575
+    }
+  ],
   "source": "dd2vtt",
   "lights": [
     {

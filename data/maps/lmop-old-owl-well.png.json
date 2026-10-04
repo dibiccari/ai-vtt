@@ -394,7 +394,23 @@
       "open": false
     }
   ],
-  "starts": [],
+  "starts": [
+    {
+      "name": "start",
+      "x": 1645,
+      "y": 315
+    },
+    {
+      "name": "approach",
+      "x": 1645,
+      "y": 315
+    },
+    {
+      "name": "courtyard-gap",
+      "x": 1155,
+      "y": 1505
+    }
+  ],
   "source": "dd2vtt",
   "lights": [
     {

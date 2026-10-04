@@ -778,7 +778,23 @@
       "open": false
     }
   ],
-  "starts": [],
+  "starts": [
+    {
+      "name": "start",
+      "x": 385,
+      "y": 6125
+    },
+    {
+      "name": "entrance",
+      "x": 385,
+      "y": 6125
+    },
+    {
+      "name": "cave",
+      "x": 735,
+      "y": 5215
+    }
+  ],
   "source": "dd2vtt",
   "lights": [
     {

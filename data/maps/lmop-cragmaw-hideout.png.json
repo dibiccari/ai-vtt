@@ -1,7 +1,18 @@
 {
   "squares": 30,
   "walls": [],
-  "starts": [],
+  "starts": [
+    {
+      "name": "start",
+      "x": 945,
+      "y": 1295
+    },
+    {
+      "name": "cave-mouth",
+      "x": 945,
+      "y": 1015
+    }
+  ],
   "source": "dd2vtt",
   "lights": [
     {
