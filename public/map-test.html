@@ -64,7 +64,7 @@
       <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, front-door, cave-mouth…">
     </label>
     <div id="startList" class="hint"></div>
-    <p class="hint">Use the Set start tool: click the map where the party should arrive. "start" is the default arrival; other names (such as front-door) are places the AI can send the party to. Saved with the walls, so the players never need to see the map to place themselves.</p>
+    <p class="hint">Use the Set start tool: click the map where the party should arrive, or drag a marker to move it. "start" is the default arrival; other names (such as front-door) are places the AI can send the party to. Saved with the walls, so the players never need to see the map to place themselves.</p>
   </div>
 
   <div class="group">
@@ -648,6 +648,15 @@
     return -1;
   }
 
+  // The saved arrival spot under the pointer, if any.
+  function startAt(p) {
+    const r = 14 / S.view.scale;
+    for (let i = S.starts.length - 1; i >= 0; i--) {
+      if (Math.hypot(p.x - S.starts[i].x, p.y - S.starts[i].y) <= r) return S.starts[i];
+    }
+    return null;
+  }
+
   function wallsChanged() {
     save();
     updateStats();
@@ -690,6 +699,13 @@
       }
     } else if (S.tool === 'start') {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
+      // Grab an existing spot to move it; click empty ground to place the spot named in the box.
+      const grab = startAt(p);
+      if (grab) {
+        $('#startName').value = grab.name;
+        S.drag = { kind: 'start', spot: grab };
+        return;
+      }
       const name = ($('#startName').value || 'start').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'start';
       S.starts = S.starts.filter((s) => s.name !== name);
       S.starts.push({ name, x: Math.round(p.x), y: Math.round(p.y) });
@@ -709,6 +725,9 @@
     if (S.drag && S.drag.kind === 'pan') {
       S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
       S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
+    } else if (S.drag && S.drag.kind === 'start') {
+      S.drag.spot.x = Math.round(clamp(p.x, 0, S.W));
+      S.drag.spot.y = Math.round(clamp(p.y, 0, S.H));
     } else if (S.drag && S.drag.kind === 'token') {
       const t = S.tokens[S.drag.index];
       if (t) { t.x = clamp(p.x, 0, S.W); t.y = clamp(p.y, 0, S.H); queueReveal(); }
@@ -723,6 +742,7 @@
     S.drag = null;
     try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (kind === 'token') save();
+    if (kind === 'start') { save(); renderStartList(); }
     setTool(S.tool);
   }
   cv.addEventListener('pointerup', endDrag);
