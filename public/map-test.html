@@ -362,6 +362,9 @@
     }
   }
 
+  // Keep a flickering fire animating even when nothing else is happening (redraw about 15 times a second).
+  setInterval(() => { if (document.visibilityState === 'visible' && S.img && S.lights.length) requestRender(); }, 66);
+
   let revealQueued = false;
   function queueReveal() {
     if (revealQueued) return;
