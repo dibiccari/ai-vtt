@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap } from './lib/campaign-maps.js';
+import { listEntries, getEntry } from './lib/compendium.js';
 import { MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
@@ -305,6 +306,20 @@ app.get('/api/maps/available', asyncRoute(async (_req, res) => {
   const campaign = await getActiveCampaignId();
   const maps = await withSavedStarts(mapsFor(campaign, await readdir(UPLOAD_DIR)));
   res.json({ campaign, maps: maps.map((m) => ({ id: m.id, name: m.name, kind: m.kind, description: m.description, url: m.url, startPx: m.startPx ? { x: m.startPx.x, y: m.startPx.y } : null, start: { col: m.start[0], row: m.start[1] }, spots: Object.fromEntries(Object.entries(m.spots).map(([k, [col, row]]) => [k, { col, row }])) })) });
+}));
+
+// ---------------------------------------------------------------- compendium (SRD monsters, spells, magic items)
+
+app.get('/api/compendium/:kind', asyncRoute(async (req, res) => {
+  const entries = await listEntries(req.params.kind);
+  if (!entries) return res.status(404).json({ error: 'Unknown compendium' });
+  res.json({ entries });
+}));
+
+app.get('/api/compendium/:kind/:index', asyncRoute(async (req, res) => {
+  const entry = await getEntry(req.params.kind, String(req.params.index).toLowerCase().replace(/[^a-z0-9-]/g, ''));
+  if (!entry) return res.status(404).json({ error: 'Not found' });
+  res.json({ entry });
 }));
 
 // ---------------------------------------------------------------- party API (gear, coins, attunement, stash)

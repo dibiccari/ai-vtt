@@ -6,6 +6,8 @@
     { href: '/campaigns.html', label: '📖 Campaigns' },
     { href: '/journal.html', label: '📓 Journal' },
     { href: '/party.html', label: '🎒 Party' },
+    { href: '/bestiary.html', label: '🐉 Bestiary' },
+    { href: '/spells.html', label: '✨ Spells' },
     { href: '/characters.html', label: '📜 Character Sheets' },
     { href: '/map-test.html', label: '🗺 Map Test' },
     { href: '/tokens.html', label: '🧿 Tokens' },

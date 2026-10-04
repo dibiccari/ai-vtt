@@ -31,10 +31,10 @@ for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
     else { failed = true; console.error(`FAIL ${campaign}/${m.id} has no start spot: open Map Test, choose Set start and click where the party arrives`); }
   }
 }
-for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'public/scenes.js', 'public/uvtt.js', 'public/pdf-extract.js', 'public/nav.js', 'public/voice-fx.js']) check(file, path.join(root, file));
+for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/compendium.js', 'public/scenes.js', 'public/uvtt.js', 'public/pdf-extract.js', 'public/nav.js', 'public/voice-fx.js']) check(file, path.join(root, file));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
-for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html', 'journal.html', 'party.html']) {
+for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html']) {
   const html = await readFile(path.join(root, 'public', page), 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   if (!scripts.length) {

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Spells</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:1280px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 14px; }
+  a { color:var(--accent); }
+  input, select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:5px 8px; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .layout { display:grid; grid-template-columns:minmax(300px, 400px) 1fr; gap:16px; align-items:start; }
+  @media (max-width: 800px) { .layout { grid-template-columns:1fr; } }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; align-items:center; }
+  .filters input[type=search] { flex:1 1 100%; }
+  .filters label { color:var(--muted); font-size:12px; display:flex; gap:4px; align-items:center; }
+  .count { color:var(--muted); font-size:12px; margin:4px 0; }
+  .list { background:var(--panel); border:1px solid var(--border); border-radius:10px; max-height:76vh; overflow:auto; }
+  .item { display:flex; justify-content:space-between; gap:8px; width:100%; text-align:left; padding:7px 12px; background:none; border:0; border-bottom:1px solid #1c2330; color:var(--text); font:inherit; cursor:pointer; }
+  .item:hover { background:var(--panel2); }
+  .item[aria-current="true"] { background:#1f2632; box-shadow:inset 3px 0 var(--gold); }
+  .item small { color:var(--muted); white-space:nowrap; }
+  .block { background:#fdf1dc; color:#2b1d0e; border:1px solid #d6b98a; border-radius:6px; padding:16px 20px; font-family:Georgia, "Times New Roman", serif; box-shadow:0 0 0 3px #5b3a1a inset, 0 6px 20px rgba(0,0,0,.45); }
+  .block h2 { margin:0; font-size:26px; color:#7a1f10; font-variant:small-caps; }
+  .block .sub { font-style:italic; margin-bottom:6px; }
+  .block hr { border:0; height:3px; background:linear-gradient(90deg, #7a1f10, rgba(122,31,16,.2)); margin:6px 0; }
+  .block .prop { color:#7a1f10; margin:2px 0; } .block .prop b { color:#7a1f10; }
+  .block p { margin:6px 0; }
+  .block h3 { margin:12px 0 4px; font-size:16px; color:#7a1f10; font-variant:small-caps; font-weight:400; border-bottom:1px solid #7a1f10; }
+  .tags span { display:inline-block; border:1px solid #7a1f10; color:#7a1f10; border-radius:999px; padding:0 8px; margin:2px 4px 2px 0; font-size:12px; }
+  .empty { color:var(--muted); padding:30px; text-align:center; }
+  .notice { color:var(--muted); font-size:12px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>The <span>Spells</span></h1>
+  <p class="lead">Every spell in the SRD 5.1: search, filter by level, school or class, and read the full description.</p>
+  <div class="layout">
+    <div>
+      <div class="filters">
+        <input type="search" id="q" placeholder="Search by name…" aria-label="Search spells" autocomplete="off">
+        <select id="level" aria-label="Level"><option value="">Any level</option></select>
+        <select id="school" aria-label="School"><option value="">Any school</option></select>
+        <select id="klass" aria-label="Class"><option value="">Any class</option></select>
+        <label><input type="checkbox" id="conc"> concentration</label>
+        <label><input type="checkbox" id="ritual"> ritual</label>
+      </div>
+      <div class="count" id="count"></div>
+      <div class="list" id="list" role="listbox" aria-label="Spells"></div>
+    </div>
+    <div id="detail"><div class="empty">Choose a spell from the list.</div></div>
+  </div>
+  <p class="notice">Content from the System Reference Document 5.1 by Wizards of the Coast LLC, licensed under <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">CC-BY-4.0</a>. See data/srd/NOTICE.md.</p>
+</div>
+<script src="/nav.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var all = [];
+  var levelText = function (n) { return n === 0 ? 'Cantrip' : 'Level ' + n; };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function prop(label, value) { var p = el('div', 'prop'); p.appendChild(el('b', '', label + ' ')); p.appendChild(document.createTextNode(value)); return p; }
+
+  function applyFilters() {
+    var q = $('#q').value.trim().toLowerCase();
+    var level = $('#level').value, school = $('#school').value, klass = $('#klass').value;
+    var conc = $('#conc').checked, ritual = $('#ritual').checked;
+    var rows = all.filter(function (s) {
+      return (!q || s.name.toLowerCase().indexOf(q) >= 0) && (level === '' || s.level === Number(level)) && (!school || s.school === school) &&
+        (!klass || s.classes.indexOf(klass) >= 0) && (!conc || s.concentration) && (!ritual || s.ritual);
+    });
+    $('#count').textContent = rows.length + ' of ' + all.length + ' spells';
+    var list = $('#list');
+    list.innerHTML = '';
+    rows.forEach(function (s) {
+      var b = el('button', 'item');
+      b.type = 'button';
+      b.setAttribute('role', 'option');
+      b.dataset.index = s.index;
+      b.appendChild(el('span', '', s.name));
+      b.appendChild(el('small', '', (s.level === 0 ? 'Cantrip' : 'L' + s.level) + ' · ' + s.school));
+      b.addEventListener('click', function () { show(s.index); });
+      list.appendChild(b);
+    });
+    if (!rows.length) list.appendChild(el('div', 'empty', 'No spell matches.'));
+  }
+
+  function render(s) {
+    var b = el('div', 'block');
+    b.appendChild(el('h2', '', s.name));
+    b.appendChild(el('div', 'sub', (s.level === 0 ? s.school.name + ' cantrip' : levelText(s.level) + ' ' + s.school.name.toLowerCase()) + (s.ritual ? ' (ritual)' : '')));
+    b.appendChild(el('hr'));
+    b.appendChild(prop('Casting Time', s.casting_time));
+    b.appendChild(prop('Range', s.range));
+    b.appendChild(prop('Components', s.components.join(', ') + (s.material ? ' (' + s.material + ')' : '')));
+    b.appendChild(prop('Duration', (s.concentration ? 'Concentration, ' : '') + s.duration));
+    b.appendChild(el('hr'));
+    s.desc.forEach(function (t) { b.appendChild(el('p', '', t)); });
+    if (s.higher_level && s.higher_level.length) {
+      b.appendChild(el('h3', '', 'At higher levels'));
+      s.higher_level.forEach(function (t) { b.appendChild(el('p', '', t)); });
+    }
+    if (s.classes.length) {
+      var tags = el('div', 'tags');
+      s.classes.forEach(function (c) { tags.appendChild(el('span', '', c.name)); });
+      b.appendChild(el('h3', '', 'Classes'));
+      b.appendChild(tags);
+    }
+    return b;
+  }
+
+  async function show(index) {
+    document.querySelectorAll('.item').forEach(function (i) { i.setAttribute('aria-current', String(i.dataset.index === index)); });
+    var box = $('#detail');
+    try {
+      var res = await fetch('/api/compendium/spells/' + encodeURIComponent(index));
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      box.innerHTML = '';
+      box.appendChild(render(data.entry));
+      try { history.replaceState(null, '', '#' + index); } catch (e) { /* not critical */ }
+    } catch (err) { box.innerHTML = ''; box.appendChild(el('div', 'empty', err.message)); }
+  }
+
+  async function init() {
+    var res = await fetch('/api/compendium/spells');
+    all = (await res.json()).entries;
+    all.sort(function (a, b) { return a.level - b.level || a.name.localeCompare(b.name); });
+    for (var l = 0; l <= 9; l++) { var o = el('option', '', levelText(l)); o.value = l; $('#level').appendChild(o); }
+    Array.from(new Set(all.map(function (s) { return s.school; }))).sort().forEach(function (v) { var o = el('option', '', v); o.value = v; $('#school').appendChild(o); });
+    Array.from(new Set(all.flatMap(function (s) { return s.classes; }))).sort().forEach(function (v) { var o = el('option', '', v); o.value = v; $('#klass').appendChild(o); });
+    ['#q', '#level', '#school', '#klass', '#conc', '#ritual'].forEach(function (s) { $(s).addEventListener('input', applyFilters); });
+    applyFilters();
+    var wanted = location.hash.slice(1);
+    if (wanted && all.some(function (s) { return s.index === wanted; })) show(wanted);
+  }
+  init().catch(function (err) { $('#detail').textContent = 'Could not load the spells: ' + err.message; });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Bestiary</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --blood:#c0392b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:1280px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 14px; }
+  a { color:var(--accent); }
+  input, select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:5px 8px; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .layout { display:grid; grid-template-columns:minmax(300px, 400px) 1fr; gap:16px; align-items:start; }
+  @media (max-width: 800px) { .layout { grid-template-columns:1fr; } }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .filters input[type=search] { flex:1 1 100%; }
+  .count { color:var(--muted); font-size:12px; margin:4px 0; }
+  .list { background:var(--panel); border:1px solid var(--border); border-radius:10px; max-height:76vh; overflow:auto; }
+  .item { display:flex; justify-content:space-between; gap:8px; width:100%; text-align:left; padding:7px 12px; background:none; border:0; border-bottom:1px solid #1c2330; color:var(--text); font:inherit; cursor:pointer; }
+  .item:hover { background:var(--panel2); }
+  .item[aria-current="true"] { background:#1f2632; box-shadow:inset 3px 0 var(--gold); }
+  .item small { color:var(--muted); white-space:nowrap; }
+  .block { background:#fdf1dc; color:#2b1d0e; border:1px solid #d6b98a; border-radius:6px; padding:16px 20px; font-family:Georgia, "Times New Roman", serif; box-shadow:0 0 0 3px #5b3a1a inset, 0 6px 20px rgba(0,0,0,.45); }
+  .block h2 { margin:0; font-size:26px; color:#7a1f10; font-variant:small-caps; letter-spacing:.02em; }
+  .block .sub { font-style:italic; margin-bottom:6px; }
+  .block hr { border:0; height:3px; background:linear-gradient(90deg, #7a1f10, rgba(122,31,16,.2)); margin:6px 0; }
+  .block .prop { color:#7a1f10; margin:2px 0; } .block .prop b { color:#7a1f10; }
+  .block .abil { display:grid; grid-template-columns:repeat(6, 1fr); text-align:center; color:#7a1f10; margin:4px 0; }
+  .block .abil b { display:block; } .block .abil span { color:#2b1d0e; }
+  .block h3 { margin:12px 0 4px; font-size:19px; color:#7a1f10; font-variant:small-caps; border-bottom:1px solid #7a1f10; font-weight:400; }
+  .block p { margin:4px 0; }
+  .block p b.nm { font-style:italic; }
+  .empty { color:var(--muted); padding:30px; text-align:center; }
+  .notice { color:var(--muted); font-size:12px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>The <span>Bestiary</span></h1>
+  <p class="lead">Every creature in the SRD 5.1: search, filter by challenge rating, type or size, and read the full stat block.</p>
+  <div class="layout">
+    <div>
+      <div class="filters">
+        <input type="search" id="q" placeholder="Search by name…" aria-label="Search monsters" autocomplete="off">
+        <select id="type" aria-label="Type"><option value="">Any type</option></select>
+        <select id="size" aria-label="Size"><option value="">Any size</option></select>
+        <select id="crMin" aria-label="Minimum challenge rating"></select>
+        <select id="crMax" aria-label="Maximum challenge rating"></select>
+      </div>
+      <div class="count" id="count"></div>
+      <div class="list" id="list" role="listbox" aria-label="Monsters"></div>
+    </div>
+    <div id="detail"><div class="empty">Choose a creature from the list.</div></div>
+  </div>
+  <p class="notice">Content from the System Reference Document 5.1 by Wizards of the Coast LLC, licensed under <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">CC-BY-4.0</a>. See data/srd/NOTICE.md. Creatures that exist only in an adventure book are not in the SRD.</p>
+</div>
+<script src="/nav.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var all = [];
+  var CR_STEPS = [0, 0.125, 0.25, 0.5].concat(Array.from({ length: 30 }, function (_, i) { return i + 1; }));
+  var crText = function (cr) { return cr === 0.125 ? '1/8' : cr === 0.25 ? '1/4' : cr === 0.5 ? '1/2' : String(cr); };
+  var signed = function (n) { return (n >= 0 ? '+' : '') + n; };
+  var modOf = function (score) { return Math.floor((score - 10) / 2); };
+  var cap = function (t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; };
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function prop(label, value) { var p = el('div', 'prop'); p.appendChild(el('b', '', label + ' ')); p.appendChild(document.createTextNode(value)); return p; }
+
+  function fillSelect(sel, values, label) {
+    values.forEach(function (v) { var o = el('option', '', v); o.value = v; sel.appendChild(o); });
+  }
+
+  function applyFilters() {
+    var q = $('#q').value.trim().toLowerCase();
+    var type = $('#type').value, size = $('#size').value;
+    var lo = Number($('#crMin').value), hi = Number($('#crMax').value);
+    var rows = all.filter(function (m) {
+      return (!q || m.name.toLowerCase().indexOf(q) >= 0) && (!type || m.type === type) && (!size || m.size === size) && m.cr >= lo && m.cr <= hi;
+    });
+    $('#count').textContent = rows.length + ' of ' + all.length + ' creatures';
+    var list = $('#list');
+    list.innerHTML = '';
+    rows.forEach(function (m) {
+      var b = el('button', 'item');
+      b.type = 'button';
+      b.setAttribute('role', 'option');
+      b.dataset.index = m.index;
+      b.appendChild(el('span', '', m.name));
+      b.appendChild(el('small', '', 'CR ' + crText(m.cr) + ' · ' + m.type));
+      b.addEventListener('click', function () { show(m.index); });
+      list.appendChild(b);
+    });
+    if (!rows.length) list.appendChild(el('div', 'empty', 'No creature matches.'));
+  }
+
+  function actionList(box, title, items) {
+    if (!items || !items.length) return;
+    box.appendChild(el('h3', '', title));
+    items.forEach(function (a) {
+      var p = el('p');
+      p.appendChild(el('b', 'nm', a.name + '. '));
+      p.appendChild(document.createTextNode(a.desc));
+      box.appendChild(p);
+    });
+  }
+
+  function render(m) {
+    var b = el('div', 'block');
+    b.appendChild(el('h2', '', m.name));
+    b.appendChild(el('div', 'sub', m.size + ' ' + m.type + (m.subtype ? ' (' + m.subtype + ')' : '') + ', ' + m.alignment));
+    b.appendChild(el('hr'));
+    var ac = m.armor_class.map(function (a) { return a.value + (a.armor && a.armor.length ? ' (' + a.armor.map(function (x) { return x.name.toLowerCase(); }).join(', ') + ')' : a.type === 'natural' ? ' (natural armor)' : ''); }).join(', ');
+    b.appendChild(prop('Armor Class', ac));
+    b.appendChild(prop('Hit Points', m.hit_points + ' (' + m.hit_points_roll + ')'));
+    b.appendChild(prop('Speed', Object.keys(m.speed).map(function (k) { return (k === 'walk' ? '' : k + ' ') + m.speed[k]; }).join(', ')));
+    b.appendChild(el('hr'));
+    var abil = el('div', 'abil');
+    [['STR', 'strength'], ['DEX', 'dexterity'], ['CON', 'constitution'], ['INT', 'intelligence'], ['WIS', 'wisdom'], ['CHA', 'charisma']].forEach(function (a) {
+      var c = el('div'); c.appendChild(el('b', '', a[0])); c.appendChild(el('span', '', m[a[1]] + ' (' + signed(modOf(m[a[1]])) + ')')); abil.appendChild(c);
+    });
+    b.appendChild(abil);
+    b.appendChild(el('hr'));
+    var saves = [], skills = [];
+    (m.proficiencies || []).forEach(function (p) {
+      var n = p.proficiency.name;
+      if (n.indexOf('Saving Throw: ') === 0) saves.push(n.slice(14) + ' ' + signed(p.value));
+      else if (n.indexOf('Skill: ') === 0) skills.push(n.slice(7) + ' ' + signed(p.value));
+    });
+    if (saves.length) b.appendChild(prop('Saving Throws', saves.join(', ')));
+    if (skills.length) b.appendChild(prop('Skills', skills.join(', ')));
+    if (m.damage_vulnerabilities.length) b.appendChild(prop('Damage Vulnerabilities', m.damage_vulnerabilities.join('; ')));
+    if (m.damage_resistances.length) b.appendChild(prop('Damage Resistances', m.damage_resistances.join('; ')));
+    if (m.damage_immunities.length) b.appendChild(prop('Damage Immunities', m.damage_immunities.join('; ')));
+    if (m.condition_immunities.length) b.appendChild(prop('Condition Immunities', m.condition_immunities.map(function (c) { return c.name.toLowerCase(); }).join(', ')));
+    var senses = Object.keys(m.senses || {}).map(function (k) { return k === 'passive_perception' ? 'passive Perception ' + m.senses[k] : k.replace(/_/g, ' ') + ' ' + m.senses[k]; });
+    b.appendChild(prop('Senses', senses.join(', ') || '—'));
+    b.appendChild(prop('Languages', m.languages || '—'));
+    b.appendChild(prop('Challenge', crText(m.challenge_rating) + ' (' + m.xp.toLocaleString() + ' XP)'));
+    b.appendChild(el('hr'));
+    (m.special_abilities || []).forEach(function (a) { var p = el('p'); p.appendChild(el('b', 'nm', a.name + '. ')); p.appendChild(document.createTextNode(a.desc)); b.appendChild(p); });
+    actionList(b, 'Actions', m.actions);
+    actionList(b, 'Bonus Actions', m.bonus_actions);
+    actionList(b, 'Reactions', m.reactions);
+    actionList(b, 'Legendary Actions', m.legendary_actions);
+    return b;
+  }
+
+  async function show(index) {
+    document.querySelectorAll('.item').forEach(function (i) { i.setAttribute('aria-current', String(i.dataset.index === index)); });
+    var box = $('#detail');
+    try {
+      var res = await fetch('/api/compendium/monsters/' + encodeURIComponent(index));
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      box.innerHTML = '';
+      box.appendChild(render(data.entry));
+      try { history.replaceState(null, '', '#' + index); } catch (e) { /* not critical */ }
+    } catch (err) { box.innerHTML = ''; box.appendChild(el('div', 'empty', err.message)); }
+  }
+
+  async function init() {
+    var res = await fetch('/api/compendium/monsters');
+    all = (await res.json()).entries;
+    all.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    fillSelect($('#type'), Array.from(new Set(all.map(function (m) { return m.type; }))).sort(), 'type');
+    var sizes = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
+    fillSelect($('#size'), sizes, 'size');
+    CR_STEPS.forEach(function (c) {
+      var lo = el('option', '', 'CR ≥ ' + crText(c)); lo.value = c; $('#crMin').appendChild(lo);
+      var hi = el('option', '', 'CR ≤ ' + crText(c)); hi.value = c; $('#crMax').appendChild(hi);
+    });
+    $('#crMax').value = '30';
+    ['#q', '#type', '#size', '#crMin', '#crMax'].forEach(function (s) { $(s).addEventListener('input', applyFilters); });
+    applyFilters();
+    var wanted = location.hash.slice(1);
+    if (wanted && all.some(function (m) { return m.index === wanted; })) show(wanted);
+  }
+  init().catch(function (err) { $('#detail').textContent = 'Could not load the bestiary: ' + err.message; });
+})();
+</script>
+</body>
+</html>
