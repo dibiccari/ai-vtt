@@ -803,7 +803,8 @@ function reachCircle(token, radiusFt, R, near) {
 function reachable(token) {
   if (!token) return new Map();
   const rule = state.gmOverride ? 'standard' : state.moveRule;
-  const sig = `${rule}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|` +
+  const leashOwner = token.summon ? state.tokens.find((o) => o.id === token.summon.ownerId) : null;
+  const sig = `${rule}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
     state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
   if (reachCache.sig === sig) return reachCache.map;
 
@@ -819,6 +820,13 @@ function reachable(token) {
   const cost = rule === 'circle' ? reachCircle(token, radiusFt, R, near)
     : rule === 'alternating' ? reachAlternating(token, radiusFt, near)
     : reachStandard(token, radiusFt, near);
+  // A summoned thing cannot stray beyond its leash from the one who controls it.
+  if (leashOwner) {
+    for (const k of [...cost.keys()]) {
+      const [c, r] = k.split(',').map(Number);
+      if (Math.hypot(c - leashOwner.col, r - leashOwner.row) * FT_PER_SQUARE > token.summon.leashFt) cost.delete(k);
+    }
+  }
   // Allies may be passed through, but a move cannot end on an occupied square.
   for (const other of state.tokens) {
     if (other !== token) cost.delete(sqKey(other.col, other.row));
@@ -850,6 +858,31 @@ const tokenConditions = (t) => (Array.isArray(t?.conditions) ? t.conditions.filt
 const conditionKey = (name) => String(name ?? '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 30);
 const hasCondition = (t, name) => tokenConditions(t).some((c) => c.name === name);
 const conditionBadge = (name) => CONDITIONS[name] || [name.slice(0, 2).toUpperCase(), '#4f9dff'];
+// What each condition does (the 5e rules, shortened). The table applies the movement part itself; the rest is for the DM and the players.
+const CONDITION_HELP = {
+  blinded: "Can't see; fails checks that need sight. Attacks against it have advantage, its attacks have disadvantage.",
+  charmed: "Can't attack the charmer or target it with harmful effects. The charmer has advantage on social checks against it.",
+  deafened: "Can't hear; fails checks that need hearing.",
+  frightened: "Disadvantage on checks and attacks while the source of fear is in sight; can't willingly move closer to it.",
+  grappled: 'Speed 0. Ends if the grappler is incapacitated or it is moved out of reach.',
+  incapacitated: "Can't take actions or reactions.",
+  invisible: 'Cannot be seen without magic or special senses. Its attacks have advantage, attacks against it have disadvantage.',
+  paralyzed: "Incapacitated, can't move or speak. Fails Str and Dex saves. Attacks against it have advantage; hits within 5 ft are critical.",
+  petrified: "Turned to stone: incapacitated, can't move or speak, unaware. Resistant to all damage, immune to poison and disease.",
+  poisoned: 'Disadvantage on attack rolls and ability checks.',
+  prone: 'Can only crawl (half speed, here) or stand up (costs half its movement). Melee attacks against it have advantage, ranged have disadvantage; its attacks have disadvantage.',
+  restrained: 'Speed 0. Attacks against it have advantage, its attacks and Dex saves have disadvantage.',
+  stunned: "Incapacitated, can't move, speaks falteringly. Fails Str and Dex saves. Attacks against it have advantage.",
+  unconscious: "Incapacitated, can't move or speak, unaware, drops what it holds and falls prone. Attacks against it have advantage; hits within 5 ft are critical.",
+  exhaustion: 'Levels of exhaustion impose growing penalties; a long rest removes one level.',
+  concentrating: 'Concentrating on a spell: a hit forces a Constitution save (DC 10 or half the damage) or the spell ends.'
+};
+const conditionHelp = (name) => CONDITION_HELP[name] || '';
+// Speed lost to conditions: held, paralyzed, petrified, stunned or unconscious creatures cannot move; prone ones crawl.
+function effectiveSpeed(t) {
+  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious'].some((n) => hasCondition(t, n))) return 0;
+  return hasCondition(t, 'prone') ? Math.floor((t.speed || 0) / 2) : t.speed;
+}
 const conditionLabel = (c) => c.name + (c.rounds > 0 ? ` (${c.rounds} round${c.rounds === 1 ? '' : 's'})` : '');
 // A blinded or unconscious character feels only their own square (1 ft); see revealFog().
 
@@ -860,6 +893,7 @@ function setCondition(t, name, rounds) {
   const left = Number.isFinite(rounds) && rounds > 0 ? Math.min(Math.round(rounds), 999) : 0;
   const have = t.conditions.find((c) => c.name === key);
   if (have) have.rounds = left; else t.conditions.push({ name: key, rounds: left });
+  if (t === activeToken() && Number.isFinite(t.movementRemaining)) t.movementRemaining = Math.min(t.movementRemaining, effectiveSpeed(t));
   return true;
 }
 
@@ -884,8 +918,38 @@ function tickConditions() {
         changed = true;
       }
     }
+    if (t.summon && t.summon.rounds > 0) {
+      t.summon.rounds -= 1;
+      if (t.summon.rounds <= 0) {
+        state.tokens.splice(state.tokens.indexOf(t), 1);
+        addChat('system', `↳ ${t.name} fades away`);
+        changed = true;
+      }
+    }
   }
   return changed;
+}
+
+// Summoned things a character controls (Mage Hand, Spiritual Weapon). They are tokens that move on their owner's turn, never have
+// an initiative of their own, must stay within `leashFt` of their owner, and expire after `rounds` rounds.
+const SUMMONS = {
+  'mage-hand': { name: 'Mage Hand', speed: 30, rounds: 10, leashFt: 30, color: '#9ec1ff', glyph: '✋', note: 'Manipulates objects and carries up to 10 lb; cannot attack. Must stay within 30 ft of its caster.' },
+  'spiritual-weapon': { name: 'Spiritual Weapon', speed: 20, rounds: 10, leashFt: 60, color: '#f0c048', glyph: '⚔', note: 'Moves up to 20 ft and attacks as a bonus action (cleric spell). Must stay within 60 ft of its caster.' }
+};
+const isSummon = (t) => Boolean(t && t.summon);
+const summonsOf = (owner) => state.tokens.filter((t) => t.summon && t.summon.ownerId === owner.id);
+
+function conjure(kind, owner, id, col, row) {
+  const p = SUMMONS[kind];
+  if (!p || !owner) return null;
+  const spot = freeSquareNear(clamp(Number.isInteger(col) ? col : owner.col + 1, 0, cols() - 1), clamp(Number.isInteger(row) ? row : owner.row, 0, rows() - 1));
+  const t = makeToken({ id: id || `summon-${kind}-${Date.now().toString(36)}`, name: `${owner.name}'s ${p.name}`, color: p.color, isPC: false, kind: 'creature', speed: p.speed, ...spot });
+  t.summon = { kind, ownerId: owner.id, rounds: p.rounds, leashFt: p.leashFt };
+  state.tokens.push(t);
+  addChat('system', `↳ ${t.name} appears (${p.note})`);
+  revealFog();
+  commitBoard();
+  return t;
 }
 
 // ---- What the players can see ----
@@ -1016,10 +1080,10 @@ function endTurn() {
   const was = state.activeIndex;
   for (let n = 0; n < state.tokens.length; n++) {
     state.activeIndex = (state.activeIndex + 1) % state.tokens.length;
-    if (seenByParty(activeToken())) break;
+    if (!isSummon(activeToken()) && seenByParty(activeToken())) break;
   }
   const next = activeToken();
-  next.movementRemaining = next.speed;
+  next.movementRemaining = effectiveSpeed(next);
   if (state.activeIndex <= was && tickConditions()) revealFog();     // the order came round: a new round
   toast(`${next.name}'s turn — ${next.speed} ft of movement`, 'ok');
   commitBoard();
@@ -1027,7 +1091,7 @@ function endTurn() {
 
 function serializeToken(t) {
   return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
-    lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
+    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
 /* =====================================================================
@@ -1409,7 +1473,7 @@ function drawFog() {
 }
 
 function drawReachable() {
-  const t = activeToken();
+  const t = interaction.mode === 'drag' && interaction.token && isSummon(interaction.token) ? interaction.token : activeToken();
   if (!t || state.drawWalls || state.gmOverride || plainMap()) return;
   const reach = reachable(t);
   const set = new Set(reach.keys());
@@ -1469,7 +1533,7 @@ function drawTokens(pcs, now) {
     const isActive = t === active;
     const dragging = interaction.mode === 'drag' && interaction.token === t;
     const ghost = !t.isPC && !seenByParty(t);
-    const glyph = t.kind === 'trap' ? '⚠' : initials(t.name);
+    const glyph = t.kind === 'trap' ? '⚠' : isSummon(t) ? (SUMMONS[t.summon.kind] || {}).glyph || '✦' : initials(t.name);
     ctx.save();
     if (ghost || t.dead) ctx.globalAlpha = t.dead ? 0.4 : 0.45;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
@@ -1704,11 +1768,12 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!isPanButton) {
     const t = tokenAt(world.x, world.y);
     if (t) {
-      if (t !== activeToken() && !state.gmOverride) {
+      const own = isSummon(t) && activeToken() && t.summon.ownerId === activeToken().id;        // a summoned thing moves on its owner's turn
+      if (t !== activeToken() && !own && !state.gmOverride) {
         toast(`It's ${activeToken()?.name ?? 'someone else'}'s turn. Use End Turn or GM Override.`);
         return;
       }
-      if (state.gmOverride && t !== activeToken()) {
+      if (state.gmOverride && t !== activeToken() && !own) {
         state.activeIndex = state.tokens.indexOf(t);
         renderTurnBar();
       }
@@ -2001,7 +2066,7 @@ function renderTurnBar() {
     chip.type = 'button';
     chip.className = `turn-chip${i === state.activeIndex ? ' active' : ''}${t.isPC ? '' : ' npc'}`;
     chip.title = state.gmOverride ? `Make ${t.name} active` : `Center on ${t.name}`;
-    chip.innerHTML = `<span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}` + tokenConditions(t).map((c) => `<span class="cond-dot" style="background:${conditionBadge(c.name)[1]}" title="${esc(conditionLabel(c))}">${esc(conditionBadge(c.name)[0])}</span>`).join('');
+    chip.innerHTML = `<span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}` + tokenConditions(t).map((c) => `<span class="cond-dot" style="background:${conditionBadge(c.name)[1]}" title="${esc(conditionLabel(c) + (conditionHelp(c.name) ? ': ' + conditionHelp(c.name) : ''))}">${esc(conditionBadge(c.name)[0])}</span>`).join('');
     chip.addEventListener('click', () => {
       if (state.gmOverride) { state.activeIndex = i; commitBoard(); }
       centerOnToken(t);
@@ -2291,14 +2356,15 @@ function sortCombat() {
 }
 
 function beginTurn(t) {
-  t.movementRemaining = t.speed;
+  t.movementRemaining = effectiveSpeed(t);
+  for (const s of summonsOf(t)) s.movementRemaining = s.speed;
   t.spent = { a: false, b: false, r: false };
   if (seenByParty(t)) toast(`${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`, 'ok');
 }
 
 function startCombat() {
   if (state.combat.active) return;
-  const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead);
+  const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead && !isSummon(t));
   if (!members.length) { toast('Put some tokens on the map first'); return; }
   state.combat = { active: true, round: 1, order: members.map((t) => t.id) };
   for (const t of members) {
@@ -2321,7 +2387,7 @@ function rollForPlayers() {
 }
 
 function joinCombat(t) {
-  if (!state.combat.active || t.kind === 'trap' || state.combat.order.includes(t.id)) return;
+  if (!state.combat.active || t.kind === 'trap' || isSummon(t) || state.combat.order.includes(t.id)) return;
   state.combat.order.push(t.id);
   t.initiative = t.isPC ? null : d20() + dexModOf(t);
   t.spent = { a: false, b: false, r: false };
@@ -2505,7 +2571,7 @@ function combatRow(t) {
       const chip = document.createElement('span');
       chip.className = 'cond-dot';
       chip.style.background = conditionBadge(c.name)[1];
-      chip.title = conditionLabel(c);
+      chip.title = conditionLabel(c) + (conditionHelp(c.name) ? ': ' + conditionHelp(c.name) : '');
       chip.textContent = conditionBadge(c.name)[0];
       line4.appendChild(chip);
     }
@@ -2535,6 +2601,13 @@ function renderCombat() {
     btn('Long rest', 'The party camps for the night: hit points and spell slots are restored', () => takeRest('long'));
     btn('Start combat', 'Roll initiative for the creatures on the board and begin tracking rounds', startCombat, 'btn-primary');
   }
+  const conj = document.createElement('div');
+  conj.className = 'cb-add';
+  const conjSel = document.createElement('select');
+  conjSel.setAttribute('aria-label', 'Conjure');
+  for (const [v, text] of [['', 'Conjure (for the active character)…']].concat(Object.keys(SUMMONS).map((k) => [k, SUMMONS[k].name]))) { const o = document.createElement('option'); o.value = v; o.textContent = text; conjSel.appendChild(o); }
+  conjSel.addEventListener('change', () => { if (conjSel.value && activeToken()) conjure(conjSel.value, isSummon(activeToken()) ? state.tokens.find((o) => o.id === activeToken().summon.ownerId) : activeToken()); conjSel.value = ''; });
+  conj.appendChild(conjSel);
   const add = document.createElement('div');
   add.className = 'cb-add';
   const name = document.createElement('input');
@@ -2562,7 +2635,7 @@ function renderCombat() {
   go.addEventListener('click', submit);
   name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   add.append(name, count, hid, go);
-  box.append(head, add);
+  box.append(head, add, conj);
   if (state.combat.active) {
     const rows = combatTokens().filter(canSee);
     for (const t of rows) box.appendChild(combatRow(t));
@@ -3267,6 +3340,12 @@ async function applyMapUpdates(updates) {
       case 'restParty':
         restTokens(u.kind);
         break;
+      case 'summonToken': {
+        const owner = state.tokens.find((x) => x.id === u.ownerId) || activeToken();
+        const t = SUMMONS[u.kind] ? conjure(u.kind, owner, u.tokenId, u.col, u.row) : null;
+        if (!t) addChat('system', `The DM tried to conjure something unknown (${u.kind}).`);
+        break;
+      }
       case 'lightToken': {
         // A token that carries a light, or one of the map's own lights (a campfire, a torch).
         const t = state.tokens.find((x) => x.id === u.tokenId);
