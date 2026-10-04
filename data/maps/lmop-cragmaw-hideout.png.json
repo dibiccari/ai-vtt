@@ -1,0 +1,149 @@
+{
+  "squares": 30,
+  "walls": [],
+  "starts": [],
+  "source": "dd2vtt",
+  "lights": [
+    {
+      "x": 1975.57,
+      "y": 480.89,
+      "range": 2,
+      "intensity": 0.7,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1853.36,
+      "y": 226.56,
+      "range": 2.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1498.11,
+      "y": 138.18,
+      "range": 2.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1260.99,
+      "y": 238.81,
+      "range": 2.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 874.24,
+      "y": 488.18,
+      "range": 2.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 813.86,
+      "y": 806.68,
+      "range": 2.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1965.58,
+      "y": 157.14,
+      "range": 1.5,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2001.68,
+      "y": 310.26,
+      "range": 1.5,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1840.9,
+      "y": 177.37,
+      "range": 1.5,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1784.57,
+      "y": 264.87,
+      "range": 1.5,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1877.06,
+      "y": 439.26,
+      "range": 1,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1847.02,
+      "y": 316.35,
+      "range": 1,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1924.46,
+      "y": 231.92,
+      "range": 1,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1896.93,
+      "y": 283.14,
+      "range": 1,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 383.73,
+      "y": 1226.39,
+      "range": 4.5,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1132.95,
+      "y": 1276.7,
+      "range": 4.5,
+      "intensity": 1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1596.18,
+      "y": 857.58,
+      "range": 8,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 225.72,
+      "y": 415.71,
+      "range": 8,
+      "intensity": 0.7,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1868.09,
+      "y": 298.89,
+      "range": 10,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1653.82,
+      "y": 869.76,
+      "range": 2.5,
+      "intensity": 0.7,
+      "color": "ffffad58"
+    }
+  ],
+  "ambient": "ffffffff"
+}

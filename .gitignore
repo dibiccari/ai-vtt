@@ -2,6 +2,7 @@ node_modules/
 .env
 public/uploads/*
 !public/uploads/.gitkeep
+!public/uploads/lmop-*
 data/campaign/
 data/campaigns/
 public/tokens/

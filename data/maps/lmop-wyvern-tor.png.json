@@ -1,0 +1,226 @@
+{
+  "squares": 45,
+  "walls": [],
+  "starts": [],
+  "source": "dd2vtt",
+  "lights": [
+    {
+      "x": 209.23,
+      "y": 1082.37,
+      "range": 4.5,
+      "intensity": 1.6,
+      "color": "ffffad58"
+    },
+    {
+      "x": 880.94,
+      "y": 861.65,
+      "range": 4.5,
+      "intensity": 1.6,
+      "color": "ffffad58"
+    },
+    {
+      "x": 1395.39,
+      "y": 2010.01,
+      "range": 8,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2738.78,
+      "y": 2955.94,
+      "range": 8,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 748.34,
+      "y": 2568.38,
+      "range": 5.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2150.83,
+      "y": 2466.56,
+      "range": 5.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2903,
+      "y": 1747.24,
+      "range": 5.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2929.28,
+      "y": 981.95,
+      "range": 5.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1822.38,
+      "y": 998.37,
+      "range": 8.5,
+      "intensity": 0.5,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1496.43,
+      "y": 1944.39,
+      "range": 2,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 172.45,
+      "y": 2310.62,
+      "range": 1.5,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2165.48,
+      "y": 1730.05,
+      "range": 1.5,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2042.98,
+      "y": 1797.87,
+      "range": 1.5,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1709.39,
+      "y": 1032.24,
+      "range": 2,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 3025.53,
+      "y": 2815.42,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2593.51,
+      "y": 3060.42,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2550.26,
+      "y": 484.1,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1955.26,
+      "y": 1849.1,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1657.76,
+      "y": 1900.14,
+      "range": 1.5,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1239.22,
+      "y": 1939.52,
+      "range": 1.5,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1425.89,
+      "y": 2350.77,
+      "range": 1.5,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 158.59,
+      "y": 2461.6,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 56.51,
+      "y": 2346.39,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 171.72,
+      "y": 2395.98,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 507.14,
+      "y": 3119.32,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1675.26,
+      "y": 3039.09,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2528.39,
+      "y": 3129.52,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 2862.34,
+      "y": 2874.32,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 3156.92,
+      "y": 2732.85,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1433.18,
+      "y": 2067.12,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    },
+    {
+      "x": 1487.86,
+      "y": 2093.37,
+      "range": 1,
+      "intensity": 1.1,
+      "color": "ffeccd8b"
+    }
+  ],
+  "ambient": "ffffffff"
+}
