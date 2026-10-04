@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Map Test</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; display:grid; grid-template-columns:320px 1fr; grid-template-rows:auto 1fr; overflow:hidden; }
+  aside { background:var(--panel); border-right:1px solid var(--border); overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:14px; }
+  main { position:relative; min-width:0; min-height:0; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  h1 { margin:0; font-size:18px; } h1 span { color:var(--gold); }
+  h2 { margin:0 0 6px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  p.hint { margin:0; color:var(--muted); font-size:12px; }
+  .group { display:flex; flex-direction:column; gap:8px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:6px 10px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover { border-color:var(--accent); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  button.tool[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  select, input[type=number] { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:6px; font:inherit; width:100%; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  label.field { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
+  label.field b { color:var(--text); }
+  label.check { display:flex; gap:8px; align-items:center; font-size:13px; cursor:pointer; }
+  label.check input { accent-color:var(--accent); width:16px; height:16px; }
+  .readout { font:12px Consolas, monospace; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px; min-height:56px; color:var(--muted); white-space:pre-wrap; }
+  .readout .in { color:var(--ok); } .readout .exp { color:var(--gold); } .readout .un { color:var(--danger); }
+  .tests { font:12px Consolas, monospace; display:flex; flex-direction:column; gap:2px; }
+  .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
+  .banner { position:absolute; left:12px; top:12px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:70%; }
+</style>
+</head>
+<body>
+<aside>
+  <div>
+    <h1>Map <span>Test</span></h1>
+    <p class="hint">Check walls, doors, line of sight and fog of war on any map before using it at the table.</p>
+  </div>
+
+  <div class="group">
+    <h2>Map</h2>
+    <select id="mapSelect" aria-label="Map"></select>
+    <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
+      <input type="number" id="squares" min="5" max="400" step="1" value="50">
+    </label>
+    <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
+  </div>
+
+  <div class="group">
+    <h2>Tool</h2>
+    <div class="row">
+      <button class="tool" data-tool="token" aria-pressed="true" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
+      <button class="tool" data-tool="wall" aria-pressed="false" title="Click to start a wall, click again for each corner. Double-click, right-click or Esc to stop">Wall</button>
+      <button class="tool" data-tool="door" aria-pressed="false" title="Same as Wall, but the segments are doors">Door</button>
+      <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
+      <button class="tool" data-tool="erase" aria-pressed="false" title="Click a wall or door to delete it">Erase</button>
+      <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
+    </div>
+    <label class="check"><input type="checkbox" id="snap"> Snap new corners to the grid</label>
+    <p class="hint">Corners always snap to existing wall ends so there are no gaps. Trace along the printed walls and leave grid snapping off unless the grid is calibrated.</p>
+  </div>
+
+  <div class="group">
+    <h2>Fog and sight</h2>
+    <label class="check"><input type="checkbox" id="fog" checked> Fog of war</label>
+    <label class="check"><input type="checkbox" id="dm"> DM view (see through fog)</label>
+    <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
+    <label class="check"><input type="checkbox" id="showWalls" checked> Show walls</label>
+    <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
+    <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
+      <input type="range" id="vision" min="10" max="200" step="5" value="60">
+    </label>
+  </div>
+
+  <div class="group">
+    <h2>Under the cursor</h2>
+    <div class="readout" id="readout">Move the mouse over the map.</div>
+  </div>
+
+  <div class="group">
+    <h2>Walls</h2>
+    <div class="row">
+      <button id="undoBtn">Undo</button>
+      <button id="clearBtn" class="danger">Clear walls</button>
+      <button id="resetFogBtn">Reset explored</button>
+      <button id="fitBtn">Fit view</button>
+    </div>
+    <div class="row">
+      <button id="toTableBtn" title="Copy these walls into the tabletop for this map">Send walls to tabletop</button>
+      <button id="fromTableBtn" title="Replace these walls with the ones saved in the tabletop for this map">Load walls from tabletop</button>
+    </div>
+    <div class="readout" id="stats"></div>
+  </div>
+
+  <div class="group">
+    <h2>Self-test</h2>
+    <button id="selfTestBtn">Run line-of-sight checks</button>
+    <div class="tests" id="tests"></div>
+  </div>
+</aside>
+
+<main id="stage">
+  <canvas id="cv"></canvas>
+  <div class="banner" id="banner">Loading maps...</div>
+</main>
+
+<script src="/nav.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const FT_PER_SQUARE = 5;
+  const SNAP_PX = 10; // screen pixels
+
+  const $ = (sel) => document.querySelector(sel);
+  const store = {
+    get(key, fallback) {
+      try { const raw = localStorage.getItem(key); return raw == null ? fallback : JSON.parse(raw); } catch { return fallback; }
+    },
+    set(key, value) {
+      try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+    }
+  };
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  const S = {
+    url: null, img: null, W: 0, H: 0,
+    squares: 50, walls: [], tokens: [], visionFt: 60,
+    tool: 'token', fog: true, dm: false, showPoly: false, showWalls: true, showGrid: false, snap: false,
+    view: { scale: 1, ox: 0, oy: 0 },
+    draft: null, hover: null, drag: null, polys: [], spaceDown: false
+  };
+  const cell = () => S.W / S.squares;
+  const testKey = () => `vtt.maptest.${S.url}`;
+  const tabletopWallsKey = () => `vtt.walls.${S.url}`;
+
+  const cv = $('#cv');
+  const ctx = cv.getContext('2d');
+  const stage = $('#stage');
+  const shroud = document.createElement('canvas');
+  const sctx = shroud.getContext('2d', { willReadFrequently: true });
+  const vision = document.createElement('canvas');
+  const vctx = vision.getContext('2d', { willReadFrequently: true });
+
+  /* ---------------- geometry (same algorithm as the tabletop in index.html) ---------------- */
+  const cross = (ax, ay, bx, by) => ax * by - ay * bx;
+
+  function castRay(px, py, dx, dy, segments) {
+    let best = Infinity;
+    for (const s of segments) {
+      const ex = s.x2 - s.x1, ey = s.y2 - s.y1;
+      const den = cross(dx, dy, ex, ey);
+      if (Math.abs(den) < 1e-12) continue;
+      const sx = s.x1 - px, sy = s.y1 - py;
+      const r = cross(sx, sy, ex, ey) / den;
+      const u = cross(sx, sy, dx, dy) / den;
+      if (r >= 0 && u >= -1e-9 && u <= 1 + 1e-9 && r < best) best = r;
+    }
+    return best;
+  }
+
+  function pointSegmentDistance(px, py, w) {
+    const ex = w.x2 - w.x1, ey = w.y2 - w.y1;
+    const len2 = ex * ex + ey * ey;
+    let t = len2 ? ((px - w.x1) * ex + (py - w.y1) * ey) / len2 : 0;
+    t = clamp(t, 0, 1);
+    return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
+  }
+
+  const blockingWalls = (walls) => walls.filter((w) => !(w.type === 'door' && w.open));
+
+  // Cast rays at every wall endpoint (+/- epsilon) plus a uniform fan; `walls` must already exclude open doors.
+  function visibilityPolygon(ox, oy, walls, W, H) {
+    const segments = walls.concat([
+      { x1: 0, y1: 0, x2: W, y2: 0 },
+      { x1: W, y1: 0, x2: W, y2: H },
+      { x1: W, y1: H, x2: 0, y2: H },
+      { x1: 0, y1: H, x2: 0, y2: 0 }
+    ]);
+    const angles = [];
+    for (const s of segments) {
+      const a1 = Math.atan2(s.y1 - oy, s.x1 - ox);
+      const a2 = Math.atan2(s.y2 - oy, s.x2 - ox);
+      angles.push(a1 - 1e-5, a1, a1 + 1e-5, a2 - 1e-5, a2, a2 + 1e-5);
+    }
+    const FAN = 90;
+    for (let i = 0; i < FAN; i++) angles.push(-Math.PI + (i / FAN) * Math.PI * 2);
+    angles.sort((a, b) => a - b);
+    const points = [];
+    for (const a of angles) {
+      const dx = Math.cos(a), dy = Math.sin(a);
+      const dist = castRay(ox, oy, dx, dy, segments);
+      if (dist !== Infinity) points.push({ x: ox + dx * dist, y: oy + dy * dist });
+    }
+    return points;
+  }
+
+  /* ---------------- persistence ---------------- */
+  function save() {
+    if (!S.url) return;
+    store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
+  }
+
+  function validWall(w) {
+    return w && [w.x1, w.y1, w.x2, w.y2].every((n) => typeof n === 'number' && isFinite(n));
+  }
+
+  function cleanWalls(list) {
+    return (Array.isArray(list) ? list : []).filter(validWall).map((w) => ({
+      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open)
+    }));
+  }
+
+  /* ---------------- fog ---------------- */
+  function resetFog() {
+    for (const [c, cx] of [[shroud, sctx], [vision, vctx]]) {
+      c.width = S.W;
+      c.height = S.H;
+      cx.globalCompositeOperation = 'source-over';
+    }
+    sctx.fillStyle = '#040508';
+    sctx.fillRect(0, 0, S.W, S.H);
+    revealFog();
+  }
+
+  function revealFog() {
+    if (!S.W) return;
+    vctx.globalCompositeOperation = 'source-over';
+    vctx.clearRect(0, 0, S.W, S.H);
+    vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
+    vctx.fillRect(0, 0, S.W, S.H);
+    const radius = (S.visionFt / FT_PER_SQUARE) * cell();
+    const walls = blockingWalls(S.walls);
+    S.polys = [];
+    for (const t of S.tokens) {
+      const poly = visibilityPolygon(t.x, t.y, walls, S.W, S.H);
+      if (poly.length < 3) continue;
+      S.polys.push(poly);
+      for (const c of [sctx, vctx]) {
+        c.save();
+        c.globalCompositeOperation = 'destination-out';
+        const grad = c.createRadialGradient(t.x, t.y, radius * 0.65, t.x, t.y, radius);
+        grad.addColorStop(0, 'rgba(0,0,0,1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = grad;
+        c.beginPath();
+        c.moveTo(poly[0].x, poly[0].y);
+        for (let i = 1; i < poly.length; i++) c.lineTo(poly[i].x, poly[i].y);
+        c.closePath();
+        c.fill();
+        c.restore();
+      }
+    }
+    requestRender();
+  }
+
+  let revealQueued = false;
+  function queueReveal() {
+    if (revealQueued) return;
+    revealQueued = true;
+    requestAnimationFrame(() => { revealQueued = false; revealFog(); });
+  }
+
+  // 'in sight', 'explored' or 'unseen' at a world point, read from the two fog layers.
+  function fogStateAt(x, y) {
+    if (!S.W || x < 0 || y < 0 || x >= S.W || y >= S.H) return null;
+    const px = Math.floor(x), py = Math.floor(y);
+    const v = vctx.getImageData(px, py, 1, 1).data[3];
+    const s = sctx.getImageData(px, py, 1, 1).data[3];
+    if (v < 70) return 'in sight';
+    if (s < 128) return 'explored';
+    return 'unseen';
+  }
+
+  /* ---------------- drawing ---------------- */
+  let renderQueued = false;
+  function requestRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => { renderQueued = false; draw(); });
+  }
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = stage.getBoundingClientRect();
+    cv.width = Math.max(1, Math.round(rect.width * dpr));
+    cv.height = Math.max(1, Math.round(rect.height * dpr));
+    requestRender();
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#05070a';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    if (!S.img) return;
+    const v = S.view;
+    ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
+    ctx.drawImage(S.img, 0, 0, S.W, S.H);
+
+    const px = 1 / v.scale;
+    if (S.showGrid) drawGrid(px);
+
+    if (S.fog) {
+      ctx.save();
+      ctx.globalAlpha = S.dm ? 0.5 : 1;
+      ctx.drawImage(shroud, 0, 0);
+      ctx.drawImage(vision, 0, 0);
+      ctx.restore();
+    }
+
+    if (S.showPoly) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 220, 255, 0.9)';
+      ctx.fillStyle = 'rgba(0, 220, 255, 0.08)';
+      ctx.lineWidth = 2 * px;
+      for (const poly of S.polys) {
+        ctx.beginPath();
+        ctx.moveTo(poly[0].x, poly[0].y);
+        for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    if (S.showWalls) drawWalls(px);
+    drawTokens(px);
+  }
+
+  function drawGrid(px) {
+    const c = cell();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = px;
+    ctx.beginPath();
+    for (let x = 0; x <= S.W + 0.5; x += c) { ctx.moveTo(x, 0); ctx.lineTo(x, S.H); }
+    for (let y = 0; y <= S.H + 0.5; y += c) { ctx.moveTo(0, y); ctx.lineTo(S.W, y); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawWalls(px) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const w of S.walls) {
+      const door = w.type === 'door';
+      ctx.lineWidth = (door ? 5 : 4) * px;
+      ctx.strokeStyle = door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : 'rgba(240, 192, 72, 0.95)') : 'rgba(255, 90, 90, 0.95)';
+      ctx.setLineDash(door && w.open ? [10 * px, 8 * px] : []);
+      ctx.beginPath();
+      ctx.moveTo(w.x1, w.y1);
+      ctx.lineTo(w.x2, w.y2);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    if (S.draft && S.hover && (S.tool === 'wall' || S.tool === 'door')) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 3 * px;
+      ctx.setLineDash([8 * px, 6 * px]);
+      ctx.beginPath();
+      ctx.moveTo(S.draft.x, S.draft.y);
+      ctx.lineTo(S.hover.x, S.hover.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(S.draft.x, S.draft.y, 5 * px, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawTokens(px) {
+    const r = Math.max(cell() * 0.4, 8 * px);
+    const range = (S.visionFt / FT_PER_SQUARE) * cell();
+    ctx.save();
+    S.tokens.forEach((t, i) => {
+      ctx.setLineDash([6 * px, 6 * px]);
+      ctx.strokeStyle = 'rgba(240, 192, 72, 0.55)';
+      ctx.lineWidth = 1.5 * px;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, range, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#1b2230';
+      ctx.strokeStyle = '#f0c048';
+      ctx.lineWidth = 3 * px;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#f0c048';
+      ctx.font = `700 ${r * 1.1}px "Segoe UI", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), t.x, t.y + px);
+    });
+    ctx.restore();
+  }
+
+  /* ---------------- view ---------------- */
+  function fitView() {
+    if (!S.W) return;
+    const rect = stage.getBoundingClientRect();
+    const scale = Math.min(rect.width / S.W, rect.height / S.H) * 0.96;
+    S.view.scale = scale;
+    S.view.ox = (rect.width - S.W * scale) / 2;
+    S.view.oy = (rect.height - S.H * scale) / 2;
+    requestRender();
+  }
+
+  function toWorld(e) {
+    const rect = cv.getBoundingClientRect();
+    return { x: (e.clientX - rect.left - S.view.ox) / S.view.scale, y: (e.clientY - rect.top - S.view.oy) / S.view.scale };
+  }
+
+  /* ---------------- map loading ---------------- */
+  function loadMap(url) {
+    if (!url) return Promise.resolve();
+    $('#banner').textContent = 'Loading map...';
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        S.url = url;
+        S.img = img;
+        S.W = img.naturalWidth;
+        S.H = img.naturalHeight;
+        const saved = store.get(testKey(), null);
+        S.squares = saved && saved.squares > 0 ? saved.squares : Math.max(5, Math.round(S.W / 50));
+        S.walls = cleanWalls(saved && saved.walls);
+        S.tokens = (saved && Array.isArray(saved.tokens) ? saved.tokens : [])
+          .filter((t) => t && isFinite(t.x) && isFinite(t.y))
+          .map((t) => ({ x: clamp(t.x, 0, S.W), y: clamp(t.y, 0, S.H) }));
+        S.visionFt = saved && saved.visionFt > 0 ? saved.visionFt : 60;
+        S.draft = null;
+        syncControls();
+        resetFog();
+        fitView();
+        updateStats();
+        $('#banner').textContent = `${url.split('/').pop()} · ${S.W} x ${S.H} px`;
+        try { history.replaceState(null, '', `?map=${encodeURIComponent(url)}`); } catch { /* not critical */ }
+        resolve();
+      };
+      img.onerror = () => { $('#banner').textContent = 'Could not load that map image.'; resolve(); };
+      img.src = url;
+    });
+  }
+
+  async function loadMapList() {
+    const select = $('#mapSelect');
+    let maps = [];
+    try {
+      const res = await fetch('/api/maps');
+      const data = await res.json();
+      maps = Array.isArray(data.maps) ? data.maps : [];
+    } catch (err) {
+      $('#banner').textContent = `Could not list maps: ${err.message}`;
+      return;
+    }
+    select.innerHTML = '';
+    if (!maps.length) {
+      $('#banner').textContent = 'No maps found. Upload one on the Tabletop page first.';
+      return;
+    }
+    for (const url of maps) {
+      const opt = document.createElement('option');
+      opt.value = url;
+      opt.textContent = url.split('/').pop();
+      select.appendChild(opt);
+    }
+    const wanted = new URLSearchParams(location.search).get('map');
+    const first = maps.includes(wanted) ? wanted : maps[0];
+    select.value = first;
+    await loadMap(first);
+  }
+
+  /* ---------------- controls ---------------- */
+  function syncControls() {
+    $('#squares').value = S.squares;
+    $('#squaresVal').textContent = S.squares;
+    $('#vision').value = S.visionFt;
+    $('#visionVal').textContent = S.visionFt;
+  }
+
+  function setTool(tool) {
+    S.tool = tool;
+    S.draft = null;
+    document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
+    cv.style.cursor = tool === 'pan' ? 'grab' : tool === 'toggle' || tool === 'erase' ? 'pointer' : 'crosshair';
+    requestRender();
+  }
+
+  function updateStats() {
+    const doors = S.walls.filter((w) => w.type === 'door').length;
+    const open = S.walls.filter((w) => w.type === 'door' && w.open).length;
+    $('#stats').textContent = `${S.walls.length - doors} walls · ${doors} doors (${open} open) · ${S.tokens.length} party tokens\n1 square = ${cell().toFixed(1)} px · vision ${Math.round((S.visionFt / FT_PER_SQUARE) * cell())} px`;
+  }
+
+  function updateReadout() {
+    const el = $('#readout');
+    if (!S.hover || !S.img) { el.textContent = 'Move the mouse over the map.'; return; }
+    const c = cell();
+    const col = Math.floor(S.hover.x / c), row = Math.floor(S.hover.y / c);
+    const where = `x ${Math.round(S.hover.x)}, y ${Math.round(S.hover.y)}  ·  square ${col}, ${row}`;
+    if (!S.fog) { el.textContent = `${where}\nFog of war is off.`; return; }
+    const st = fogStateAt(S.hover.x, S.hover.y);
+    const cls = st === 'in sight' ? 'in' : st === 'explored' ? 'exp' : 'un';
+    el.innerHTML = '';
+    el.append(document.createTextNode(where + '\n'));
+    if (st) {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = st.toUpperCase();
+      el.append(span);
+    } else {
+      el.append(document.createTextNode('Outside the map.'));
+    }
+  }
+
+  function snapPoint(p) {
+    const tol = SNAP_PX / S.view.scale;
+    let best = null, bestD = tol;
+    for (const w of S.walls) {
+      for (const [x, y] of [[w.x1, w.y1], [w.x2, w.y2]]) {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < bestD) { bestD = d; best = { x, y }; }
+      }
+    }
+    if (best) return best;
+    if (S.snap) {
+      const c = cell();
+      return { x: clamp(Math.round(p.x / c) * c, 0, S.W), y: clamp(Math.round(p.y / c) * c, 0, S.H) };
+    }
+    return { x: clamp(p.x, 0, S.W), y: clamp(p.y, 0, S.H) };
+  }
+
+  function nearestWall(p, onlyDoors) {
+    const tol = SNAP_PX * 1.5 / S.view.scale;
+    let best = null, bestD = tol;
+    for (const w of S.walls) {
+      if (onlyDoors && w.type !== 'door') continue;
+      const d = pointSegmentDistance(p.x, p.y, w);
+      if (d < bestD) { bestD = d; best = w; }
+    }
+    return best;
+  }
+
+  function tokenAt(p) {
+    const r = Math.max(cell() * 0.4, 8 / S.view.scale) * 1.2;
+    for (let i = S.tokens.length - 1; i >= 0; i--) {
+      if (Math.hypot(p.x - S.tokens[i].x, p.y - S.tokens[i].y) <= r) return i;
+    }
+    return -1;
+  }
+
+  function wallsChanged() {
+    save();
+    updateStats();
+    revealFog();
+  }
+
+  /* ---------------- pointer input ---------------- */
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  cv.addEventListener('pointerdown', (e) => {
+    if (!S.img) return;
+    cv.setPointerCapture(e.pointerId);
+    const p = toWorld(e);
+
+    if (e.button === 1 || S.tool === 'pan' || S.spaceDown) {
+      S.drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy };
+      cv.style.cursor = 'grabbing';
+      return;
+    }
+
+    if (e.button === 2) {
+      if (S.draft) { S.draft = null; requestRender(); return; }
+      if (S.tool === 'token') {
+        const i = tokenAt(p);
+        if (i >= 0) { S.tokens.splice(i, 1); save(); updateStats(); revealFog(); }
+      }
+      return;
+    }
+    if (e.button !== 0) return;
+
+    if (S.tool === 'token') {
+      const i = tokenAt(p);
+      if (i >= 0) {
+        S.drag = { kind: 'token', index: i };
+      } else if (p.x >= 0 && p.y >= 0 && p.x <= S.W && p.y <= S.H) {
+        S.tokens.push({ x: p.x, y: p.y });
+        S.drag = { kind: 'token', index: S.tokens.length - 1 };
+        save();
+        updateStats();
+        revealFog();
+      }
+    } else if (S.tool === 'wall' || S.tool === 'door') {
+      const pt = snapPoint(p);
+      if (!S.draft) {
+        S.draft = pt;
+      } else if (Math.hypot(pt.x - S.draft.x, pt.y - S.draft.y) > 1) {
+        S.walls.push({ x1: S.draft.x, y1: S.draft.y, x2: pt.x, y2: pt.y, type: S.tool === 'door' ? 'door' : 'wall', open: false });
+        S.draft = pt;
+        wallsChanged();
+      }
+      requestRender();
+    } else if (S.tool === 'toggle') {
+      const w = nearestWall(p, true);
+      if (w) { w.open = !w.open; wallsChanged(); }
+    } else if (S.tool === 'erase') {
+      const w = nearestWall(p, false);
+      if (w) { S.walls.splice(S.walls.indexOf(w), 1); wallsChanged(); }
+    }
+  });
+
+  cv.addEventListener('pointermove', (e) => {
+    if (!S.img) return;
+    const p = toWorld(e);
+    S.hover = (S.tool === 'wall' || S.tool === 'door') ? snapPoint(p) : p;
+    if (S.drag && S.drag.kind === 'pan') {
+      S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
+      S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
+    } else if (S.drag && S.drag.kind === 'token') {
+      const t = S.tokens[S.drag.index];
+      if (t) { t.x = clamp(p.x, 0, S.W); t.y = clamp(p.y, 0, S.H); queueReveal(); }
+    }
+    updateReadout();
+    requestRender();
+  });
+
+  function endDrag(e) {
+    if (!S.drag) return;
+    const kind = S.drag.kind;
+    S.drag = null;
+    try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
+    if (kind === 'token') save();
+    setTool(S.tool);
+  }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', () => { if (!S.drag) { S.hover = null; updateReadout(); requestRender(); } });
+
+  cv.addEventListener('dblclick', () => { S.draft = null; requestRender(); });
+
+  cv.addEventListener('wheel', (e) => {
+    if (!S.img) return;
+    e.preventDefault();
+    const rect = cv.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const wx = (mx - S.view.ox) / S.view.scale, wy = (my - S.view.oy) / S.view.scale;
+    S.view.scale = clamp(S.view.scale * Math.exp(-e.deltaY * 0.0015), 0.02, 12);
+    S.view.ox = mx - wx * S.view.scale;
+    S.view.oy = my - wy * S.view.scale;
+    requestRender();
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (e.key === ' ') { S.spaceDown = true; e.preventDefault(); }
+    if (e.key === 'Escape') { S.draft = null; requestRender(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undoWall(); }
+  });
+  window.addEventListener('keyup', (e) => { if (e.key === ' ') S.spaceDown = false; });
+
+  function undoWall() {
+    if (!S.walls.length) return;
+    S.walls.pop();
+    wallsChanged();
+  }
+
+  /* ---------------- sidebar wiring ---------------- */
+  document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+  $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
+
+  $('#squares').addEventListener('input', (e) => {
+    const n = clamp(Math.round(Number(e.target.value)), 5, 400);
+    if (!isFinite(n)) return;
+    S.squares = n;
+    $('#squaresVal').textContent = n;
+    save();
+    updateStats();
+    resetFog();
+  });
+  $('#vision').addEventListener('input', (e) => {
+    S.visionFt = Number(e.target.value);
+    $('#visionVal').textContent = S.visionFt;
+    save();
+    updateStats();
+    revealFog();
+  });
+  $('#snap').addEventListener('change', (e) => { S.snap = e.target.checked; });
+  $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; requestRender(); updateReadout(); });
+  $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
+  $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
+  $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
+  $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
+
+  $('#undoBtn').addEventListener('click', undoWall);
+  $('#clearBtn').addEventListener('click', () => {
+    if (!S.walls.length || !confirm('Delete every wall and door on this map?')) return;
+    S.walls = [];
+    S.draft = null;
+    wallsChanged();
+  });
+  $('#resetFogBtn').addEventListener('click', resetFog);
+  $('#fitBtn').addEventListener('click', fitView);
+
+  $('#toTableBtn').addEventListener('click', () => {
+    if (!S.url) return;
+    if (!confirm('Replace the walls the tabletop has saved for this map with these?')) return;
+    const ok = store.set(tabletopWallsKey(), S.walls);
+    $('#banner').textContent = ok ? 'Walls sent to the tabletop.' : 'Could not save (browser storage unavailable).';
+  });
+  $('#fromTableBtn').addEventListener('click', () => {
+    if (!S.url) return;
+    const list = cleanWalls(store.get(tabletopWallsKey(), []));
+    if (!list.length) { $('#banner').textContent = 'The tabletop has no walls saved for this map.'; return; }
+    if (S.walls.length && !confirm('Replace the walls here with the tabletop\'s?')) return;
+    S.walls = list;
+    S.draft = null;
+    wallsChanged();
+    $('#banner').textContent = `Loaded ${list.length} walls from the tabletop.`;
+  });
+
+  /* ---------------- self-test ---------------- */
+  function inside(poly, x, y) {
+    let c = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const a = poly[i], b = poly[j];
+      if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) c = !c;
+    }
+    return c;
+  }
+
+  function runSelfTest() {
+    const W = 1000, H = 1000;
+    const results = [];
+    const check = (name, ok) => results.push({ name, ok });
+    const room = [
+      { x1: 300, y1: 300, x2: 600, y2: 300 }, { x1: 300, y1: 600, x2: 600, y2: 600 },
+      { x1: 300, y1: 300, x2: 300, y2: 600 },
+      { x1: 600, y1: 300, x2: 600, y2: 400 }, { x1: 600, y1: 450, x2: 600, y2: 600 }
+    ];
+    const door = { x1: 600, y1: 400, x2: 600, y2: 450, type: 'door', open: false };
+    const poly = (ox, oy, walls) => visibilityPolygon(ox, oy, blockingWalls(walls), W, H);
+
+    let p = poly(450, 450, [...room, door]);
+    check('Sees the whole room it stands in', inside(p, 350, 350) && inside(p, 550, 550));
+    check('Cannot see through the west and north walls', !inside(p, 200, 450) && !inside(p, 450, 200));
+    check('Closed door blocks sight', !inside(p, 800, 425));
+    door.open = true;
+    p = poly(450, 450, [...room, door]);
+    check('Open door lets sight through', inside(p, 800, 425));
+    check('Walls beside the open door still block', !inside(p, 800, 700) && !inside(p, 800, 250));
+    door.open = false;
+    p = poly(800, 800, [...room, door]);
+    check('Outside the room: cannot see in', !inside(p, 450, 450));
+    check('Outside the room: sees open ground', inside(p, 800, 500));
+    const pillar = [
+      { x1: 480, y1: 400, x2: 520, y2: 400 }, { x1: 480, y1: 400, x2: 480, y2: 440 },
+      { x1: 520, y1: 400, x2: 520, y2: 440 }, { x1: 480, y1: 440, x2: 520, y2: 440 }
+    ];
+    p = poly(500, 700, pillar);
+    check('A pillar casts a shadow behind it', !inside(p, 500, 300));
+    check('Open sides of the pillar are visible', inside(p, 300, 300) && inside(p, 700, 300));
+    p = poly(500, 500, []);
+    check('No walls: the whole map is visible', inside(p, 20, 20) && inside(p, 980, 980));
+    p = poly(300, 300, room);
+    check('Standing on a wall corner still gives a sight polygon', p.length >= 3);
+
+    const box = $('#tests');
+    box.innerHTML = '';
+    for (const r of results) {
+      const div = document.createElement('div');
+      div.className = r.ok ? 'pass' : 'fail';
+      div.textContent = `${r.ok ? 'PASS' : 'FAIL'}  ${r.name}`;
+      box.appendChild(div);
+    }
+    const failed = results.filter((r) => !r.ok).length;
+    const sum = document.createElement('div');
+    sum.className = failed ? 'fail' : 'pass';
+    sum.textContent = failed ? `${failed} of ${results.length} failed` : `All ${results.length} passed`;
+    box.appendChild(sum);
+  }
+  $('#selfTestBtn').addEventListener('click', runSelfTest);
+
+  /* ---------------- start ---------------- */
+  new ResizeObserver(() => { resizeCanvas(); }).observe(stage);
+  resizeCanvas();
+  setTool('token');
+  loadMapList();
+
+  window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap };
+})();
+</script>
+</body>
+</html>

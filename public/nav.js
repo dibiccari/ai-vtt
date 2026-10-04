@@ -3,6 +3,7 @@
   'use strict';
   var PAGES = [
     { href: '/', label: '🎲 Tabletop' },
+    { href: '/map-test.html', label: '🗺 Map Test' },
     { href: '/voice-test.html', label: '🔊 Voice Test' },
     { href: '/settings.html', label: '⚙ Settings' }
   ];
