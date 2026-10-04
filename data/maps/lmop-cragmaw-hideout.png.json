@@ -4,13 +4,8 @@
   "starts": [
     {
       "name": "start",
-      "x": 945,
-      "y": 1295
-    },
-    {
-      "name": "cave-mouth",
-      "x": 945,
-      "y": 1015
+      "x": 122,
+      "y": 1196
     }
   ],
   "source": "dd2vtt",

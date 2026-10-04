@@ -1,5 +1,5 @@
 // Syntax-checks server.js and the inline <script> of public/index.html, map-test.html, tokens.html, characters.html, campaigns.html and test-lab.html.
-import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,6 +19,18 @@ function check(label, file) {
 }
 
 check('server.js', path.join(root, 'server.js'));
+
+// Every installed battle map must have a saved start spot (data/maps/<image>.json, starts[name 'start']).
+const { CAMPAIGN_MAPS, mapsFor } = await import(path.join(root, 'lib', 'campaign-maps.js'));
+const uploads = await readdir(path.join(root, 'public', 'uploads'));
+for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
+  for (const m of mapsFor(campaign, uploads).filter((x) => x.kind === 'battle')) {
+    let starts = [];
+    try { starts = JSON.parse(await readFile(path.join(root, 'data', 'maps', m.url.split('/').pop() + '.json'), 'utf8')).starts || []; } catch { /* no config */ }
+    if (starts.some((s) => s.name === 'start')) console.log(`OK   start spot: ${campaign}/${m.id}`);
+    else { failed = true; console.error(`FAIL ${campaign}/${m.id} has no start spot: open Map Test, choose Set start and click where the party arrives`); }
+  }
+}
 for (const file of ['lib/sheet-edit.js', 'public/scenes.js', 'public/uvtt.js', 'public/pdf-extract.js', 'public/nav.js', 'public/voice-fx.js']) check(file, path.join(root, file));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));

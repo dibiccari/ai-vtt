@@ -261,13 +261,8 @@
   "starts": [
     {
       "name": "start",
-      "x": 1715,
-      "y": 1575
-    },
-    {
-      "name": "approach",
-      "x": 1715,
-      "y": 1575
+      "x": 618,
+      "y": 2012
     }
   ],
   "source": "dd2vtt",

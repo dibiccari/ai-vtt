@@ -3055,16 +3055,6 @@
       "name": "start",
       "x": 1995,
       "y": 1295
-    },
-    {
-      "name": "entrance",
-      "x": 1995,
-      "y": 1295
-    },
-    {
-      "name": "south-passage",
-      "x": 735,
-      "y": 1715
     }
   ],
   "source": "dd2vtt",
