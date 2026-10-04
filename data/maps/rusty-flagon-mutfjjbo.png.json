@@ -210,7 +210,6 @@
       "open": false
     }
   ],
-  "source": "dd2vtt",
   "starts": [
     {
       "name": "start",
@@ -219,5 +218,6 @@
     }
   ],
   "light": "dim",
-  "ambience": "tavern"
+  "ambience": "tavern",
+  "source": "dd2vtt"
 }

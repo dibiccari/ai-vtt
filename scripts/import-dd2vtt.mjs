@@ -32,7 +32,8 @@ const lights = (u.lights || []).map((l) => ({
   range: Number(l.range),
   intensity: Number(l.intensity ?? 1),
   color: String(l.color || 'ffffff').replace(/^#/, '').toLowerCase(),
-  ...(l.name ? { name: String(l.name) } : {})
+  ...(l.name ? { name: String(l.name) } : {}),
+  ...(l.flicker === true ? { flicker: true } : {})
 })).filter((l) => Number.isFinite(l.x) && Number.isFinite(l.y) && Number.isFinite(l.range));
 
 const image = `${name}.${kind.ext}`;

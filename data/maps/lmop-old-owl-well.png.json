@@ -401,6 +401,7 @@
       "y": 315
     }
   ],
+  "light": "bright",
   "source": "dd2vtt",
   "lights": [
     {
@@ -502,6 +503,5 @@
       "color": "ffeccd8b"
     }
   ],
-  "ambient": "ffffffff",
-  "light": "bright"
+  "ambient": "ffffffff"
 }
