@@ -77,7 +77,7 @@
     <label class="check"><input type="checkbox" id="fog" checked> Fog of war</label>
     <label class="check"><input type="checkbox" id="dm"> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
-    <label class="check"><input type="checkbox" id="showWalls" checked> Show walls</label>
+    <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
@@ -147,7 +147,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], tokens: [], visionFt: 60, source: null,
-    tool: 'token', fog: true, dm: false, showPoly: false, showWalls: true, showGrid: false, snap: false,
+    tool: 'token', fog: true, dm: false, showPoly: false, showWalls: false, showGrid: false, snap: false,
     view: { scale: 1, ox: 0, oy: 0 },
     draft: null, hover: null, drag: null, polys: [], spaceDown: false
   };
