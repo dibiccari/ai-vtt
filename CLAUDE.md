@@ -10,6 +10,8 @@ npm run dev      # node --watch server.js  -> http://localhost:3000
 npm run check    # syntax-checks server.js and the inline <script> of public/index.html
 ```
 
+Shortcut: double-click `start.command` (Mac) or `start.bat` (Windows). It checks for Node 20+, runs `npm install` on first use, starts the server and opens the browser.
+
 Keys live in `.env` (git-ignored). Easiest way to set them: open **Settings** (`/settings.html`) and paste them in. It writes `.env` and applies instantly, no restart. `.env.example` lists every variable.
 
 ## Layout
