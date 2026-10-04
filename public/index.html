@@ -68,6 +68,35 @@
   .turn-chip .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); }
   .turn-chip.active { background: var(--gold-soft); border-color: var(--gold); color: var(--text); }
   .turn-chip.npc { border-style: dashed; }
+  .combat { flex: 0 0 auto; max-height: 46%; overflow: auto; border-bottom: 1px solid var(--border); background: var(--panel-2); padding: 8px 10px; }
+  .combat .cb-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .combat .cb-title { font-weight: 800; font-size: 13px; margin-right: auto; }
+  .combat .cb-title small { color: var(--muted); font-weight: 600; }
+  .cb-row { border: 1px solid var(--border); border-radius: 8px; padding: 5px 7px; margin-top: 6px; background: var(--panel); }
+  .cb-row.current { border-color: var(--gold); background: var(--gold-soft); }
+  .cb-row.dead { opacity: 0.5; }
+  .cb-row.npc { border-style: dashed; }
+  .cb-line { display: flex; align-items: center; gap: 6px; }
+  .cb-line + .cb-line { margin-top: 4px; }
+  .combat input[type="text"], .combat input[type="number"], .combat select { width: auto; padding: 3px 6px; font-size: 13px; }
+  .combat input.cb-init { width: 46px; text-align: center; font-weight: 800; }
+  .cb-name { flex: 1; text-align: left; background: none; border: 0; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cb-ac { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .cb-hpbar { flex: 1; height: 8px; background: #0d1117; border-radius: 4px; overflow: hidden; min-width: 40px; }
+  .cb-hpbar i { display: block; height: 100%; }
+  .cb-hptext { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+  .combat input.cb-num { width: 56px; }
+  .cb-pip { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #3a4558; background: none; padding: 0; cursor: pointer; font-size: 10px; color: var(--muted); }
+  .cb-pip.on { background: var(--ok); color: #04101f; border-color: var(--ok); }
+  .cb-pip.fail.on { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .cb-use { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid #3a4558; background: none; color: var(--muted); cursor: pointer; }
+  .cb-use.spent { text-decoration: line-through; opacity: 0.5; }
+  .cb-add { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .combat .cb-add input[type="text"] { flex: 1 1 140px; min-width: 0; width: auto; }
+  .cb-note { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .dice-box { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; font-size: 12px; color: var(--muted); }
+  .dice-box input[type="number"] { width: 64px; padding: 4px 6px; }
+  .dice-box select { width: auto; padding: 4px 6px; }
   .cond-dot { display: inline-block; min-width: 18px; padding: 0 4px; border-radius: 9px; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; color: #fff; text-shadow: 0 0 2px #000; }
   .cond-panel { position: fixed; z-index: 60; width: 270px; max-height: 80vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 13px; }
   .cond-panel h4 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
@@ -331,6 +360,10 @@
 <!-- ================================================================ RIGHT: SIDEBAR -->
 <aside class="sidebar">
 
+  <!-- ---------------------------------------------------- COMBAT TRACKER -->
+  <section class="combat" id="combatPanel" aria-label="Combat tracker"></section>
+
+  <datalist id="monsterList"></datalist>
   <!-- ---------------------------------------------------- TAB 1: CHAT -->
   <section class="tab-panel active" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
     <div class="scroll" id="chatScroll">
@@ -351,6 +384,14 @@
         <label><input type="checkbox" id="autoSendToggle" checked> Auto-send what I say</label>
       </div>
       <div class="voice-status"><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
+      <div class="dice-box">
+        <label>Dice <select id="diceMode" aria-label="Who rolls attack dice"><option value="ai">The DM rolls everything</option><option value="player">I roll my own attack d20</option></select></label>
+        <span id="attackRollBox" hidden>
+          <input type="number" id="attackRoll" min="1" max="20" placeholder="d20" aria-label="Your d20 attack roll">
+          <button class="btn btn-sm" id="sendAttackRoll" type="button" title="Tell the DM what you rolled for your attack">Send roll</button>
+          <button class="btn btn-sm" id="autoAttackRoll" type="button" title="Roll the d20 for me and send it">Roll for me</button>
+        </span>
+      </div>
       <textarea id="chatInput" placeholder="Describe your action… e.g. &quot;I draw my longsword and charge the goblin by the door.&quot;"></textarea>
       <div class="row">
         <span class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to send · map, sheets &amp; walls are attached</span>
@@ -411,6 +452,7 @@ const state = {
   mapKind: 'battle',          // 'regional' and 'town' maps are plain pictures (no grid, no fog, no tokens); 'battle' maps have all three
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
+  combat: { active: false, round: 0, order: [] },
   places: [],                 // the maps this campaign can move to
   dmView: false,
   sight: []
@@ -963,6 +1005,7 @@ function doorAt(wx, wy) {
 
 function endTurn() {
   if (!state.tokens.length) return;
+  if (state.combat.active) { nextCombatTurn(); return; }
   // Creatures the party cannot see are skipped: the AI plays their turns in the narration.
   const was = state.activeIndex;
   for (let n = 0; n < state.tokens.length; n++) {
@@ -977,7 +1020,8 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })) };
+  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
+    hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
 /* =====================================================================
@@ -1401,7 +1445,7 @@ function drawTokens(pcs, now) {
     const ghost = !t.isPC && !seenByParty(t);
     const glyph = t.kind === 'trap' ? '⚠' : initials(t.name);
     ctx.save();
-    if (ghost) ctx.globalAlpha = 0.45;
+    if (ghost || t.dead) ctx.globalAlpha = t.dead ? 0.4 : 0.45;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     ctx.shadowBlur = dragging ? 18 : 8;
     ctx.shadowOffsetY = dragging ? 6 : 2;
@@ -1446,14 +1490,22 @@ function drawTokens(pcs, now) {
       ctx.fillText(glyph, x, y + 1);
     }
 
-    const c = characterFor(t);
-    if (c && c.maxHp > 0) {
+    const hpMax = maxHpOf(t), hpNow = hpOf(t);
+    if (hpMax > 0 && (t.isPC || hpNow < hpMax)) {
       const bw = GRID * 0.8, bh = 5, bx = x - bw / 2, by = y + radius + 4;
-      const pct = clamp(c.hp / c.maxHp, 0, 1);
+      const pct = clamp(hpNow / hpMax, 0, 1);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
       ctx.fillStyle = pct > 0.5 ? '#3fd27f' : pct > 0.25 ? '#f0c048' : '#ff6b6b';
       ctx.fillRect(bx, by, bw * pct, bh);
+    }
+    if (t.dead) {
+      ctx.strokeStyle = 'rgba(255, 90, 90, 0.95)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x - radius * 0.7, y - radius * 0.7); ctx.lineTo(x + radius * 0.7, y + radius * 0.7);
+      ctx.moveTo(x + radius * 0.7, y - radius * 0.7); ctx.lineTo(x - radius * 0.7, y + radius * 0.7);
+      ctx.stroke();
     }
     const conds = tokenConditions(t);
     if (conds.length) {
@@ -1936,15 +1988,355 @@ function saveBoard() {
     zoomToParty: state.zoomToParty,
     mapKind: state.mapKind,
     mapMemory: state.mapMemory,
-    fogBeforeOverland: state.fogBeforeOverland
+    fogBeforeOverland: state.fogBeforeOverland,
+    combat: state.combat
   });
 }
 
 function commitBoard() {
   saveBoard();
   renderTurnBar();
+  renderCombat();
   requestRender();
 }
+
+/* =====================================================================
+   COMBAT TRACKER: initiative, rounds, hit points, death saves, action economy
+   ===================================================================== */
+const hpOf = (t) => { const c = characterFor(t); return c ? c.hp : (Number.isFinite(t.hp) ? t.hp : null); };
+const maxHpOf = (t) => { const c = characterFor(t); return c ? c.maxHp : (Number.isFinite(t.maxHp) && t.maxHp > 0 ? t.maxHp : null); };
+const acOf = (t) => { const c = characterFor(t); return c ? c.ac : (Number.isFinite(t.ac) && t.ac > 0 ? t.ac : null); };
+const dexModOf = (t) => { const c = characterFor(t); return c ? Math.floor(((c.abilities && c.abilities.dex) || 10) / 2) - 5 : (Number.isFinite(t.dexMod) ? t.dexMod : 0); };
+const combatTokens = () => state.combat.order.map((id) => state.tokens.find((t) => t.id === id)).filter(Boolean);
+const d20 = () => 1 + Math.floor(Math.random() * 20);
+
+// Hit points go up or down here. A creature at 0 is defeated; a player character at 0 falls unconscious and starts making death saves.
+function changeHp(t, delta) {
+  const max = maxHpOf(t);
+  if (max === null || !Number.isFinite(delta)) return null;
+  const before = hpOf(t);
+  const after = clamp(before + Math.round(delta), 0, max);
+  const c = characterFor(t);
+  if (c) {
+    c.hp = after;
+    jsonPost('/api/characters', c).catch((err) => toast(`Could not save ${c.name}'s HP: ${err.message}`, 'error'));
+  } else t.hp = after;
+  if (after === 0 && before > 0) {
+    if (t.isPC) { setCondition(t, 'unconscious', 0); t.deathSaves = { success: 0, fail: 0 }; t.stable = false; addChat('system', `↳ ${t.name} falls unconscious and is dying`); }
+    else { t.dead = true; if (seenByParty(t)) addChat('system', `↳ ${t.name} is defeated`); }
+  } else if (after > 0 && before === 0) {
+    if (t.isPC) { clearCondition(t, 'unconscious'); t.deathSaves = null; t.stable = false; }
+    else t.dead = false;
+  }
+  return { before, after };
+}
+
+function sortCombat() {
+  const cur = activeToken();
+  const list = combatTokens();
+  list.sort((a, b) => (Number.isFinite(b.initiative) ? b.initiative : -99) - (Number.isFinite(a.initiative) ? a.initiative : -99) || dexModOf(b) - dexModOf(a) || a.name.localeCompare(b.name));
+  state.combat.order = list.map((t) => t.id);
+  if (cur) state.activeIndex = Math.max(0, state.tokens.indexOf(cur));
+}
+
+function beginTurn(t) {
+  t.movementRemaining = t.speed;
+  t.spent = { a: false, b: false, r: false };
+  if (seenByParty(t)) toast(`${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`, 'ok');
+}
+
+function startCombat() {
+  if (state.combat.active) return;
+  const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead);
+  if (!members.length) { toast('Put some tokens on the map first'); return; }
+  state.combat = { active: true, round: 1, order: members.map((t) => t.id) };
+  for (const t of members) {
+    t.initiative = t.isPC ? null : d20() + dexModOf(t);     // the players give their own; creatures are rolled here
+    t.spent = { a: false, b: false, r: false };
+  }
+  sortCombat();
+  const first = combatTokens()[0];
+  if (first) state.activeIndex = state.tokens.indexOf(first);
+  addChat('system', '⚔ Combat begins. Players: enter your initiative, or press "Roll for players".');
+  commitBoard();
+  renderCombat();
+}
+
+function rollForPlayers() {
+  for (const t of combatTokens()) if (t.isPC && !Number.isFinite(t.initiative)) t.initiative = d20() + dexModOf(t);
+  sortCombat();
+  commitBoard();
+  renderCombat();
+}
+
+function joinCombat(t) {
+  if (!state.combat.active || t.kind === 'trap' || state.combat.order.includes(t.id)) return;
+  state.combat.order.push(t.id);
+  t.initiative = t.isPC ? null : d20() + dexModOf(t);
+  t.spent = { a: false, b: false, r: false };
+  sortCombat();
+}
+
+function nextCombatTurn() {
+  const order = combatTokens();
+  if (!order.length) return;
+  const waiting = order.filter((t) => t.isPC && !Number.isFinite(t.initiative)).map((t) => t.name);
+  if (waiting.length) { toast(`Waiting for initiative: ${waiting.join(', ')}`); return; }
+  const idx = order.indexOf(activeToken());
+  let wrapped = false, chosen = null;
+  for (let n = 1; n <= order.length; n++) {
+    if (idx + n >= order.length) wrapped = true;
+    const t = order[(idx + n + order.length) % order.length];
+    // Defeated creatures are skipped; creatures the party cannot see are skipped too (the AI plays their turns in the narration).
+    if (t.dead || !seenByParty(t)) continue;
+    chosen = t;
+    break;
+  }
+  if (!chosen) return;
+  if (wrapped) {
+    state.combat.round += 1;
+    addChat('system', `⏱ Round ${state.combat.round}`);
+    if (tickConditions()) revealFog();
+  }
+  state.activeIndex = state.tokens.indexOf(chosen);
+  beginTurn(chosen);
+  commitBoard();
+  renderCombat();
+}
+
+function endCombat() {
+  if (!state.combat.active) return;
+  state.combat = { active: false, round: 0, order: [] };
+  for (const t of state.tokens) { t.initiative = null; t.spent = null; }
+  addChat('system', '⚔ Combat ends');
+  commitBoard();
+  renderCombat();
+}
+
+// Creatures of the SRD, added from the tracker (names for the box come from the compendium).
+let monsterNames = null;
+async function loadMonsterNames() {
+  if (monsterNames) return monsterNames;
+  try { monsterNames = (await api('/api/compendium/monsters')).entries; } catch { monsterNames = []; }
+  const list = $('#monsterList');
+  list.innerHTML = '';
+  for (const m of monsterNames) { const o = document.createElement('option'); o.value = m.name; list.appendChild(o); }
+  return monsterNames;
+}
+
+async function addMonsters(name, count, hidden) {
+  const names = await loadMonsterNames();
+  const found = names.find((m) => m.name.toLowerCase() === String(name).trim().toLowerCase());
+  if (!found) { toast(`"${name}" is not in the SRD bestiary`, 'error'); return; }
+  const { entry } = await api('/api/compendium/monsters/' + encodeURIComponent(found.index));
+  const mid = screenToWorld(wrap.clientWidth / 2, wrap.clientHeight / 2);
+  const cell = worldToCell(mid.x, mid.y);
+  const walk = parseInt(entry.speed && entry.speed.walk, 10);
+  const n = clamp(Math.round(count) || 1, 1, 20);
+  const sameBefore = state.tokens.filter((t) => t.monster === entry.index).length;
+  for (let i = 0; i < n; i++) {
+    const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
+    const number = sameBefore + i + 1;
+    const t = makeToken({
+      id: `mon-${entry.index}-${Date.now().toString(36)}${i}`, name: n + sameBefore > 1 ? `${entry.name} ${number}` : entry.name,
+      color: '#a04545', isPC: false, hidden, kind: 'creature', speed: Number.isFinite(walk) ? walk : 30, ...spot
+    });
+    Object.assign(t, { monster: entry.index, hp: entry.hit_points, maxHp: entry.hit_points, ac: entry.armor_class[0].value, dexMod: Math.floor((entry.dexterity - 10) / 2) });
+    state.tokens.push(t);
+    joinCombat(t);
+  }
+  revealFog();
+  commitBoard();
+  renderCombat();
+}
+
+function pips(count, cls, onClick) {
+  const row = document.createElement('span');
+  for (let i = 0; i < 3; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `cb-pip ${cls}${i < count ? ' on' : ''}`;
+    b.textContent = cls === 'fail' ? '✗' : '✓';
+    b.title = cls === 'fail' ? 'Failed death save' : 'Successful death save';
+    b.addEventListener('click', () => onClick(i < count ? i : i + 1));
+    row.appendChild(b);
+  }
+  return row;
+}
+
+function combatRow(t) {
+  const row = document.createElement('div');
+  row.className = `cb-row${t === activeToken() && state.combat.active ? ' current' : ''}${t.dead ? ' dead' : ''}${t.isPC ? '' : ' npc'}`;
+  const line1 = document.createElement('div');
+  line1.className = 'cb-line';
+  const init = document.createElement('input');
+  init.type = 'number';
+  init.className = 'cb-init';
+  init.placeholder = '?';
+  init.title = 'Initiative';
+  init.value = Number.isFinite(t.initiative) ? t.initiative : '';
+  init.addEventListener('change', () => { t.initiative = init.value === '' ? null : Number(init.value); sortCombat(); commitBoard(); renderCombat(); });
+  const name = document.createElement('button');
+  name.className = 'cb-name';
+  name.textContent = t.name + (t.dead ? ' ✖' : '');
+  name.title = state.gmOverride ? `Make ${t.name} active` : `Center on ${t.name}`;
+  name.addEventListener('click', () => { centerOnToken(t); });
+  line1.append(init, name);
+  if (t.monster) {
+    const link = document.createElement('a');
+    link.href = `/bestiary.html#${t.monster}`;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = '📖';
+    link.title = 'Open the stat block';
+    line1.appendChild(link);
+  }
+  const ac = acOf(t);
+  if (ac !== null) { const s = document.createElement('span'); s.className = 'cb-ac'; s.textContent = `AC ${ac}`; line1.appendChild(s); }
+  row.appendChild(line1);
+
+  const max = maxHpOf(t);
+  if (max !== null) {
+    const hp = hpOf(t);
+    const line2 = document.createElement('div');
+    line2.className = 'cb-line';
+    const bar = document.createElement('div');
+    bar.className = 'cb-hpbar';
+    const fill = document.createElement('i');
+    const pct = clamp(hp / max, 0, 1);
+    fill.style.width = `${pct * 100}%`;
+    fill.style.background = pct > 0.5 ? '#3fd27f' : pct > 0.25 ? '#f0c048' : '#ff6b6b';
+    bar.appendChild(fill);
+    const text = document.createElement('span');
+    text.className = 'cb-hptext';
+    text.textContent = `${hp}/${max}`;
+    const amount = document.createElement('input');
+    amount.type = 'number';
+    amount.min = '1';
+    amount.className = 'cb-num';
+    amount.placeholder = 'HP';
+    amount.setAttribute('aria-label', `Hit points to change for ${t.name}`);
+    const apply = (sign) => { const v = Number(amount.value); if (!(v > 0)) { amount.focus(); return; } changeHp(t, sign * v); commitBoard(); renderCombat(); };
+    const dmg = document.createElement('button'); dmg.className = 'btn btn-sm'; dmg.textContent = '−'; dmg.title = 'Damage'; dmg.addEventListener('click', () => apply(-1));
+    const heal = document.createElement('button'); heal.className = 'btn btn-sm'; heal.textContent = '+'; heal.title = 'Heal'; heal.addEventListener('click', () => apply(1));
+    amount.addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(-1); });
+    line2.append(bar, text, amount, dmg, heal);
+    row.appendChild(line2);
+    if (t.isPC && hp === 0 && !t.stable && t.deathSaves) {
+      const line3 = document.createElement('div');
+      line3.className = 'cb-line';
+      const lab = document.createElement('span'); lab.className = 'cb-ac'; lab.textContent = 'Death saves';
+      const set = (key, v) => {
+        t.deathSaves[key] = clamp(v, 0, 3);
+        if (t.deathSaves.success >= 3) { t.stable = true; addChat('system', `↳ ${t.name} is stable`); }
+        if (t.deathSaves.fail >= 3) { t.dead = true; addChat('system', `↳ ${t.name} has died`); }
+        commitBoard(); renderCombat();
+      };
+      line3.append(lab, pips(t.deathSaves.success, 'ok', (v) => set('success', v)), pips(t.deathSaves.fail, 'fail', (v) => set('fail', v)));
+      row.appendChild(line3);
+    }
+  }
+
+  if (state.combat.active) {
+    const line4 = document.createElement('div');
+    line4.className = 'cb-line';
+    const spent = t.spent || { a: false, b: false, r: false };
+    for (const [key, label, tip] of [['a', 'Action', 'Action used this turn'], ['b', 'Bonus', 'Bonus action used this turn'], ['r', 'Reaction', 'Reaction used since the start of its turn']]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `cb-use${spent[key] ? ' spent' : ''}`;
+      b.textContent = label;
+      b.title = tip;
+      b.addEventListener('click', () => { t.spent = { ...spent, [key]: !spent[key] }; commitBoard(); renderCombat(); });
+      line4.appendChild(b);
+    }
+    for (const c of tokenConditions(t)) {
+      const chip = document.createElement('span');
+      chip.className = 'cond-dot';
+      chip.style.background = conditionBadge(c.name)[1];
+      chip.title = conditionLabel(c);
+      chip.textContent = conditionBadge(c.name)[0];
+      line4.appendChild(chip);
+    }
+    row.appendChild(line4);
+  }
+  return row;
+}
+
+function renderCombat() {
+  const box = $('#combatPanel');
+  if (!box) return;
+  box.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'cb-head';
+  const title = document.createElement('span');
+  title.className = 'cb-title';
+  const cur = activeToken();
+  title.innerHTML = state.combat.active ? `⚔ Combat <small>round ${state.combat.round}${cur ? ' · ' + esc(cur.name) + "'s turn" : ''}</small>` : '⚔ Combat <small>not started</small>';
+  head.appendChild(title);
+  const btn = (label, tip, fn, cls) => { const b = document.createElement('button'); b.className = `btn btn-sm${cls ? ' ' + cls : ''}`; b.textContent = label; b.title = tip; b.addEventListener('click', fn); head.appendChild(b); return b; };
+  if (state.combat.active) {
+    btn('Next turn ⏭', 'End this turn and move to the next in initiative order', nextCombatTurn, 'btn-gold');
+    btn('Roll for players', 'Roll initiative for every player character that has none yet', rollForPlayers);
+    btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
+  } else {
+    btn('Start combat', 'Roll initiative for the creatures on the board and begin tracking rounds', startCombat, 'btn-primary');
+  }
+  const add = document.createElement('div');
+  add.className = 'cb-add';
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.placeholder = 'Add a creature (SRD)…';
+  name.setAttribute('list', 'monsterList');
+  name.setAttribute('aria-label', 'Creature to add');
+  name.addEventListener('focus', loadMonsterNames);
+  const count = document.createElement('input');
+  count.type = 'number';
+  count.min = '1';
+  count.max = '20';
+  count.value = '1';
+  count.className = 'cb-num';
+  count.title = 'How many';
+  const hid = document.createElement('label');
+  hid.className = 'cb-ac';
+  const hidBox = document.createElement('input');
+  hidBox.type = 'checkbox';
+  hid.append(hidBox, document.createTextNode(' hidden'));
+  const go = document.createElement('button');
+  go.className = 'btn btn-sm';
+  go.textContent = 'Add';
+  const submit = () => { if (name.value.trim()) addMonsters(name.value, Number(count.value), hidBox.checked).then(() => { name.value = ''; }).catch((err) => toast(err.message, 'error')); };
+  go.addEventListener('click', submit);
+  name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+  add.append(name, count, hid, go);
+  box.append(head, add);
+  if (state.combat.active) {
+    const rows = combatTokens().filter(canSee);
+    for (const t of rows) box.appendChild(combatRow(t));
+    const waiting = combatTokens().filter((t) => t.isPC && !Number.isFinite(t.initiative));
+    if (waiting.length) { const n = document.createElement('div'); n.className = 'cb-note'; n.textContent = `Waiting for initiative: ${waiting.map((t) => t.name).join(', ')}`; box.appendChild(n); }
+  } else {
+    // Out of combat the tracker still shows hit points of anything that has them, so damage can be tracked before a fight too.
+    for (const t of state.tokens.filter((x) => canSee(x) && maxHpOf(x) !== null && (x.isPC ? false : true))) box.appendChild(combatRow(t));
+  }
+}
+
+// Attack d20 for tables where the player rolls their own dice.
+function syncDiceUi() {
+  const mode = store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai';
+  $('#diceMode').value = mode;
+  $('#attackRollBox').hidden = mode !== 'player';
+}
+function sendAttackRoll(value) {
+  const n = Math.round(Number(value));
+  if (!(n >= 1 && n <= 20)) { toast('Enter the number on the d20 (1 to 20)'); $('#attackRoll').focus(); return; }
+  $('#attackRoll').value = '';
+  sendTurn(`Attack roll: I rolled ${n} on the d20.`, { typed: true });
+}
+const combatForAi = () => ({
+  active: state.combat.active, round: state.combat.round, currentTokenId: activeToken() ? activeToken().id : '',
+  order: combatTokens().map((t) => ({ tokenId: t.id, initiative: Number.isFinite(t.initiative) ? t.initiative : null }))
+});
 
 /* =====================================================================
    UI: TABS
@@ -2013,11 +2405,11 @@ function setBusy(busy) {
   if (busy) scrollChat();
 }
 
-async function sendTurn(spokenText) {
+async function sendTurn(spokenText, opts) {
   if (state.busy) return;
   const input = $('#chatInput');
-  const isVoice = typeof spokenText === 'string';
-  const text = (isVoice ? spokenText : input.value).trim();
+  const isVoice = typeof spokenText === 'string' && !(opts && opts.typed);
+  const text = (typeof spokenText === 'string' ? spokenText : input.value).trim();
   if (!text) { toast('Describe your action first'); input.focus(); return; }
   voice.cancelSpeech();
   const active = activeToken();
@@ -2042,7 +2434,9 @@ async function sendTurn(spokenText) {
       mapUrl: state.map.url || '',
       movementRule: state.moveRule,
       mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
-      inputMode: isVoice ? 'voice' : 'text'
+      inputMode: isVoice ? 'voice' : 'text',
+      combat: combatForAi(),
+      diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
@@ -2513,9 +2907,15 @@ async function applyMapUpdates(updates) {
             isPC: false,
             hidden: u.hidden === true,
             kind: u.kind,
+            speed: Number.isFinite(Number(u.speed)) && Number(u.speed) > 0 ? Number(u.speed) : 30,
             ...spot
           });
+          if (Number(u.maxHp) > 0) Object.assign(token, { hp: Number(u.maxHp), maxHp: Number(u.maxHp) });
+          if (Number(u.ac) > 0) token.ac = Number(u.ac);
+          if (u.monster) token.monster = String(u.monster);
+          if (Number.isFinite(Number(u.dexMod))) token.dexMod = Number(u.dexMod);
           state.tokens.push(token);
+          joinCombat(token);
         }
         // Nothing is said in the chat about a token the players cannot see.
         if (seenByParty(token)) addChat('system', `↳ ${u.name || u.tokenId} appears at (${spot.col}, ${spot.row})`);
@@ -2571,6 +2971,28 @@ async function applyMapUpdates(updates) {
         if (t && clearCondition(t, u.condition) && seenByParty(t)) addChat('system', `↳ ${t.name} is no longer ${conditionKey(u.condition)}`);
         break;
       }
+      case 'damageToken':
+      case 'healToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        const amount = Math.abs(Math.round(Number(u.value)));
+        if (!t || !(amount > 0)) break;
+        const r = changeHp(t, u.type === 'damageToken' ? -amount : amount);
+        if (r && seenByParty(t) && !t.isPC) addChat('system', `↳ ${t.name} ${u.type === 'damageToken' ? 'takes' : 'recovers'} ${amount}`);
+        break;
+      }
+      case 'setInitiative': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t || !Number.isFinite(Number(u.value))) break;
+        t.initiative = Math.round(Number(u.value));
+        if (state.combat.active) { if (!state.combat.order.includes(t.id)) joinCombat(t); sortCombat(); }
+        break;
+      }
+      case 'startCombat':
+        if (!state.combat.active) startCombat();
+        break;
+      case 'endCombat':
+        endCombat();
+        break;
       case 'changeMap':
         break;                                    // handled before the loop
       default:
@@ -2665,6 +3087,10 @@ function bindUi() {
     requestRender();
   });
   $('#endTurnBtn').addEventListener('click', endTurn);
+  $('#diceMode').addEventListener('change', (e) => { store.set('vtt.diceMode', e.target.value); syncDiceUi(); });
+  $('#sendAttackRoll').addEventListener('click', () => sendAttackRoll($('#attackRoll').value));
+  $('#attackRoll').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAttackRoll($('#attackRoll').value); });
+  $('#autoAttackRoll').addEventListener('click', () => sendAttackRoll(d20()));
   $('#zoomInBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 1.25));
   $('#zoomOutBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 0.8));
   $('#fitBtn').addEventListener('click', fitView);
@@ -2737,9 +3163,11 @@ async function init() {
     state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : 'battle';
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
     state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
+    state.combat = board.combat && board.combat.active && Array.isArray(board.combat.order) ? { active: true, round: Math.max(1, Number(board.combat.round) || 1), order: board.combat.order.map(String) } : { active: false, round: 0, order: [] };
   }
   $('#fogToggle').checked = state.fogEnabled;
   syncMapUi();
+  syncDiceUi();
   renderChat();
   scrollChat();
   await loadCharacters();

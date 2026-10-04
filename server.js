@@ -703,7 +703,7 @@ Maps of kind "regional" (a Sword Coast map) and "town" (Phandalin) are just pict
 Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
 Return mechanical changes in mapUpdates:
-- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
+- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "damage" or "heal": change a creature's or character's hit points by value (tokenId). action "initiative": set a token's initiative to value (tokenId). action "startCombat" or "endCombat": begin or finish combat on the table's combat tracker. For action "add", monster is the SRD index of the creature (lowercase with hyphens, for example "goblin" or "adult-red-dragon"): the table then fills in its hit points, Armor Class and speed from the SRD stat block, so leave value and ac as 0. For a creature that is not in the SRD (an adventure's named villain, a custom monster) leave monster as "" and give its hit points in value and its Armor Class in ac. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
 - changeMap: move the whole table to another place (mapId from the maps list in the board state, arrive: one of that map's arrivalSpots, or "default", and a short reason). The party's tokens are moved to the arrival spot, and the creatures of the scene you are leaving are put away until you return. Put changeMap first in the list, then add the creatures of the new scene with addToken (hidden ones with hidden true).
 - updateCharacter: change a player character's sheet. Always send characterId, a short reason, and edits, a list of { field, value }. field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. A skill is set with field "skill <name>" (for example "skill Stealth") and value none, proficient or expertise. Saving throw proficiency uses field "save <ability>" (for example "save dex") and value proficient or none. A spell is added with field "spell add <level>" and removed with "spell remove <level>", the value being the spell name (level 0 for cantrips). The total spell slots of a level use field "slots <level>" and the number as value. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
 - setHp: set a player character's current HP (characterId, hp).
@@ -713,6 +713,10 @@ Return mechanical changes in mapUpdates:
 Only include updates that actually happened. Use an empty array when nothing changes on the board.
 
 Changing maps: the board state lists the maps you can use (maps) and the one in use (currentMap). When the party travels or enters a place that has its own map, change to it: a regional map for travel between places, a town map for scenes in a town, a battle map for an encounter or a dungeon. When they say they head to a place (for example "we go to town"), use changeMap to the matching map, then narrate the arrival. Do not change maps for a short walk inside the same place, and do not invent map ids. Going back to a map you left restores its creatures, so you do not need to place them again.
+
+Combat: the table has a combat tracker (the combat block of the board state: active, round, whose turn, the order and each token's initiative, hit points and Armor Class). When a fight breaks out, send token startCombat; the table rolls initiative for creatures and asks the players for theirs. You may instead send initiative updates with values you rolled yourself. Run the fight turn by turn: on each turn resolve the active token's action, using the board's hit points and Armor Class, and send damage or heal updates for every change in hit points (monsters at 0 hit points are defeated; a player character at 0 falls unconscious and makes death saves). Add the creatures of an encounter with action add and their SRD index so the tracker has real numbers. Send endCombat when the fight is over, then award experience. Do not announce hit points of creatures the players have not seen.
+
+Dice: the board state's diceMode is "ai" or "player". In "player" mode the player rolls their own d20 for their character's attack rolls: do not roll that d20 for them. Ask them to roll and tell them the bonus to add, then wait for their next message and resolve the attack with the number they give. Everything else you roll as usual: damage, saving throws, ability checks, initiative, and every roll made by monsters. In "ai" mode roll everything.
 
 Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
 
@@ -751,14 +755,28 @@ function expandSheetEdits(u) {
 }
 
 // The DM's flat "token" update, turned into the specific board updates the tabletop applies.
-function expandTokenUpdates(updates) {
+async function expandTokenUpdates(updates) {
   const out = [];
   for (const u of updates) {
     if (!u) continue;
     if (u.type !== 'token') { out.push(u); continue; }
     const base = { tokenId: u.tokenId };
     if (u.action === 'move') out.push({ type: 'moveToken', ...base, col: u.col, row: u.row });
-    else if (u.action === 'add') out.push({ type: 'addToken', ...base, name: u.name, col: u.col, row: u.row, color: u.color, hidden: u.hidden, kind: u.kind });
+    else if (u.action === 'add') {
+      // A creature from the SRD brings its real hit points, Armor Class and speed.
+      const srd = u.monster ? await getEntry('monsters', String(u.monster).toLowerCase().replace(/[^a-z0-9-]/g, '')) : null;
+      const walk = srd ? parseInt(srd.speed?.walk, 10) : NaN;
+      out.push({
+        type: 'addToken', ...base, name: u.name || srd?.name || 'Creature', col: u.col, row: u.row, color: u.color, hidden: u.hidden, kind: u.kind,
+        monster: srd ? srd.index : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
+        speed: Number.isFinite(walk) ? walk : 30, dexMod: srd ? Math.floor((srd.dexterity - 10) / 2) : 0
+      });
+    }
+    else if (u.action === 'damage') out.push({ type: 'damageToken', ...base, value: u.value });
+    else if (u.action === 'heal') out.push({ type: 'healToken', ...base, value: u.value });
+    else if (u.action === 'initiative') out.push({ type: 'setInitiative', ...base, value: u.value });
+    else if (u.action === 'startCombat') out.push({ type: 'startCombat' });
+    else if (u.action === 'endCombat') out.push({ type: 'endCombat' });
     else if (u.action === 'remove') out.push({ type: 'removeToken', ...base });
     else if (u.action === 'reveal') out.push({ type: 'revealToken', ...base });
     else if (u.action === 'hide') out.push({ type: 'hideToken', ...base });
@@ -803,7 +821,7 @@ const DM_SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT }),
+          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
           upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
@@ -879,7 +897,7 @@ async function partyForPrompt(campaign) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
-  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl } = req.body ?? {};
+  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
@@ -905,6 +923,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     tokens: Array.isArray(tokens) ? tokens : [],
     characters: Array.isArray(characters) ? characters : [],
     walls: Array.isArray(walls) ? walls : [],
+    diceMode: diceMode === 'player' ? 'player' : 'ai',
+    combat: combat && typeof combat === 'object' ? { active: Boolean(combat.active), round: Number(combat.round) || 0, currentTokenId: String(combat.currentTokenId ?? ''), order: (Array.isArray(combat.order) ? combat.order : []).slice(0, 60).map((o) => ({ tokenId: String(o?.tokenId ?? ''), initiative: Number.isFinite(Number(o?.initiative)) ? Number(o.initiative) : null })) } : { active: false },
     party: await partyForPrompt(activeCampaign)
   };
 
@@ -937,7 +957,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const narrative = String(parsed.narrative ?? '');
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
-    const allUpdates = expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []);
+    const allUpdates = await expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []);
     const mapProblems = [];
     const travel = [];
     for (const u of allUpdates.filter((x) => x && x.type === 'changeMap')) {
