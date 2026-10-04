@@ -57,14 +57,14 @@
     <div class="row">
       <button class="tool" data-tool="token" aria-pressed="true" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
       <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
-      <button class="tool" data-tool="start" aria-pressed="false" title="Click where the party arrives. Give the spot a name below (start is where they arrive by default)">Set start</button>
+      <button class="tool" data-tool="start" aria-pressed="false" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
       <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
     </div>
-    <label class="field"><span>Start spot name</span>
-      <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, front-door, cave-mouth…">
+    <label class="field"><span>Name for the next pin</span>
+      <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, back-door, secret-passage…">
     </label>
     <div id="startList" class="hint"></div>
-    <p class="hint">Use the Set start tool: click the map where the party arrives, or drag the marker to move it. Every battle map needs a spot named "start" (npm run check fails without one). Other names are only for maps with a second way in. Saved with the map, so the players never need to see it to place themselves.</p>
+    <p class="hint">Use the Pins tool: click empty ground to add a pin with the name above, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
   </div>
 
   <div class="group">
@@ -393,17 +393,18 @@
     ctx.restore();
   }
 
-  // Saved arrival spots: a flag with its name. Under fog of war they follow the fog like everything else: hidden in unexplored
-  // ground, dimmed in explored ground (the DM view shows them all).
+  // Saved pins (arrival spots): a flag with its name. Under fog of war they follow the fog like everything else: hidden in unexplored
+  // ground, dimmed in explored ground. The DM view, and the Pins tool while you edit, show them all.
   function drawStarts(px) {
     ctx.save();
     ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
     ctx.textBaseline = 'middle';
+    const editing = S.tool === 'start';
     const fogged = S.fog && S.tokens.length > 0 && !S.dm;
     for (const s of S.starts) {
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
-      if (seen === 'unseen' || seen === null) continue;
-      ctx.globalAlpha = seen === 'explored' ? 0.5 : 1;
+      if (seen === null || (seen === 'unseen' && !editing)) continue;
+      ctx.globalAlpha = seen === 'in sight' ? 1 : 0.5;
       ctx.fillStyle = s.name === 'start' ? 'rgba(63, 210, 127, 0.95)' : 'rgba(79, 157, 255, 0.95)';
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2 * px;
@@ -418,6 +419,14 @@
     ctx.restore();
   }
 
+  // After a pin is placed the name box moves on to a fresh name, so the next click adds a new pin instead of moving the last one.
+  function suggestPinName() {
+    if (!S.starts.some((x) => x.name === 'start')) { $('#startName').value = 'start'; return; }
+    let n = 1;
+    while (S.starts.some((x) => x.name === 'pin-' + n)) n++;
+    $('#startName').value = 'pin-' + n;
+  }
+
   function renderStartList() {
     const box = $('#startList');
     box.innerHTML = '';
@@ -429,7 +438,7 @@
       label.textContent = s.name + ' (' + Math.round(s.x) + ', ' + Math.round(s.y) + ')';
       const del = document.createElement('button');
       del.textContent = 'Remove';
-      del.addEventListener('click', () => { S.starts.splice(i, 1); save(); renderStartList(); requestRender(); });
+      del.addEventListener('click', () => { S.starts.splice(i, 1); save(); renderStartList(); suggestPinName(); requestRender(); });
       row.append(label, del);
       box.appendChild(row);
     });
@@ -592,6 +601,7 @@
     $('#vision').value = S.visionFt;
     $('#visionVal').textContent = S.visionFt;
     renderStartList();
+    suggestPinName();
   }
 
   function setTool(tool) {
@@ -716,6 +726,7 @@
       S.starts.push({ name, x: Math.round(p.x), y: Math.round(p.y) });
       save();
       renderStartList();
+      suggestPinName();
       requestRender();
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);
