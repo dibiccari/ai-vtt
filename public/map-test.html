@@ -143,6 +143,7 @@
 
 <script src="/nav.js"></script>
 <script src="/uvtt.js"></script>
+<script src="/wallobjects.js"></script>
 <script>
 (function () {
   'use strict';
@@ -305,11 +306,13 @@
     const radius = (S.visionFt / FT_PER_SQUARE) * cell();
     const walls = blockingWalls(S.walls);
     S.polys = [];
+    S.polyOwners = [];
     for (const t of S.tokens) {
       const near = walls.filter((w) => pointSegmentDistance(t.x, t.y, w) <= radius * 1.1);
       const poly = visibilityPolygon(t.x, t.y, near, S.W, S.H);
       if (poly.length < 3) continue;
       S.polys.push(poly);
+      S.polyOwners.push(t);
       for (const c of [sctx, vctx]) {
         c.save();
         c.globalCompositeOperation = 'destination-out';
@@ -325,7 +328,31 @@
         c.restore();
       }
     }
+    revealObjectTops(radius);
     requestRender();
+  }
+
+  // The top of a small closed object (tent, boulder, crate) shows when its edge is in sight, instead of staying black.
+  let objectCache = { key: '', loops: [] };
+  function revealObjectTops(radius) {
+    if (!S.polys.length) return;
+    const k = S.walls.length + ':' + (S.walls[0] ? S.walls[0].x1 + ',' + S.walls[0].y1 : '') + ':' + cell();
+    if (objectCache.key !== k) objectCache = { key: k, loops: WallObjects.loops(S.walls, 9 * cell()) };
+    for (const loop of objectCache.loops) {
+      const visible = WallObjects.samples(loop, Math.max(6, cell() / 3)).some((p) => S.polys.some((poly, i) => Math.hypot(p.x - S.polyOwners[i].x, p.y - S.polyOwners[i].y) <= radius * 0.9 && inside(poly, p.x, p.y)));
+      if (!visible) continue;
+      for (const c of [sctx, vctx]) {
+        c.save();
+        c.globalCompositeOperation = 'destination-out';
+        c.fillStyle = '#000';
+        c.beginPath();
+        c.moveTo(loop[0].x, loop[0].y);
+        for (let i = 1; i < loop.length; i++) c.lineTo(loop[i].x, loop[i].y);
+        c.closePath();
+        c.fill();
+        c.restore();
+      }
+    }
   }
 
   let revealQueued = false;
