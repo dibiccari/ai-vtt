@@ -692,6 +692,9 @@
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
+        // A map with no test token yet starts one at its start pin, so the line-of-sight check begins where the party would.
+        const startPin = S.starts.find((p) => p.name === 'start');
+        if (!S.tokens.length && startPin) S.tokens.push({ x: clamp(startPin.x, 0, S.W), y: clamp(startPin.y, 0, S.H) });
         syncControls();
         resetFog();
         fitView();
