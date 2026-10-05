@@ -223,7 +223,10 @@
 
       li = step('Building the scene: map, walls, your party and the NPCs');
       const board = await Scenes.create(TEST_CAMPAIGN, { fog: $('#optFog').checked });
+      // The scenario starts over, so the tavern's older saved game on the server goes too (otherwise the newer-copy check could bring it back).
+      try { await fetch('/api/campaigns/' + TEST_CAMPAIGN + '/game', { method: 'DELETE' }); } catch (e) { /* nothing saved */ }
       localStorage.setItem(boardKeyFor(TEST_CAMPAIGN), JSON.stringify(board));
+      localStorage.setItem('vtt.savedAt.' + TEST_CAMPAIGN, String(Date.now()));
       // Forget old walls and explored fog for this map so the saved walls load fresh.
       localStorage.removeItem('vtt.walls.' + board.mapUrl);
       localStorage.removeItem('vtt.fog.' + board.mapUrl);
