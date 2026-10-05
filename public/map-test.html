@@ -32,6 +32,12 @@
   .readout .in { color:var(--ok); } .readout .exp { color:var(--gold); } .readout .un { color:var(--danger); }
   .tests { font:12px Consolas, monospace; display:flex; flex-direction:column; gap:2px; }
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
+  #pinCard { position:absolute; z-index:6; width:240px; background:var(--panel); border:1px solid var(--accent); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  #pinCard[hidden] { display:none; }
+  #pinCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+  #pinCard input { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
+  #pinCard .pc-row { display:flex; gap:6px; }
+  #pinCard .pc-row button { padding:5px 10px; font-size:12px; }
   .stage-bar { position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5; }
   .stage-bar > button { padding:6px 14px; border-radius:8px; }
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
@@ -70,16 +76,13 @@
       <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
     </label>
     <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
-    <label class="field"><span>Name for the next pin</span>
-      <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, back-door, secret-passage…">
-    </label>
     <div id="startList" class="hint"></div>
     <div class="row">
       <select id="copyTarget" aria-label="Copy pins to this map"></select>
       <button id="copyPinsBtn" title="Copy this map's pins onto another map (for example the night version of the same place). Pins with the same name are replaced; the other map's walls are untouched.">Copy pins</button>
     </div>
     <p class="hint">Terrain: choose the Terrain tool above the map and drag a rectangle over difficult ground (right-click inside one to remove it).</p>
-    <p class="hint">Use the Pins tool: click empty ground to add a pin with the name above, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
+    <p class="hint">Use the Pins tool: click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
   </div>
 
   <div class="group">
@@ -165,7 +168,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
-    moveTest: false, moveFt: 30, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
   };
@@ -386,7 +389,7 @@
   function requestRender() {
     if (renderQueued) return;
     renderQueued = true;
-    requestAnimationFrame(() => { renderQueued = false; draw(); });
+    requestAnimationFrame(() => { renderQueued = false; draw(); positionPinCard(); });
   }
 
   function resizeCanvas() {
@@ -556,6 +559,7 @@
       ctx.arc(s.x, s.y, 8 * px, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      if (s === S.selected) { ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3 * px; ctx.beginPath(); ctx.arc(s.x, s.y, 13 * px, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2 * px; }
       ctx.fillStyle = '#fff';
       ctx.strokeText(s.name, s.x + 13 * px, s.y);
       ctx.fillText(s.name, s.x + 13 * px, s.y);
@@ -632,7 +636,7 @@
         (clash.length ? '\nThese will be replaced there: ' + clash.join(', ') + '.' : '') +
         (resized ? '\nThat map is a different size, so positions will be scaled to fit.' : '');
       if (!confirm(msg)) return;
-      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy) }));
+      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.desc ? { desc: x.desc } : {}) }));
       const merged = existing.filter((e) => !copied.some((c) => c.name === e.name)).concat(copied);
       const body = {
         squares: cfg.squares > 0 ? cfg.squares : Math.max(5, Math.round(img.naturalWidth / 50)),
@@ -656,27 +660,25 @@
     }
   }
 
-  // After a pin is placed the name box moves on to a fresh name, so the next click adds a new pin instead of moving the last one.
-  function suggestPinName() {
-    if (!S.starts.some((x) => x.name === 'start')) { $('#startName').value = 'start'; return; }
-    let n = 1;
-    while (S.starts.some((x) => x.name === 'pin-' + n)) n++;
-    $('#startName').value = 'pin-' + n;
-  }
-
+  // The pins of this map as a list: click one to select it and bring it into view.
   function renderStartList() {
     const box = $('#startList');
     box.innerHTML = '';
-    if (!S.starts.length) { box.textContent = 'No arrival spots saved for this map.'; return; }
-    S.starts.forEach((s, i) => {
+    if (!S.starts.length) { box.textContent = 'No arrival spots saved for this map. With the Pins tool selected, click the map to add one.'; return; }
+    S.starts.forEach((pin) => {
       const row = document.createElement('div');
       row.className = 'row';
-      const label = document.createElement('span');
-      label.textContent = s.name + ' (' + Math.round(s.x) + ', ' + Math.round(s.y) + ')';
-      const del = document.createElement('button');
-      del.textContent = 'Remove';
-      del.addEventListener('click', () => { S.starts.splice(i, 1); save(); renderStartList(); suggestPinName(); requestRender(); });
-      row.append(label, del);
+      const b = document.createElement('button');
+      b.textContent = pin.name + (pin === S.selected ? ' ✓' : '');
+      b.title = pin.desc || 'Select this pin';
+      b.addEventListener('click', () => {
+        S.view.ox = $('#stage').clientWidth / 2 - pin.x * S.view.scale;
+        S.view.oy = $('#stage').clientHeight / 2 - pin.y * S.view.scale;
+        S.tool !== 'start' ? setTool('start') : null;
+        selectPin(pin, false);
+      });
+      row.appendChild(b);
+      if (pin.desc) { const d = document.createElement('span'); d.textContent = pin.desc; row.appendChild(d); }
       box.appendChild(row);
     });
   }
@@ -849,7 +851,6 @@
     $('#vision').value = S.visionFt;
     $('#visionVal').textContent = S.visionFt;
     renderStartList();
-    suggestPinName();
     fillCopyTargets();
     $('#lightLevel').value = S.light;
     $('#ambienceKind').value = S.ambience;
@@ -860,6 +861,8 @@
 
   function setTool(tool) {
     S.tool = tool;
+    if (tool !== 'start') S.selected = null;
+    positionPinCard();
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
     cv.style.cursor = tool === 'pan' ? 'grab' : tool === 'toggle' ? 'pointer' : 'crosshair';
     requestRender();
@@ -947,6 +950,7 @@
     }
 
     if (e.button === 2) {
+      if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
       if (S.tool === 'terrain') {
         for (let i = S.difficult.length - 1; i >= 0; i--) {
           const d = S.difficult[i];
@@ -975,20 +979,17 @@
       }
     } else if (S.tool === 'start') {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
-      // Grab an existing spot to move it; click empty ground to place the spot named in the box.
+      // Click a pin to select it (and drag it to move it); click empty ground to add a new pin and name it on the spot.
       const grab = startAt(p);
       if (grab) {
-        $('#startName').value = grab.name;
+        selectPin(grab, false);
         S.drag = { kind: 'start', spot: grab };
         return;
       }
-      const name = ($('#startName').value || 'start').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'start';
-      S.starts = S.starts.filter((s) => s.name !== name);
-      S.starts.push({ name, x: Math.round(p.x), y: Math.round(p.y) });
+      const pin = { name: nextPinName(), x: Math.round(p.x), y: Math.round(p.y) };
+      S.starts.push(pin);
       save();
-      renderStartList();
-      suggestPinName();
-      requestRender();
+      selectPin(pin, true);
     } else if (S.tool === 'terrain') {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       S.drag = { kind: 'terrain', x0: p.x, y0: p.y, rect: null };
@@ -1054,8 +1055,74 @@
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.key === ' ') { S.spaceDown = true; e.preventDefault(); }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && S.tool === 'start' && S.selected) { e.preventDefault(); removePin(S.selected); }
   });
   window.addEventListener('keyup', (e) => { if (e.key === ' ') S.spaceDown = false; });
+
+  /* ---------------- pins: click to add, click a pin to select it (name, note, make start, remove) ---------------- */
+  const pinSlug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  function nextPinName() {
+    if (!S.starts.some((x) => x.name === 'start')) return 'start';
+    let n = 2;
+    while (S.starts.some((x) => x.name === 'pin-' + n)) n++;
+    return 'pin-' + n;
+  }
+  const pinCard = document.createElement('div');
+  pinCard.id = 'pinCard';
+  pinCard.hidden = true;
+  pinCard.innerHTML = '<label>Name <input type="text" id="pcName" maxlength="40" spellcheck="false"></label>' +
+    '<label>Note for the DM <input type="text" id="pcNote" maxlength="140" spellcheck="false" placeholder="e.g. the cellar door at the back"></label>' +
+    '<div class="pc-row"><button id="pcStart">Make start</button><button id="pcRemove" class="danger">Remove</button><button id="pcDone">Done</button></div>';
+  $('#stage').appendChild(pinCard);
+
+  function positionPinCard() {
+    if (!S.selected || S.tool !== 'start') { pinCard.hidden = true; return; }
+    const stage = $('#stage').getBoundingClientRect();
+    const x = S.view.ox + S.selected.x * S.view.scale + 18, y = S.view.oy + S.selected.y * S.view.scale - 14;
+    pinCard.hidden = false;
+    pinCard.style.left = clamp(x, 8, Math.max(8, stage.width - 248)) + 'px';
+    pinCard.style.top = clamp(y, 56, Math.max(56, stage.height - 150)) + 'px';
+  }
+  function selectPin(pin, focus) {
+    S.selected = pin;
+    if (pin) {
+      $('#pcName').value = pin.name;
+      $('#pcNote').value = pin.desc || '';
+      $('#pcStart').hidden = pin.name === 'start';
+    }
+    positionPinCard();
+    renderStartList();
+    requestRender();
+    if (pin && focus) { $('#pcName').focus(); $('#pcName').select(); }
+  }
+  function renamePin() {
+    const pin = S.selected;
+    if (!pin) return;
+    const name = pinSlug($('#pcName').value);
+    if (!name || S.starts.some((x) => x !== pin && x.name === name)) { $('#pcName').value = pin.name; setSavedNote(name ? 'There is already a pin called ' + name + '.' : 'A pin needs a name.'); return; }
+    if (name !== pin.name) { pin.name = name; $('#pcName').value = name; $('#pcStart').hidden = name === 'start'; save(); renderStartList(); requestRender(); }
+  }
+  function removePin(pin) {
+    const i = S.starts.indexOf(pin);
+    if (i < 0) return;
+    S.starts.splice(i, 1);
+    if (S.selected === pin) S.selected = null;
+    save(); positionPinCard(); renderStartList(); requestRender();
+  }
+  $('#pcName').addEventListener('change', renamePin);
+  $('#pcName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { renamePin(); e.target.blur(); } if (e.key === 'Escape') { $('#pcName').value = S.selected ? S.selected.name : ''; e.target.blur(); } });
+  $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $('#pcNote').value.slice(0, 140); save(); renderStartList(); } });
+  $('#pcStart').addEventListener('click', () => {
+    const pin = S.selected;
+    if (!pin) return;
+    const old = S.starts.find((x) => x.name === 'start' && x !== pin);
+    if (old) old.name = nextPinName();                     // the old start pin becomes an ordinary pin
+    pin.name = 'start';
+    $('#pcName').value = 'start'; $('#pcStart').hidden = true;
+    save(); renderStartList(); requestRender();
+  });
+  $('#pcRemove').addEventListener('click', () => { if (S.selected) removePin(S.selected); });
+  $('#pcDone').addEventListener('click', () => selectPin(null));
 
   /* ---------------- sidebar wiring ---------------- */
   document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
