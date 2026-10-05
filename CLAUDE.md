@@ -20,7 +20,7 @@ public/index.html      The tabletop: ONE file, vanilla JS + canvas. Grid, tokens
 public/voice-test.html Voice test page: mic/speaker check, every voice with Play/Stop, "Talk to the AI DM" panel.
 public/settings.html   API keys, models, voice engine choice.
 public/characters.html Character sheets: the official WotC 5E fillable PDF drawn with live fields over it (pdf.js), token picker, rename, save, Download PDF (pdf-lib).
-public/map-test.html   Map Test: Pins (arrival spots: add, drag, remove, copy to another map), fog of war + line of sight check with test tokens, open/close doors, grid calibration, .dd2vtt/.uvtt import. The hand wall/door drawing tools were removed (Oct 2026) because the purchased dd2vtt maps carry their walls; settings autosave to data/maps/. Goblin Ambush, Cragmaw Hideout and Wyvern Tor have no walls in any variant of the pack.
+public/map-test.html   Map Test (fog of war starts off on every map; tick it to test line of sight): Pins (arrival spots: add, drag, remove, copy to another map), fog of war + line of sight check with test tokens, open/close doors, grid calibration, .dd2vtt/.uvtt import. The hand wall/door drawing tools were removed (Oct 2026) because the purchased dd2vtt maps carry their walls; settings autosave to data/maps/. Goblin Ambush, Cragmaw Hideout and Wyvern Tor have no walls in any variant of the pack.
 public/tokens.html     Token gallery (names, categories, search) driven by public/tokens/manifest.json.
 public/vendor/         pdf.js, its worker and pdf-lib (self-hosted, with licenses).
 public/campaigns.html  Campaign selector: pick the active campaign (what the DM runs), read/delete its documents, import the adventure PDF (read in the browser by public/pdf-extract.js, split by PDF bookmarks).

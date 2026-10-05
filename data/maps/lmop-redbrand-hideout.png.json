@@ -3062,6 +3062,7 @@
       "y": 1715
     }
   ],
+  "light": "dark",
   "source": "dd2vtt",
   "lights": [
     {
@@ -3359,6 +3360,5 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ff888888",
-  "light": "dark"
+  "ambient": "ff888888"
 }

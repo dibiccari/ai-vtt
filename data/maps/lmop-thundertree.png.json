@@ -1949,10 +1949,11 @@
   "starts": [
     {
       "name": "start",
-      "x": 245,
-      "y": 735
+      "x": 83,
+      "y": 395
     }
   ],
+  "light": "bright",
   "source": "dd2vtt",
   "lights": [
     {
@@ -1984,6 +1985,5 @@
       "color": "ffeccd8b"
     }
   ],
-  "ambient": "ffffffff",
-  "light": "bright"
+  "ambient": "ffffffff"
 }
