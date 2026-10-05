@@ -573,7 +573,18 @@ app.put('/api/campaigns/:id/game/fog', asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// Forget the saved game of a campaign (Start over).
+// Start a campaign over: forget everything the story has built up. The saved game (board, chat, fog), the journal the DM reads every turn and
+// the party's shared stash all go; documents, settings, maps, party and the characters themselves stay.
+app.post('/api/campaigns/:id/start-over', localOnly, asyncRoute(async (req, res) => {
+  const id = await gameCampaign(req, res); if (!id) return;
+  const dir = path.join(CAMPAIGNS_DIR, id);
+  await replaceEntries(dir, []);
+  await writeStash(dir, {});
+  for (const f of Object.values(gamePaths(id))) { try { await unlink(f); } catch { /* nothing saved */ } }
+  res.json({ ok: true });
+}));
+
+// Forget the saved game of a campaign.
 app.delete('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
   const id = await gameCampaign(req, res); if (!id) return;
   const p = gamePaths(id);

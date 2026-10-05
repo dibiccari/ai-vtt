@@ -223,14 +223,14 @@
       await post('/api/campaigns/active', { id: TEST_CAMPAIGN, returnTo: now.active !== TEST_CAMPAIGN ? now.active : now.returnTo });
       li.className = 'done';
 
-      li = step('Resetting the party to their starting kit and full hit points');
+      li = step('Clearing the story so far (journal, shared stash, saved game) and resetting the party to full hit points');
+      await post('/api/campaigns/' + TEST_CAMPAIGN + '/start-over', {});
       await post('/api/test-lab/reset-party', {});
       li.className = 'done';
 
       li = step('Building the scene: map, walls, your party and the NPCs');
       const board = await Scenes.create(TEST_CAMPAIGN, { fog: $('#optFog').checked });
-      // The scenario starts over, so the tavern's older saved game on the server goes too (otherwise the newer-copy check could bring it back).
-      try { await fetch('/api/campaigns/' + TEST_CAMPAIGN + '/game', { method: 'DELETE' }); } catch (e) { /* nothing saved */ }
+      localStorage.removeItem('vtt.fog.' + board.mapUrl);
       localStorage.setItem(boardKeyFor(TEST_CAMPAIGN), JSON.stringify(board));
       localStorage.setItem('vtt.savedAt.' + TEST_CAMPAIGN, String(Date.now()));
       // Forget old walls and explored fog for this map so the saved walls load fresh.

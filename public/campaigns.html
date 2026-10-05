@@ -311,11 +311,8 @@
         const saved = JSON.parse(localStorage.getItem('vtt.board.' + c.id) || 'null');
         if (saved && saved.mapUrl) localStorage.removeItem('vtt.fog.' + saved.mapUrl);
       } catch { /* nothing saved */ }
-      try { await fetch('/api/campaigns/' + c.id + '/game', { method: 'DELETE' }); } catch { /* nothing saved on the server */ }
+      try { await fetch('/api/campaigns/' + c.id + '/start-over', { method: 'POST' }); } catch { /* nothing saved on the server */ }       // saved game, journal and the shared stash
       for (const key of ['vtt.board.' + c.id, 'vtt.chat.' + c.id, 'vtt.savedAt.' + c.id]) { try { localStorage.removeItem(key); } catch { /* storage blocked */ } }
-      try {
-        await fetch('/api/campaigns/' + c.id + '/journal', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: [] }) });
-      } catch { /* the board is cleared even if the journal could not be */ }
       setStatus(c.name + ' will start fresh the next time you open it.', 'ok');
     });
     const docs = el('button', '', open.has(c.id) ? 'Hide documents' : 'Show documents');
