@@ -1,6 +1,6 @@
 {
   "id": "rachel",
-  "name": "Rachel",
+  "name": "Raechyl",
   "class": "Druid",
   "level": 1,
   "hp": 11,
@@ -21,8 +21,8 @@
     "lost-mine-of-phandelver"
   ],
   "sheet": {
-    "CharacterName": "Rachel",
-    "CharacterName 2": "Rachel",
+    "CharacterName": "Raechyl",
+    "CharacterName 2": "Raechyl",
     "ClassLevel": "Druid 1",
     "Background": "Hermit",
     "Race ": "Tiefling",
@@ -40,8 +40,8 @@
     "Equipment": "Leather armor\nWooden shield\nQuarterstaff\nDruidic focus\nHerbalism kit\nExplorer's pack\nScroll case of notes\nWinter blanket\nCommon clothes",
     "Features and Traits": "Druidic: the secret language of druids.\nSpellcasting (Wisdom): 2 cantrips and 4 prepared 1st-level spells, 2 slots.\nInfernal Legacy (Tiefling): knows Thaumaturgy.\nHellish Resistance (Tiefling): resistance to fire damage.\nDarkvision 60 ft.\nDiscovery (Hermit): a secret uncovered in isolation, revealed through play.\nAt level 2: Wild Shape and a druid circle.",
     "ProficienciesLang": "Armor: light, medium, shields (nonmetal). Weapons: clubs, daggers, darts, javelins, maces, quarterstaffs, scimitars, sickles, slings, spears. Tools: herbalism kit. Languages: Common, Infernal, Elvish, Druidic.",
-    "Backstory": "Rachel (known as Maren Stonebough when the story began) spent twenty years in a cave beneath an old oak, tending the forest and listening to what she believes are the trees' dreams. Lately the dreams have turned dark, as if something in the earth is waking, and she has come down from the hills to find out what. In the first session she became a tiefling; the table kept her ability scores.",
-    "PersonalityTraits ": "Rachel (formerly Maren Stonebough) listens to what she believes are the trees' dreams.",
+    "Backstory": "Raechyl (known as Maren Stonebough when the story began) spent twenty years in a cave beneath an old oak, tending the forest and listening to what she believes are the trees' dreams. Lately the dreams have turned dark, as if something in the earth is waking, and she has come down from the hills to find out what. In the first session she became a tiefling; the table kept her ability scores.",
+    "PersonalityTraits ": "Raechyl (formerly Maren Stonebough) listens to what she believes are the trees' dreams.",
     "Flaws": "",
     "STR": "8",
     "STRmod": "-1",

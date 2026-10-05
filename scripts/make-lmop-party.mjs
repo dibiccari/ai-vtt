@@ -32,7 +32,7 @@ const PARTY = [
     expect: { maxHp: 12, ac: 18, init: '+2', passive: '13', saves: { str: '+5', con: '+4' }, atk: ['+5', '1d8+5'] }
   },
   {
-    id: 'rachel', name: 'Rachel', color: '#3fd27f', darkvision: 60,
+    id: 'rachel', name: 'Raechyl', color: '#3fd27f', darkvision: 60,
     race: 'Tiefling', cls: 'Druid', hitDie: 8, background: 'Hermit', alignment: 'Neutral Good',
     // The players kept the ability scores she had as a hill dwarf when she became a tiefling (the 2014 tiefling would add +1 INT and +2 CHA instead).
     abilities: { str: 8, dex: 13, con: 16, int: 12, wis: 16, cha: 10 },
@@ -44,9 +44,9 @@ const PARTY = [
     proficiencies: 'Armor: light, medium, shields (nonmetal). Weapons: clubs, daggers, darts, javelins, maces, quarterstaffs, scimitars, sickles, slings, spears. Tools: herbalism kit. Languages: Common, Infernal, Elvish, Druidic.',
     items: [['Leather armor', 1, 10], ['Wooden shield', 1, 6], ['Quarterstaff', 1, 4], ['Druidic focus', 1, 0], ['Herbalism kit', 1, 3], ['Explorer\'s pack', 1, 59], ['Scroll case of notes', 1, 1], ['Winter blanket', 1, 3], ['Common clothes', 1, 3]],
     gp: 5,
-    personality: 'Rachel (formerly Maren Stonebough) listens to what she believes are the trees\' dreams.',
+    personality: 'Raechyl (formerly Maren Stonebough) listens to what she believes are the trees\' dreams.',
     flaws: '',
-    backstory: 'Rachel (known as Maren Stonebough when the story began) spent twenty years in a cave beneath an old oak, tending the forest and listening to what she believes are the trees\' dreams. Lately the dreams have turned dark, as if something in the earth is waking, and she has come down from the hills to find out what. In the first session she became a tiefling; the table kept her ability scores.',
+    backstory: 'Raechyl (known as Maren Stonebough when the story began) spent twenty years in a cave beneath an old oak, tending the forest and listening to what she believes are the trees\' dreams. Lately the dreams have turned dark, as if something in the earth is waking, and she has come down from the hills to find out what. In the first session she became a tiefling; the table kept her ability scores.',
     expect: { maxHp: 11, ac: 14, init: '+1', passive: '15', saves: { int: '+3', wis: '+5' }, atk: ['+5', '1d8+3'], dc: '13', spellAtk: '+5' }
   },
   {
