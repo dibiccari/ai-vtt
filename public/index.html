@@ -407,7 +407,7 @@
       <div class="voice-status" hidden><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
       <div class="dice-box">
         <label>Dice <select id="diceMode" aria-label="Who rolls the players' dice"><option value="ai">The DM rolls for me</option><option value="player">I roll my own (the DM asks and waits)</option></select></label>
-        <span id="attackRollBox">
+        <span id="attackRollBox" hidden>
           <select id="rollDie" aria-label="Which die"><option value="20|normal">d20</option><option value="20|advantage">d20 advantage</option><option value="20|disadvantage">d20 disadvantage</option><option value="4|normal">d4</option><option value="6|normal">d6</option><option value="8|normal">d8</option><option value="10|normal">d10</option><option value="12|normal">d12</option><option value="100|normal">d100</option></select>
           <input type="number" id="attackRoll" min="1" max="100" placeholder="result" aria-label="The number you rolled">
           <button class="btn btn-sm" id="sendAttackRoll" type="button" title="Tell the DM the number you rolled on your own die">Send roll</button>
