@@ -103,5 +103,5 @@
     return { mapUrl: mapUrl, tokens: tokens, activeIndex: 0, fogEnabled: opts.fog === undefined ? true : Boolean(opts.fog), gridOpacity: 0.35 };
   }
 
-  root.Scenes = { has: has, create: create, cast: function () { return CAST; }, pickArt: pickArt };
+  root.Scenes = { has: has, create: create, cast: function () { return CAST; }, partySpots: function () { return PARTY_SPOTS; }, pickArt: pickArt };
 })(window);

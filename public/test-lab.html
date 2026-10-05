@@ -23,7 +23,10 @@
   .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:14px; }
   .card.hero { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:20px; }
   @media (max-width:820px) { .card.hero { grid-template-columns:1fr; } }
-  .thumb { width:100%; aspect-ratio:3/2; border-radius:8px; border:1px solid var(--border); background:#1d2418 center/cover no-repeat; }
+  .thumb { width:100%; aspect-ratio:3/2; border-radius:8px; border:1px solid var(--border); background:#1d2418; object-fit:contain; display:block; cursor:zoom-in; }
+  .dmtabs { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+  .dmtabs button { padding:4px 10px; font-size:12px; }
+  .dmtabs button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
   .meta { color:var(--muted); font-size:13px; }
   .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:10px 0; }
   label.check { display:flex; gap:8px; align-items:center; font-size:13px; cursor:pointer; }
@@ -69,7 +72,9 @@
       <div class="now" id="now"></div>
     </div>
     <div>
-      <div class="thumb" id="thumb" role="img" aria-label="The Rusty Flagon battle map"></div>
+      <div class="dmtabs"><button id="dmTavern" aria-pressed="true">Tavern (DM version)</button><button id="dmTown" aria-pressed="false">Phandalin (DM version)</button></div>
+      <img class="thumb" id="thumb" alt="The DM version of the map: creatures, the hidden trap and the party's start marked" title="Click to open full size">
+      <p class="meta" id="dmNote" style="margin-top:6px">DM version: where everyone stands and the hidden trap. The AI is shown this same picture on every turn, so it knows where things are. Players never see it.</p>
       <p class="meta" style="margin-top:6px">30 × 20 squares. Built from <a href="/scenarios/rusty-flagon.dd2vtt" download>rusty-flagon.dd2vtt</a>, a Universal VTT file with its walls, four doors and lights.</p>
     </div>
   </div>
@@ -267,16 +272,66 @@
     $('#setupBtn').addEventListener('click', setup);
     $('#resetBtn').addEventListener('click', reset);
     refreshNow();
-    // a preview of the map if it is already in the app, otherwise the picture inside the .dd2vtt
-    try {
-      const maps = (await api('/api/maps')).maps || [];
-      const existing = maps.find((u) => /\/rusty-flagon-[^/]+$/.test(u));
-      if (existing) $('#thumb').style.backgroundImage = `url("${existing}")`;
-      else {
-        const u = JSON.parse(await (await fetch('/scenarios/rusty-flagon.dd2vtt')).text());
-        $('#thumb').style.backgroundImage = `url("data:image/png;base64,${u.image}")`;
+    $('#dmTavern').addEventListener('click', () => showDm('tavern'));
+    $('#dmTown').addEventListener('click', () => showDm('town'));
+    $('#thumb').addEventListener('click', () => { if ($('#thumb').src) window.open($('#thumb').src, '_blank'); });
+    showDm('tavern');
+  }
+
+  // The DM version of the tavern map: the picture with every creature, the hidden trap and the party's start marked. It is drawn here and
+  // saved on the server (data/dm-maps), where the AI reads it with every message. Phandalin's is the labelled map from the pack.
+  let tavernDm = '';
+  async function drawTavernDm() {
+    if (tavernDm) return tavernDm;
+    const maps = (await api('/api/maps')).maps || [];
+    const existing = maps.find((u) => /\/rusty-flagon-[^/]+$/.test(u));
+    let src = existing;
+    if (!src) { const u = JSON.parse(await (await fetch('/scenarios/rusty-flagon.dd2vtt')).text()); src = `data:image/png;base64,${u.image}`; }
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const g = cv.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const sq = img.naturalWidth / 30;
+    g.font = `700 ${Math.round(sq * 0.3)}px sans-serif`;
+    g.textBaseline = 'middle';
+    const label = (text, x, y, color) => { g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,0.85)'; g.strokeText(text, x, y); g.fillStyle = color; g.fillText(text, x, y); };
+    Scenes.partySpots().slice(0, 4).forEach((p, i) => {
+      const x = (p[0] + 0.5) * sq, y = (p[1] + 0.5) * sq;
+      g.beginPath(); g.arc(x, y, sq * 0.36, 0, Math.PI * 2); g.fillStyle = 'rgba(79,157,255,0.9)'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
+      g.fillStyle = '#04101f'; g.textAlign = 'center'; g.fillText('P' + (i + 1), x, y); g.textAlign = 'left';
+    });
+    CAST.forEach((c, i) => {
+      const x = (c.col + 0.5) * sq, y = (c.row + 0.5) * sq, trap = c.id.startsWith('trap');
+      if (trap) {
+        g.beginPath(); g.moveTo(x, y - sq * 0.42); g.lineTo(x + sq * 0.42, y + sq * 0.36); g.lineTo(x - sq * 0.42, y + sq * 0.36); g.closePath();
+        g.fillStyle = 'rgba(255,60,60,0.95)'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
+        g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText('!', x, y + sq * 0.08); g.textAlign = 'left';
+        label('HIDDEN TRAP: ' + c.name, x + sq * 0.55, y, '#ff9b9b');
+      } else {
+        g.beginPath(); g.arc(x, y, sq * 0.36, 0, Math.PI * 2); g.fillStyle = c.color; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
+        g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(String(i + 1), x, y); g.textAlign = 'left';
+        label(c.name + ' (' + c.stat + ')', x + sq * 0.5, y, '#fff3d6');
       }
-    } catch { /* no preview */ }
+    });
+    g.font = `800 ${Math.round(sq * 0.45)}px sans-serif`;
+    label('DM VERSION: SECRET', sq * 0.4, sq * 0.5, '#f0c048');
+    tavernDm = cv.toDataURL('image/png');
+    if (existing) {
+      fetch('/api/dm-map?map=' + encodeURIComponent(existing.split('/').pop()), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: tavernDm }) }).catch(() => { /* the picture still shows here */ });
+    }
+    return tavernDm;
+  }
+
+  async function showDm(which) {
+    $('#dmTavern').setAttribute('aria-pressed', String(which === 'tavern'));
+    $('#dmTown').setAttribute('aria-pressed', String(which === 'town'));
+    try {
+      if (which === 'tavern') { $('#thumb').src = await drawTavernDm(); $('#dmNote').textContent = 'DM version: where everyone stands and the hidden trap. The AI is shown this same picture on every turn while the party is in the tavern, so it knows where things are. Players never see it.'; }
+      else { $('#thumb').src = '/api/dm-map?map=lmop-phandalin-player-version.jpg'; $('#dmNote').textContent = 'DM version of Phandalin with every building named. The AI is shown this picture whenever the party is in the town.'; }
+    } catch (err) { $('#dmNote').textContent = 'Could not show the DM map: ' + err.message; }
   }
   start();
 })();

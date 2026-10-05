@@ -825,6 +825,8 @@ Resting follows the official 5th Edition rules. A short rest is at least an hour
 
 Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
 
+DM maps: some places come with a DM-only picture of the map (building names, secret rooms, where creatures and traps are), shown to you at the start of the message. It is for you alone: use it to describe and place things accurately, and never read out or hint at anything the players have not discovered.
+
 Safety: the table may have agreed lines (never appear) and veils (off-screen or one sentence), given to you in the TABLE SAFETY block when there is one. Keep to them without ever mentioning that you are doing so. If a player's message contains [PAUSE], they pressed the pause button (the X-card): stop at once, do not continue the scene, do not ask who pressed it or why, say calmly that you are pausing, and offer to skip past it, rewind, or take the story in another direction, then wait for their answer. Never push back or make anyone justify it.
 
 Keeping the journal: the campaign journal is the party's shared memory, and the current journal is given to you below the campaign text. After a turn in which something worth remembering happened, add a journal update: category "event" for what happened (a short title and one or two sentences), "npc" for a person met (title is the name, text says who they are and how they feel about the party), "quest" for a goal (status "open" until finished, then send the same title again with status "done"), "place" for somewhere important, "loot" for treasure or magic items found, "promise" for something the party promised or is owed. Sending an npc, quest, place, loot or promise title that already exists updates that entry instead of adding another. Use when for the in-game time (for example "Day 2, evening") whenever you know it. Write only what the party knows or witnessed, never DM secrets. Do not journal small talk or every combat round, and use no journal update when nothing noteworthy happened. Read the journal before you narrate so that you stay consistent with promises, names and earlier events.
@@ -976,7 +978,41 @@ function cleanVoiceLines(lines) {
     .filter((l) => l.text);
 }
 
-function buildHistory(history, message, state, inputMode) {
+// The DM's own version of a map (labels, secret rooms, hidden creatures and traps marked): data/dm-maps/<picture name>.png|jpg|webp. When the
+// current map has one it is shown to the AI with the message; players never see it on the table.
+const DM_MAP_DIR = path.join(__dirname, 'data', 'dm-maps');
+const DM_MEDIA = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+const dmStem = (mapFile) => path.basename(String(mapFile ?? '')).replace(/\.[^.]+$/, '');
+async function dmMapFor(mapFile) {
+  const stem = dmStem(mapFile);
+  if (!/^[\w.-]{1,120}$/.test(stem)) return null;
+  for (const [ext, type] of Object.entries(DM_MEDIA)) {
+    try { return { file: path.join(DM_MAP_DIR, stem + ext), media_type: type, data: (await readFile(path.join(DM_MAP_DIR, stem + ext))).toString('base64') }; } catch { /* not this type */ }
+  }
+  return null;
+}
+
+app.get('/api/dm-map', asyncRoute(async (req, res) => {
+  const dm = await dmMapFor(req.query.map);
+  if (!dm) return res.status(404).json({ error: 'No DM map for that picture' });
+  res.type(dm.media_type).send(Buffer.from(dm.data, 'base64'));
+}));
+
+// Save a DM map picture (a data URL). The Test Lab draws one for the tavern scenario.
+app.put('/api/dm-map', localOnly, asyncRoute(async (req, res) => {
+  const stem = dmStem(req.query.map);
+  if (!/^[\w.-]{1,120}$/.test(stem)) return res.status(400).json({ error: 'Invalid map name' });
+  const m = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.image ?? ''));
+  if (!m) return res.status(400).json({ error: 'image must be a png, jpeg or webp data URL' });
+  const bytes = Buffer.from(m[2], 'base64');
+  if (bytes.length > 5 * 1024 * 1024) return res.status(413).json({ error: 'The picture is over 5 MB' });
+  await mkdir(DM_MAP_DIR, { recursive: true });
+  for (const ext of Object.keys(DM_MEDIA)) { try { await unlink(path.join(DM_MAP_DIR, stem + ext)); } catch { /* none */ } }
+  await writeFile(path.join(DM_MAP_DIR, `${stem}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`), bytes);
+  res.json({ ok: true, bytes: bytes.length });
+}));
+
+function buildHistory(history, message, state, inputMode, dmMap) {
   const messages = [];
   for (const entry of Array.isArray(history) ? history.slice(-20) : []) {
     const role = entry?.role === 'assistant' ? 'assistant' : entry?.role === 'user' ? 'user' : null;
@@ -993,6 +1029,14 @@ function buildHistory(history, message, state, inputMode) {
   const last = messages[messages.length - 1];
   if (last && last.role === 'user') last.content += `\n\n${turn}`;
   else messages.push({ role: 'user', content: turn });
+  if (dmMap) {
+    const final = messages[messages.length - 1];
+    final.content = [
+      { type: 'text', text: 'DM-ONLY MAP of the current place follows (the players have a plain version without these marks). Use it to know where things are and to answer where things are; never reveal or hint at anything on it that the players have not discovered.' },
+      { type: 'image', source: { type: 'base64', media_type: dmMap.media_type, data: dmMap.data } },
+      { type: 'text', text: final.content }
+    ];
+  }
   return messages;
 }
 
@@ -1056,7 +1100,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
-      messages: buildHistory(history, text, state, inputMode),
+      messages: buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl)),
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: DM_SCHEMA } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
       betas: ['server-side-fallback-2026-07-01'],
