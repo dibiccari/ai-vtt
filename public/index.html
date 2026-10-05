@@ -1486,7 +1486,7 @@ function renderMapPick() {
     o.textContent = p.name;
     sel.appendChild(o);
   }
-  $('#mapPickBox').hidden = !open.length;
+  $('#mapPickBox').hidden = true;                // there is no map picker on the table: the DM moves the party between maps (changeMap)
   syncMapPick();
 }
 
