@@ -2854,6 +2854,8 @@ function renderCombat() {
   const box = $('#combatPanel');
   if (!box) return;
   box.innerHTML = '';
+  box.hidden = !state.combat.active;            // the panel only exists while there is a fight
+  if (!state.combat.active) return;
   const head = document.createElement('div');
   head.className = 'cb-head';
   const title = document.createElement('span');
