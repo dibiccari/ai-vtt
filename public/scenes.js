@@ -100,7 +100,7 @@
       tokens.push({ id: n.id, name: n.name, col: n.col, row: n.row, color: n.color, isPC: false, characterId: null, speed: n.speed, movementRemaining: n.speed, image: art[n.id] || '', hidden: Boolean(n.hidden), kind: n.kind || 'creature' });
     });
     // The tavern has walls, doors and hidden things, so fog of war starts on.
-    return { mapUrl: mapUrl, tokens: tokens, activeIndex: 0, fogEnabled: opts.fog === undefined ? true : Boolean(opts.fog), gridOpacity: 0.35 };
+    return { mapUrl: mapUrl, tokens: tokens, activeIndex: 0, fogEnabled: opts.fog === undefined ? true : Boolean(opts.fog), gridOpacity: 0 };
   }
 
   root.Scenes = { has: has, create: create, cast: function () { return CAST; }, partySpots: function () { return PARTY_SPOTS; }, pickArt: pickArt };

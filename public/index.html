@@ -462,7 +462,7 @@ const state = {
   characters: [],
   chat: [],
   fogEnabled: true,
-  gridOpacity: 0.35,
+  gridOpacity: 0,                     // grid lines are off (the maps carry their own printed grid)
   drawWalls: false,
   wallType: 'wall',
   gmOverride: false,
@@ -1343,7 +1343,7 @@ async function travelTo(u) {
     state.gridOpacity = 0;
     state.fogEnabled = false;
   } else {
-    state.gridOpacity = 0.35;
+    state.gridOpacity = 0;
     if (state.mapKind === 'camp') state.fogEnabled = false;
     else if (state.fogBeforeOverland !== null) { state.fogEnabled = state.fogBeforeOverland; state.fogBeforeOverland = null; }
   }
@@ -3761,7 +3761,7 @@ async function init() {
     state.tokens = Array.isArray(board.tokens) ? board.tokens.filter((t) => t && t.id) : [];
     state.activeIndex = Number.isInteger(board.activeIndex) ? board.activeIndex : 0;
     state.fogEnabled = board.fogEnabled !== false;   // on by default; only the Test Lab checkbox can start a board with it off
-    state.gridOpacity = Number.isFinite(board.gridOpacity) ? board.gridOpacity : 0.35;
+    state.gridOpacity = 0;                      // always off at the table
     state.zoomToParty = board.zoomToParty === true;
     // Boards saved before the kind was recorded: the Sword Coast map is the overland one.
     state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : board.mapKind === 'camp' ? 'camp' : 'battle';
