@@ -829,6 +829,8 @@ Maps of kind "regional" (a Sword Coast map) and "town" (Phandalin) are just pict
 If the board state has moveCorrections, they are moves you asked for earlier that the table could not do exactly (a wall or the token's speed stopped it): the token ended where the note says. Keep your narration consistent with where it really is.
 Respect each token's remaining movement (movementRemaining, in feet) and the walls. The table's movementRule says how diagonals are counted: "standard" (every square costs 5 ft, diagonals too), "alternating" (diagonals cost 5 ft, then 10 ft, then 5 ft...) or "circle" (straight-line distance, so a diagonal step costs about 7 ft). Use that rule when you judge a move.
 
+The rolls list: every die roll that decides something goes in rolls, one short line each, in the order they happened, so the table can show them in the chat before your narration. That includes attack rolls, damage, saving throws, ability checks and skill checks, initiative, death saving throws, and the numbers the players tell you they rolled (mark those "(player rolled)"). Format: who, what, the die with its value, the modifier, the total, and what it was against and the result, for example "Goblin 1 attack: d20 (14) + 4 = 18 vs AC 16, hit", "Edric damage: 1d8 (6) + 5 = 11", "Shadowheart Wisdom save: d20 (7) + 4 = 11 vs DC 13, fail", "Edric initiative (player rolled): 15 + 2 = 17". Use an empty list when nothing was rolled. Do not repeat the dice math in the narrative; describe what happened.
+
 Return mechanical changes in mapUpdates:
 - token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "damage" or "heal": change a creature's or character's hit points by value (tokenId). action "initiative": set a token's initiative to value (tokenId). action "startCombat" or "endCombat": begin or finish combat on the table's combat tracker. action "mood": change the background mood of the table's music (condition one of calm, tense, eerie, triumph; combat starts by itself with the combat tracker): use it for a stretch of the story, such as tense when something is wrong or eerie in a haunted place, and calm to return to normal. action "sfx": play a sound effect once (condition one of door, creak, thunder, bell, roar, howl, clash, magic, explosion, splash), for a dramatic moment. Use both sparingly. action "summon": a character conjures something it controls: tokenId is a new unique id, condition is mage-hand or spiritual-weapon, name is the token id of the character who cast it, and col and row are where it appears (next to the caster is fine). The table moves it on its caster's turn within the spell's range and removes it when it expires, so do not move it yourself. action "light": a token lights or puts out a light it carries (tokenId, condition one of torch, lantern, candle, light, or none to put it out), or one of the map's own light sources is lit or put out (tokenId is the light's id from the lighting block, value 1 for lit, 0 for out). action "rest": the party finishes a rest, value 1 for a short rest or 2 for a long rest (a long rest restores every character's hit points and spell slots and clears lasting effects: send it only once the rest has actually been completed, not if it was interrupted). When the party makes camp, change the map to the campsite (camp-day, or camp-night after dark) if the maps list has one. For action "add", monster is the SRD index of the creature (lowercase with hyphens, for example "goblin" or "adult-red-dragon"): the table then fills in its hit points, Armor Class and speed from the SRD stat block, so leave value and ac as 0. For a creature that is not in the SRD (an adventure's named villain, a custom monster) leave monster as "" and give its hit points in value and its Armor Class in ac. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
 - changeMap: move the whole table to another place (mapId from the maps list in the board state, arrive: one of that map's arrivalSpots, or "default", and a short reason). The party's tokens are moved to the arrival spot, and the creatures of the scene you are leaving are put away until you return. Put changeMap first in the list, then add the creatures of the new scene with addToken (hidden ones with hidden true).
@@ -963,6 +965,7 @@ const STR = { type: 'string' };
 const DM_SCHEMA = {
   type: 'object',
   properties: {
+    rolls: { type: 'array', items: { type: 'string' } },
     narrative: { type: 'string' },
     mapUpdates: {
       type: 'array',
@@ -983,7 +986,7 @@ const DM_SCHEMA = {
       }
     }
   },
-  required: ['narrative', 'voiceLines', 'mapUpdates'],
+  required: ['rolls', 'narrative', 'voiceLines', 'mapUpdates'],
   additionalProperties: false
 };
 DM_SCHEMA.properties.voiceLines = {
@@ -1151,6 +1154,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     if (!block) throw new Error(`No text in model response (stop_reason: ${response.stop_reason})`);
     const parsed = JSON.parse(block.text);
     const narrative = String(parsed.narrative ?? '');
+    const rolls = (Array.isArray(parsed.rolls) ? parsed.rolls : []).map((x) => String(x ?? '').trim().slice(0, 200)).filter(Boolean).slice(0, 30);
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
     const allUpdates = await expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []);
@@ -1182,6 +1186,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
     res.json({
+      rolls,
       narrative,
       voiceLines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
       mapUpdates: boardUpdates,
