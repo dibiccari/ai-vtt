@@ -557,10 +557,11 @@
   "starts": [
     {
       "name": "start",
-      "x": 2275,
-      "y": 1925
+      "x": 2967,
+      "y": 3025
     }
   ],
+  "light": "bright",
   "source": "dd2vtt",
   "lights": [
     {
@@ -781,6 +782,5 @@
       "color": "ffeccd8b"
     }
   ],
-  "ambient": "ffffffff",
-  "light": "bright"
+  "ambient": "ffffffff"
 }

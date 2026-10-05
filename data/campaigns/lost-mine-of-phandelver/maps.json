@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "maps": [
+    {
+      "id": "sword-coast",
+      "file": "northswordcoast-playerversion.jpg",
+      "name": "The Sword Coast (regional map)",
+      "kind": "regional",
+      "description": "Regional map around Neverwinter. Use it for travel between places: the High Road, the Triboar Trail, Neverwinter, Phandalin, Thundertree, Conyberry, Old Owl Well and Leilon. This is only a regional map: the party tokens are not shown on it and there is no fog or movement limit."
+    },
+    {
+      "id": "triboar-ambush",
+      "file": "lmop-goblin-ambush.png",
+      "name": "Roadside trail in the hills (battle map)",
+      "kind": "battle",
+      "description": "A winding dirt trail through scrubby hills with boulders and fallen logs. Use it for roadside encounters, such as the goblin ambush on the Triboar Trail."
+    },
+    {
+      "id": "phandalin",
+      "file": "lmop-phandalin-player-version.jpg",
+      "name": "Phandalin (town map)",
+      "kind": "town",
+      "description": "The frontier town of Phandalin: the Stonehill Inn, Barthen's Provisions, Lionshield Coster, the Shrine of Luck, the Sleeping Giant tap house, the Townmaster's Hall, the Miner's Exchange, farms, and the ruins of Tresendar Manor on the eastern hillside. Use it for any scene inside the town. This is a town map: the party tokens are not shown on it and there is no fog or movement limit."
+    },
+    {
+      "id": "cragmaw-hideout",
+      "file": "lmop-cragmaw-hideout.png",
+      "name": "Cragmaw Hideout (goblin cave)",
+      "kind": "battle",
+      "description": "The goblin cave beside a stream: briar-screened cave mouth, kennel, steep passage, bridge, the goblin den, twin pools and Klarg's cave."
+    },
+    {
+      "id": "redbrand-hideout",
+      "file": "lmop-redbrand-hideout.png",
+      "name": "Redbrand Hideout (cellars under Tresendar Manor)",
+      "kind": "battle",
+      "description": "The Redbrand ruffians' tunnels and cellars beneath the ruined Tresendar Manor: guard rooms, crypt, a chasm with bridges, a pool and the lair of Glasstaff."
+    },
+    {
+      "id": "thundertree",
+      "file": "lmop-thundertree.png",
+      "name": "Ruins of Thundertree",
+      "kind": "battle",
+      "description": "The ruined village of Thundertree, overgrown with twig blights and haunted by zombies, with a ruined tower and a statue in the square. Use it for anything in the village."
+    },
+    {
+      "id": "cragmaw-castle",
+      "file": "lmop-cragmaw-castle-day.png",
+      "name": "Cragmaw Castle (day)",
+      "kind": "battle",
+      "description": "The ruined castle that serves as King Grol's stronghold: towers, halls, rubble, and a path leading up to it."
+    },
+    {
+      "id": "cragmaw-castle-night",
+      "file": "lmop-cragmaw-castle-night.png",
+      "name": "Cragmaw Castle (night)",
+      "kind": "battle",
+      "description": "The same ruined castle at night, dark except for torchlight. Use it instead of the day map when the party arrives or fights after dark."
+    },
+    {
+      "id": "camp-day",
+      "file": "camp-day.png",
+      "name": "Campsite (day)",
+      "kind": "camp",
+      "description": "A forest clearing campsite by day: a stone-ringed campfire with log benches, three tents, bedrolls and supplies, with trails leading out to the south and west. Use it when the party makes camp, rests or spends a quiet day in the wild. It is a camp map: tokens are shown, there is no fog of war."
+    },
+    {
+      "id": "camp-night",
+      "file": "camp-night.png",
+      "name": "Campsite (night)",
+      "kind": "camp",
+      "description": "The same campsite at night, lit by the campfire and lanterns in the tents, dark under the trees. Use it instead of the day map when the party makes camp at dusk or night, or rests overnight. There is no fog of war."
+    },
+    {
+      "id": "dungeon-cellars",
+      "file": "dungeon-cellars.png",
+      "name": "The Old Cellars (stone dungeon)",
+      "kind": "battle",
+      "description": "A torch-lit stone dungeon of five rooms: an entry hall with stairs up, a pillared chamber with a central brazier, a flagstone crypt with four sarcophagi and a pool, and a plank-floored storeroom of crates and barrels, joined by short corridors with double doors. Use it for any cellar, crypt or small dungeon scene."
+    },
+    {
+      "id": "wave-echo-cave",
+      "file": "lmop-wave-echo-cave.png",
+      "name": "Wave Echo Cave (the lost mine)",
+      "kind": "battle",
+      "description": "The great cavern complex of the Phandelver Pact: the Forge of Spells, tunnels, an underground lake, and the shrine. Use it for everything inside the mine."
+    },
+    {
+      "id": "agathas-lair",
+      "file": "lmop-agathas-lair.png",
+      "name": "Agatha's Lair",
+      "kind": "battle",
+      "description": "The hidden lair of Agatha, the banshee who haunts the wilderness near Conyberry. Use it for the approach to her lair and the scene inside."
+    },
+    {
+      "id": "old-owl-well",
+      "file": "lmop-old-owl-well.png",
+      "name": "Old Owl Well",
+      "kind": "battle",
+      "description": "The ruined watchtower and old well in the wastes east of the Triboar Trail, where undead lurk and a Red Wizard of Thay is digging. Use it for everything at Old Owl Well."
+    },
+    {
+      "id": "wyvern-tor",
+      "file": "lmop-wyvern-tor.png",
+      "name": "Wyvern Tor",
+      "kind": "battle",
+      "description": "A rocky hilltop in the highlands, home to an orc war camp. Use it for the climb and anything fought on the tor."
+    }
+  ]
+}
