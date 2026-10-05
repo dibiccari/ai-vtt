@@ -156,19 +156,37 @@
     }
   }
 
-  // A checklist of the characters that can be in a party. Returns { box, ids() }.
+  // A character's token as the table draws it: its picture if it has one, otherwise a coloured disc with its first letter.
+  function tokenChip(ch, size) {
+    const box = el('span');
+    box.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;overflow:hidden;font-weight:700;color:#0a0d12;border:2px solid rgba(255,255,255,.75);width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.5) + 'px;background:' + (ch.color || '#4f9dff') + ';';
+    if (ch.image) { const img = el('img'); img.src = ch.image; img.alt = ''; img.style.cssText = 'width:100%;height:100%;object-fit:cover;'; box.appendChild(img); }
+    else box.textContent = (ch.name || '?').charAt(0).toUpperCase();
+    box.title = ch.name;
+    return box;
+  }
+
+  // A checklist of the characters that can be in a party, the current party first (with their tokens), then the others. Returns { box, ids() }.
   function partyPicker(selected, onChange) {
     const box = el('div');
-    box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0;';
     const chosen = new Set(selected);
     if (!allChars.length) box.appendChild(el('span', 'note', 'There are no characters yet.'));
-    for (const ch of allChars) {
-      const l = el('label'); l.style.cssText = 'display:inline-flex;gap:6px;align-items:center;';
-      const cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.has(ch.id);
-      cb.addEventListener('change', () => { if (cb.checked) chosen.add(ch.id); else chosen.delete(ch.id); if (onChange) onChange([...chosen]); });
-      l.append(cb, document.createTextNode(ch.name + ' (' + [ch.class, 'level ' + ch.level].join(', ') + ')'));
-      box.appendChild(l);
-    }
+    const group = (title, list) => {
+      if (!list.length) return;
+      if (title) { const h = el('div', 'note', title); h.style.margin = '8px 0 4px'; box.appendChild(h); }
+      const row = el('div'); row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px 18px;margin:4px 0;';
+      for (const ch of list) {
+        const l = el('label'); l.style.cssText = 'display:inline-flex;gap:8px;align-items:center;';
+        const cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.has(ch.id);
+        cb.addEventListener('change', () => { if (cb.checked) chosen.add(ch.id); else chosen.delete(ch.id); if (onChange) onChange([...chosen]); });
+        l.append(cb, tokenChip(ch, 34), document.createTextNode(ch.name + ' (' + [ch.class, 'level ' + ch.level].join(', ') + ')'));
+        row.appendChild(l);
+      }
+      box.appendChild(row);
+    };
+    const inParty = allChars.filter((ch) => chosen.has(ch.id));
+    const others = allChars.filter((ch) => !chosen.has(ch.id));
+    if (inParty.length) { group('In the party', inParty); group('Other characters', others); } else group('', others);
     return { box, ids: () => [...chosen] };
   }
 
@@ -260,8 +278,14 @@
     box.appendChild(stats);
     if (!setup) {
       const party = el('div', 'meta');
-      party.appendChild(el('b', '', 'Party: '));
-      party.appendChild(document.createTextNode((c.party || []).map((p) => p.name).join(', ') || 'no characters yet'));
+      party.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;';
+      party.appendChild(el('b', '', 'Party:'));
+      for (const p of c.party || []) {
+        const who = el('span'); who.style.cssText = 'display:inline-flex;align-items:center;gap:6px;';
+        who.append(tokenChip(p, 26), document.createTextNode(p.name));
+        party.appendChild(who);
+      }
+      if (!(c.party || []).length) party.appendChild(document.createTextNode('no characters yet'));
       box.appendChild(party);
     }
 
