@@ -118,7 +118,7 @@
 
   function render(m) {
     var b = el('div', 'block');
-    if (m.image) { var pic = el('img', 'pic'); pic.src = m.image; pic.alt = m.name; b.appendChild(pic); b.appendChild(el('div', 'picnote', 'Token art (closest match)')); }
+    if (m.image) { var pic = el('img', 'pic'); pic.src = m.image; pic.alt = m.name; b.appendChild(pic); b.appendChild(el('div', 'picnote', m.imageHow === 'name' ? 'Token art' : m.imageHow === 'partial' ? 'Token art (similar creature)' : 'Generic token for this type, not this creature')); }
     b.appendChild(el('h2', '', m.name));
     b.appendChild(el('div', 'sub', m.size + ' ' + m.type + (m.subtype ? ' (' + m.subtype + ')' : '') + ', ' + m.alignment));
     b.appendChild(el('hr'));
