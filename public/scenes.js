@@ -74,7 +74,7 @@
     var maps = (await getJson('/api/maps')).maps || [];
     var url = maps.filter(function (u) { return /\/northswordcoast-playerversion\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /northswordcoast/.test(u); })[0] || null;
     if (!url) return null;
-    var chars = await getJson('/api/characters');
+    var chars = await getJson('/api/characters?campaign=' + LOST_MINE);
     var spots = [[31, 49], [32, 49], [31, 50], [32, 50], [33, 49], [33, 50]];
     var tokens = chars.slice(0, spots.length).map(function (c, i) {
       return { id: 'tok-' + c.id, name: c.name, col: spots[i][0], row: spots[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' };
@@ -89,7 +89,7 @@
     var opts = options || {};
     if (id === LOST_MINE) return createLostMine(opts);
     var mapUrl = await ensureTavernMap();
-    var chars = await getJson('/api/characters');
+    var chars = await getJson('/api/characters?campaign=' + id);
     if (!chars.length) throw new Error('There are no characters yet. Make some on the Character Sheets page first.');
     var art = await pickArt();
     var tokens = [];

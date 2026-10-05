@@ -39,5 +39,8 @@
     "CHamod": "+0",
     "ProfBonus": "+2"
   },
-  "darkvision": 0
+  "darkvision": 0,
+  "campaigns": [
+    "tavern-brawl-test"
+  ]
 }

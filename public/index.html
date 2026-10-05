@@ -405,11 +405,12 @@
       </div>
       <div class="voice-status"><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
       <div class="dice-box">
-        <label>Dice <select id="diceMode" aria-label="Who rolls attack dice"><option value="ai">The DM rolls everything</option><option value="player">I roll my own attack d20</option></select></label>
-        <span id="attackRollBox" hidden>
-          <input type="number" id="attackRoll" min="1" max="20" placeholder="d20" aria-label="Your d20 attack roll">
-          <button class="btn btn-sm" id="sendAttackRoll" type="button" title="Tell the DM what you rolled for your attack">Send roll</button>
-          <button class="btn btn-sm" id="autoAttackRoll" type="button" title="Roll the d20 for me and send it">Roll for me</button>
+        <label>Dice <select id="diceMode" aria-label="Who rolls the players' dice"><option value="ai">The DM rolls for me</option><option value="player">I roll my own (the DM asks and waits)</option></select></label>
+        <span id="attackRollBox">
+          <select id="rollDie" aria-label="Which die"><option value="20|normal">d20</option><option value="20|advantage">d20 advantage</option><option value="20|disadvantage">d20 disadvantage</option><option value="4|normal">d4</option><option value="6|normal">d6</option><option value="8|normal">d8</option><option value="10|normal">d10</option><option value="12|normal">d12</option><option value="100|normal">d100</option></select>
+          <input type="number" id="attackRoll" min="1" max="100" placeholder="result" aria-label="The number you rolled">
+          <button class="btn btn-sm" id="sendAttackRoll" type="button" title="Tell the DM the number you rolled on your own die">Send roll</button>
+          <button class="btn btn-sm" id="autoAttackRoll" type="button" title="Roll this die for me (a real random roll) and tell the DM">Roll for me</button>
         </span>
       </div>
       <textarea id="chatInput" placeholder="Describe your action… e.g. &quot;I draw my longsword and charge the goblin by the door.&quot;"></textarea>
@@ -477,6 +478,7 @@ const state = {
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
+  permadeath: false,                  // the campaign's Death setting (Campaigns > Settings); off = no permanent character death
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
   cbMore: false,                      // the combat panel's add-a-creature row is showing (remembered in localStorage vtt.cbMore)
   wallsInPicture: false,
@@ -1115,6 +1117,14 @@ function endTurn() {
   if (state.activeIndex <= was && tickConditions()) revealFog();     // the order came round: a new round
   toast(`${next.name}'s turn — ${next.speed} ft of movement`, 'ok');
   commitBoard();
+}
+
+// In a fight, a player pressing End Turn is telling the DM they are done: the tracker moves on and the DM plays whoever is next.
+function endTurnClicked() {
+  const ending = activeToken();
+  const inFight = state.combat.active && ending && ending.isPC;
+  endTurn();
+  if (inFight && activeToken() !== ending && !state.busy) sendTurn("I end my turn.", { typed: true, as: ending });
 }
 
 function serializeToken(t) {
@@ -2738,7 +2748,10 @@ function combatRow(t) {
       const set = (key, v) => {
         t.deathSaves[key] = clamp(v, 0, 3);
         if (t.deathSaves.success >= 3) { t.stable = true; addChat('system', `↳ ${t.name} is stable`); }
-        if (t.deathSaves.fail >= 3) { t.dead = true; addChat('system', `↳ ${t.name} has died`); }
+        if (t.deathSaves.fail >= 3) {
+          if (state.permadeath) { t.dead = true; addChat('system', `↳ ${t.name} has died`); }
+          else { t.stable = true; addChat('system', `↳ ${t.name} is out of the fight (no permanent death at this table: the DM will play out a setback)`); }
+        }
         commitBoard(); renderCombat();
       };
       line3.append(lab, pips(t.deathSaves.success, 'ok', (v) => set('success', v)), pips(t.deathSaves.fail, 'fail', (v) => set('fail', v)));
@@ -2858,13 +2871,24 @@ function restTokens(kind) {
 function syncDiceUi() {
   const mode = store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai';
   $('#diceMode').value = mode;
-  $('#attackRollBox').hidden = mode !== 'player';
 }
+// The player's own roll: a number they typed from real dice, or a real random roll made by the server ("Roll for me"). Either way it goes to the DM as a chat message.
+const pickedDie = () => { const [sides, mode] = $('#rollDie').value.split('|'); return { sides: Number(sides), mode }; };
+const modeWords = (mode) => (mode === 'advantage' ? ' with advantage' : mode === 'disadvantage' ? ' with disadvantage' : '');
 function sendAttackRoll(value) {
+  const { sides, mode } = pickedDie();
   const n = Math.round(Number(value));
-  if (!(n >= 1 && n <= 20)) { toast('Enter the number on the d20 (1 to 20)'); $('#attackRoll').focus(); return; }
+  if (!(n >= 1 && n <= sides)) { toast(`Enter the number on the d${sides} (1 to ${sides})`); $('#attackRoll').focus(); return; }
   $('#attackRoll').value = '';
-  sendTurn(`Attack roll: I rolled ${n} on the d20.`, { typed: true });
+  sendTurn(`I rolled ${n} on the d${sides}${modeWords(mode)}.`, { typed: true });
+}
+async function rollForMe() {
+  const { sides, mode } = pickedDie();
+  try {
+    const r = await jsonPost('/api/roll', { expr: `d${sides}`, mode });
+    const detail = r.mode !== 'normal' ? ` (${r.rolls.join(' and ')})` : '';
+    sendTurn(`I rolled ${r.total} on the d${sides}${modeWords(mode)}${detail}.`, { typed: true });
+  } catch (err) { toast(err.message, 'error'); }
 }
 const combatForAi = () => ({
   active: state.combat.active, round: state.combat.round, currentTokenId: activeToken() ? activeToken().id : '',
@@ -2946,7 +2970,8 @@ async function sendTurn(spokenText, opts) {
   if (!text) { toast('Describe your action first'); input.focus(); return; }
   voice.cancelSpeech();
   const active = activeToken();
-  const content = active ? `[${active.name}] ${text}` : text;
+  const speaker = opts && opts.as ? opts.as : active;
+  const content = speaker ? `[${speaker.name}] ${text}` : text;
   const history = state.chat
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .slice(-20)
@@ -3579,6 +3604,10 @@ async function applyMapUpdates(updates) {
       case 'endCombat':
         endCombat();
         break;
+      case 'endTurn':
+        // The DM finished a creature's turn (or a player said they are done in the chat): only the token whose turn it is can end it.
+        if (state.combat.active && activeToken() && activeToken().id === u.tokenId) nextCombatTurn();
+        break;
       case 'changeMap':
         break;                                    // handled before the loop
       default:
@@ -3598,7 +3627,7 @@ async function applyMapUpdates(updates) {
    ===================================================================== */
 async function loadCharacters() {
   try {
-    const list = await api('/api/characters');
+    const list = await api('/api/characters?campaign=' + encodeURIComponent(state.campaignId));
     state.characters = Array.isArray(list) ? list : [];
   } catch (err) {
     state.characters = [];
@@ -3672,7 +3701,7 @@ function bindUi() {
     renderTurnBar();
     requestRender();
   });
-  $('#endTurnBtn').addEventListener('click', endTurn);
+  $('#endTurnBtn').addEventListener('click', endTurnClicked);
   // Sidebar tabs: the table (chat and combat), the campaign journal and the party. The last two are the Journal and Party pages shown here.
   const showTab = (name) => {
     document.querySelectorAll('.sidebar .tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
@@ -3696,7 +3725,8 @@ function bindUi() {
   $('#diceMode').addEventListener('change', (e) => { store.set('vtt.diceMode', e.target.value); syncDiceUi(); });
   $('#sendAttackRoll').addEventListener('click', () => sendAttackRoll($('#attackRoll').value));
   $('#attackRoll').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAttackRoll($('#attackRoll').value); });
-  $('#autoAttackRoll').addEventListener('click', () => sendAttackRoll(d20()));
+  $('#autoAttackRoll').addEventListener('click', rollForMe);
+  $('#rollDie').addEventListener('change', () => { $('#attackRoll').max = pickedDie().sides; });
   $('#zoomInBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 1.25));
   $('#zoomOutBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 0.8));
   $('#fitBtn').addEventListener('click', fitView);
@@ -3745,6 +3775,7 @@ async function init() {
   let active = null;
   try { active = ((await api('/api/campaigns')).campaigns || []).find((c) => c.active) || null; } catch { /* the table still works without it */ }
   state.campaignId = active ? active.id : 'default';
+  try { state.permadeath = (await api('/api/campaigns/' + encodeURIComponent(state.campaignId) + '/settings')).permadeath === true; } catch { state.permadeath = false; }
   let board = store.get(boardKey(), null);
   // A campaign with a ready-made starting scene (and no saved board yet) begins there.
   if (!board && window.Scenes && Scenes.has(state.campaignId)) {

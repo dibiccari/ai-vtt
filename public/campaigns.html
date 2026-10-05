@@ -86,6 +86,8 @@
   const preview = {};          // "id/name" -> text
   const openMaps = new Set();  // campaign ids with the maps editor showing
   const openSafety = new Set(); // campaign ids with the safety editor showing
+  const openSettings = new Set(); // campaign ids with the table settings editor showing
+  const settingsData = {};     // campaign id -> { permadeath, rules, tableNotes } being edited
   const safetyData = {};       // campaign id -> { lines, veils, notes } being edited
   const mapData = {};          // campaign id -> { custom, maps, uploads, kinds } being edited
 
@@ -177,9 +179,17 @@
       try { safetyData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/safety'); openSafety.add(c.id); } catch (err) { setStatus('Could not load the safety settings: ' + err.message, 'bad'); }
       render();
     });
-    row.append(use, openBtn, docs, mapsBtn, safetyBtn, startOver);
+    const settingsBtn = el('button', '', openSettings.has(c.id) ? 'Hide settings' : 'Settings');
+    settingsBtn.title = 'Rules for this table: rules edition, permanent death, notes for the DM';
+    settingsBtn.addEventListener('click', async () => {
+      if (openSettings.has(c.id)) { openSettings.delete(c.id); render(); return; }
+      try { settingsData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings'); openSettings.add(c.id); } catch (err) { setStatus('Could not load the settings: ' + err.message, 'bad'); }
+      render();
+    });
+    row.append(use, openBtn, settingsBtn, docs, mapsBtn, safetyBtn, startOver);
     box.appendChild(row);
 
+    if (openSettings.has(c.id) && settingsData[c.id]) box.appendChild(settingsEditor(c));
     if (open.has(c.id)) box.appendChild(documents(c));
     if (openMaps.has(c.id) && mapData[c.id]) box.appendChild(mapsEditor(c));
     if (openSafety.has(c.id) && safetyData[c.id]) box.appendChild(safetyEditor(c));
@@ -195,6 +205,44 @@
     } catch (err) {
       setStatus('Could not switch campaign: ' + err.message, 'bad');
     }
+  }
+
+  // Table settings: chosen before the campaign is played, given to the DM every turn.
+  function settingsEditor(c) {
+    const d = settingsData[c.id];
+    const wrap = el('div');
+    wrap.appendChild(el('h2', '', 'Table settings'));
+    wrap.appendChild(el('p', 'note', 'Pick these before you start playing. The Dungeon Master is told them every turn. New campaigns start with permanent death off and the 2014 rules.'));
+    const rules = el('label', 'field'); rules.style.display = 'block'; rules.style.marginBottom = '10px';
+    rules.appendChild(el('div', '', 'Rules edition'));
+    const sel = el('select');
+    [['2014', '2014 Player\'s Handbook (the 5.1 SRD data on the Bestiary and Spells pages)'], ['2024', '2024 revised rules']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; sel.appendChild(o); });
+    sel.value = d.rules;
+    sel.addEventListener('change', () => { d.rules = sel.value; });
+    rules.appendChild(sel);
+    wrap.appendChild(rules);
+    const death = el('label', 'field'); death.style.display = 'block'; death.style.marginBottom = '10px';
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = d.permadeath;
+    cb.addEventListener('change', () => { d.permadeath = cb.checked; });
+    death.append(cb, document.createTextNode(' Permanent death. Off (the default): a character who would die is left out of the fight and the story takes a setback instead (captured, robbed, left for dead). Death saving throws still happen.'));
+    wrap.appendChild(death);
+    const notes = el('label', 'field'); notes.style.display = 'block'; notes.style.marginBottom = '10px';
+    notes.appendChild(el('div', '', 'Notes about your table for the DM'));
+    const ta = el('textarea'); ta.rows = 4; ta.style.width = '100%'; ta.placeholder = 'for example: one player is new to D&D, so explain rules gently; we play by voice; remind us to keep printed maps covered';
+    ta.value = d.tableNotes;
+    ta.addEventListener('input', () => { d.tableNotes = ta.value; });
+    notes.appendChild(ta);
+    wrap.appendChild(notes);
+    const save = el('button', 'primary', 'Save table settings');
+    save.addEventListener('click', async () => {
+      try {
+        settingsData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+        setStatus('Table settings saved for ' + c.name + '. They apply from the next message to the DM.', 'ok');
+      } catch (err) { setStatus('Could not save: ' + err.message, 'bad'); }
+      render();
+    });
+    wrap.appendChild(save);
+    return wrap;
   }
 
   // Safety tools: what the table has agreed the game will not show. The DM is given this every turn; the tabletop has a Pause button.

@@ -16,5 +16,8 @@
     "cha": 8
   },
   "color": "#e5534b",
-  "darkvision": 60
+  "darkvision": 60,
+  "campaigns": [
+    "tavern-brawl-test"
+  ]
 }

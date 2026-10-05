@@ -10,6 +10,8 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
+import { rollExpr, diceTray } from './lib/dice.js';
+import { readSettings, writeSettings, settingsForPrompt } from './lib/settings.js';
 import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
@@ -78,6 +80,7 @@ function normalizeCharacter(body) {
   for (const key of ABILITIES) abilities[key] = int(body.abilities?.[key], 10, 1, 30);
   const sheet = normalizeSheet(body.sheet);
   const expertise = Array.isArray(body.expertise) ? [...new Set(body.expertise.filter((s) => typeof s === 'string' && SKILLS[s]))] : [];
+  const campaigns = (Array.isArray(body.campaigns) ? body.campaigns : []).map((c) => String(c ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60)).filter(Boolean).slice(0, 20);
   const sheetLog = (Array.isArray(body.sheetLog) ? body.sheetLog : []).slice(-40).map((e) => ({
     at: String(e?.at ?? '').slice(0, 40),
     by: String(e?.by ?? 'ai').slice(0, 20),
@@ -98,6 +101,7 @@ function normalizeCharacter(body) {
     image: TOKEN_URL_RE.test(body.image ?? '') ? body.image : '',
     ...(Object.keys(sheet).length ? { sheet } : {}),
     darkvision: int(body.darkvision, 0, 0, 120),
+    ...(campaigns.length ? { campaigns } : {}),
     ...(Array.isArray(body.inventory) ? { inventory: normalizeInventory(body.inventory) } : {}),
     ...(body.coins && typeof body.coins === 'object' ? { coins: normalizeCoins(body.coins) } : {}),
     ...(expertise.length ? { expertise } : {}),
@@ -105,7 +109,8 @@ function normalizeCharacter(body) {
   };
 }
 
-async function listCharacters() {
+// A character may name the campaigns it plays in (`campaigns`); with none it plays in every campaign. Pass a campaign id to get only its party.
+async function listCharacters(campaign) {
   const files = (await readdir(CHAR_DIR)).filter((f) => f.endsWith('.json'));
   const chars = [];
   for (const file of files) {
@@ -115,7 +120,7 @@ async function listCharacters() {
       console.warn(`Skipping unreadable character file ${file}: ${err.message}`);
     }
   }
-  return chars.sort((a, b) => a.name.localeCompare(b.name));
+  return chars.filter((c) => !campaign || !Array.isArray(c.campaigns) || !c.campaigns.length || c.campaigns.includes(campaign)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const saveCharacter = (c) => writeFile(path.join(CHAR_DIR, `${c.id}.json`), JSON.stringify(c, null, 2));
@@ -141,8 +146,8 @@ app.use(express.static(PUBLIC_DIR));
 
 const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
-app.get('/api/characters', asyncRoute(async (_req, res) => {
-  res.json(await listCharacters());
+app.get('/api/characters', asyncRoute(async (req, res) => {
+  res.json(await listCharacters(req.query.campaign ? safeCampaignId(req.query.campaign) : ''));
 }));
 
 app.post('/api/characters', asyncRoute(async (req, res) => {
@@ -156,6 +161,7 @@ app.post('/api/characters', asyncRoute(async (req, res) => {
       if (req.body?.sheetLog === undefined && old.sheetLog?.length) character.sheetLog = old.sheetLog;
       if (req.body?.inventory === undefined && old.inventory) character.inventory = normalizeInventory(old.inventory);
       if (req.body?.coins === undefined && old.coins) character.coins = normalizeCoins(old.coins);
+      if (req.body?.campaigns === undefined && old.campaigns?.length) character.campaigns = old.campaigns;
       if (req.body?.darkvision === undefined && old.darkvision) character.darkvision = int(old.darkvision, 0, 0, 120);
     } catch { /* new character: nothing to keep */ }
   }
@@ -371,7 +377,7 @@ const partyView = (c) => {
 
 app.get('/api/party', asyncRoute(async (_req, res) => {
   const campaign = await getActiveCampaignId();
-  const characters = (await listCharacters()).map(partyView);
+  const characters = (await listCharacters(campaign)).map(partyView);
   res.json({ campaign, characters, stash: await readStash(path.join(CAMPAIGNS_DIR, campaign)), maxAttuned: MAX_ATTUNED });
 }));
 
@@ -399,7 +405,7 @@ app.get('/api/party/srd-item', asyncRoute(async (req, res) => {
 // Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).
 async function restParty(kind) {
   const rested = [];
-  for (const c of await listCharacters()) {
+  for (const c of await listCharacters(await getActiveCampaignId())) {
     const { character, note } = restCharacter(c, kind);
     if (note) { await saveCharacter(normalizeCharacter(character)); rested.push(c.id); }
   }
@@ -445,6 +451,26 @@ app.put('/api/campaigns/:id/safety', localOnly, asyncRoute(async (req, res) => {
   const id = safeCampaignId(req.params.id);
   if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
   res.json(await writeSafety(path.join(CAMPAIGNS_DIR, id), req.body));
+}));
+
+// ---------------------------------------------------------------- table settings
+
+// Real dice, for the tabletop's Roll for me button (free: no AI call).
+app.post('/api/roll', (req, res) => {
+  try {
+    const mode = ['advantage', 'disadvantage'].includes(req.body?.mode) ? req.body.mode : 'normal';
+    res.json(rollExpr(req.body?.expr ?? 'd20', mode));
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.get('/api/campaigns/:id/settings', asyncRoute(async (req, res) => {
+  res.json(await readSettings(path.join(CAMPAIGNS_DIR, safeCampaignId(req.params.id))));
+}));
+
+app.put('/api/campaigns/:id/settings', localOnly, asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.params.id);
+  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
+  res.json(await writeSettings(path.join(CAMPAIGNS_DIR, id), req.body));
 }));
 
 // ---------------------------------------------------------------- journal / save file API
@@ -817,7 +843,9 @@ Changing maps: the board state lists the maps you can use (maps) and the one in 
 
 Combat: the table has a combat tracker (the combat block of the board state: active, round, whose turn, the order and each token's initiative, hit points and Armor Class). When a fight breaks out, send token startCombat; the table rolls initiative for creatures and asks the players for theirs. You may instead send initiative updates with values you rolled yourself. Run the fight turn by turn: on each turn resolve the active token's action, using the board's hit points and Armor Class, and send damage or heal updates for every change in hit points (monsters at 0 hit points are defeated; a player character at 0 falls unconscious and makes death saves). Add the creatures of an encounter with action add and their SRD index so the tracker has real numbers. Send endCombat when the fight is over, then award experience. Do not announce hit points of creatures the players have not seen.
 
-Dice: the board state's diceMode is "ai" or "player". In "player" mode the player rolls their own d20 for their character's attack rolls: do not roll that d20 for them. Ask them to roll and tell them the bonus to add, then wait for their next message and resolve the attack with the number they give. Everything else you roll as usual: damage, saving throws, ability checks, initiative, and every roll made by monsters. In "ai" mode roll everything.
+Ending turns: a player's turn belongs to the player. After you resolve what a player character does, say what they still have (movement, a bonus action, an object interaction, a reaction) and ask whether they want to do anything else, then WAIT. Never end a player's turn for them, never move on to the next combatant, and never narrate what monsters do next until the player has said they are done (they say so in the chat, or press End Turn, which sends the message "<name> ends their turn."). If the player says they end their turn in the chat and combat.currentTokenId is still that character, send token action endTurn with that tokenId to advance the tracker; if currentTokenId has already moved on (the button was used), do not send it. When it is a creature's turn (combat.currentTokenId is a monster or NPC), play that creature's whole turn, roll its dice from the tray, then send endTurn with the creature's tokenId; keep going through creatures one after another until the active token is a player character, then stop, give the status recap, suggest two to four options for that character, and wait. Only play the turn of the active token: never skip ahead past a player character.
+
+Dice: you cannot generate random numbers yourself, so the board state carries a diceTray: lists of real pre-rolled dice (d4, d6, d8, d10, d12, d20, d100). Whenever YOU roll, take the next unused numbers from the matching list, in order, starting at the front of each list, never skip to a number you like, and add the modifiers yourself. Use a fresh d20 for each check, attack or save (take two for advantage or disadvantage). Always show the die and the modifier, for example "d20 (14) + 5 = 19". Never invent a roll. The board state's diceMode is "ai" or "player". In "ai" mode you roll everything, including the players' dice. In "player" mode the players roll their own d20s (attacks, ability checks, saving throws, death saves, initiative): ask for the roll, say what is being rolled, the bonus to add and what it decides, then STOP and wait for their answer; do not roll it for them and do not continue the scene until they reply. In either mode a player may simply tell you what they rolled ("I got a 14", "nat 20"): take their number and add the modifier. A player may also say "roll for me" (or "you roll"): then roll it from the tray, show the die, and carry on. Damage dice work the same way: in "player" mode ask which they prefer if it is unclear, but default to rolling damage for them from the tray. Everything monsters do is always rolled by you.
 
 Lighting: the lighting block of the board state gives the place's ambient light (bright, dim or dark) and the map's light sources (id, name, position, bright and dim radius in feet, whether it is on); tokens may carry a light (lightKind). The table shows each player only what their character can see: in bright or dim light, anything in line of sight; in darkness, only what a light source lights (bright light out to the bright radius, dim light out to the dim radius) or what their darkvision reaches (darkvision turns darkness into dim light, out to its range; a character with no darkvision sees nothing in the dark beyond a light). Your narration must match: when a fire goes out or a torch is doused, send a light update, and describe what the characters can and cannot see. Creatures in unlit darkness are not visible to characters without darkvision. A character carrying a light can be seen from afar in the dark.
 
@@ -826,6 +854,8 @@ Resting follows the official 5th Edition rules. A short rest is at least an hour
 Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
 
 DM maps: some places come with a DM-only picture of the map (building names, secret rooms, where creatures and traps are), shown to you at the start of the message. It is for you alone: use it to describe and place things accurately, and never read out or hint at anything the players have not discovered.
+
+Running the table (habits that work well, especially for voice play and a player who is new to the game): before any roll say what is being rolled (for example "Wisdom check, Perception"), the modifier to add, and what the roll decides; if the player has no dice, offer to roll for them. Warn before they commit: flag range problems, advantage and disadvantage and why (for example heavy armor on Stealth, or a target beyond normal range), and explain spells that use a saving throw instead of an attack roll. If a player declares an action without knowing a rule that changes it, let them take it back, kindly. In combat roll initiative for everyone and announce the whole turn order (repeat it when asked), narrate every hit and every miss with a little color, and after each round give a short status recap (everyone's hit points, enemies remaining, who is hurt). At the start of each player turn suggest two to four sensible options, always accepting anything else they come up with, and point out tactical openings (Sneak Attack is available when an ally is next to the target, a captured enemy could answer questions). Players roll for their own characters when the table is in player dice mode; you roll for monsters, honestly, and report the numbers. One character makes a given check; another may only add the Help action if they genuinely add something. Keep replies short and spoken-sounding, with few lists, and end each turn with one clear question such as "What does Edric do?". Do not hand over what an NPC has not been asked yet, keep an accurate count of enemies, and apply every racial and class trait when a character changes. At any choice point in character creation or leveling, list all the available options, never a curated subset.
 
 Safety: the table may have agreed lines (never appear) and veils (off-screen or one sentence), given to you in the TABLE SAFETY block when there is one. Keep to them without ever mentioning that you are doing so. If a player's message contains [PAUSE], they pressed the pause button (the X-card): stop at once, do not continue the scene, do not ask who pressed it or why, say calmly that you are pausing, and offer to skip past it, rewind, or take the story in another direction, then wait for their answer. Never push back or make anyone justify it.
 
@@ -891,6 +921,7 @@ async function expandTokenUpdates(updates) {
     else if (u.action === 'rest') out.push({ type: 'restParty', kind: Number(u.value) === 2 ? 'long' : 'short' });
     else if (u.action === 'startCombat') out.push({ type: 'startCombat' });
     else if (u.action === 'endCombat') out.push({ type: 'endCombat' });
+    else if (u.action === 'endTurn') out.push({ type: 'endTurn', ...base });
     else if (u.action === 'remove') out.push({ type: 'removeToken', ...base });
     else if (u.action === 'reveal') out.push({ type: 'revealToken', ...base });
     else if (u.action === 'hide') out.push({ type: 'hideToken', ...base });
@@ -935,7 +966,7 @@ const DM_SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'rest', 'light', 'summon', 'mood', 'sfx'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
+          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'endTurn', 'rest', 'light', 'summon', 'mood', 'sfx'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
           upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
@@ -1043,7 +1074,7 @@ function buildHistory(history, message, state, inputMode, dmMap) {
 // What the DM is told about the party's gear: per character the items, coins and effective stats, and the shared stash.
 async function partyForPrompt(campaign) {
   const brief = (i) => ({ name: i.name, qty: i.qty, weight: i.weight, requiresAttunement: i.requiresAttunement, attuned: i.attuned, equipped: i.equipped, effects: i.effects });
-  const characters = (await listCharacters()).map((c) => {
+  const characters = (await listCharacters(campaign)).map((c) => {
     const s = seedFromSheet(c);
     const eff = computeEffective(s);
     return { id: s.id, name: s.name, inventory: normalizeInventory(s.inventory).map(brief), coins: normalizeCoins(s.coins), effective: { ac: eff.ac, speed: eff.speed, saveBonus: eff.saveBonus, abilities: eff.abilities, attuned: eff.attuned, weight: eff.weight } };
@@ -1080,6 +1111,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     characters: Array.isArray(characters) ? characters : [],
     walls: Array.isArray(walls) ? walls : [],
     diceMode: diceMode === 'player' ? 'player' : 'ai',
+    diceTray: diceTray(),
     ...(Array.isArray(corrections) && corrections.length ? { moveCorrections: corrections.slice(0, 8).map((c) => String(c).slice(0, 200)) } : {}),
     lighting: lighting && typeof lighting === 'object' ? { ambient: ['bright', 'dim', 'dark'].includes(lighting.ambient) ? lighting.ambient : 'bright', mapLights: (Array.isArray(lighting.mapLights) ? lighting.mapLights : []).slice(0, 40) } : { ambient: 'bright', mapLights: [] },
     combat: combat && typeof combat === 'object' ? { active: Boolean(combat.active), round: Number(combat.round) || 0, currentTokenId: String(combat.currentTokenId ?? ''), order: (Array.isArray(combat.order) ? combat.order : []).slice(0, 60).map((o) => ({ tokenId: String(o?.tokenId ?? ''), initiative: Number.isFinite(Number(o?.initiative)) ? Number(o.initiative) : null })) } : { active: false },
@@ -1088,6 +1120,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
 
   try {
     const campaignText = await loadCampaignText(activeCampaign);
+    const settingsText = settingsForPrompt(await readSettings(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const safetyText = safetyForPrompt(await readSafety(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const journalText = journalForPrompt((await readSave(path.join(CAMPAIGNS_DIR, activeCampaign))).entries);
     const response = await anthropic.beta.messages.create({
@@ -1098,6 +1131,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         ...(campaignText ? [{ type: 'text', text: `${CAMPAIGN_RULES}\n\n${campaignText}`, cache_control: { type: 'ephemeral' } }] : []),
         // The journal changes every few turns, so it comes after the cached campaign text.
         { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
+        { type: 'text', text: settingsText },
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       messages: buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl)),
@@ -1134,7 +1168,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       restNotes.push(u.kind === 'long' ? 'Long rest: hit points and spell slots restored' : 'Short rest');
     }
     const partyResult = await processPartyUpdates(gearToPartyUpdates(allUpdates), {
-      list: listCharacters,
+      list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; },
       stash: () => readStash(path.join(CAMPAIGNS_DIR, activeCampaign)),
       saveStash: (st) => writeStash(path.join(CAMPAIGNS_DIR, activeCampaign), st)
@@ -1142,7 +1176,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const journalAdded = await addJournalUpdates(path.join(CAMPAIGNS_DIR, activeCampaign), allUpdates.filter((u) => u && u.type === 'journal'))
       .catch((err) => { console.warn('Journal update failed:', err.message); return []; });
     const sheetResults = await processCharacterUpdates(allUpdates.filter((u) => u && u.type === 'updateCharacter').map(expandSheetEdits), {
-      list: listCharacters,
+      list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
     res.json({
