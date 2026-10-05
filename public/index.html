@@ -209,6 +209,7 @@
   .mic-meter { flex: 1; min-width: 60px; height: 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
   .mic-meter > div { height: 100%; width: 0; background: var(--ok); transition: width 0.06s linear; }
   .voice-status { font-size: 12px; color: var(--muted); min-height: 16px; }
+  .voice-status[hidden] { display: none; }
   .voice-status.live { color: var(--danger); font-weight: 700; }
   .voice-opts { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
   .voice-opts label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -403,7 +404,7 @@
         <label title="Background sound and mood music, made in the browser"><input type="checkbox" id="ambienceToggle" checked> Ambient sound</label>
         <input type="range" id="ambienceVol" min="0" max="100" value="50" aria-label="Ambient volume" style="width:90px">
       </div>
-      <div class="voice-status"><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
+      <div class="voice-status" hidden><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
       <div class="dice-box">
         <label>Dice <select id="diceMode" aria-label="Who rolls the players' dice"><option value="ai">The DM rolls for me</option><option value="player">I roll my own (the DM asks and waits)</option></select></label>
         <span id="attackRollBox">
