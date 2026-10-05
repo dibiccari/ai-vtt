@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
-import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -109,9 +109,10 @@ function normalizeCharacter(body) {
   };
 }
 
-// A character may name the campaigns it plays in (`campaigns`); with none it plays in every campaign. Pass a campaign id to get only its party.
+// A campaign's party is the list of character ids in its campaign.json (`party`, chosen when the campaign is created or on its Settings). Without one, a character's own `campaigns` tag decides (none = every campaign). Pass a campaign id to get only its party.
 async function listCharacters(campaign) {
   const template = campaign ? await templateOfCampaign(campaign) : '';
+  const party = campaign ? (await readCampaignMeta(safeCampaignId(campaign))).party : null;
   const files = (await readdir(CHAR_DIR)).filter((f) => f.endsWith('.json'));
   const chars = [];
   for (const file of files) {
@@ -121,6 +122,7 @@ async function listCharacters(campaign) {
       console.warn(`Skipping unreadable character file ${file}: ${err.message}`);
     }
   }
+  if (campaign && Array.isArray(party)) return chars.filter((c) => party.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
   return chars.filter((c) => !campaign || !Array.isArray(c.campaigns) || !c.campaigns.length || c.campaigns.includes(campaign) || c.campaigns.includes(template)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -537,7 +539,24 @@ app.get('/api/campaigns', asyncRoute(async (_req, res) => {
   res.json({ active, campaigns });
 }));
 
-// Start another playthrough of a campaign: copies its documents, voices, maps list and table settings (not its journal, party stash or chat), so the new one begins fresh with the same maps and starting positions.
+// The party of a campaign (character ids), read and changed from the Campaigns page.
+app.get('/api/campaigns/:id/party', asyncRoute(async (req, res) => {
+  res.json({ party: (await listCharacters(safeCampaignId(req.params.id))).map((c) => c.id) });
+}));
+
+app.put('/api/campaigns/:id/party', localOnly, asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.params.id);
+  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
+  const known = new Set((await listCharacters()).map((c) => c.id));
+  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => String(x)).filter((x) => known.has(x));
+  if (!party.length) return res.status(400).json({ error: 'A campaign needs at least one character.' });
+  let saved = {};
+  try { saved = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), 'utf8')); } catch { /* built-in campaigns have no campaign.json yet */ }
+  await writeFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), JSON.stringify({ ...saved, party }, null, 2));
+  res.json({ ok: true, party });
+}));
+
+// Start another playthrough of a campaign: copies its documents, voices and maps list (so the maps and their starting positions are already chosen) and takes the party and table settings from the request; its journal, party stash and chat start empty.
 app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
   const from = safeCampaignId(req.body?.template);
   const ids = await campaignIds();
@@ -550,10 +569,14 @@ app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
   const src = path.join(CAMPAIGNS_DIR, root), dest = path.join(CAMPAIGNS_DIR, id);
   await mkdir(dest, { recursive: true });
   for (const f of await readdir(src)) {
-    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json', 'settings.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
+    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
   }
-  await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: root, system: base.system, levels: base.levels, description: base.description }, null, 2));
-  res.json({ ok: true, id, name, template: root });
+  const known = new Set((await listCharacters()).map((c) => c.id));
+  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => String(x)).filter((x) => known.has(x));
+  if (!party.length) { await rm(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'Pick at least one character for the party (make new ones on the Character Sheets page first).' }); }
+  await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: root, system: base.system, levels: base.levels, description: base.description, party }, null, 2));
+  await writeSettings(dest, req.body?.settings);
+  res.json({ ok: true, id, name, template: root, party });
 }));
 
 app.post('/api/campaigns/active', localOnly, asyncRoute(async (req, res) => {

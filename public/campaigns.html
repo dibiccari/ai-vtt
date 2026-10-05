@@ -91,10 +91,12 @@
   const safetyData = {};       // campaign id -> { lines, veils, notes } being edited
   const mapData = {};          // campaign id -> { custom, maps, uploads, kinds } being edited
 
+  let allChars = [];            // every character, for the party checklists
   async function load() {
     try {
       const data = await api('/api/campaigns');
       campaigns = data.campaigns || [];
+      try { allChars = await api('/api/characters'); } catch { allChars = []; }
     } catch (err) {
       setStatus('Could not load campaigns: ' + err.message, 'bad');
       return;
@@ -115,25 +117,81 @@
     }
   }
 
-  // Start another playthrough: the new campaign copies the documents, voices, maps list and table settings of the one you pick, so it has the same maps and starting positions, and begins with a fresh journal, board and chat.
+  // A checklist of the characters that can be in a party. Returns { box, ids() }.
+  function partyPicker(selected, onChange) {
+    const box = el('div');
+    box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0;';
+    const chosen = new Set(selected);
+    if (!allChars.length) box.appendChild(el('span', 'note', 'There are no characters yet.'));
+    for (const ch of allChars) {
+      const l = el('label'); l.style.cssText = 'display:inline-flex;gap:6px;align-items:center;';
+      const cb = el('input'); cb.type = 'checkbox'; cb.checked = chosen.has(ch.id);
+      cb.addEventListener('change', () => { if (cb.checked) chosen.add(ch.id); else chosen.delete(ch.id); if (onChange) onChange([...chosen]); });
+      l.append(cb, document.createTextNode(ch.name + ' (' + [ch.class, 'level ' + ch.level].join(', ') + ')'));
+      box.appendChild(l);
+    }
+    return { box, ids: () => [...chosen] };
+  }
+
+  const newForm = { from: '', name: '', rules: '2014', permadeath: false, notes: '', party: [], loadedFrom: '' };
+
+  // Start another playthrough of a campaign you already have: its maps (and their starting positions) are already chosen; you pick the party and the table settings.
   function newCampaignBox() {
     const box = el('div', 'card');
     box.appendChild(el('h3', '', 'New campaign'));
-    box.appendChild(el('p', 'note', 'Start another playthrough of a campaign you already have. It gets the same documents, maps, starting positions and table settings, and starts fresh: new journal, board and chat. Then pick its settings and press Use this campaign.'));
-    const row = el('div', 'row');
+    box.appendChild(el('p', 'note', 'Start another playthrough of a campaign you already have. It uses the same documents and maps, with the same starting positions, so the maps are already chosen. You pick the characters and the table settings; the journal, board and chat start fresh.'));
+    const templates = campaigns.filter((x) => x.template === x.id);
+    if (!newForm.from || !templates.some((x) => x.id === newForm.from)) newForm.from = templates.length ? templates[0].id : '';
+    const field = (label, node) => { const l = el('label', 'field'); l.style.display = 'block'; l.style.marginBottom = '10px'; l.appendChild(el('div', '', label)); l.appendChild(node); return l; };
+
     const from = el('select'); from.setAttribute('aria-label', 'Copy from');
-    campaigns.filter((x) => x.template === x.id).forEach((x) => { const o = el('option', '', x.name); o.value = x.id; from.appendChild(o); });
-    const name = el('input'); name.placeholder = 'Name of the new campaign'; name.style.width = '260px'; name.setAttribute('aria-label', 'Name');
-    const go = el('button', 'primary', 'Create');
+    templates.forEach((x) => { const o = el('option', '', x.name); o.value = x.id; from.appendChild(o); });
+    from.value = newForm.from;
+    from.addEventListener('change', () => { newForm.from = from.value; newForm.loadedFrom = ''; render(); });
+    box.appendChild(field('Which campaign (its maps and documents are copied)', from));
+
+    const name = el('input'); name.value = newForm.name; name.placeholder = 'Name of the new campaign'; name.style.width = '320px'; name.setAttribute('aria-label', 'Name');
+    name.addEventListener('input', () => { newForm.name = name.value; });
+    box.appendChild(field('Name', name));
+
+    const rules = el('select'); rules.setAttribute('aria-label', 'Rules edition');
+    [['2014', '2014 Player\'s Handbook'], ['2024', '2024 revised rules']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; rules.appendChild(o); });
+    rules.value = newForm.rules; rules.addEventListener('change', () => { newForm.rules = rules.value; });
+    box.appendChild(field('Rules edition', rules));
+
+    const death = el('label'); death.style.cssText = 'display:block;margin-bottom:10px;';
+    const dcb = el('input'); dcb.type = 'checkbox'; dcb.checked = newForm.permadeath; dcb.addEventListener('change', () => { newForm.permadeath = dcb.checked; });
+    death.append(dcb, document.createTextNode(' Permanent death (off: a character who would die is left out of the fight and the story takes a setback instead)'));
+    box.appendChild(death);
+
+    const notes = el('textarea'); notes.rows = 3; notes.style.width = '100%'; notes.value = newForm.notes; notes.placeholder = 'Notes about your table for the DM';
+    notes.addEventListener('input', () => { newForm.notes = notes.value; });
+    box.appendChild(field('Notes about your table for the DM', notes));
+
+    const picker = partyPicker(newForm.party, (ids) => { newForm.party = ids; });
+    const partyField = el('div'); partyField.style.marginBottom = '10px';
+    partyField.appendChild(el('div', '', 'Party: who is playing'));
+    partyField.appendChild(picker.box);
+    const make = el('a', 'note', 'Make a new character on the Character Sheets page'); make.href = '/characters.html'; make.target = '_blank'; make.rel = 'noopener';
+    partyField.appendChild(make);
+    box.appendChild(partyField);
+
+    const go = el('button', 'primary', 'Create campaign');
     go.addEventListener('click', async () => {
       try {
-        const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: from.value, name: name.value }) });
-        setStatus('Created ' + out.name + '. Open its Settings, then press Use this campaign to play it.', 'ok');
+        const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: newForm.from, name: newForm.name, party: picker.ids(), settings: { rules: newForm.rules, permadeath: newForm.permadeath, tableNotes: newForm.notes } }) });
+        Object.assign(newForm, { name: '', party: [] });
+        setStatus('Created ' + out.name + '. Press Use this campaign to play it.', 'ok');
         await load();
       } catch (err) { setStatus('Could not create it: ' + err.message, 'bad'); }
     });
-    row.append(from, name, go);
-    box.appendChild(row);
+    box.appendChild(go);
+
+    // Start the settings from the chosen campaign's own (once per choice), so the notes about the table carry over.
+    if (newForm.from && newForm.loadedFrom !== newForm.from) {
+      newForm.loadedFrom = newForm.from;
+      api('/api/campaigns/' + encodeURIComponent(newForm.from) + '/settings').then((s) => { Object.assign(newForm, { rules: s.rules, permadeath: s.permadeath, notes: s.tableNotes }); render(); }).catch(() => { /* defaults stay */ });
+    }
     return box;
   }
 
@@ -206,7 +264,7 @@
     settingsBtn.title = 'Rules for this table: rules edition, permanent death, notes for the DM';
     settingsBtn.addEventListener('click', async () => {
       if (openSettings.has(c.id)) { openSettings.delete(c.id); render(); return; }
-      try { settingsData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings'); openSettings.add(c.id); } catch (err) { setStatus('Could not load the settings: ' + err.message, 'bad'); }
+      try { settingsData[c.id] = { ...(await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings')), party: (await api('/api/campaigns/' + encodeURIComponent(c.id) + '/party')).party }; openSettings.add(c.id); } catch (err) { setStatus('Could not load the settings: ' + err.message, 'bad'); }
       render();
     });
     row.append(use, openBtn, settingsBtn, docs, mapsBtn, safetyBtn, startOver);
@@ -256,10 +314,17 @@
     ta.addEventListener('input', () => { d.tableNotes = ta.value; });
     notes.appendChild(ta);
     wrap.appendChild(notes);
+    const partyBox = el('div'); partyBox.style.marginBottom = '10px';
+    partyBox.appendChild(el('div', '', 'Party: who is playing'));
+    const picker = partyPicker(d.party || [], null);
+    partyBox.appendChild(picker.box);
+    wrap.appendChild(partyBox);
     const save = el('button', 'primary', 'Save table settings');
     save.addEventListener('click', async () => {
       try {
-        settingsData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) });
+        const party = picker.ids();
+        if (party.length) await api('/api/campaigns/' + encodeURIComponent(c.id) + '/party', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ party }) });
+        settingsData[c.id] = { ...(await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })), party };
         setStatus('Table settings saved for ' + c.name + '. They apply from the next message to the DM.', 'ok');
       } catch (err) { setStatus('Could not save: ' + err.message, 'bad'); }
       render();
