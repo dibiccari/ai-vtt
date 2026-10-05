@@ -5305,6 +5305,11 @@
       "name": "north",
       "x": 2268,
       "y": 114
+    },
+    {
+      "name": "postern-gate",
+      "x": 1785,
+      "y": 2065
     }
   ],
   "lights": [

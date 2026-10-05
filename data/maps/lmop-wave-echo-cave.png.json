@@ -783,6 +783,11 @@
       "name": "start",
       "x": 385,
       "y": 6125
+    },
+    {
+      "name": "old-entrance",
+      "x": 2695,
+      "y": 5145
     }
   ],
   "source": "dd2vtt",
