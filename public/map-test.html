@@ -77,6 +77,7 @@
       <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
       <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
       <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
+      <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: drag a rectangle over rubble, mud, shallow water or thick undergrowth (it snaps to the grid). Moving into those squares costs double. Right-click inside a rectangle to remove it">Terrain</button>
       <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
     </div>
     <label class="field"><span>Name for the next pin</span>
@@ -97,6 +98,10 @@
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
+    <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token (walls block, difficult terrain costs double)</label>
+    <label class="field"><span>Speed: <b id="moveFtVal">30</b> ft</span>
+      <input type="range" id="moveFt" min="10" max="120" step="5" value="30">
+    </label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
@@ -166,8 +171,8 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
-    tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false,
+    squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
+    moveTest: false, moveFt: 30, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
   };
@@ -246,7 +251,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -439,6 +444,8 @@
     }
 
     if (S.showWalls) drawWalls(px);
+    drawMoveRange(px);
+    drawTerrain(px);
     drawStarts(px);
     drawTokens(px);
   }
@@ -457,6 +464,87 @@
 
   // Saved pins (arrival spots): a flag with its name. Under fog of war they follow the fog like everything else: hidden in unexplored
   // ground, dimmed in explored ground. The DM view, and the Pins tool while you edit, show them all.
+  // Movement test: what the first test token can reach in one move, costed square by square (standard 5e: a diagonal costs 5 ft; a square
+  // inside difficult terrain costs double; walls and closed doors stop movement). The cost is printed in each square once zoomed in.
+  let moveCache = { key: '', cost: null };
+  function segmentsCross(x1, y1, x2, y2, w) {
+    const d = (ax, ay, bx, by, cx, cy) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    const d1 = d(x1, y1, x2, y2, w.x1, w.y1), d2 = d(x1, y1, x2, y2, w.x2, w.y2), d3 = d(w.x1, w.y1, w.x2, w.y2, x1, y1), d4 = d(w.x1, w.y1, w.x2, w.y2, x2, y2);
+    return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+  }
+  const inDifficult = (x, y) => S.difficult.some((d) => x >= d.x && x <= d.x + d.w && y >= d.y && y <= d.y + d.h);
+  function moveCosts() {
+    const t = S.tokens[0];
+    if (!t) return null;
+    const g = cell();
+    const c0 = Math.floor(t.x / g), r0 = Math.floor(t.y / g);
+    const key = [c0, r0, S.moveFt, S.squares, S.walls.length, S.difficult.length, S.walls.filter((w) => w.open).length].join('|');
+    if (moveCache.key === key) return moveCache.cost;
+    const reach = (S.moveFt / FT_PER_SQUARE + 2) * g;
+    const near = blockingWalls(S.walls).filter((w) => Math.min(w.x1, w.x2) <= t.x + reach && Math.max(w.x1, w.x2) >= t.x - reach && Math.min(w.y1, w.y2) <= t.y + reach && Math.max(w.y1, w.y2) >= t.y - reach);
+    const cols = Math.ceil(S.W / g), rows = Math.ceil(S.H / g);
+    const cost = new Map([[c0 + ',' + r0, 0]]);
+    const open = [[0, c0, r0]];
+    while (open.length) {
+      let bi = 0;
+      for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+      const [here, c, r] = open.splice(bi, 1)[0];
+      if (here > (cost.get(c + ',' + r) ?? Infinity)) continue;
+      for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) {
+        if (!dc && !dr) continue;
+        const nc = c + dc, nr = r + dr;
+        if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+        const ax = (c + 0.5) * g, ay = (r + 0.5) * g, bx = (nc + 0.5) * g, by = (nr + 0.5) * g;
+        if (near.some((w) => segmentsCross(ax, ay, bx, by, w))) continue;
+        const next = here + FT_PER_SQUARE * (inDifficult(bx, by) ? 2 : 1);
+        if (next > S.moveFt + 1e-9 || next >= (cost.get(nc + ',' + nr) ?? Infinity) - 1e-9) continue;
+        cost.set(nc + ',' + nr, next);
+        open.push([next, nc, nr]);
+      }
+    }
+    moveCache = { key, cost };
+    return cost;
+  }
+  function drawMoveRange(px) {
+    if (!S.moveTest) return;
+    const cost = moveCosts();
+    if (!cost) return;
+    const g = cell();
+    ctx.save();
+    for (const [k, ft] of cost) {
+      const [c, r] = k.split(',').map(Number);
+      const t = ft / S.moveFt;
+      ctx.fillStyle = 'rgba(' + Math.round(60 + 190 * t) + ', ' + Math.round(210 - 70 * t) + ', 90, 0.34)';
+      ctx.fillRect(c * g, r * g, g, g);
+    }
+    if (g / px >= 26) {
+      ctx.font = Math.min(14, g / px / 3) * px + 'px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      for (const [k, ft] of cost) { const [c, r] = k.split(',').map(Number); ctx.fillText(String(Math.round(ft)), (c + 0.5) * g, (r + 0.5) * g); }
+    }
+    ctx.restore();
+  }
+
+  // Difficult terrain: shaded rectangles (always shown, stronger while the Terrain tool is selected), plus the one being dragged.
+  function drawTerrain(px) {
+    const list = S.drag && S.drag.kind === 'terrain' && S.drag.rect ? S.difficult.concat([S.drag.rect]) : S.difficult;
+    if (!list.length) return;
+    ctx.save();
+    const editing = S.tool === 'terrain';
+    for (const d of list) {
+      ctx.fillStyle = editing ? 'rgba(200, 120, 40, 0.38)' : 'rgba(200, 120, 40, 0.2)';
+      ctx.fillRect(d.x, d.y, d.w, d.h);
+      if (!editing) continue;                       // outlines only while the Terrain tool is selected
+      ctx.strokeStyle = 'rgba(240, 160, 70, 0.9)';
+      ctx.lineWidth = 2 * px;
+      ctx.setLineDash([8 * px, 6 * px]);
+      ctx.strokeRect(d.x, d.y, d.w, d.h);
+    }
+    ctx.restore();
+  }
+
   function drawStarts(px) {
     ctx.save();
     ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
@@ -675,6 +763,7 @@
         S.squares = saved && saved.squares > 0 ? saved.squares : Math.max(5, Math.round(S.W / 50));
         S.walls = cleanWalls(saved && saved.walls);
         S.starts = [];
+        S.difficult = [];
         S.tokens = (saved && Array.isArray(saved.tokens) ? saved.tokens : [])
           .filter((t) => t && isFinite(t.x) && isFinite(t.y))
           .map((t) => ({ x: clamp(t.x, 0, S.W), y: clamp(t.y, 0, S.H) }));
@@ -691,6 +780,7 @@
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
+        S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         // A map with no test token yet starts one at its start pin, so the line-of-sight check begins where the party would.
         const startPin = S.starts.find((p) => p.name === 'start');
@@ -745,6 +835,7 @@
         $('#onlyUvtt').checked = false;
       }
     }
+    shown = shown.slice().sort((a, b) => (b.endsWith('/terrain-test.png') ? 1 : 0) - (a.endsWith('/terrain-test.png') ? 1 : 0));     // the Terrain Test Grounds map always comes first
     for (const url of shown) {
       const opt = document.createElement('option');
       opt.value = url;
@@ -862,6 +953,13 @@
     }
 
     if (e.button === 2) {
+      if (S.tool === 'terrain') {
+        for (let i = S.difficult.length - 1; i >= 0; i--) {
+          const d = S.difficult[i];
+          if (p.x >= d.x && p.x <= d.x + d.w && p.y >= d.y && p.y <= d.y + d.h) { S.difficult.splice(i, 1); save(); requestRender(); break; }
+        }
+        return;
+      }
       if (S.tool === 'token') {
         const i = tokenAt(p);
         if (i >= 0) { S.tokens.splice(i, 1); save(); updateStats(); revealFog(); }
@@ -897,6 +995,9 @@
       renderStartList();
       suggestPinName();
       requestRender();
+    } else if (S.tool === 'terrain') {
+      if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
+      S.drag = { kind: 'terrain', x0: p.x, y0: p.y, rect: null };
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);
       if (w) { w.open = !w.open; wallsChanged(); }
@@ -910,6 +1011,13 @@
     if (S.drag && S.drag.kind === 'pan') {
       S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
       S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
+    } else if (S.drag && S.drag.kind === 'terrain') {
+      // Snap to the grid so every shaded square is a whole square.
+      const g = S.W / S.squares;
+      const sx = (v) => Math.round(clamp(v, 0, S.W) / g) * g, sy = (v) => Math.round(clamp(v, 0, S.H) / g) * g;
+      const x1 = Math.min(sx(S.drag.x0), sx(p.x)), x2 = Math.max(sx(S.drag.x0), sx(p.x));
+      const y1 = Math.min(sy(S.drag.y0), sy(p.y)), y2 = Math.max(sy(S.drag.y0), sy(p.y));
+      S.drag.rect = { x: Math.round(x1), y: Math.round(y1), w: Math.round(x2 - x1), h: Math.round(y2 - y1) };
     } else if (S.drag && S.drag.kind === 'start') {
       S.drag.spot.x = Math.round(clamp(p.x, 0, S.W));
       S.drag.spot.y = Math.round(clamp(p.y, 0, S.H));
@@ -924,10 +1032,12 @@
   function endDrag(e) {
     if (!S.drag) return;
     const kind = S.drag.kind;
+    const drag = S.drag;
     S.drag = null;
     try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (kind === 'token') save();
     if (kind === 'start') { save(); renderStartList(); }
+    if (kind === 'terrain' && drag.rect && drag.rect.w > 0 && drag.rect.h > 0) { S.difficult.push(drag.rect); save(); }
     setTool(S.tool);
   }
   cv.addEventListener('pointerup', endDrag);
@@ -991,6 +1101,8 @@
     updateStats();
     revealFog();
   });
+  $('#moveTest').addEventListener('change', (e) => { S.moveTest = e.target.checked; requestRender(); });
+  $('#moveFt').addEventListener('input', (e) => { S.moveFt = Number(e.target.value); $('#moveFtVal').textContent = S.moveFt; requestRender(); });
   $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; requestRender(); updateReadout(); });
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });

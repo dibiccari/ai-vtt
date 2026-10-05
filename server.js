@@ -252,7 +252,15 @@ function normalizeMapConfig(body) {
     if ([x, y, range].includes(null)) continue;
     lights.push({ x, y, range, intensity: intensity ?? 1, color: /^[0-9a-f]{6,8}$/i.test(String(l?.color ?? '')) ? String(l.color).toLowerCase() : 'ffffff', ...(l?.flicker === true ? { flicker: true } : {}), ...(String(l?.name ?? '').trim() ? { name: String(l.name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) } : {}) });
   }
+  // Difficult terrain: rectangles in image pixels. Moving into a square whose centre is inside one costs double.
+  const difficult = [];
+  for (const d of Array.isArray(body?.difficult) ? body.difficult.slice(0, 600) : []) {
+    const [x, y, w, h] = [num(d?.x), num(d?.y), num(d?.w), num(d?.h)];
+    if ([x, y, w, h].includes(null) || w <= 0 || h <= 0) continue;
+    difficult.push({ x, y, w, h });
+  }
   const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
+  if (difficult.length) config.difficult = difficult;
   if (lights.length) config.lights = lights;
   // How bright the place is before any light source: daylight (bright), a lit room or dusk (dim), or darkness.
   if (['bright', 'dim', 'dark'].includes(body?.light)) config.light = body.light;
@@ -303,6 +311,7 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.ambient && !config.ambient) config.ambient = old.ambient;
       if (old.light && !config.light) config.light = old.light;
       if (old.ambience && !config.ambience) config.ambience = old.ambience;
+      if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
   }
   await writeFile(file, JSON.stringify(config, null, 2));

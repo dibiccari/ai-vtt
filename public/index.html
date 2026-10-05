@@ -479,6 +479,8 @@ const state = {
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
+  difficult: [],                      // difficult-terrain rectangles of the current map, in board pixels
+  difficultSquares: null,             // the squares inside them (built when first needed)
   permadeath: false,                  // the campaign's Death setting (Campaigns > Settings); off = no permanent character death
   autoTurns: 0,                       // creature turns the table has started in a row without a player acting (capped)
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
@@ -886,11 +888,66 @@ function reachCircle(token, radiusFt, R, near) {
   return cost;
 }
 
+// ---- Difficult terrain ----
+// Rectangles saved on the map (Map Test > Terrain). Each foot of movement into a difficult square costs 1 extra foot, so entering one costs double.
+function isDifficult(c, r) {
+  if (!state.difficult.length) return false;
+  if (!state.difficultSquares) {
+    state.difficultSquares = new Set();
+    for (let col = 0; col < cols(); col++) {
+      for (let row = 0; row < rows(); row++) {
+        const x = centerOf(col), y = centerOf(row);
+        if (state.difficult.some((d) => x >= d.x && x <= d.x + d.w && y >= d.y && y <= d.y + d.h)) state.difficultSquares.add(sqKey(col, row));
+      }
+    }
+  }
+  return state.difficultSquares.has(sqKey(c, r));
+}
+
+// Cheapest cost to every square within the radius when some squares are difficult (a shortest-path search). Diagonals cost what the
+// movement rule says: 5 ft (standard), 5 then 10 (alternating) or a straight-line 7.07 ft (round).
+function reachTerrain(token, radiusFt, near, rule) {
+  const best = new Map([[`${token.col},${token.row},0`, 0]]);
+  const open = [[0, token.col, token.row, 0]];
+  while (open.length) {
+    let bi = 0;
+    for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+    const [here, c, r, p] = open.splice(bi, 1)[0];
+    if (here > (best.get(`${c},${r},${p}`) ?? Infinity)) continue;
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        const nc = c + dc, nr = r + dr;
+        if (!inBounds(nc, nr) || (near.length && moveBlocked(c, r, nc, nr, near))) continue;
+        const diagonal = dc !== 0 && dr !== 0;
+        let step = FT_PER_SQUARE, np = p;
+        if (diagonal) {
+          if (rule === 'alternating') { step = p === 0 ? 5 : 10; np = 1 - p; }
+          else if (rule === 'circle') step = SQRT2 * FT_PER_SQUARE;
+        }
+        const next = here + step * (isDifficult(nc, nr) ? 2 : 1);
+        if (next > radiusFt + 1e-9) continue;
+        const k = `${nc},${nr},${np}`;
+        if (next >= (best.get(k) ?? Infinity) - 1e-9) continue;
+        best.set(k, next);
+        open.push([next, nc, nr, np]);
+      }
+    }
+  }
+  const cost = new Map();
+  for (const [k, v] of best) {
+    const [c, r] = k.split(',');
+    const sk = `${c},${r}`;
+    if (v < (cost.get(sk) ?? Infinity)) cost.set(sk, v);
+  }
+  return cost;
+}
+
 function reachable(token) {
   if (!token) return new Map();
   const rule = state.gmOverride ? 'standard' : state.moveRule;
   const leashOwner = token.summon ? state.tokens.find((o) => o.id === token.summon.ownerId) : null;
-  const sig = `${rule}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
+  const sig = `${rule}|${state.difficult.length}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
     state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
   if (reachCache.sig === sig) return reachCache.map;
 
@@ -903,7 +960,8 @@ function reachable(token) {
     Math.min(w.x1, w.x2) <= x0 + reachPx && Math.max(w.x1, w.x2) >= x0 - reachPx &&
     Math.min(w.y1, w.y2) <= y0 + reachPx && Math.max(w.y1, w.y2) >= y0 - reachPx);
 
-  const cost = rule === 'circle' ? reachCircle(token, radiusFt, R, near)
+  const cost = state.difficult.length && !state.gmOverride ? reachTerrain(token, radiusFt, near, rule)
+    : rule === 'circle' ? reachCircle(token, radiusFt, R, near)
     : rule === 'alternating' ? reachAlternating(token, radiusFt, near)
     : reachStandard(token, radiusFt, near);
   // A summoned thing cannot stray beyond its leash from the one who controls it.
@@ -2399,6 +2457,8 @@ async function loadMapLighting() {
   state.ambience = '';
   state.ambient = 'bright';
   state.lights = [];
+  state.difficult = [];
+  state.difficultSquares = null;
   if (!state.map.url || !state.map.img) return;
   try {
     const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
@@ -2407,6 +2467,7 @@ async function loadMapLighting() {
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
     state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;
+    state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
       id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2, flicker: l.flicker === true
