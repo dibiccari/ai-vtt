@@ -34,6 +34,7 @@
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
   .stage-bar { position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5; }
   .stage-bar > button { padding:6px 14px; border-radius:8px; }
+  .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
   .variant-switch { display:flex; gap:0; }
   .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
   .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
@@ -72,14 +73,7 @@
   </div>
 
   <div class="group">
-    <h2>Tool</h2>
-    <div class="row">
-      <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
-      <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
-      <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
-      <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: drag a rectangle over rubble, mud, shallow water or thick undergrowth (it snaps to the grid). Moving into those squares costs double. Right-click inside a rectangle to remove it">Terrain</button>
-      <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
-    </div>
+    <h2>Pins and terrain</h2>
     <label class="field"><span>Name for the next pin</span>
       <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, back-door, secret-passage…">
     </label>
@@ -143,6 +137,12 @@
     <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <button id="fitBtn" title="Fit the whole map in view">Fit view</button>
+    <span class="tool-sep" aria-hidden="true"></span>
+    <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
+    <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
+    <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
+    <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: drag a rectangle over rubble, mud, shallow water or thick undergrowth (it snaps to the grid). Moving into those squares costs double. Right-click inside a rectangle to remove it">Terrain</button>
+    <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
   </div>
   <div class="banner" id="banner">Loading maps...</div>
 </main>
