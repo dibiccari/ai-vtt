@@ -55,19 +55,9 @@
   }
   .brand { font-weight: 800; letter-spacing: 0.04em; font-size: 15px; margin-right: 4px; white-space: nowrap; }
   .brand span { color: var(--gold); }
-  .turn-tracker { display: flex; gap: 6px; flex-wrap: wrap; flex: 1 1 0; min-width: 0; max-height: 66px; overflow-y: auto; align-content: flex-start; }
-  /* second row of the bar: whose turn it is on the left, the table's settings on the right */
-  .map-controls { flex: 0 0 100%; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
+  /* the bar: the active token's movement (in a fight) on the left, the table's settings on the right */
+  .map-controls { flex: 0 0 100%; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .map-controls .spacer { flex: 1; }
-  .turn-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 10px 4px 6px; border-radius: 999px;
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
-    font-size: 12px; font-weight: 600; white-space: nowrap;
-  }
-  .turn-chip .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); }
-  .turn-chip.active { background: var(--gold-soft); border-color: var(--gold); color: var(--text); }
-  .turn-chip.npc { border-style: dashed; }
   .combat { flex: 0 0 auto; max-height: 46%; overflow: auto; border-bottom: 1px solid var(--border); background: var(--panel-2); padding: 8px 10px; }
   .combat .cb-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .combat .cb-title { font-weight: 800; font-size: 13px; margin-right: auto; }
@@ -326,8 +316,6 @@
 <!-- ================================================================ LEFT: BATTLEMAP -->
 <main class="map-panel">
   <div class="map-toolbar">
-    <div class="turn-tracker" id="turnTracker" aria-label="Turn order"></div>
-    <button class="btn btn-gold btn-sm" id="endTurnBtn" title="End the active token's turn">End Turn ⏭</button>
     <div class="map-controls">
     <div class="move-info" id="moveInfo"></div>
     <span class="spacer"></span>
@@ -346,14 +334,6 @@
     <button class="btn btn-sm lab-only" hidden id="sceneSave" title="Save this map with its creatures, traps and lights as a scene you can load later">💾 Save scene</button>
     <select id="scenePick" class="lab-only" hidden aria-label="Load a saved scene" title="Load a saved scene: the map and its creatures"></select>
     <button class="btn btn-sm lab-only" hidden id="sceneDelete" title="Delete the chosen scene" disabled>✕</button>
-    <label class="move-rule" title="How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.">
-      <span>Movement</span>
-      <select id="moveRule" aria-label="Movement range rule">
-        <option value="circle">Round (straight line)</option>
-        <option value="standard">Standard 5e (square)</option>
-        <option value="alternating">5-10-5 diagonals</option>
-      </select>
-    </label>
     </div>
   </div>
   <div class="canvas-wrap" id="canvasWrap">
@@ -472,7 +452,7 @@ const state = {
   wallType: 'wall',
   gmOverride: false,
   busy: false,
-  moveRule: 'circle',
+  moveRule: 'standard',                // the standard 5e rule: every square, diagonals too, costs 5 ft (no setting to change it)
   campaignId: null,
   zoomToParty: false,
   mapKind: 'battle',          // 'regional' and 'town' maps are plain pictures (no grid, no fog, no tokens); 'battle' maps have all three
@@ -518,7 +498,7 @@ const interaction = {
    computer. Whichever copy was saved last wins when the table opens. */
 const serverSave = (() => {
   let timer = null, quiet = false;
-  const on = () => state.campaignId && state.campaignId !== 'default';
+  const on = () => state.campaignId && state.campaignId !== 'default' && !/[?&]nosave=1/.test(location.search);       // ?nosave=1: look around without touching the saved game (for testing)
   const atKey = () => `vtt.savedAt.${state.campaignId}`;
   const url = (suffix = '') => `/api/campaigns/${encodeURIComponent(state.campaignId)}/game${suffix}`;
   const put = (suffix, body) => fetch(url(suffix), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => { /* offline: the browser copy still has it */ });
@@ -793,6 +773,7 @@ let reachCache = { sig: '', map: new Map() };
 //   alternating (DMG)  diagonals cost 5 ft, then 10 ft, then 5 ft...
 //   circle      (house rule) straight-line distance; a diagonal step is about 7 ft
 const MOVE_RULES = ['circle', 'standard', 'alternating'];
+const FREE_ROAM_FT = 150;           // outside a fight there is no movement budget: one drag can go this far (walls still block)
 const SQRT2 = Math.SQRT2;
 
 function reachStandard(token, radiusFt, near) {
@@ -945,13 +926,14 @@ function reachTerrain(token, radiusFt, near, rule) {
 
 function reachable(token) {
   if (!token) return new Map();
-  const rule = state.gmOverride ? 'standard' : state.moveRule;
+  const free = !state.combat.active && !state.gmOverride;                // no fight: move freely, no turns, no budget
+  const rule = state.gmOverride || free ? 'standard' : state.moveRule;
   const leashOwner = token.summon ? state.tokens.find((o) => o.id === token.summon.ownerId) : null;
-  const sig = `${rule}|${state.difficult.length}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
+  const sig = `${rule}|${free}|${state.difficult.length}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
     state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
   if (reachCache.sig === sig) return reachCache.map;
 
-  const radiusFt = state.gmOverride ? Infinity : token.movementRemaining;
+  const radiusFt = state.gmOverride ? Infinity : free ? FREE_ROAM_FT : token.movementRemaining;
   const R = Number.isFinite(radiusFt) ? Math.ceil(radiusFt / FT_PER_SQUARE) : Math.max(cols(), rows());
   const x0 = centerOf(token.col), y0 = centerOf(token.row);
   const reachPx = (R + 1) * GRID;
@@ -960,7 +942,7 @@ function reachable(token) {
     Math.min(w.x1, w.x2) <= x0 + reachPx && Math.max(w.x1, w.x2) >= x0 - reachPx &&
     Math.min(w.y1, w.y2) <= y0 + reachPx && Math.max(w.y1, w.y2) >= y0 - reachPx);
 
-  const cost = state.difficult.length && !state.gmOverride ? reachTerrain(token, radiusFt, near, rule)
+  const cost = state.difficult.length && !state.gmOverride && !free ? reachTerrain(token, radiusFt, near, rule)
     : rule === 'circle' ? reachCircle(token, radiusFt, R, near)
     : rule === 'alternating' ? reachAlternating(token, radiusFt, near)
     : reachStandard(token, radiusFt, near);
@@ -1217,28 +1199,9 @@ function doorAt(wx, wy) {
   return best;
 }
 
+// The AI tracks turns: the DM sends token action endTurn (or the player tells it they are done) and the tracker moves on.
 function endTurn() {
-  if (!state.tokens.length) return;
-  if (state.combat.active) { nextCombatTurn(); return; }
-  // Creatures the party cannot see are skipped: the AI plays their turns in the narration.
-  const was = state.activeIndex;
-  for (let n = 0; n < state.tokens.length; n++) {
-    state.activeIndex = (state.activeIndex + 1) % state.tokens.length;
-    if (!isSummon(activeToken()) && seenByParty(activeToken())) break;
-  }
-  const next = activeToken();
-  next.movementRemaining = effectiveSpeed(next);
-  if (state.activeIndex <= was && tickConditions()) revealFog();     // the order came round: a new round
-  toast(`${next.name}'s turn — ${next.speed} ft of movement`, 'ok');
-  commitBoard();
-}
-
-// In a fight, a player pressing End Turn is telling the DM they are done: the tracker moves on and the DM plays whoever is next.
-function endTurnClicked() {
-  const ending = activeToken();
-  const inFight = state.combat.active && ending && ending.isPC;
-  endTurn();
-  if (inFight && activeToken() !== ending && !state.busy) sendTurn("I end my turn.", { typed: true, as: ending });
+  if (state.combat.active) nextCombatTurn();
 }
 
 function serializeToken(t) {
@@ -1494,11 +1457,9 @@ function syncMapUi() {
   const plain = plainMap();
   $('#fogToggle').disabled = regional;
   $('#resetFogBtn').disabled = regional;
-  $('#moveRule').disabled = plain;
   const why = plain ? 'Not used on a regional or town map' : 'No fog of war on a camp map';
   $('#fogToggle').parentElement.title = regional ? why : "Fog of war: only what the party can see from where they stand is shown, and explored areas are remembered. Enemies outside the party's sight are hidden.";
   $('#resetFogBtn').title = regional ? why : 'Cover the whole map in fog again. Explored areas are forgotten.';
-  $('#moveRule').parentElement.title = plain ? why : 'How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.';
 }
 
 // The maps this campaign can move to, offered in the top bar.
@@ -1895,7 +1856,7 @@ function drawDragPreview() {
   ctx.stroke();
   ctx.setLineDash([]);
   const label = target.same ? '0 ft'
-    : target.legal ? (state.gmOverride ? 'GM move' : `${Math.round(target.cost)} ft`)
+    : target.legal ? (state.gmOverride ? 'GM move' : (state.combat.active ? `${Math.round(target.cost)} ft` : 'move'))
     : 'Out of range';
   ctx.font = `700 ${14 / s}px Inter, "Segoe UI", system-ui, sans-serif`;
   ctx.textAlign = 'center';
@@ -1993,8 +1954,8 @@ canvas.addEventListener('pointerdown', (e) => {
     if (t) {
       const own = isSummon(t) && activeToken() && t.summon.ownerId === activeToken().id;        // a summoned thing moves on its owner's turn
       if (t !== activeToken() && !own && !state.gmOverride) {
-        toast(`It's ${activeToken()?.name ?? 'someone else'}'s turn. Use End Turn or GM Override.`);
-        return;
+        if (!state.combat.active && t.isPC) { state.activeIndex = state.tokens.indexOf(t); renderTurnBar(); }     // out of combat anyone in the party can move; the one you pick is the one speaking
+        else { toast(state.combat.active ? `It's ${activeToken()?.name ?? 'someone else'}'s turn. Tell the DM when you are done.` : 'The DM moves that one.'); return; }
       }
       if (state.gmOverride && t !== activeToken() && !own) {
         state.activeIndex = state.tokens.indexOf(t);
@@ -2099,7 +2060,7 @@ function finishPointer(e, cancelled) {
     } else if (target.legal) {
       t.col = target.col;
       t.row = target.row;
-      if (!state.gmOverride) t.movementRemaining = Math.max(0, t.movementRemaining - Math.min(t.movementRemaining, Math.round(target.cost)));
+      if (!state.gmOverride && state.combat.active) t.movementRemaining = Math.max(0, t.movementRemaining - Math.min(t.movementRemaining, Math.round(target.cost)));
       animateToken(t, fromX, fromY);
       revealFog();
       commitBoard();
@@ -2280,28 +2241,13 @@ function updateHud() {
   $('#hudZoom').textContent = `${Math.round(state.view.scale * 100)}%`;
 }
 
+// Who is acting: the speaker named above the chat box, and (in a fight) the active token's movement left.
 function renderTurnBar() {
-  const tracker = $('#turnTracker');
-  tracker.innerHTML = '';
-  state.tokens.forEach((t, i) => {
-    if (!canSee(t)) return;
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = `turn-chip${i === state.activeIndex ? ' active' : ''}${t.isPC ? '' : ' npc'}`;
-    chip.title = state.gmOverride ? `Make ${t.name} active` : `Center on ${t.name}`;
-    chip.innerHTML = `<span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}` + tokenConditions(t).map((c) => `<span class="cond-dot" style="background:${conditionBadge(c.name)[1]}" title="${esc(conditionLabel(c) + (conditionHelp(c.name) ? ': ' + conditionHelp(c.name) : ''))}">${esc(conditionBadge(c.name)[0])}</span>`).join('');
-    chip.addEventListener('click', () => {
-      if (state.gmOverride) { state.activeIndex = i; commitBoard(); }
-      centerOnToken(t);
-    });
-    tracker.appendChild(chip);
-  });
   const t = activeToken();
-  $('#moveInfo').innerHTML = t
+  $('#moveInfo').innerHTML = t && state.combat.active
     ? `<strong>${esc(t.name)}</strong> · ${t.movementRemaining}/${t.speed} ft (${Math.floor(t.movementRemaining / FT_PER_SQUARE)} sq)`
-    : 'No tokens';
+    : '';
   $('#speakerName').textContent = t ? t.name : 'the party';
-  $('#endTurnBtn').disabled = !t;
 }
 
 function saveBoard() {
@@ -2926,7 +2872,6 @@ function renderCombat() {
   head.appendChild(title);
   const btn = (label, tip, fn, cls) => { const b = document.createElement('button'); b.className = `btn btn-sm${cls ? ' ' + cls : ''}`; b.textContent = label; b.title = tip; b.addEventListener('click', fn); head.appendChild(b); return b; };
   if (state.combat.active) {
-    btn('Next turn ⏭', 'End this turn and move to the next in initiative order', nextCombatTurn, 'btn-gold');
     btn('Roll for players', 'Roll initiative for every player character that has none yet', rollForPlayers);
     btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
   }
@@ -3779,12 +3724,6 @@ function removeTokenAt(t) {
    EVENT BINDINGS
    ===================================================================== */
 function bindUi() {
-  $('#moveRule').addEventListener('change', (e) => {
-    if (!MOVE_RULES.includes(e.target.value)) return;
-    state.moveRule = e.target.value;
-    store.set('vtt.moveRule', state.moveRule);
-    requestRender();
-  });
   $('#mapPick').addEventListener('change', async (e) => {
     const p = state.places.find((x) => x.url === e.target.value);
     if (p) await travelTo({ mapUrl: p.url, mapName: p.name, kind: p.kind, col: p.start.col, row: p.start.row, px: p.startPx });
@@ -3805,7 +3744,6 @@ function bindUi() {
     renderTurnBar();
     requestRender();
   });
-  $('#endTurnBtn').addEventListener('click', endTurnClicked);
   // Sidebar tabs: the table (chat and combat), the campaign journal and the party. The last two are the Journal and Party pages shown here.
   const showTab = (name) => {
     document.querySelectorAll('.sidebar .tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
@@ -3889,9 +3827,6 @@ async function init() {
       if (board && board.mapUrl) store.remove('vtt.fog.' + board.mapUrl);
     } catch (err) { toast(`Could not build the starting scene: ${err.message}`, 'error', 6000); }
   }
-  const savedRule = store.get('vtt.moveRule', 'circle');
-  if (MOVE_RULES.includes(savedRule)) state.moveRule = savedRule;
-  $('#moveRule').value = state.moveRule;
   state.dmView = store.get('vtt.dmView', false) === true;
   $('#dmView').checked = state.dmView;
   // Light, Save scene and the scene picker are setup tools, not table controls: they stay hidden (the DM sets the lights, and scenes come from the campaign).
