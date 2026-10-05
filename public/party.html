@@ -308,9 +308,27 @@
     return card;
   }
 
+  // Camp supplies and the rest rules. A long rest uses 40 supplies; with fewer it is only a partial rest. Two short rests a day.
+  function campBox() {
+    var camp = state.stash.camp || { supplies: 0, shortRests: 0, day: 1 };
+    var box = el('div', 'campbox');
+    var row = el('div', 'row');
+    var lab = el('label'); lab.title = 'A long rest uses 40 camp supplies. With fewer, the rest is partial: only that share of hit points and spell slots comes back.';
+    var inp = el('input'); inp.type = 'number'; inp.min = '0'; inp.value = camp.supplies;
+    inp.addEventListener('change', function () { camp.supplies = Math.max(0, Math.round(Number(inp.value) || 0)); state.stash.camp = camp; saveStash(); });
+    lab.append(document.createTextNode('Camp supplies '), inp);
+    var info = el('span', 'meta', ' Day ' + camp.day + ' · short rests today ' + camp.shortRests + '/2 · a long rest uses 40');
+    row.append(lab, info);
+    box.appendChild(row);
+    var enough = camp.supplies >= 40;
+    box.appendChild(el('div', 'weight' + (enough ? '' : ' warn'), enough ? 'Enough for ' + Math.floor(camp.supplies / 40) + ' long rest' + (camp.supplies >= 80 ? 's' : '') + '.' : 'Not enough for a full long rest: it would restore about ' + Math.round(camp.supplies / 40 * 100) + '%.'));
+    return box;
+  }
+
   function stashCard() {
     var card = el('div', 'card');
     card.appendChild(el('h3', '', 'Party stash'));
+    card.appendChild(campBox());
     card.appendChild(el('div', 'meta', 'Shared loot and supplies. Give an item to a character from here.'));
     card.appendChild(el('h4', '', 'Items'));
     var targets = state.characters.map(function (x) { return { id: x.id, name: x.name }; });

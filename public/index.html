@@ -473,6 +473,7 @@ const state = {
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
+  cbMore: false,                      // the combat panel's add-a-creature row is showing (remembered in localStorage vtt.cbMore)
   wallsInPicture: false,
   pendingCorrections: [],            // moves the table adjusted; told to the DM with the next message
   ambience: '',                      // the map's ambient sound ('' = pick one from the kind of place)
@@ -2770,8 +2771,6 @@ function renderCombat() {
     btn('Roll for players', 'Roll initiative for every player character that has none yet', rollForPlayers);
     btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
   } else {
-    btn('Short rest', 'The party takes a short rest', () => takeRest('short'));
-    btn('Long rest', 'The party camps for the night: hit points and spell slots are restored', () => takeRest('long'));
     btn('Start combat', 'Roll initiative for the creatures on the board and begin tracking rounds', startCombat, 'btn-primary');
   }
   const conj = document.createElement('div');
@@ -2808,7 +2807,11 @@ function renderCombat() {
   go.addEventListener('click', submit);
   name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   add.append(name, count, hid, go);
-  box.append(head, add, conj);
+  // Adding creatures and conjuring things are tucked away behind one button so the panel stays small.
+  const more = btn(state.cbMore ? '− Add' : '＋ Add', 'Add a creature from the SRD, or conjure something for the active character', () => { state.cbMore = !state.cbMore; store.set('vtt.cbMore', state.cbMore); renderCombat(); });
+  more.setAttribute('aria-expanded', String(Boolean(state.cbMore)));
+  box.appendChild(head);
+  if (state.cbMore) box.append(add, conj);
   if (state.combat.active) {
     const rows = combatTokens().filter(canSee);
     for (const t of rows) box.appendChild(combatRow(t));
@@ -2822,25 +2825,15 @@ function renderCombat() {
 
 // A rest ends lasting effects on the player tokens; a long rest also clears exhaustion and the dying state. (Hit points and spell
 // slots are restored on the server; the characters are reloaded after.)
-function restTokens(kind) {
+function restTokens(kind, fraction = 1) {
+  // Any long rest that restores something gets the dying back on their feet; only a full one also clears exhaustion.
+  const healed = kind === 'long' && fraction > 0, full = kind === 'long' && fraction >= 1;
   for (const t of state.tokens.filter((x) => x.isPC)) {
-    t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(kind === 'long' && (c.name === 'exhaustion' || c.name === 'unconscious')));
-    if (kind === 'long') { t.deathSaves = null; t.stable = false; t.dead = false; }
+    t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(full && c.name === 'exhaustion') && !(healed && c.name === 'unconscious'));
+    if (healed) { t.deathSaves = null; t.stable = false; t.dead = false; }
   }
   revealFog();
-  addChat('system', kind === 'long' ? '☾ The party takes a long rest: hit points and spell slots are restored' : '☾ The party takes a short rest');
   commitBoard();
-}
-
-async function takeRest(kind) {
-  if (state.busy) return;
-  try {
-    await jsonPost('/api/party/rest', { kind });
-    await loadCharacters();
-    restTokens(kind);
-    // Let the Dungeon Master narrate it (and handle anything that happens in the night).
-    await sendTurn(`The party takes a ${kind} rest here. (The table has already restored hit points and spell slots.)`, { typed: true });
-  } catch (err) { toast(err.message, 'error'); }
 }
 
 // Attack d20 for tables where the player rolls their own dice.
@@ -3539,7 +3532,7 @@ async function applyMapUpdates(updates) {
         break;
       }
       case 'restParty':
-        restTokens(u.kind);
+        if (!u.refused) restTokens(u.kind, u.fraction);
         break;
       case 'setMood':
         state.mood = Ambience.moods.includes(u.mood) && u.mood !== 'calm' ? u.mood : '';
@@ -3768,6 +3761,7 @@ async function init() {
   syncDiceUi();
   syncScenePick();
   syncAmbienceUi();
+  state.cbMore = store.get('vtt.cbMore', false) === true;
   renderChat();
   scrollChat();
   await loadCharacters();
