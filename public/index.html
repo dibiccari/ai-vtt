@@ -108,6 +108,7 @@
   .cond-panel .hint { color: var(--muted); font-size: 12px; margin: 8px 0 4px; }
   .move-info { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .move-info strong { color: var(--text); }
+  .move-rule[hidden], .btn[hidden] { display: none; }
   .move-rule { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
   .move-rule input { accent-color: var(--accent); }
   .move-rule select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font: inherit; }
@@ -330,10 +331,10 @@
       <span>Map</span>
       <select id="mapPick" aria-label="Map"></select>
     </label>
-    <label class="move-rule" title="Fog of war: only what the party can see from where they stand is shown, and explored areas are remembered. Enemies outside the party's sight are hidden.">
+    <label class="move-rule" hidden title="Fog of war: only what the party can see from where they stand is shown, and explored areas are remembered. Enemies outside the party's sight are hidden.">
       <input type="checkbox" id="fogToggle"> <span>Fog of war</span>
     </label>
-    <button class="btn btn-sm" id="resetFogBtn" title="Cover the whole map in fog again. Explored areas are forgotten.">↺ Reset fog</button>
+    <button class="btn btn-sm" id="resetFogBtn" hidden title="Cover the whole map in fog again. Explored areas are forgotten.">↺ Reset fog</button>
     <label class="move-rule" title="Show tokens the players cannot see (hidden, invisible, hiding, traps, or out of sight) as faint ghosts. Only for the person running the test.">
       <input type="checkbox" id="dmView"> <span>DM view</span>
     </label>
@@ -473,6 +474,7 @@ const state = {
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
+  visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
   cbMore: false,                      // the combat panel's add-a-creature row is showing (remembered in localStorage vtt.cbMore)
   wallsInPicture: false,
   pendingCorrections: [],            // moves the table adjusted; told to the DM with the next message
@@ -1353,6 +1355,7 @@ async function travelTo(u) {
   focusStart();
   commitBoard();
   syncMapPick();
+  visitMap(u.mapUrl);
   addChat('system', `↳ The party arrives at ${u.mapName || 'a new map'}`);
 }
 
@@ -1374,15 +1377,26 @@ async function loadPlaces() {
   try {
     state.places = (await api('/api/maps/available')).maps || [];
   } catch { state.places = []; }
+  renderMapPick();
+}
+
+// The Map picker offers the regional map (first, always), a camp (always) and any other place the party has been to. Places they have not
+// found yet stay off the list; the DM can still take them there, and arriving makes them selectable.
+function visitMap(url) {
+  if (url && !state.visitedMaps.includes(url)) { state.visitedMaps.push(url); renderMapPick(); }
+}
+function renderMapPick() {
   const sel = $('#mapPick');
   sel.innerHTML = '';
-  for (const p of state.places) {
+  const open = state.places.filter((p) => p.kind === 'regional' || p.kind === 'camp' || state.visitedMaps.includes(p.url) || p.url === state.map.url);
+  open.sort((a, b) => (a.kind === 'regional' ? 0 : 1) - (b.kind === 'regional' ? 0 : 1));       // the regional map comes first; the rest keep the campaign's order
+  for (const p of open) {
     const o = document.createElement('option');
     o.value = p.url;
     o.textContent = p.name;
     sel.appendChild(o);
   }
-  $('#mapPickBox').hidden = !state.places.length;
+  $('#mapPickBox').hidden = !open.length;
   syncMapPick();
 }
 
@@ -2171,6 +2185,7 @@ function saveBoard() {
     zoomToParty: state.zoomToParty,
     mapKind: state.mapKind,
     mapMemory: state.mapMemory,
+    visitedMaps: state.visitedMaps,
     fogBeforeOverland: state.fogBeforeOverland,
     combat: state.combat,
     lightsOff: state.lightsOff,
@@ -3745,12 +3760,13 @@ async function init() {
   if (board && typeof board === 'object') {
     state.tokens = Array.isArray(board.tokens) ? board.tokens.filter((t) => t && t.id) : [];
     state.activeIndex = Number.isInteger(board.activeIndex) ? board.activeIndex : 0;
-    state.fogEnabled = board.fogEnabled !== false;
+    state.fogEnabled = board.fogEnabled !== false;   // on by default; only the Test Lab checkbox can start a board with it off
     state.gridOpacity = Number.isFinite(board.gridOpacity) ? board.gridOpacity : 0.35;
     state.zoomToParty = board.zoomToParty === true;
     // Boards saved before the kind was recorded: the Sword Coast map is the overland one.
     state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : board.mapKind === 'camp' ? 'camp' : 'battle';
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
+    state.visitedMaps = Array.isArray(board.visitedMaps) ? board.visitedMaps.filter((u) => typeof u === 'string') : [];
     state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
     state.lightsOff = board.lightsOff && typeof board.lightsOff === 'object' ? board.lightsOff : {};
     state.ambientOverride = ['bright', 'dim', 'dark'].includes(board.ambientOverride) ? board.ambientOverride : '';
@@ -3768,6 +3784,7 @@ async function init() {
   if (!state.tokens.length) createDefaultTokens();
   await setMap(board?.mapUrl || null);
   if (state.zoomToParty) focusStart();
+  visitMap(state.map.url);
   if (!state.chat.length) {
     let campaignNote = '';
     if (active) campaignNote = active.totalChars ? ` Campaign: ${active.name} (${active.files.length} documents loaded).` : ` Campaign: ${active.name} has no text loaded, so the DM is improvising. Add it on the Campaigns page.`;
