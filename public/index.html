@@ -480,7 +480,6 @@ const state = {
   combat: { active: false, round: 0, order: [] },
   permadeath: false,                  // the campaign's Death setting (Campaigns > Settings); off = no permanent character death
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
-  cbMore: false,                      // the combat panel's add-a-creature row is showing (remembered in localStorage vtt.cbMore)
   wallsInPicture: false,
   pendingCorrections: [],            // moves the table adjusted; told to the DM with the next message
   ambience: '',                      // the map's ambient sound ('' = pick one from the kind of place)
@@ -2804,45 +2803,8 @@ function renderCombat() {
   }
   // There is no Start combat button: the DM starts a fight (token action startCombat) when the players act against someone or say they roll for
   // initiative. Once it is running the buttons above let a person step in.
-  const conj = document.createElement('div');
-  conj.className = 'cb-add';
-  const conjSel = document.createElement('select');
-  conjSel.setAttribute('aria-label', 'Conjure');
-  for (const [v, text] of [['', 'Conjure (for the active character)…']].concat(Object.keys(SUMMONS).map((k) => [k, SUMMONS[k].name]))) { const o = document.createElement('option'); o.value = v; o.textContent = text; conjSel.appendChild(o); }
-  conjSel.addEventListener('change', () => { if (conjSel.value && activeToken()) conjure(conjSel.value, isSummon(activeToken()) ? state.tokens.find((o) => o.id === activeToken().summon.ownerId) : activeToken()); conjSel.value = ''; });
-  conj.appendChild(conjSel);
-  const add = document.createElement('div');
-  add.className = 'cb-add';
-  const name = document.createElement('input');
-  name.type = 'text';
-  name.placeholder = 'Add a creature (SRD)…';
-  name.setAttribute('list', 'monsterList');
-  name.setAttribute('aria-label', 'Creature to add');
-  name.addEventListener('focus', loadMonsterNames);
-  const count = document.createElement('input');
-  count.type = 'number';
-  count.min = '1';
-  count.max = '20';
-  count.value = '1';
-  count.className = 'cb-num';
-  count.title = 'How many';
-  const hid = document.createElement('label');
-  hid.className = 'cb-ac';
-  const hidBox = document.createElement('input');
-  hidBox.type = 'checkbox';
-  hid.append(hidBox, document.createTextNode(' hidden'));
-  const go = document.createElement('button');
-  go.className = 'btn btn-sm';
-  go.textContent = 'Add';
-  const submit = () => { if (name.value.trim()) addMonsters(name.value, Number(count.value), hidBox.checked).then(() => { name.value = ''; }).catch((err) => toast(err.message, 'error')); };
-  go.addEventListener('click', submit);
-  name.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
-  add.append(name, count, hid, go);
-  // Adding creatures and conjuring things are tucked away behind one button so the panel stays small.
-  const more = btn(state.cbMore ? '− Add' : '＋ Add', 'Add a creature from the SRD, or conjure something for the active character', () => { state.cbMore = !state.cbMore; store.set('vtt.cbMore', state.cbMore); renderCombat(); });
-  more.setAttribute('aria-expanded', String(Boolean(state.cbMore)));
+  // Creatures and conjured things (a Spiritual Weapon, Mage Hand) are put on the map by the DM, not from here.
   box.appendChild(head);
-  if (state.cbMore) box.append(add, conj);
   if (state.combat.active) {
     const rows = combatTokens().filter(canSee);
     for (const t of rows) box.appendChild(combatRow(t));
@@ -3812,7 +3774,6 @@ async function init() {
   syncDiceUi();
   syncScenePick();
   syncAmbienceUi();
-  state.cbMore = store.get('vtt.cbMore', false) === true;
   renderChat();
   scrollChat();
   await loadCharacters();
