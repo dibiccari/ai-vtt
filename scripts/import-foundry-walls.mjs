@@ -28,11 +28,24 @@ const sceneY = Math.ceil((scene.height * (scene.padding ?? 0.25)) / grid) * grid
 const cfgFile = path.join(root, 'data', 'maps', `${mapName}.json`);
 const config = JSON.parse(await readFile(cfgFile, 'utf8'));
 const round = (n) => Math.round(n * 100) / 100;
+// Foundry walls can run out past the picture's edge into the padding; clip each one to the picture (Liang-Barsky).
+function clip(x1, y1, x2, y2, W, H) {
+  let t0 = 0, t1 = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  for (const [p, q] of [[-dx, x1], [dx, W - x1], [-dy, y1], [dy, H - y1]]) {
+    if (p === 0) { if (q < 0) return null; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+  }
+  return [x1 + t0 * dx, y1 + t0 * dy, x1 + t1 * dx, y1 + t1 * dy];
+}
 const walls = [];
 for (const w of scene.walls ?? []) {
   if (!Array.isArray(w.c) || w.c.length < 4 || !(w.sight > 0)) continue;       // walls that do not stop sight do not matter here
   const door = w.door === 1;                                                   // 1 = door, 2 = secret door (stays a wall until found)
-  walls.push({ x1: round(w.c[0] - sceneX), y1: round(w.c[1] - sceneY), x2: round(w.c[2] - sceneX), y2: round(w.c[3] - sceneY), type: door ? 'door' : 'wall', open: door && w.ds === 1 });
+  const seg = clip(w.c[0] - sceneX, w.c[1] - sceneY, w.c[2] - sceneX, w.c[3] - sceneY, scene.width, scene.height);
+  if (!seg || Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) < 1) continue;
+  walls.push({ x1: round(seg[0]), y1: round(seg[1]), x2: round(seg[2]), y2: round(seg[3]), type: door ? 'door' : 'wall', open: door && w.ds === 1 });
 }
 const before = (config.walls || []).length;
 config.walls = walls;

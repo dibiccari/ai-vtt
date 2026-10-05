@@ -2,8 +2,8 @@
   "squares": 30,
   "walls": [
     {
-      "x1": -35,
-      "y1": 980,
+      "x1": 0,
+      "y1": 976.77,
       "x2": 149,
       "y2": 963,
       "type": "wall",
@@ -922,14 +922,6 @@
       "open": false
     },
     {
-      "x1": 1706,
-      "y1": 1400,
-      "x2": 1724,
-      "y2": 1426,
-      "type": "wall",
-      "open": false
-    },
-    {
       "x1": 578,
       "y1": 271,
       "x2": 648,
@@ -1550,6 +1542,8 @@
       "y": 946
     }
   ],
+  "light": "dim",
+  "ambience": "cave",
   "source": "dd2vtt",
   "lights": [
     {
@@ -1693,7 +1687,5 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ffffffff",
-  "light": "dim",
-  "ambience": "cave"
+  "ambient": "ffffffff"
 }
