@@ -58,23 +58,27 @@
   /* the bar: the active token's movement (in a fight) on the left, the table's settings on the right */
   .map-controls { flex: 0 0 100%; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .map-controls .spacer { flex: 1; }
-  .combat { flex: 0 0 auto; max-height: 46%; overflow: auto; border-bottom: 1px solid var(--border); background: var(--panel-2); padding: 8px 10px; }
+  .map-body { flex: 1; display: flex; min-height: 0; min-width: 0; }
+  .combat { order: -1; flex: 0 0 310px; overflow-y: auto; border-right: 1px solid var(--border); background: var(--panel-2); padding: 8px 10px; }       /* the left edge of the map pane */
+  .combat[hidden] { display: none; }
   .combat .cb-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .combat .cb-title { font-weight: 800; font-size: 13px; margin-right: auto; }
   .combat .cb-title small { color: var(--muted); font-weight: 600; }
-  .cb-row { border: 1px solid var(--border); border-radius: 8px; padding: 5px 7px; margin-top: 6px; background: var(--panel); }
+  .cb-row { border: 1px solid var(--border); border-radius: 8px; padding: 3px 6px; margin-top: 4px; background: var(--panel); }
   .cb-row.current { border-color: var(--gold); background: var(--gold-soft); }
   .cb-row.dead { opacity: 0.5; }
   .cb-row.npc { border-style: dashed; }
   .cb-line { display: flex; align-items: center; gap: 6px; }
   .cb-line + .cb-line { margin-top: 4px; }
   .combat input[type="text"], .combat input[type="number"], .combat select { width: auto; padding: 3px 6px; font-size: 13px; }
-  .combat input.cb-init { width: 46px; text-align: center; font-weight: 800; }
+  .combat input.cb-init { width: 42px; text-align: center; font-weight: 800; padding: 2px 2px; }
+  .cb-more { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 12px; }
+  .cb-row .cond-dot { flex: none; }
   .cb-name { flex: 1; text-align: left; background: none; border: 0; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cb-ac { color: var(--muted); font-size: 12px; white-space: nowrap; }
-  .cb-hpbar { flex: 1; height: 8px; background: #0d1117; border-radius: 4px; overflow: hidden; min-width: 40px; }
+  .cb-hpbar { flex: 0 0 56px; height: 7px; background: #0d1117; border-radius: 4px; overflow: hidden; }
   .cb-hpbar i { display: block; height: 100%; }
-  .cb-hptext { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+  .cb-hptext { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
   .map-controls select#scenePick { width: auto; max-width: 150px; padding: 4px 8px; }
   .combat input.cb-num { width: 56px; }
   .cb-pip { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #3a4558; background: none; padding: 0; cursor: pointer; font-size: 10px; color: var(--muted); }
@@ -104,6 +108,7 @@
   .move-rule select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font: inherit; }
   .canvas-wrap { position: relative; flex: 1; min-height: 0; background: var(--canvas-bg); overflow: hidden; }
   #board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: default; }
+  .hud[hidden] { display: none; }
   .hud {
     position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; align-items: center;
     pointer-events: none; font: 12px var(--mono); color: var(--muted);
@@ -166,7 +171,7 @@
   .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
 
   /* chat */
-  .chat-log { display: flex; flex-direction: column; gap: 10px; }
+  .chat-log { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
   .msg { border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); max-width: 100%; }
   .msg .who { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
   .msg .body { white-space: pre-wrap; word-wrap: break-word; }
@@ -301,6 +306,8 @@
   @media (max-width: 900px) {
     body { grid-template-columns: 1fr; grid-template-rows: auto 58vh minmax(0, 1fr); height: 100dvh; }
     .map-panel { border-right: none; border-bottom: 1px solid var(--border); }
+    .map-body { flex-direction: column; }
+    .combat { order: 0; flex-basis: auto; max-height: 34vh; border-right: none; border-bottom: 1px solid var(--border); }
     .map-toolbar { padding: 8px 12px; gap: 8px; }
     .brand { display: none; }
   }
@@ -336,14 +343,18 @@
     <button class="btn btn-sm lab-only" hidden id="sceneDelete" title="Delete the chosen scene" disabled>✕</button>
     </div>
   </div>
+  <div class="map-body">
   <div class="canvas-wrap" id="canvasWrap">
     <canvas id="board" aria-label="Battlemap canvas"></canvas>
-    <div class="hud"><span class="pill" id="hudCoords">—</span><span class="pill" id="hudZoom">100%</span></div>
+    <div class="hud" hidden><span class="pill" id="hudCoords">—</span><span class="pill" id="hudZoom">100%</span></div>
     <div class="zoom-controls">
       <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
       <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
     </div>
+  </div>
+  <!-- COMBAT TRACKER: beside the map, only while there is a fight -->
+  <section class="combat" id="combatPanel" aria-label="Combat tracker"></section>
   </div>
 </main>
 
@@ -355,9 +366,6 @@
     <button class="tab" role="tab" id="tab-journal" data-tab="journal" aria-selected="false" title="What has happened in this campaign so far">📓 Journal</button>
     <button class="tab" role="tab" id="tab-party" data-tab="party" aria-selected="false" title="The party's gear, attunement and stash">🎒 Party</button>
   </div>
-
-  <!-- ---------------------------------------------------- COMBAT TRACKER -->
-  <section class="combat" id="combatPanel" aria-label="Combat tracker"></section>
 
   <datalist id="monsterList"></datalist>
   <!-- ---------------------------------------------------- TAB 1: CHAT -->
@@ -462,6 +470,7 @@ const state = {
   difficult: [],                      // difficult-terrain rectangles of the current map, in board pixels
   difficultSquares: null,             // the squares inside them (built when first needed)
   permadeath: false,                  // the campaign's Death setting (Campaigns > Settings); off = no permanent character death
+  cbOpen: new Set(),                  // combatants whose details are open in the combat panel (the active one always is)
   autoTurns: 0,                       // creature turns the table has started in a row without a player acting (capped)
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
   wallsInPicture: false,
@@ -2592,10 +2601,12 @@ const combatTokens = () => state.combat.order.map((id) => state.tokens.find((t) 
 // A d20 from the browser's secure random source (rejection sampling keeps every face equally likely).
 const d20 = () => { const buf = new Uint32Array(1); do { crypto.getRandomValues(buf); } while (buf[0] >= 4294967280); return 1 + (buf[0] % 20); };
 // Initiative rolled by the table itself, shown in the chat like every other roll (creatures the party cannot see keep their roll to themselves).
-function rollInitiative(t) {
+function rollInitiative(t, quiet) {
   const die = d20(), mod = dexModOf(t);
   t.initiative = die + mod;
-  if (t.isPC || seenByParty(t)) addChat('system', `🎲 ${t.name} initiative: d20 (${die}) ${mod < 0 ? '−' : '+'} ${Math.abs(mod)} = ${t.initiative}`);
+  const line = `${t.name} d20 (${die}) ${mod < 0 ? '−' : '+'} ${Math.abs(mod)} = ${t.initiative}`;
+  if (!quiet && (t.isPC || seenByParty(t))) addChat('system', `🎲 ${t.name} initiative: ${line.slice(t.name.length + 1)}`);
+  return t.isPC || seenByParty(t) ? line : '';
 }
 
 // Hit points go up or down here. A creature at 0 is defeated; a player character at 0 falls unconscious and starts making death saves.
@@ -2639,11 +2650,13 @@ function startCombat() {
   const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead && !isSummon(t));
   if (!members.length) { toast('Put some tokens on the map first'); return; }
   state.combat = { active: true, round: 1, order: members.map((t) => t.id) };
+  const rolled = [];
   for (const t of members) {
     // Creatures are always rolled here. The players are too when the DM rolls for them; at a table where they roll their own, they give theirs.
-    if (t.isPC && store.get('vtt.diceMode', 'ai') === 'player') t.initiative = null; else rollInitiative(t);
+    if (t.isPC && store.get('vtt.diceMode', 'ai') === 'player') t.initiative = null; else { const line = rollInitiative(t, true); if (line) rolled.push(line); }
     t.spent = { a: false, b: false, r: false };
   }
+  if (rolled.length) addChat('system', '🎲 Initiative: ' + rolled.join(' · '));
   sortCombat();
   const first = combatTokens()[0];
   if (first) state.activeIndex = state.tokens.indexOf(first);
@@ -2749,9 +2762,13 @@ function pips(count, cls, onClick) {
   return row;
 }
 
+// One compact line per combatant (initiative, name, conditions, hit points, AC). The active combatant opens up to show the details (actions used,
+// changing hit points, death saves); any other row opens with its arrow.
 function combatRow(t) {
+  const current = t === activeToken() && state.combat.active;
+  const open = current || state.cbOpen.has(t.id);
   const row = document.createElement('div');
-  row.className = `cb-row${t === activeToken() && state.combat.active ? ' current' : ''}${t.dead ? ' dead' : ''}${t.isPC ? '' : ' npc'}`;
+  row.className = `cb-row${current ? ' current' : ''}${t.dead ? ' dead' : ''}${t.isPC ? '' : ' npc'}`;
   const line1 = document.createElement('div');
   line1.className = 'cb-line';
   const init = document.createElement('input');
@@ -2764,7 +2781,7 @@ function combatRow(t) {
   const name = document.createElement('button');
   name.className = 'cb-name';
   name.textContent = t.name + (t.dead ? ' ✖' : '');
-  name.title = state.gmOverride ? `Make ${t.name} active` : `Center on ${t.name}`;
+  name.title = `Center on ${t.name}`;
   name.addEventListener('click', () => { centerOnToken(t); });
   line1.append(init, name);
   if (t.monster) {
@@ -2776,15 +2793,17 @@ function combatRow(t) {
     link.title = 'Open the stat block';
     line1.appendChild(link);
   }
-  const ac = acOf(t);
-  if (ac !== null) { const s = document.createElement('span'); s.className = 'cb-ac'; s.textContent = `AC ${ac}`; line1.appendChild(s); }
-  row.appendChild(line1);
-
+  for (const c of tokenConditions(t)) {
+    const chip = document.createElement('span');
+    chip.className = 'cond-dot';
+    chip.style.background = conditionBadge(c.name)[1];
+    chip.title = conditionLabel(c) + (conditionHelp(c.name) ? ': ' + conditionHelp(c.name) : '');
+    chip.textContent = conditionBadge(c.name)[0];
+    line1.appendChild(chip);
+  }
   const max = maxHpOf(t);
+  const hp = max !== null ? hpOf(t) : null;
   if (max !== null) {
-    const hp = hpOf(t);
-    const line2 = document.createElement('div');
-    line2.className = 'cb-line';
     const bar = document.createElement('div');
     bar.className = 'cb-hpbar';
     const fill = document.createElement('i');
@@ -2795,6 +2814,25 @@ function combatRow(t) {
     const text = document.createElement('span');
     text.className = 'cb-hptext';
     text.textContent = `${hp}/${max}`;
+    line1.append(bar, text);
+  }
+  const ac = acOf(t);
+  if (ac !== null) { const s = document.createElement('span'); s.className = 'cb-ac'; s.textContent = `AC ${ac}`; line1.appendChild(s); }
+  if (!current) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'cb-more';
+    more.textContent = open ? '▴' : '▾';
+    more.title = open ? 'Hide the details' : 'Show actions used, change hit points';
+    more.addEventListener('click', () => { if (open) state.cbOpen.delete(t.id); else state.cbOpen.add(t.id); renderCombat(); });
+    line1.appendChild(more);
+  }
+  row.appendChild(line1);
+  if (!open) return row;
+
+  if (max !== null) {
+    const line2 = document.createElement('div');
+    line2.className = 'cb-line';
     const amount = document.createElement('input');
     amount.type = 'number';
     amount.min = '1';
@@ -2805,7 +2843,7 @@ function combatRow(t) {
     const dmg = document.createElement('button'); dmg.className = 'btn btn-sm'; dmg.textContent = '−'; dmg.title = 'Damage'; dmg.addEventListener('click', () => apply(-1));
     const heal = document.createElement('button'); heal.className = 'btn btn-sm'; heal.textContent = '+'; heal.title = 'Heal'; heal.addEventListener('click', () => apply(1));
     amount.addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(-1); });
-    line2.append(bar, text, amount, dmg, heal);
+    line2.append(amount, dmg, heal);
     row.appendChild(line2);
     if (t.isPC && hp === 0 && !t.stable && t.deathSaves) {
       const line3 = document.createElement('div');
@@ -2824,7 +2862,6 @@ function combatRow(t) {
       row.appendChild(line3);
     }
   }
-
   if (state.combat.active) {
     const line4 = document.createElement('div');
     line4.className = 'cb-line';
@@ -2837,14 +2874,6 @@ function combatRow(t) {
       b.title = tip;
       b.addEventListener('click', () => { t.spent = { ...spent, [key]: !spent[key] }; commitBoard(); renderCombat(); });
       line4.appendChild(b);
-    }
-    for (const c of tokenConditions(t)) {
-      const chip = document.createElement('span');
-      chip.className = 'cond-dot';
-      chip.style.background = conditionBadge(c.name)[1];
-      chip.title = conditionLabel(c) + (conditionHelp(c.name) ? ': ' + conditionHelp(c.name) : '');
-      chip.textContent = conditionBadge(c.name)[0];
-      line4.appendChild(chip);
     }
     row.appendChild(line4);
   }
@@ -3742,7 +3771,6 @@ function bindUi() {
   const showTab = (name) => {
     document.querySelectorAll('.sidebar .tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
     for (const id of ['chat', 'journal', 'party']) $('#panel-' + id).classList.toggle('active', id === name);
-    $('#combatPanel').style.display = name === 'chat' ? '' : 'none';
     if (name === 'journal') $('#frameJournal').src = '/journal.html?embed=1&t=' + Date.now();     // reloaded each time, so it shows what the DM just wrote
     if (name === 'party') $('#frameParty').src = '/party.html?embed=1&t=' + Date.now();
     store.set('vtt.sideTab', name);
