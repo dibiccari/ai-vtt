@@ -4,7 +4,8 @@
 // Then: node scripts/import-dd2vtt.mjs public/scenarios/terrain-test.dd2vtt terrain-test
 //       node scripts/apply-map-sidecar.mjs public/scenarios/terrain-test.config.json terrain-test.png
 // What is on it: trees (the trunks block sight and movement), two boulders (block both), a creek you can wade (difficult terrain), a field
-// of rubble with a ruined wall (difficult terrain, the wall blocks sight), a thicket of undergrowth (difficult terrain, does not block sight).
+// of rubble with a ruined wall (difficult terrain, the wall blocks sight), a thicket of undergrowth (difficult terrain, does not block sight),
+// a small house with a door (walls block sight until the door is opened) and a flickering campfire.
 
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -23,7 +24,9 @@ const creekY = (gx) => 15 + 2.5 * Math.sin(gx * 0.35);       // the creek's cent
 const HALF = 1.4;                                            // half its width
 const RUBBLE = { x: 6, y: 19, w: 5, h: 4 };                  // squares
 const THICKET = { x: 20, y: 5, w: 6, h: 4 };
-const TREES = [[5, 4], [9, 7], [14, 5], [22, 3], [27, 8], [33, 5], [36, 10], [3, 24], [12, 26], [19, 22], [26, 26], [33, 22], [37, 26], [17, 9]];
+const HOUSE = { x: 28, y: 1.2, w: 5, h: 3.6, door: [30.2, 31.8], back: [2.2, 3.4] };       // squares; the front door is in the south wall (between these two x values), a back door in the east wall (between these two y values)
+const FIRE = { x: 7, y: 12.5 };
+const TREES = [[5, 4], [9, 7], [14, 5], [22, 3], [27, 8], [35, 6], [36, 10], [3, 24], [12, 26], [19, 22], [26, 26], [33, 22], [37, 26], [17, 9]];
 const BOULDERS = [{ x: 28, y: 21, rx: 1.1, ry: 0.85 }, { x: 11, y: 10.5, rx: 0.7, ry: 0.55 }];
 const inRect = (gx, gy, r, pad = 0) => gx >= r.x - pad && gx <= r.x + r.w + pad && gy >= r.y - pad && gy <= r.y + r.h + pad;
 
@@ -31,7 +34,7 @@ const inRect = (gx, gy, r, pad = 0) => gx >= r.x - pad && gx <= r.x + r.w + pad 
 p.fillWith((x, y) => {
   const gx = x / PPG, gy = y / PPG;
   const n = fbm(gx * 1.7, gy * 1.7, 5), n2 = fbm(gx * 6, gy * 6, 11);
-  let col = [64 + n * 46 + n2 * 10, 104 + n * 52 + n2 * 12, 52 + n * 30];                     // grass
+  let col = [44 + n * 40 + n2 * 10, 120 + n * 56 + n2 * 14, 38 + n * 24];                     // grass: a fresh, saturated green
   const d = Math.abs(gy - creekY(gx));
   if (d < HALF + 0.35) {
     const bank = clamp((d - HALF) / 0.35, 0, 1);                                              // 0 in the water, 1 on dry ground
@@ -91,6 +94,67 @@ for (const b of BOULDERS) {
   level.solid(pts);
 }
 
+/* ---------------- the small house (a cutaway: floor and furniture inside, walls block sight, a door in the south wall) ---------------- */
+{
+  const x0 = sq(HOUSE.x), y0 = sq(HOUSE.y), x1 = sq(HOUSE.x + HOUSE.w), y1 = sq(HOUSE.y + HOUSE.h);
+  p.rect(x0 + 8 + 6, y0 + 9, x1 - x0 + 5, y1 - y0 + 6, [20, 40, 18]);                 // soft shadow on the grass
+  for (let yy = y0; yy < y1; yy += 12) p.rect(x0, yy, x1 - x0, 12, shade([176, 128, 80], 0.9 + hash(Math.floor(yy / 12), 4, 9) * 0.2));   // plank floor
+  for (let yy = y0; yy < y1; yy += 12) p.rect(x0, yy, x1 - x0, 1, [96, 66, 40], 0.7);
+  // table with two stools, a bed and a chest
+  p.rect(sq(HOUSE.x + 2.6), sq(HOUSE.y + 1.2), sq(1.5), sq(0.9), [120, 82, 48]);
+  p.rect(sq(HOUSE.x + 2.6), sq(HOUSE.y + 1.2), sq(1.5), 3, [152, 110, 70]);
+  p.disc(sq(HOUSE.x + 2.9), sq(HOUSE.y + 2.5), sq(0.22), [104, 70, 42]);
+  p.disc(sq(HOUSE.x + 3.8), sq(HOUSE.y + 2.5), sq(0.22), [104, 70, 42]);
+  p.rect(sq(HOUSE.x + 0.4), sq(HOUSE.y + 0.4), sq(1.1), sq(1.9), [168, 60, 56]);
+  p.rect(sq(HOUSE.x + 0.4), sq(HOUSE.y + 0.4), sq(1.1), sq(0.45), [236, 226, 206]);
+  p.rect(sq(HOUSE.x + 0.4), sq(HOUSE.y + 2.5), sq(0.9), sq(0.55), [92, 60, 34]);
+  p.rect(sq(HOUSE.x + 0.4), sq(HOUSE.y + 2.5), sq(0.9), 3, [150, 110, 64]);
+  // walls: thick timber and stone, with a gap for the door
+  const T = 7, wallCol = [92, 72, 54];
+  const run = (ax, ay, bx, by) => { p.capsule(ax, ay, bx, by, T, wallCol); p.capsule(ax, ay - 2, bx, by - 2, T * 0.45, [128, 104, 80], 0.8); level.wall([{ x: ax, y: ay }, { x: bx, y: by }]); };
+  run(x0, y0, x1, y0); run(x0, y0, x0, y1);
+  run(x1, y0, x1, sq(HOUSE.back[0])); run(x1, sq(HOUSE.back[1]), x1, y1);                 // east wall, with a gap for the back door
+  run(x0, y1, sq(HOUSE.door[0]), y1); run(sq(HOUSE.door[1]), y1, x1, y1);                 // south wall, with a gap for the front door
+  // doors (shown closed: a house starts shut, so it is dark to sight until a door is opened)
+  const drawDoor = (ax, ay, bx, by) => {
+    const len = Math.hypot(bx - ax, by - ay), nx = (by - ay) / len, ny = -(bx - ax) / len;
+    p.capsule(ax, ay, bx, by, T * 1.2, [74, 48, 26]);                                      // frame
+    p.capsule(ax, ay, bx, by, T * 0.85, [172, 118, 64]);                                   // the door slab
+    for (let k = 1; k < 4; k++) { const t = k / 4; p.capsule(ax + (bx - ax) * t - nx * 3, ay + (by - ay) * t - ny * 3, ax + (bx - ax) * t + nx * 3, ay + (by - ay) * t + ny * 3, 1, [112, 74, 38], 0.8); }   // plank seams
+    p.disc(ax + (bx - ax) * 0.82, ay + (by - ay) * 0.82, 3.5, [244, 208, 112]);          // handle
+    p.disc(ax, ay, T * 0.7, [60, 40, 24]); p.disc(bx, by, T * 0.7, [60, 40, 24]);         // door posts
+    level.door(ax, ay, bx, by, true);
+  };
+  drawDoor(sq(HOUSE.door[0]), y1, sq(HOUSE.door[1]), y1);
+  drawDoor(x1, sq(HOUSE.back[0]), x1, sq(HOUSE.back[1]));
+}
+
+/* ---------------- the campfire (flickers on the table like the camp's) ---------------- */
+{
+  const cx = sq(FIRE.x), cy = sq(FIRE.y);
+  p.disc(cx, cy, sq(1.25), [48, 38, 32], 0.85);                                     // scorched ground
+  for (let i = 0; i < 12; i++) {                                                    // stone ring
+    const a = (i / 12) * Math.PI * 2 + 0.2, rr = sq(0.82);
+    p.ellipse(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, sq(0.24), sq(0.19), a, [118, 114, 108]);
+    p.ellipse(cx + Math.cos(a) * rr - 2, cy + Math.sin(a) * rr - 2, sq(0.15), sq(0.1), a, [150, 146, 138], 0.7);
+  }
+  p.disc(cx, cy, sq(0.66), [30, 24, 22]);
+  for (const a of [0.3, 1.9, 3.4, 5.0]) p.capsule(cx + Math.cos(a) * sq(0.5), cy + Math.sin(a) * sq(0.5), cx - Math.cos(a) * sq(0.5), cy - Math.sin(a) * sq(0.5), sq(0.11), [88, 56, 32]);
+  p.disc(cx, cy, sq(0.46), [210, 70, 20], 0.9);
+  p.disc(cx, cy, sq(0.32), [255, 150, 40], 0.95);
+  p.disc(cx, cy, sq(0.17), [255, 226, 120]);
+  const log = (lx, ly, len, rot) => {                                                // a log to sit on
+    const dx = Math.cos(rot) * len / 2, dy = Math.sin(rot) * len / 2;
+    p.capsule(lx - dx + 3, ly - dy + 4, lx + dx + 3, ly + dy + 4, sq(0.27), [0, 0, 0], 0.28);
+    p.capsule(lx - dx, ly - dy, lx + dx, ly + dy, sq(0.26), [96, 62, 36]);
+    p.capsule(lx - dx, ly - dy - 3, lx + dx, ly + dy - 3, sq(0.1), [128, 88, 54], 0.8);
+    p.disc(lx + dx, ly + dy, sq(0.23), [158, 118, 78]); p.disc(lx - dx, ly - dy, sq(0.23), [150, 110, 72]);
+  };
+  log(sq(FIRE.x - 2.4), sq(FIRE.y + 0.2), sq(2.2), Math.PI / 2 + 0.12);
+  log(sq(FIRE.x + 2.3), sq(FIRE.y - 0.2), sq(2.2), Math.PI / 2 - 0.1);
+  level.light({ x: FIRE.x, y: FIRE.y, range: 9, intensity: 1, color: 'ffff9a3c', name: 'campfire', flicker: true });
+}
+
 /* ---------------- trees (trunks block sight and movement; the leaves do not) ---------------- */
 for (const [tx, ty] of TREES) {
   const cx = sq(tx), cy = sq(ty), r = sq(1.15);
@@ -117,9 +181,9 @@ for (let i = 0; i < COLS; i++) {
 }
 difficult.push({ x: RUBBLE.x * PPG, y: RUBBLE.y * PPG, w: RUBBLE.w * PPG, h: RUBBLE.h * PPG });
 difficult.push({ x: THICKET.x * PPG, y: THICKET.y * PPG, w: THICKET.w * PPG, h: THICKET.h * PPG });
-const starts = [{ name: 'start', x: 3 * PPG + 25, y: 7 * PPG + 25 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
+const starts = [{ name: 'start', x: 278, y: 479 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
 
 await level.write(path.join(root, 'public', 'scenarios', 'terrain-test.dd2vtt'), { ambient: 'ffffffff' });
-await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult }, null, 2));
+await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult, lights: level.lights.map((l) => ({ x: l.x * PPG, y: l.y * PPG, range: l.range, intensity: l.intensity, color: l.color, name: l.name, flicker: true })) }, null, 2));
 await level.writePng(path.join(root, 'public', 'scenarios', '.preview-terrain.png'));
 console.log(`terrain-test.dd2vtt: ${COLS}x${ROWS} squares, ${level.walls.length} sight lines, ${difficult.length} difficult-terrain rectangles`);

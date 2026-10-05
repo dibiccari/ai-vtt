@@ -5,8 +5,8 @@
   "starts": [
     {
       "name": "start",
-      "x": 175,
-      "y": 375
+      "x": 278,
+      "y": 479
     },
     {
       "name": "far-bank",
@@ -266,6 +266,17 @@
       "y": 250,
       "w": 300,
       "h": 200
+    }
+  ],
+  "lights": [
+    {
+      "x": 350,
+      "y": 625,
+      "range": 9,
+      "intensity": 1,
+      "color": "ffff9a3c",
+      "name": "campfire",
+      "flicker": true
     }
   ]
 }
