@@ -171,6 +171,9 @@
   .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
 
   /* chat */
+  .begin-box { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--gold); border-radius: 10px; background: var(--gold-soft); }
+  .begin-box[hidden] { display: none; }
+  .begin-box .hint { color: var(--muted); font-size: 12px; }
   .chat-log { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
   .msg { border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); max-width: 100%; }
   .msg .who { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
@@ -393,6 +396,10 @@
         <input type="range" id="ambienceVol" min="0" max="100" value="50" aria-label="Ambient volume" style="width:90px">
       </div>
       <div class="voice-status" hidden><span id="voiceEngine">Voices: checking…</span> · <a href="/settings.html" title="Choose the voice engine and the Microsoft narrator voice">change in Settings</a></div>
+      <div class="begin-box" id="beginBox" hidden>
+        <button class="btn btn-primary" id="beginBtn" type="button" title="The DM opens the story: the scene, the hook and the first question">Begin the adventure ▶</button>
+        <span class="hint">Nothing has happened yet. The DM sets the scene and the story starts.</span>
+      </div>
       <div class="dice-box">
         <label>Dice <select id="diceMode" aria-label="Who rolls the players' dice"><option value="ai">The DM rolls for me</option><option value="player">I roll my own (the DM asks and waits)</option></select></label>
         <span id="attackRollBox" hidden>
@@ -2995,6 +3002,14 @@ function renderChat() {
   log.innerHTML = '';
   for (const m of state.chat) log.appendChild(renderChatMessage(m));
   scrollChat();
+  syncBegin();
+}
+
+// The Begin button shows while the DM has not said anything yet in this campaign (and nothing is in flight).
+function syncBegin() {
+  const box = $('#beginBox');
+  if (!box) return;
+  box.hidden = state.campaignId === 'default' || state.busy || state.chat.some((m) => m.role === 'assistant');
 }
 
 function addChat(role, content, lines) {
@@ -3011,6 +3026,7 @@ function addChat(role, content, lines) {
 
 function setBusy(busy) {
   state.busy = busy;
+  syncBegin();
   $('#sendBtn').disabled = busy;
   $('#sendBtn').textContent = busy ? 'The DM is thinking…' : 'Send Turn to AI DM';
   $('#typing').classList.toggle('show', busy);
@@ -3794,6 +3810,7 @@ function bindUi() {
 
   voice.init();
   $('#sendBtn').addEventListener('click', () => sendTurn());
+  $('#beginBtn').addEventListener('click', () => sendTurn('[BEGIN] The players press Begin the adventure. Open the story.', { typed: true, auto: true, as: { name: 'Table' } }));
   $('#chatInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendTurn(); }     // Enter sends, Shift+Enter starts a new line
   });
