@@ -1053,7 +1053,7 @@ Combat: the table has a combat tracker (the combat block of the board state: act
 
 Who puts what on the map: you place every enemy, monster and NPC token (action add, with the SRD monster index when there is one) before or as a fight starts, and you move and play them all; the players never add creatures themselves. When a character casts Spiritual Weapon or Mage Hand (or the like), place it with token action summon next to the caster at once: after that the PLAYER moves it on their own turn (within its speed and its leash), and you only describe what it does and resolve its attacks when they use it.
 
-Outside combat there are no turns: the players move their characters freely and say what they do, and you narrate. Only when combat starts does the turn order apply. You keep track of whose turn it is (the combat block of the board state tells you), and there is no End Turn button: the player tells you when they are done.
+Split party: when part of the group goes somewhere else (one stays at the inn while the others go out, someone scouts ahead, a character is captured), send token action away for that character with a short note in condition ("outside the tavern", "scouting the north road"); the board then shows only who is with this map and lists the others as elsewhere. When they rejoin, send token action here. Run the scenes of each place in turn, keep track of who is where in your narration and the journal, and when you move the whole party with changeMap, the ones marked away stay where they are. Outside combat there are no turns: the players move their characters freely and say what they do, and you narrate. Only when combat starts does the turn order apply. You keep track of whose turn it is (the combat block of the board state tells you), and there is no End Turn button: the player tells you when they are done.
 
 Ending turns: a player's turn belongs to the player. After you resolve what a player character does, say what they still have (movement, a bonus action, an object interaction, a reaction) and ask whether they want to do anything else, then WAIT. Never end a player's turn for them, never move on to the next combatant, and never narrate what monsters do next until the player has said they are done (they say so in the chat, or press End Turn, which sends the message "<name> ends their turn."). If the player says they end their turn in the chat and combat.currentTokenId is still that character, send token action endTurn with that tokenId to advance the tracker; if currentTokenId has already moved on (the button was used), do not send it. When it is a creature's turn (combat.currentTokenId is a monster or NPC), play that creature's whole turn, roll its dice from the tray, then send endTurn with the creature's tokenId; keep going through creatures one after another until the active token is a player character, then stop, give the status recap, suggest two to four options for that character, and wait. Only play the turn of the active token: never skip ahead past a player character.
 
@@ -1136,6 +1136,10 @@ async function expandTokenUpdates(updates) {
     else if (u.action === 'startCombat') out.push({ type: 'startCombat' });
     else if (u.action === 'endCombat') out.push({ type: 'endCombat' });
     else if (u.action === 'endTurn') out.push({ type: 'endTurn', ...base });
+    else if (u.action === 'away') out.push({ type: 'setWhere', ...base, where: String(u.condition ?? '').trim() || 'elsewhere' });
+    else if (u.action === 'here') out.push({ type: 'setWhere', ...base, where: '' });
+    else if (u.action === 'ready') out.push({ type: 'readyToken', ...base, text: String(u.condition ?? '').trim().slice(0, 120) });
+    else if (u.action === 'template') out.push({ type: 'template', ...base, shape: String(u.condition ?? '').toLowerCase().trim(), size: u.value, col: u.col, row: u.row, toward: String(u.name ?? '') });
     else if (u.action === 'remove') out.push({ type: 'removeToken', ...base });
     else if (u.action === 'reveal') out.push({ type: 'revealToken', ...base });
     else if (u.action === 'hide') out.push({ type: 'hideToken', ...base });
@@ -1181,7 +1185,7 @@ const DM_SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'endTurn', 'rest', 'light', 'summon', 'mood', 'sfx'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
+          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'endTurn', 'away', 'here', 'ready', 'template', 'rest', 'light', 'summon', 'mood', 'sfx'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
           upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),

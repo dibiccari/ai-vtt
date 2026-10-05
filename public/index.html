@@ -58,6 +58,9 @@
   /* the bar: the active token's movement (in a fight) on the left, the table's settings on the right */
   .map-controls { flex: 0 0 100%; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .map-controls .spacer { flex: 1; }
+  .elsewhere { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .elsewhere[hidden] { display: none; }
+  .elsewhere .away { padding: 1px 8px; border: 1px dashed var(--border); border-radius: 999px; }
   .map-body { flex: 1; display: flex; min-height: 0; min-width: 0; }
   .combat { order: -1; flex: 0 0 310px; overflow-y: auto; border-right: 1px solid var(--border); background: var(--panel-2); padding: 8px 10px; }       /* the left edge of the map pane */
   .combat[hidden] { display: none; }
@@ -328,6 +331,7 @@
   <div class="map-toolbar">
     <div class="map-controls">
     <div class="move-info" id="moveInfo"></div>
+    <div class="elsewhere" id="elsewhere" hidden></div>
     <span class="spacer"></span>
     <label class="move-rule" id="mapPickBox" hidden title="Move the whole table to another place in this campaign. The AI does this by itself when the party travels.">
       <span>Map</span>
@@ -1106,7 +1110,10 @@ function pointInPolygon(x, y, poly) {
   return inside;
 }
 
+// A party member who is somewhere else (stayed behind, scouting): shown in the "Elsewhere" line, not on this board, not in a fight here.
+const isElsewhere = (t) => Boolean(t && t.isPC && typeof t.where === 'string' && t.where.trim());
 function seenByParty(t) {
+  if (isElsewhere(t)) return false;
   if (t.isPC) return true;
   if (t.hidden || hasCondition(t, 'invisible')) return false;
   if (!state.fogEnabled || state.gmOverride) return true;
@@ -1221,7 +1228,7 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
+  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
     summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
@@ -1301,7 +1308,7 @@ function revealFog() {
   let needCanvases = dark;
   const members = [];
   for (const t of state.tokens) {
-    if (!t.isPC) continue;
+    if (!t.isPC || isElsewhere(t)) continue;
     const cx = centerOf(t.col), cy = centerOf(t.row);
     const poly = visibilityPolygon(cx, cy);
     if (poly.length < 3) continue;
@@ -1435,8 +1442,9 @@ async function travelTo(u) {
     u = { ...u, col: Math.floor(u.px.x * f / GRID), row: Math.floor(u.px.y * f / GRID) };
   }
   const memory = state.mapMemory[u.mapUrl];
-  const party = state.tokens.filter((t) => t.isPC);
-  state.tokens = [...party];                              // creatures belong to the scene they were in (a copy: `party` must stay just the party)
+  const party = state.tokens.filter((t) => t.isPC && !isElsewhere(t));
+  const away = state.tokens.filter((t) => isElsewhere(t));          // those who are elsewhere stay where they are
+  state.tokens = [...party, ...away];                              // creatures belong to the scene they were in (a copy: `party` must stay just the party)
   if (memory) for (const t of memory.npcs) state.tokens.push({ ...t });
   party.forEach((t) => { t.col = -100; t.row = -100; });  // out of the way while each is placed
   for (const t of party) {
@@ -2264,6 +2272,10 @@ function renderTurnBar() {
     ? `<strong>${esc(t.name)}</strong> · ${t.movementRemaining}/${t.speed} ft (${Math.floor(t.movementRemaining / FT_PER_SQUARE)} sq)`
     : '';
   $('#speakerName').textContent = t ? t.name : 'the party';
+  const away = state.tokens.filter(isElsewhere);
+  const strip = $('#elsewhere');
+  strip.hidden = !away.length;
+  strip.innerHTML = away.length ? '<span>Elsewhere:</span>' + away.map((x) => `<span class="away" title="${esc(x.where)}">${esc(x.name)} · ${esc(x.where)}</span>`).join('') : '';
 }
 
 function saveBoard() {
@@ -2604,7 +2616,7 @@ const hpOf = (t) => { const c = characterFor(t); return c ? c.hp : (Number.isFin
 const maxHpOf = (t) => { const c = characterFor(t); return c ? c.maxHp : (Number.isFinite(t.maxHp) && t.maxHp > 0 ? t.maxHp : null); };
 const acOf = (t) => { const c = characterFor(t); return c ? c.ac : (Number.isFinite(t.ac) && t.ac > 0 ? t.ac : null); };
 const dexModOf = (t) => { const c = characterFor(t); return c ? Math.floor(((c.abilities && c.abilities.dex) || 10) / 2) - 5 : (Number.isFinite(t.dexMod) ? t.dexMod : 0); };
-const combatTokens = () => state.combat.order.map((id) => state.tokens.find((t) => t.id === id)).filter(Boolean);
+const combatTokens = () => state.combat.order.map((id) => state.tokens.find((t) => t.id === id)).filter((t) => t && !isElsewhere(t));
 // A d20 from the browser's secure random source (rejection sampling keeps every face equally likely).
 const d20 = () => { const buf = new Uint32Array(1); do { crypto.getRandomValues(buf); } while (buf[0] >= 4294967280); return 1 + (buf[0] % 20); };
 // Initiative rolled by the table itself, shown in the chat like every other roll (creatures the party cannot see keep their roll to themselves).
@@ -2654,7 +2666,7 @@ function beginTurn(t) {
 
 function startCombat() {
   if (state.combat.active) return;
-  const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead && !isSummon(t));
+  const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead && !isSummon(t) && !isElsewhere(t));
   if (!members.length) { toast('Put some tokens on the map first'); return; }
   state.combat = { active: true, round: 1, order: members.map((t) => t.id) };
   const rolled = [];
@@ -3531,6 +3543,25 @@ async function applyMapUpdates(updates) {
   const hpSaves = [];
   for (const u of updates) {
     switch (u.type) {
+      case 'setWhere': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t || !t.isPC) break;
+        const note = String(u.where || '').trim().slice(0, 80);
+        if (note) {
+          t.where = note;
+          addChat('system', `↳ ${t.name} is not with the group: ${note}`);
+          if (t === activeToken()) { const here = state.tokens.find((x) => x.isPC && !isElsewhere(x)); if (here) state.activeIndex = state.tokens.indexOf(here); }
+        } else if (isElsewhere(t)) {
+          delete t.where;
+          const mates = state.tokens.filter((x) => x.isPC && x !== t && !isElsewhere(x));
+          const anchor = mates[0] || t;
+          const spot = freeSquareNear(clamp(anchor.col, 0, cols() - 1), clamp(anchor.row, 0, rows() - 1));
+          t.col = spot.col; t.row = spot.row;
+          addChat('system', `↳ ${t.name} rejoins the group`);
+        }
+        revealFog();
+        break;
+      }
       case 'moveToken': {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
