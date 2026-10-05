@@ -341,7 +341,7 @@
     <label class="move-rule" hidden title="Show tokens the players cannot see (hidden, invisible, hiding, traps, or out of sight) as faint ghosts. Only for the person running the test.">
       <input type="checkbox" id="dmView"> <span>DM view</span>
     </label>
-    <button class="btn btn-sm" id="lightBtn" title="Light level of this place and its light sources">💡 Light</button>
+    <button class="btn btn-sm lab-only" hidden id="lightBtn" title="Light level of this place and its light sources">💡 Light</button>
     <button class="btn btn-sm lab-only" hidden id="sceneSave" title="Save this map with its creatures, traps and lights as a scene you can load later">💾 Save scene</button>
     <select id="scenePick" class="lab-only" hidden aria-label="Load a saved scene" title="Load a saved scene: the map and its creatures"></select>
     <button class="btn btn-sm lab-only" hidden id="sceneDelete" title="Delete the chosen scene" disabled>✕</button>
@@ -3789,7 +3789,7 @@ async function init() {
   $('#moveRule').value = state.moveRule;
   state.dmView = store.get('vtt.dmView', false) === true;
   $('#dmView').checked = state.dmView;
-  document.querySelectorAll('.lab-only').forEach((el) => { el.hidden = !state.dmView; });   // scene saving is a test/setup tool: shown only after the Test Lab turned its DM view on
+  // Light, Save scene and the scene picker are setup tools, not table controls: they stay hidden (the DM sets the lights, and scenes come from the campaign).
   state.chat = store.get(chatKey(), []);
   if (!Array.isArray(state.chat)) state.chat = [];
   if (board && typeof board === 'object') {
