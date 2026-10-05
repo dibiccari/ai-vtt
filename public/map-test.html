@@ -109,11 +109,6 @@
   <div class="group">
     <h2>Walls</h2>
     <div class="row">
-      <button id="clearBtn" class="danger">Clear walls</button>
-    </div>
-    <div class="row">
-    </div>
-    <div class="row">
       <button id="importNewBtn" title="Create a new map from a Universal VTT file: its picture, walls and doors">Import .dd2vtt as new map</button>
       <button id="importWallsBtn" title="Replace this map's walls with the walls in a Universal VTT file">Import walls from .dd2vtt</button>
     </div>
@@ -1109,11 +1104,6 @@
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
 
-  $('#clearBtn').addEventListener('click', () => {
-    if (!S.walls.length || !confirm('Delete every wall and door on this map?')) return;
-    S.walls = [];
-    wallsChanged();
-  });
   $('#resetFogBtn').addEventListener('click', resetFog);
   $('#fitBtn').addEventListener('click', fitView);
 
