@@ -2,10 +2,8 @@
 (function () {
   'use strict';
   var PAGES = [
-    { href: '/', label: '🎲 Tabletop' },
     { href: '/campaigns.html', label: '📖 Campaigns' },
-    { href: '/journal.html', label: '📓 Journal' },
-    { href: '/party.html', label: '🎒 Party' },
+    { href: '/', label: '🎲 Tabletop' },
     { href: '/bestiary.html', label: '🐉 Bestiary' },
     { href: '/spells.html', label: '✨ Spells' },
     { href: '/characters.html', label: '📜 Character Sheets' },
@@ -24,6 +22,9 @@
     icon.href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎲</text></svg>');
     document.head.appendChild(icon);
   }
+
+  // Embedded in the tabletop's sidebar (?embed=1): no navigation bar.
+  if (/[?&]embed=1/.test(location.search)) { document.documentElement.classList.add('embed'); return; }
 
   var here = location.pathname === '/index.html' ? '/' : location.pathname;
 

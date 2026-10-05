@@ -20,10 +20,14 @@
   .filters input[type=search] { flex:1 1 100%; }
   .count { color:var(--muted); font-size:12px; margin:4px 0; }
   .list { background:var(--panel); border:1px solid var(--border); border-radius:10px; max-height:76vh; overflow:auto; }
-  .item { display:flex; justify-content:space-between; gap:8px; width:100%; text-align:left; padding:7px 12px; background:none; border:0; border-bottom:1px solid #1c2330; color:var(--text); font:inherit; cursor:pointer; }
+  .item { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; text-align:left; padding:7px 12px; background:none; border:0; border-bottom:1px solid #1c2330; color:var(--text); font:inherit; cursor:pointer; }
   .item:hover { background:var(--panel2); }
   .item[aria-current="true"] { background:#1f2632; box-shadow:inset 3px 0 var(--gold); }
   .item small { color:var(--muted); white-space:nowrap; }
+  .item img { width:30px; height:30px; border-radius:50%; object-fit:cover; flex:none; background:#0d1117; }
+  .item .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .block .pic { float:right; width:140px; height:140px; margin:0 0 8px 14px; border-radius:50%; object-fit:cover; border:3px solid #5b3a1a; background:#2b1d0e; }
+  .block .picnote { clear:right; float:right; width:140px; margin:-4px 0 8px 14px; text-align:center; font-size:10.5px; color:#7a5a3a; font-family:"Segoe UI",sans-serif; }
   .block { background:#fdf1dc; color:#2b1d0e; border:1px solid #d6b98a; border-radius:6px; padding:16px 20px; font-family:Georgia, "Times New Roman", serif; box-shadow:0 0 0 3px #5b3a1a inset, 0 6px 20px rgba(0,0,0,.45); }
   .block h2 { margin:0; font-size:26px; color:#7a1f10; font-variant:small-caps; letter-spacing:.02em; }
   .block .sub { font-style:italic; margin-bottom:6px; }
@@ -92,7 +96,8 @@
       b.type = 'button';
       b.setAttribute('role', 'option');
       b.dataset.index = m.index;
-      b.appendChild(el('span', '', m.name));
+      if (m.image) { var im = el('img'); im.src = m.image; im.alt = ''; im.loading = 'lazy'; b.appendChild(im); }
+      b.appendChild(el('span', 'nm', m.name));
       b.appendChild(el('small', '', 'CR ' + crText(m.cr) + ' · ' + m.type));
       b.addEventListener('click', function () { show(m.index); });
       list.appendChild(b);
@@ -113,6 +118,7 @@
 
   function render(m) {
     var b = el('div', 'block');
+    if (m.image) { var pic = el('img', 'pic'); pic.src = m.image; pic.alt = m.name; b.appendChild(pic); b.appendChild(el('div', 'picnote', 'Token art (closest match)')); }
     b.appendChild(el('h2', '', m.name));
     b.appendChild(el('div', 'sub', m.size + ' ' + m.type + (m.subtype ? ' (' + m.subtype + ')' : '') + ', ' + m.alignment));
     b.appendChild(el('hr'));

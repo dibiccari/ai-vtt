@@ -169,6 +169,7 @@
   .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--gold); background: var(--panel-2); }
   .tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; }
   .tab-panel.active { display: flex; }
+  .embed-frame { flex: 1; width: 100%; border: 0; background: var(--bg); min-height: 0; }
   .scroll { overflow-y: auto; flex: 1; min-height: 0; padding: 14px; }
   .section-title { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
   .card { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
@@ -365,11 +366,20 @@
 <!-- ================================================================ RIGHT: SIDEBAR -->
 <aside class="sidebar">
 
+  <div class="tabs" role="tablist" aria-label="Table, journal and party">
+    <button class="tab" role="tab" id="tab-chat" data-tab="chat" aria-selected="true">🎲 Table</button>
+    <button class="tab" role="tab" id="tab-journal" data-tab="journal" aria-selected="false" title="What has happened in this campaign so far">📓 Journal</button>
+    <button class="tab" role="tab" id="tab-party" data-tab="party" aria-selected="false" title="The party's gear, attunement and stash">🎒 Party</button>
+  </div>
+
   <!-- ---------------------------------------------------- COMBAT TRACKER -->
   <section class="combat" id="combatPanel" aria-label="Combat tracker"></section>
 
   <datalist id="monsterList"></datalist>
   <!-- ---------------------------------------------------- TAB 1: CHAT -->
+  <section class="tab-panel" id="panel-journal" role="tabpanel" aria-labelledby="tab-journal"><iframe id="frameJournal" title="Campaign journal" class="embed-frame"></iframe></section>
+  <section class="tab-panel" id="panel-party" role="tabpanel" aria-labelledby="tab-party"><iframe id="frameParty" title="The party" class="embed-frame"></iframe></section>
+
   <section class="tab-panel active" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
     <div class="scroll" id="chatScroll">
       <div class="chat-log" id="chatLog" aria-live="polite"></div>
@@ -2620,7 +2630,7 @@ async function addMonsters(name, count, hidden) {
     const number = sameBefore + i + 1;
     const t = makeToken({
       id: `mon-${entry.index}-${Date.now().toString(36)}${i}`, name: n + sameBefore > 1 ? `${entry.name} ${number}` : entry.name,
-      color: '#a04545', isPC: false, hidden, kind: 'creature', speed: Number.isFinite(walk) ? walk : 30, ...spot
+      color: '#a04545', isPC: false, hidden, kind: 'creature', speed: Number.isFinite(walk) ? walk : 30, image: entry.image || '', ...spot
     });
     Object.assign(t, { monster: entry.index, hp: entry.hit_points, maxHp: entry.hit_points, ac: entry.armor_class[0].value, dexMod: Math.floor((entry.dexterity - 10) / 2) });
     state.tokens.push(t);
@@ -3454,6 +3464,7 @@ async function applyMapUpdates(updates) {
           if (Number(u.maxHp) > 0) Object.assign(token, { hp: Number(u.maxHp), maxHp: Number(u.maxHp) });
           if (Number(u.ac) > 0) token.ac = Number(u.ac);
           if (u.monster) token.monster = String(u.monster);
+          if (/^\/tokens\/[\w.-]+$/.test(String(u.image || ''))) token.image = u.image;
           if (Number.isFinite(Number(u.dexMod))) token.dexMod = Number(u.dexMod);
           state.tokens.push(token);
           joinCombat(token);
@@ -3652,6 +3663,16 @@ function bindUi() {
     requestRender();
   });
   $('#endTurnBtn').addEventListener('click', endTurn);
+  // Sidebar tabs: the table (chat and combat), the campaign journal and the party. The last two are the Journal and Party pages shown here.
+  const showTab = (name) => {
+    document.querySelectorAll('.sidebar .tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+    for (const id of ['chat', 'journal', 'party']) $('#panel-' + id).classList.toggle('active', id === name);
+    $('#combatPanel').style.display = name === 'chat' ? '' : 'none';
+    if (name === 'journal') $('#frameJournal').src = '/journal.html?embed=1&t=' + Date.now();     // reloaded each time, so it shows what the DM just wrote
+    if (name === 'party') $('#frameParty').src = '/party.html?embed=1&t=' + Date.now();
+    store.set('vtt.sideTab', name);
+  };
+  document.querySelectorAll('.sidebar .tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
   $('#lightBtn').addEventListener('click', openLightPanel);
   $('#ambienceToggle').addEventListener('change', (e) => { store.set('vtt.ambience', e.target.checked); Ambience.setEnabled(e.target.checked); if (e.target.checked) { Ambience.resume(); syncAmbience(); } });
   $('#ambienceVol').addEventListener('input', (e) => { store.set('vtt.ambienceVol', Number(e.target.value)); Ambience.setVolume(e.target.value / 100); });

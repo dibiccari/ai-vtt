@@ -1,0 +1,94 @@
+{
+  "scene:wind": {
+    "rating": "good",
+    "note": ""
+  },
+  "scene:tavern": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "scene:town": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "scene:rain": {
+    "rating": "good",
+    "note": ""
+  },
+  "scene:fire": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "scene:forest": {
+    "rating": "good",
+    "note": ""
+  },
+  "scene:night": {
+    "rating": "close",
+    "note": ""
+  },
+  "scene:cave": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "scene:dungeon": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "mood:eerie": {
+    "rating": "good",
+    "note": ""
+  },
+  "mood:combat": {
+    "rating": "close",
+    "note": ""
+  },
+  "mood:tense": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "mood:triumph": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "sfx:door": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "sfx:creak": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "sfx:thunder": {
+    "rating": "good",
+    "note": ""
+  },
+  "sfx:bell": {
+    "rating": "close",
+    "note": ""
+  },
+  "sfx:roar": {
+    "rating": "close",
+    "note": ""
+  },
+  "sfx:howl": {
+    "rating": "close",
+    "note": ""
+  },
+  "sfx:clash": {
+    "rating": "good",
+    "note": ""
+  },
+  "sfx:magic": {
+    "rating": "wrong",
+    "note": ""
+  },
+  "sfx:explosion": {
+    "rating": "close",
+    "note": ""
+  },
+  "sfx:splash": {
+    "rating": "close",
+    "note": ""
+  }
+}

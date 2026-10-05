@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
-import { listEntries, getEntry } from './lib/compendium.js';
+import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
 import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
@@ -873,7 +873,7 @@ async function expandTokenUpdates(updates) {
       const walk = srd ? parseInt(srd.speed?.walk, 10) : NaN;
       out.push({
         type: 'addToken', ...base, name: u.name || srd?.name || 'Creature', col: u.col, row: u.row, color: u.color, hidden: u.hidden, kind: u.kind,
-        monster: srd ? srd.index : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
+        monster: srd ? srd.index : '', image: srd ? await monsterImage(srd) : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
         speed: Number.isFinite(walk) ? walk : 30, dexMod: srd ? Math.floor((srd.dexterity - 10) / 2) : 0
       });
     }
