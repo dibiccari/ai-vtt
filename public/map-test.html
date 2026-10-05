@@ -70,10 +70,6 @@
       <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
     </label>
     <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
-  </div>
-
-  <div class="group">
-    <h2>Pins and terrain</h2>
     <label class="field"><span>Name for the next pin</span>
       <input type="text" id="startName" value="start" maxlength="40" spellcheck="false" placeholder="start, back-door, secret-passage…">
     </label>
@@ -82,6 +78,7 @@
       <select id="copyTarget" aria-label="Copy pins to this map"></select>
       <button id="copyPinsBtn" title="Copy this map's pins onto another map (for example the night version of the same place). Pins with the same name are replaced; the other map's walls are untouched.">Copy pins</button>
     </div>
+    <p class="hint">Terrain: choose the Terrain tool above the map and drag a rectangle over difficult ground (right-click inside one to remove it).</p>
     <p class="hint">Use the Pins tool: click empty ground to add a pin with the name above, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
   </div>
 
