@@ -2770,9 +2770,9 @@ function renderCombat() {
     btn('Next turn ⏭', 'End this turn and move to the next in initiative order', nextCombatTurn, 'btn-gold');
     btn('Roll for players', 'Roll initiative for every player character that has none yet', rollForPlayers);
     btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
-  } else {
-    btn('Start combat', 'Roll initiative for the creatures on the board and begin tracking rounds', startCombat, 'btn-primary');
   }
+  // There is no Start combat button: the DM starts a fight (token action startCombat) when the players act against someone or say they roll for
+  // initiative. Once it is running the buttons above let a person step in.
   const conj = document.createElement('div');
   conj.className = 'cb-add';
   const conjSel = document.createElement('select');
