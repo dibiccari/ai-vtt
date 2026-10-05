@@ -165,6 +165,8 @@ const PROFILES = {
   feminine:  { label: 'Feminine',  pitch: 1.05, rate: 1.0,  gender: 'female', line: 'The innkeeper wipes the bar and smiles. "Stay as long as you like. The stew is hot."' },
   masculine: { label: 'Masculine', pitch: 0.9,  rate: 1.0,  gender: 'male',   line: 'Hold the line! Shields up, and do not let them past the gate!' },
   beast:     { label: 'Beast',     pitch: 0.7,  rate: 0.9,  gender: 'male',   line: 'Pack close. Man-thing come. Not hunt. Not run. Listen.' },
+  smallbeast: { label: 'Small animal', pitch: 2.0, rate: 1.3, gender: 'female', line: 'Quick, quick! Big-feet coming! Crumbs? Any crumbs? Shiny thing under the bench!' },
+  largebeast: { label: 'Large animal', pitch: 0.4, rate: 0.7, gender: 'male', line: 'Small one. Sit. Bear is old. Bear is tired. Bear remembers... who walked here.' },
   undead:    { label: 'Undead',    pitch: 0.8,  rate: 0.8,  gender: null,     line: 'You... have... woken... me. Ask... and be quick. The dark... is calling me back.' }
 };
 
@@ -172,8 +174,11 @@ const PROFILES = {
 const NPCS = {
   // Animals given speech (Speak with Animals) use the beast voice; the dead (Speak with Dead, ghosts, skeletons) use the undead voice.
   wolf:     { label: 'Ripper the wolf',    sub: 'Speak with Animals',           base: 'beast',     line: 'Pack-brother gone. Bugbear angry. Man-things come, wolf hungry. Bring meat, wolf talk.' },
-  raven:    { label: 'A raven',            sub: 'Speak with Animals',           base: 'beast',     line: 'Shiny, shiny. Riders on the road. Four. Steel and smoke. Raven saw. Raven tell. Trade for bread?' },
-  bear:     { label: 'A cave bear',        sub: 'Speak with Animals',           base: 'beast',     line: 'Sleep. Honey. Go away. Cubs near. Bear not hunt you. Bear hunt who woke bear.' },
+  raven:    { label: 'A raven',            sub: 'Speak with Animals',           base: 'smallbeast',     line: 'Shiny, shiny. Riders on the road. Four. Steel and smoke. Raven saw. Raven tell. Trade for bread?' },
+  bear:     { label: 'A cave bear',        sub: 'Speak with Animals',           base: 'largebeast',     line: 'Sleep. Honey. Go away. Cubs near. Bear not hunt you. Bear hunt who woke bear.' },
+  mouse:    { label: 'A talking mouse',    sub: 'Speak with Animals',           base: 'smallbeast', line: 'Squeak! Hide, hide! Big-feet in the pantry! Follow me, I know the hole by the stove!' },
+  rat:      { label: 'A sewer rat',        sub: 'Speak with Animals',           base: 'smallbeast', line: 'Cheese! No, wait, trap! Many traps! Cat-thing smells you. Go, go, go left!' },
+  horse:    { label: 'A war horse',        sub: 'Speak with Animals',           base: 'largebeast', line: 'Rider fell. Horse waited. Strong hands, soft voice. Not like the one who left him.' },
   ghost:    { label: 'A restless ghost',   sub: 'Speak with Dead',              base: 'undead',    line: 'I remember... the cold... the stairs. Ask me... what you came to ask. I cannot stay.' },
   skeleton: { label: 'A dwarf skeleton',   sub: 'Undead guardian',              base: 'undead',    line: 'Intruders. The forge... is closed. Turn back... or join... the fallen.' },
   zombie:   { label: 'An ash zombie',      sub: 'Undead, Thundertree',          base: 'undead',    line: 'Hungry... so... hungry. Stay... still. Let me... hold you.' },
@@ -201,7 +206,7 @@ const SCENE = [
   ['Narrator', 'narrator', 'Far below, something enormous stirs in the dark.'],
   ['The Thing Below', 'monstrous', 'Who... wakes... me?'],
   ['Narrator', 'narrator', 'Lyra casts Speak with Animals. The raven on the rafter tilts its head.'],
-  ['The raven', 'beast', 'Shiny, shiny. Four riders on the road. Raven saw. Trade for bread?'],
+  ['The raven', 'smallbeast', 'Shiny, shiny. Four riders on the road. Raven saw. Trade for bread?'],
   ['Narrator', 'narrator', 'Later, in the crypt, a cold breath answers a question no one asked.'],
   ['The dead dwarf', 'undead', 'Ask... what you came to ask. I cannot... stay.']
 ];
