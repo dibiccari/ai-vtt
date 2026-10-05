@@ -170,6 +170,13 @@ const PROFILES = {
 
 // Phandelver NPCs: each picks the profile (pitch/speed) that suits them. Lines are original.
 const NPCS = {
+  // Animals given speech (Speak with Animals) use the beast voice; the dead (Speak with Dead, ghosts, skeletons) use the undead voice.
+  wolf:     { label: 'Ripper the wolf',    sub: 'Speak with Animals',           base: 'beast',     line: 'Pack-brother gone. Bugbear angry. Man-things come, wolf hungry. Bring meat, wolf talk.' },
+  raven:    { label: 'A raven',            sub: 'Speak with Animals',           base: 'beast',     line: 'Shiny, shiny. Riders on the road. Four. Steel and smoke. Raven saw. Raven tell. Trade for bread?' },
+  bear:     { label: 'A cave bear',        sub: 'Speak with Animals',           base: 'beast',     line: 'Sleep. Honey. Go away. Cubs near. Bear not hunt you. Bear hunt who woke bear.' },
+  ghost:    { label: 'A restless ghost',   sub: 'Speak with Dead',              base: 'undead',    line: 'I remember... the cold... the stairs. Ask me... what you came to ask. I cannot stay.' },
+  skeleton: { label: 'A dwarf skeleton',   sub: 'Undead guardian',              base: 'undead',    line: 'Intruders. The forge... is closed. Turn back... or join... the fallen.' },
+  zombie:   { label: 'An ash zombie',      sub: 'Undead, Thundertree',          base: 'undead',    line: 'Hungry... so... hungry. Stay... still. Let me... hold you.' },
   sildar:   { label: 'Sildar Hallwinter', sub: 'Human knight, Lords\' Alliance', base: 'noble',     line: 'Gundren and I were bound for Phandalin when the goblins struck. Find him, and the Alliance will see you rewarded.' },
   gundren:  { label: 'Gundren Rockseeker', sub: 'Dwarf prospector',              base: 'gruff',     line: 'A lost mine, friend. The old forge of the Phandelver pact. I found the way in, and I mean to share the riches.' },
   toblen:   { label: 'Toblen Stonehill',   sub: 'Innkeeper',                     base: 'masculine', line: 'Welcome to the Stonehill Inn! Sit by the fire. The stew is hot, the ale is cold, and the beds are clean.' },
@@ -192,7 +199,11 @@ const SCENE = [
   ['Skeever', 'sly', 'Careful with that one. He sells maps to places that do not exist.'],
   ['Captain Holt', 'gruff', 'Enough talk. The goblins hit the east gate at dawn.'],
   ['Narrator', 'narrator', 'Far below, something enormous stirs in the dark.'],
-  ['The Thing Below', 'monstrous', 'Who... wakes... me?']
+  ['The Thing Below', 'monstrous', 'Who... wakes... me?'],
+  ['Narrator', 'narrator', 'Lyra casts Speak with Animals. The raven on the rafter tilts its head.'],
+  ['The raven', 'beast', 'Shiny, shiny. Four riders on the road. Raven saw. Trade for bread?'],
+  ['Narrator', 'narrator', 'Later, in the crypt, a cold breath answers a question no one asked.'],
+  ['The dead dwarf', 'undead', 'Ask... what you came to ask. I cannot... stay.']
 ];
 
 // Unified entries: key -> { label, sub, pitch, rate, gender, line }
