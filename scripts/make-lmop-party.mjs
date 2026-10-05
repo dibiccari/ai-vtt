@@ -3,15 +3,12 @@
 // Every number is derived from the ability scores, class and proficiencies below, so the sheets cannot disagree with themselves;
 // the script ends by checking each sheet against the values written on the player's character sheets.
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { SKILLS, SAVES, modOf, profBonus } from '../lib/sheet-edit.js';
+import { SAVES } from '../lib/sheet-edit.js';
+import { buildCharacter } from '../lib/charbuild.js';
 
-const FIELDS = JSON.parse(readFileSync(new URL('../lib/sheet-fields.json', import.meta.url), 'utf8'));
 const CHAR_DIR = new URL('../data/characters/', import.meta.url);
 const CAMPAIGN = 'lost-mine-of-phandelver';
-const signed = (n) => (n >= 0 ? '+' : '') + n;
 
-const SCORE = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' };
-const MOD = { str: 'STRmod', dex: 'DEXmod ', con: 'CONmod', int: 'INTmod', wis: 'WISmod', cha: 'CHamod' };
 
 const PARTY = [
   {
@@ -85,56 +82,7 @@ const PARTY = [
   }
 ];
 
-function build(p) {
-  const level = 1, pb = profBonus(level);
-  const mods = Object.fromEntries(Object.keys(SCORE).map((k) => [k, modOf(p.abilities[k])]));
-  const maxHp = p.hitDie + mods.con;                       // first level: the full hit die + Constitution
-  const sheet = {
-    CharacterName: p.name, 'CharacterName 2': p.name, ClassLevel: `${p.cls} ${level}`, Background: p.background, 'Race ': p.race, Alignment: p.alignment, XP: '0',
-    ProfBonus: signed(pb), AC: String(p.ac), Initiative: signed(mods.dex), Speed: String(p.speed), HPMax: String(maxHp), HPCurrent: String(maxHp), HD: `1d${p.hitDie}`, HDTotal: '1',
-    GP: String(p.gp), Equipment: p.items.map(([n, q]) => (q > 1 ? `${n} (${q})` : n)).join('\n'),
-    'Features and Traits': p.features, ProficienciesLang: p.proficiencies, Backstory: p.backstory,
-    'PersonalityTraits ': p.personality, Flaws: p.flaws
-  };
-  for (const k of Object.keys(SCORE)) { sheet[SCORE[k]] = String(p.abilities[k]); sheet[MOD[k]] = signed(mods[k]); }
-  for (const k of Object.keys(SAVES)) { const on = p.saves.includes(k); sheet[SAVES[k].box] = on; sheet[SAVES[k].field] = signed(mods[k] + (on ? pb : 0)); }
-  for (const [name, s] of Object.entries(SKILLS)) {
-    const on = p.skills.includes(name);
-    sheet[s.box] = on;
-    sheet[s.field] = signed(mods[s.ability] + (on ? pb * (p.expertise.includes(name) ? 2 : 1) : 0));
-  }
-  const percep = mods.wis + (p.skills.includes('Perception') ? pb : 0);
-  sheet.Passive = String(10 + percep);
-  // Attacks (the sheet has three weapon lines) and the full list in AttacksSpellcasting.
-  const lines = [];
-  p.weapons.forEach(([name, ab, die, extra, type, note], i) => {
-    const hit = signed(mods[ab] + pb);
-    const dmg = extra === null ? die : `${die}${signed(mods[ab] + extra)}`.replace(/\+0$/, '');
-    lines.push(`${name}: ${hit}, ${dmg} ${type}. ${note}`);
-    if (i < 3) {
-      const slot = [['Wpn Name', 'Wpn1 AtkBonus', 'Wpn1 Damage'], ['Wpn Name 2', 'Wpn2 AtkBonus ', 'Wpn2 Damage '], ['Wpn Name 3', 'Wpn3 AtkBonus  ', 'Wpn3 Damage ']][i];
-      sheet[slot[0]] = name; sheet[slot[1]] = hit; sheet[slot[2]] = `${dmg} ${type}`;
-    }
-  });
-  sheet.AttacksSpellcasting = lines.join('\n');
-  if (p.spellcasting) {
-    const sc = p.spellcasting;
-    const abMod = mods[sc.ability.toLowerCase()];
-    sheet['Spellcasting Class 2'] = sc.cls; sheet['SpellcastingAbility 2'] = sc.ability;
-    sheet['SpellSaveDC  2'] = String(8 + pb + abMod); sheet['SpellAtkBonus 2'] = signed(pb + abMod);
-    sc.cantrips.forEach((n, i) => { sheet[FIELDS.spellLines[0][i]] = n; });
-    sc.level1.forEach((n, i) => { sheet[FIELDS.spellLines[1][i]] = n; });
-    if (sc.slots) { sheet[FIELDS.slots[1].total] = String(sc.slots); sheet[FIELDS.slots[1].remaining] = String(sc.slots); }
-  }
-  const out = {
-    id: p.id, name: p.name, class: p.cls, level, hp: maxHp, maxHp, ac: p.ac, speed: p.speed, abilities: p.abilities, color: p.color, darkvision: p.darkvision,
-    campaigns: [CAMPAIGN], sheet,
-    ...(p.expertise.length ? { expertise: p.expertise } : {}),
-    inventory: p.items.map(([name, qty, weight], i) => ({ id: `${p.id}-${i}`, name, qty, weight, requiresAttunement: false, attuned: false, equipped: true, effects: [], note: '' })),
-    coins: { cp: 0, sp: 0, ep: 0, gp: p.gp, pp: 0 }
-  };
-  return out;
-}
+const build = (p) => buildCharacter(p, [CAMPAIGN]);
 
 // Check every derived number against what the player's sheet says.
 let problems = 0;

@@ -118,7 +118,9 @@
     "SpellcastingAbility 2": "INT",
     "SpellSaveDC  2": "11",
     "SpellAtkBonus 2": "+3",
-    "Spells 1014": "Mage Hand"
+    "Spells 1014": "Mage Hand",
+    "SlotsTotal 19": "0",
+    "SlotsRemaining 19": "0"
   },
   "expertise": [
     "Stealth",
