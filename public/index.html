@@ -108,7 +108,7 @@
   .cond-panel .hint { color: var(--muted); font-size: 12px; margin: 8px 0 4px; }
   .move-info { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .move-info strong { color: var(--text); }
-  .move-rule[hidden], .btn[hidden] { display: none; }
+  .move-rule[hidden], .btn[hidden], .lab-only[hidden] { display: none !important; }
   .move-rule { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
   .move-rule input { accent-color: var(--accent); }
   .move-rule select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font: inherit; }
@@ -339,9 +339,9 @@
       <input type="checkbox" id="dmView"> <span>DM view</span>
     </label>
     <button class="btn btn-sm" id="lightBtn" title="Light level of this place and its light sources">💡 Light</button>
-    <button class="btn btn-sm" id="sceneSave" title="Save this map with its creatures, traps and lights as a scene you can load later">💾 Save scene</button>
-    <select id="scenePick" aria-label="Load a saved scene" title="Load a saved scene: the map and its creatures"></select>
-    <button class="btn btn-sm" id="sceneDelete" title="Delete the chosen scene" disabled>✕</button>
+    <button class="btn btn-sm lab-only" hidden id="sceneSave" title="Save this map with its creatures, traps and lights as a scene you can load later">💾 Save scene</button>
+    <select id="scenePick" class="lab-only" hidden aria-label="Load a saved scene" title="Load a saved scene: the map and its creatures"></select>
+    <button class="btn btn-sm lab-only" hidden id="sceneDelete" title="Delete the chosen scene" disabled>✕</button>
     <label class="move-rule" title="How far a token can move. Standard 5e counts a diagonal step as 5 ft, which makes a square. The others are variants.">
       <span>Movement</span>
       <select id="moveRule" aria-label="Movement range rule">
@@ -3755,6 +3755,7 @@ async function init() {
   $('#moveRule').value = state.moveRule;
   state.dmView = store.get('vtt.dmView', false) === true;
   $('#dmView').checked = state.dmView;
+  document.querySelectorAll('.lab-only').forEach((el) => { el.hidden = !state.dmView; });   // scene saving is a test/setup tool: shown only after the Test Lab turned its DM view on
   state.chat = store.get(chatKey(), []);
   if (!Array.isArray(state.chat)) state.chat = [];
   if (board && typeof board === 'object') {
