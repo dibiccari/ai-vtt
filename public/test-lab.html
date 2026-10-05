@@ -66,7 +66,7 @@
       </div>
       <div class="row">
         <button class="primary" id="setupBtn">Start the scenario fresh and open it</button>
-        <button id="resetBtn" title="Switch the AI back to the Lost Mine campaign. Its board and chat are kept.">Switch back to Lost Mine</button>
+        <button id="resetBtn" title="Switch the AI back to the campaign you were playing before you started this scenario. Its board and chat are kept.">Switch back to my campaign</button>
       </div>
       <ul class="steps" id="steps"></ul>
       <div class="now" id="now"></div>
@@ -218,7 +218,9 @@
     $('#setupBtn').disabled = true;
     let li = step('Switching the AI to the tavern scenario');
     try {
-      await post('/api/campaigns/active', { id: TEST_CAMPAIGN });
+      // Remember the campaign you were playing, so Reset can take you back to it (you may have several saved campaigns).
+      const now = await api('/api/campaigns');
+      await post('/api/campaigns/active', { id: TEST_CAMPAIGN, returnTo: now.active !== TEST_CAMPAIGN ? now.active : now.returnTo });
       li.className = 'done';
 
       li = step('Building the scene: map, walls, your party and the NPCs');
@@ -248,8 +250,11 @@
   async function reset() {
     stepsEl.innerHTML = '';
     try {
-      await post('/api/campaigns/active', { id: HOME_CAMPAIGN });
-      step('Back on the Lost Mine campaign. Open the tabletop to continue where you left off.').className = 'done';
+      const now = await api('/api/campaigns');
+      const target = now.returnTo || HOME_CAMPAIGN;
+      await post('/api/campaigns/active', { id: target });
+      const name = (now.campaigns.find((c) => c.id === target) || {}).name || target;
+      step('Back on ' + name + '. Open the tabletop to continue where you left off.').className = 'done';
       refreshNow();
     } catch (err) {
       step('Could not switch: ' + err.message).className = 'bad';

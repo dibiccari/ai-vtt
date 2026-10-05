@@ -592,7 +592,9 @@ app.get('/api/campaigns', asyncRoute(async (_req, res) => {
       totalChars, approxTokens: Math.round(totalChars / 4), voiceCount
     });
   }
-  res.json({ active, campaigns });
+  let returnTo = '';
+  try { returnTo = safeCampaignId(JSON.parse(await readFile(ACTIVE_CAMPAIGN_FILE, 'utf8')).returnTo); } catch { /* none */ }
+  res.json({ active, returnTo: returnTo && returnTo !== active ? returnTo : '', campaigns });
 }));
 
 // The party of a campaign (character ids), read and changed from the Campaigns page.
@@ -638,8 +640,11 @@ app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
 app.post('/api/campaigns/active', localOnly, asyncRoute(async (req, res) => {
   const id = safeCampaignId(req.body?.id);
   if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
-  await writeFile(ACTIVE_CAMPAIGN_FILE, JSON.stringify({ id }, null, 2));
-  res.json({ ok: true, active: id });
+  // returnTo: the campaign to go back to after a side trip (the Test Lab remembers the one you were playing). Switching normally forgets it.
+  const asked = safeCampaignId(req.body?.returnTo);
+  const returnTo = asked && asked !== id && (await campaignIds()).includes(asked) ? asked : '';
+  await writeFile(ACTIVE_CAMPAIGN_FILE, JSON.stringify(returnTo ? { id, returnTo } : { id }, null, 2));
+  res.json({ ok: true, active: id, returnTo });
 }));
 
 function campaignFilePath(id, name) {
