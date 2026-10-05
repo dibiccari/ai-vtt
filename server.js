@@ -375,14 +375,15 @@ app.get('/api/compendium/:kind/:index', asyncRoute(async (req, res) => {
 
 // ---------------------------------------------------------------- party API (gear, coins, attunement, stash)
 
-const partyView = (c) => {
+const partyView = (c, variant = false) => {
   const seeded = seedFromSheet(c);
-  return { id: seeded.id, name: seeded.name, class: seeded.class, level: seeded.level, hp: seeded.hp, maxHp: seeded.maxHp, color: seeded.color, image: seeded.image, abilities: seeded.abilities, darkvision: seeded.darkvision || 0, ac: seeded.ac, speed: seeded.speed, inventory: normalizeInventory(seeded.inventory), coins: normalizeCoins(seeded.coins), effective: computeEffective(seeded) };
+  return { id: seeded.id, name: seeded.name, class: seeded.class, level: seeded.level, hp: seeded.hp, maxHp: seeded.maxHp, color: seeded.color, image: seeded.image, abilities: seeded.abilities, darkvision: seeded.darkvision || 0, ac: seeded.ac, speed: seeded.speed, inventory: normalizeInventory(seeded.inventory), coins: normalizeCoins(seeded.coins), effective: computeEffective(seeded, variant) };
 };
 
 app.get('/api/party', asyncRoute(async (_req, res) => {
   const campaign = await getActiveCampaignId();
-  const characters = (await listCharacters(campaign)).map(partyView);
+  const variant = (await readSettings(path.join(CAMPAIGNS_DIR, campaign))).variantEncumbrance;
+  const characters = (await listCharacters(campaign)).map((c) => partyView(c, variant));
   res.json({ campaign, characters, stash: await readStash(path.join(CAMPAIGNS_DIR, campaign)), maxAttuned: MAX_ATTUNED });
 }));
 
@@ -395,7 +396,7 @@ app.put('/api/party/characters/:id', asyncRoute(async (req, res) => {
   const next = { ...old, inventory: normalizeInventory(req.body?.inventory, problems), coins: normalizeCoins(req.body?.coins), ...(req.body?.darkvision !== undefined ? { darkvision: int(req.body.darkvision, 0, 0, 120) } : {}) };
   const saved = normalizeCharacter(syncSheet(next));
   await saveCharacter(saved);
-  res.json({ character: partyView(saved), problems });
+  res.json({ character: partyView(saved, (await readSettings(path.join(CAMPAIGNS_DIR, await getActiveCampaignId()))).variantEncumbrance), problems });
 }));
 
 // A party item built from an SRD magic item or piece of equipment (with its weight, attunement and, for the common ones, effects).
@@ -1130,9 +1131,10 @@ function buildHistory(history, message, state, inputMode, dmMap) {
 // What the DM is told about the party's gear: per character the items, coins and effective stats, and the shared stash.
 async function partyForPrompt(campaign) {
   const brief = (i) => ({ name: i.name, qty: i.qty, weight: i.weight, requiresAttunement: i.requiresAttunement, attuned: i.attuned, equipped: i.equipped, effects: i.effects });
+  const variant = (await readSettings(path.join(CAMPAIGNS_DIR, campaign))).variantEncumbrance;
   const characters = (await listCharacters(campaign)).map((c) => {
     const s = seedFromSheet(c);
-    const eff = computeEffective(s);
+    const eff = computeEffective(s, variant);
     return { id: s.id, name: s.name, inventory: normalizeInventory(s.inventory).map(brief), coins: normalizeCoins(s.coins), effective: { ac: eff.ac, speed: eff.speed, saveBonus: eff.saveBonus, abilities: eff.abilities, attuned: eff.attuned, weight: eff.weight } };
   });
   const stash = await readStash(path.join(CAMPAIGNS_DIR, campaign));

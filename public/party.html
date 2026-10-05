@@ -287,7 +287,7 @@
     var w = e.weight;
     var wText = 'Carrying ' + w.carried + ' lb of ' + w.capacity + ' lb capacity' + (w.status !== 'normal' ? ' · ' + w.status : '');
     var wEl = el('div', 'weight' + (w.status === 'normal' ? '' : w.status === 'encumbered' ? ' warn' : ' bad'), wText);
-    wEl.title = 'Variant rule: encumbered over ' + w.encumberedAt + ' lb, heavily encumbered over ' + w.heavilyAt + ' lb, capacity ' + w.capacity + ' lb (Strength x 15).';
+    wEl.title = w.variant ? 'Variant rule is on: encumbered over ' + w.encumberedAt + ' lb, heavily encumbered over ' + w.heavilyAt + ' lb, capacity ' + w.capacity + ' lb (Strength x 15).' : 'Standard rule: no penalty up to ' + w.capacity + ' lb (Strength x 15).';
     card.appendChild(wEl);
 
     var others = state.characters.filter(function (x) { return x.id !== c.id; }).map(function (x) { return { id: x.id, name: x.name }; });

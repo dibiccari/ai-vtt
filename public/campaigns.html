@@ -171,7 +171,7 @@
     return { box, ids: () => [...chosen] };
   }
 
-  const newForm = { from: '', name: '', rules: '2014', permadeath: false, notes: '', party: [], loadedFrom: '' };
+  const newForm = { from: '', name: '', rules: '2014', permadeath: false, variantEncumbrance: false, notes: '', party: [], loadedFrom: '' };
 
   // Start another playthrough of a campaign you already have: its maps (and their starting positions) are already chosen; you pick the party and the table settings.
   function newCampaignBox() {
@@ -202,6 +202,11 @@
     death.append(dcb, document.createTextNode(' Permanent death (off: a character who would die is left out of the fight and the story takes a setback instead)'));
     box.appendChild(death);
 
+    const enc = el('label'); enc.style.cssText = 'display:block;margin-bottom:10px;';
+    const ecb = el('input'); ecb.type = 'checkbox'; ecb.checked = newForm.variantEncumbrance; ecb.addEventListener('change', () => { newForm.variantEncumbrance = ecb.checked; });
+    enc.append(ecb, document.createTextNode(' Optional encumbrance rule (encumbered over Strength x 5 lb, heavily over x 10). Off: only the carrying capacity, Strength x 15 lb.'));
+    box.appendChild(enc);
+
     const notes = el('textarea'); notes.rows = 3; notes.style.width = '100%'; notes.value = newForm.notes; notes.placeholder = 'Notes about your table for the DM';
     notes.addEventListener('input', () => { newForm.notes = notes.value; });
     box.appendChild(field('Notes about your table for the DM', notes));
@@ -217,7 +222,7 @@
     const go = el('button', 'primary', 'Create campaign');
     go.addEventListener('click', async () => {
       try {
-        const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: newForm.from, name: newForm.name, party: picker.ids(), settings: { rules: newForm.rules, permadeath: newForm.permadeath, tableNotes: newForm.notes } }) });
+        const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: newForm.from, name: newForm.name, party: picker.ids(), settings: { rules: newForm.rules, permadeath: newForm.permadeath, variantEncumbrance: newForm.variantEncumbrance, tableNotes: newForm.notes } }) });
         Object.assign(newForm, { name: '', party: [] });
         setStatus('Created ' + out.name + '. Finish setting it up below, then press Continue to play.', 'ok');
         lastCreated = out.id;
@@ -229,7 +234,7 @@
     // Start the settings from the chosen campaign's own (once per choice), so the notes about the table carry over.
     if (newForm.from && newForm.loadedFrom !== newForm.from) {
       newForm.loadedFrom = newForm.from;
-      api('/api/campaigns/' + encodeURIComponent(newForm.from) + '/settings').then((s) => { Object.assign(newForm, { rules: s.rules, permadeath: s.permadeath, notes: s.tableNotes }); render(); }).catch(() => { /* defaults stay */ });
+      api('/api/campaigns/' + encodeURIComponent(newForm.from) + '/settings').then((s) => { Object.assign(newForm, { rules: s.rules, permadeath: s.permadeath, variantEncumbrance: s.variantEncumbrance === true, notes: s.tableNotes }); render(); }).catch(() => { /* defaults stay */ });
     }
     return box;
   }
@@ -350,6 +355,10 @@
     cb.addEventListener('change', () => { d.permadeath = cb.checked; });
     death.append(cb, document.createTextNode(' Permanent death. Off (the default): a character who would die is left out of the fight and the story takes a setback instead (captured, robbed, left for dead). Death saving throws still happen.'));
     wrap.appendChild(death);
+    const enc = el('label'); enc.style.cssText = 'display:block;margin-bottom:10px;';
+    const ecb = el('input'); ecb.type = 'checkbox'; ecb.checked = d.variantEncumbrance === true; ecb.addEventListener('change', () => { d.variantEncumbrance = ecb.checked; });
+    enc.append(ecb, document.createTextNode(' Optional encumbrance rule (encumbered over Strength x 5 lb, heavily over x 10). Off: only the carrying capacity, Strength x 15 lb.'));
+    wrap.appendChild(enc);
     const notes = el('label', 'field'); notes.style.display = 'block'; notes.style.marginBottom = '10px';
     notes.appendChild(el('div', '', 'Notes about your table for the DM'));
     const ta = el('textarea'); ta.rows = 4; ta.style.width = '100%'; ta.placeholder = 'for example: one player is new to D&D, so explain rules gently; we play by voice; remind us to keep printed maps covered';
