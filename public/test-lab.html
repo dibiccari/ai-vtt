@@ -223,6 +223,10 @@
       await post('/api/campaigns/active', { id: TEST_CAMPAIGN, returnTo: now.active !== TEST_CAMPAIGN ? now.active : now.returnTo });
       li.className = 'done';
 
+      li = step('Resetting the party to their starting kit and full hit points');
+      await post('/api/test-lab/reset-party', {});
+      li.className = 'done';
+
       li = step('Building the scene: map, walls, your party and the NPCs');
       const board = await Scenes.create(TEST_CAMPAIGN, { fog: $('#optFog').checked });
       // The scenario starts over, so the tavern's older saved game on the server goes too (otherwise the newer-copy check could bring it back).

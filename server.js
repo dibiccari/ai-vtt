@@ -11,6 +11,7 @@ import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, 
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
 import { rollExpr, diceTray } from './lib/dice.js';
+import { writeTavernParty } from './lib/tavern-party.js';
 import { readSettings, writeSettings, settingsForPrompt } from './lib/settings.js';
 import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
@@ -524,6 +525,12 @@ app.delete('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
 }));
 
 // ---------------------------------------------------------------- table settings
+
+// The Test Lab starts the tavern scenario with its four characters back at their starting kit and full hit points.
+app.post('/api/test-lab/reset-party', localOnly, asyncRoute(async (_req, res) => {
+  const party = await writeTavernParty(CHAR_DIR, { keepHp: false });
+  res.json({ ok: true, party: party.map((c) => ({ id: c.id, name: c.name, hp: c.hp, maxHp: c.maxHp })) });
+}));
 
 // Real dice, for the tabletop's Roll for me button (free: no AI call).
 app.post('/api/roll', (req, res) => {
