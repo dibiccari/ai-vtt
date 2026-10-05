@@ -1109,8 +1109,8 @@
   "starts": [
     {
       "name": "start",
-      "x": 175,
-      "y": 375
+      "x": 278,
+      "y": 479
     },
     {
       "name": "far-bank",
@@ -1118,10 +1118,6 @@
       "y": 1075
     }
   ],
-  "source": "dd2vtt",
-  "ambient": "ffffffff",
-  "light": "bright",
-  "ambience": "forest",
   "difficult": [
     {
       "x": 0,
@@ -1375,5 +1371,9 @@
       "w": 300,
       "h": 200
     }
-  ]
+  ],
+  "light": "bright",
+  "ambience": "forest",
+  "source": "dd2vtt",
+  "ambient": "ffffffff"
 }

@@ -1517,8 +1517,9 @@ function visitMap(url) {
 function renderMapPick() {
   const sel = $('#mapPick');
   sel.innerHTML = '';
-  const open = state.places.filter((p) => p.kind === 'regional' || p.kind === 'camp' || p.id === 'phandalin' || state.visitedMaps.includes(p.url) || p.url === state.map.url);
-  open.sort((a, b) => (a.kind === 'regional' ? 0 : 1) - (b.kind === 'regional' ? 0 : 1));       // the regional map comes first; the rest keep the campaign's order
+  const open = state.places.filter((p) => p.kind === 'regional' || p.kind === 'camp' || p.id === 'phandalin' || p.id === 'terrain-test' || state.visitedMaps.includes(p.url) || p.url === state.map.url);
+  const rank = (p) => (p.kind === 'regional' ? 0 : p.id === 'terrain-test' ? 1 : 2);
+  open.sort((a, b) => rank(a) - rank(b));       // the regional map comes first, then the Terrain Test Grounds; the rest keep the campaign's order
   for (const p of open) {
     const o = document.createElement('option');
     o.value = p.url;
