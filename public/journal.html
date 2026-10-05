@@ -138,6 +138,7 @@
   async function load() {
     var info = await api('/api/campaigns');
     state.campaign = info.active;
+    if (!info.active) { state.entries = []; render(); setStatus('No campaign is selected. Pick one on the Campaigns page.'); return; }
     var c = info.campaigns.filter(function (x) { return x.id === info.active; })[0];
     state.name = c ? c.name : info.active;
     $('#campName').textContent = state.name;

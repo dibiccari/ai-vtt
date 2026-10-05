@@ -3000,6 +3000,7 @@ function setBusy(busy) {
 
 async function sendTurn(spokenText, opts) {
   if (state.busy) return;
+  if (state.campaignId === 'default') { toast('No campaign is selected. Open the Campaigns page and press Continue on one.'); return; }
   const input = $('#chatInput');
   const isVoice = typeof spokenText === 'string' && !(opts && opts.typed);
   const auto = Boolean(opts && opts.auto);                       // the table itself nudging the DM because it is a creature's turn
@@ -3811,12 +3812,25 @@ function bindUi() {
 /* =====================================================================
    INIT
    ===================================================================== */
+// Nothing is selected yet: the table says so and points to the Campaigns page.
+function showNoCampaign() {
+  const panel = document.querySelector('.map-panel');
+  const box = document.createElement('div');
+  box.style.cssText = 'position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg, #0a0d12);text-align:center;padding:24px;';
+  box.innerHTML = '<div style="font-size:22px;font-weight:800">No campaign selected</div><div style="color:var(--muted);max-width:420px">Pick a campaign to play, or start a new one. The table opens with its map, characters and saved game.</div><a class="btn btn-primary" href="/campaigns.html" style="text-decoration:none;padding:9px 18px">Open Campaigns</a>';
+  (panel || document.body).appendChild(box);
+  if (panel) panel.style.position = 'relative';
+  $('#chatLog').innerHTML = '';
+  window.addEventListener('focus', () => location.reload());          // coming back from the Campaigns page: load what was chosen
+}
+
 async function init() {
   bindUi();
   // The active campaign decides which saved board and chat to load.
-  let active = null;
-  try { active = ((await api('/api/campaigns')).campaigns || []).find((c) => c.active) || null; } catch { /* the table still works without it */ }
+  let active = null, listed = false;
+  try { active = ((await api('/api/campaigns')).campaigns || []).find((c) => c.active) || null; listed = true; } catch { /* the table still works without it */ }
   state.campaignId = active ? active.id : 'default';
+  if (listed && !active) { showNoCampaign(); return; }                // nothing chosen yet: ask for a campaign instead of guessing
   try { state.permadeath = (await api('/api/campaigns/' + encodeURIComponent(state.campaignId) + '/settings')).permadeath === true; } catch { state.permadeath = false; }
   await serverSave.pull();
   let board = store.get(boardKey(), null);

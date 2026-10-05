@@ -586,7 +586,7 @@ app.post('/api/recap', asyncRoute(async (_req, res) => {
 // ---------------------------------------------------------------- campaign selector API
 
 app.get('/api/campaigns', asyncRoute(async (_req, res) => {
-  const active = await getActiveCampaignId();
+  const active = await chosenCampaignId();
   const campaigns = [];
   for (const id of await campaignIds()) {
     const meta = await readCampaignMeta(id);
@@ -905,6 +905,16 @@ async function campaignFiles(id) {
     files.push({ name, chars: text.trim().length, size: st.size, mtimeMs: st.mtimeMs, text });
   }
   return files;
+}
+
+// The campaign the player has actually chosen (Continue on the Campaigns page), or '' when none is chosen yet. getActiveCampaignId() below
+// falls back to Lost Mine for the parts of the server that always need some campaign.
+async function chosenCampaignId() {
+  try {
+    const saved = safeCampaignId(JSON.parse(await readFile(ACTIVE_CAMPAIGN_FILE, 'utf8')).id);
+    if ((await campaignIds()).includes(saved)) return saved;
+  } catch { /* nothing chosen yet */ }
+  return '';
 }
 
 async function getActiveCampaignId() {
@@ -1227,6 +1237,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     });
   }
 
+  if (!(await chosenCampaignId())) return res.status(409).json({ error: 'No campaign is selected. Open the Campaigns page and press Continue on one.' });
   const activeCampaign = await getActiveCampaignId();
   const availableMaps = await withSavedStarts(await mapsForCampaign(activeCampaign));
   const state = {
