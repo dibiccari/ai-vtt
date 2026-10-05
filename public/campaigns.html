@@ -98,6 +98,7 @@
   const preview = {};          // "id/name" -> text
   const openMaps = new Set();  // campaign ids with the maps editor showing
   const openSafety = new Set(); // campaign ids with the safety editor showing
+  const openParty = new Set();    // campaign ids with the party editor showing (Continue cards)
   const openSettings = new Set(); // campaign ids with the table settings editor showing
   const settingsData = {};     // campaign id -> { permadeath, rules, tableNotes } being edited
   const safetyData = {};       // campaign id -> { lines, veils, notes } being edited
@@ -316,10 +317,14 @@
       try { settingsData[c.id] = { ...(await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings')), party: (await api('/api/campaigns/' + encodeURIComponent(c.id) + '/party')).party }; openSettings.add(c.id); } catch (err) { setStatus('Could not load the settings: ' + err.message, 'bad'); }
       render();
     });
-    if (setup) row.append(use, settingsBtn, docs, mapsBtn, safetyBtn, startOver); else row.append(use, settingsBtn);
+    const partyBtn = el('button', '', openParty.has(c.id) ? 'Hide party' : 'Party');
+    partyBtn.title = 'Change who is playing: players join, leave or swap characters';
+    partyBtn.addEventListener('click', () => { if (openParty.has(c.id)) openParty.delete(c.id); else openParty.add(c.id); render(); });
+    if (setup) row.append(use, settingsBtn, docs, mapsBtn, safetyBtn, startOver); else row.append(use, partyBtn);
     box.appendChild(row);
 
-    if (openSettings.has(c.id) && settingsData[c.id]) box.appendChild(settingsEditor(c));
+    if (setup && openSettings.has(c.id) && settingsData[c.id]) box.appendChild(settingsEditor(c));
+    if (!setup && openParty.has(c.id)) box.appendChild(partyEditor(c));
     if (setup && open.has(c.id)) box.appendChild(documents(c));
     if (setup && openMaps.has(c.id) && mapData[c.id]) box.appendChild(mapsEditor(c));
     if (setup && openSafety.has(c.id) && safetyData[c.id]) box.appendChild(safetyEditor(c));
@@ -335,6 +340,28 @@
     } catch (err) {
       setStatus('Could not switch campaign: ' + err.message, 'bad');
     }
+  }
+
+  // The one thing that changes once a campaign is running: who is playing.
+  function partyEditor(c) {
+    const wrap = el('div');
+    wrap.appendChild(el('h2', '', 'Party'));
+    wrap.appendChild(el('p', 'note', 'Tick the characters who are playing. Everything else about the campaign was chosen when it was created.'));
+    const picker = partyPicker((c.party || []).map((p) => p.id), null);
+    wrap.appendChild(picker.box);
+    const save = el('button', 'primary', 'Save party');
+    save.addEventListener('click', async () => {
+      const party = picker.ids();
+      if (!party.length) { setStatus('A campaign needs at least one character.', 'bad'); return; }
+      try {
+        await api('/api/campaigns/' + encodeURIComponent(c.id) + '/party', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ party }) });
+        setStatus('Party saved for ' + c.name + '. The tabletop adds or drops their tokens when it opens.', 'ok');
+        openParty.delete(c.id);
+        await load();
+      } catch (err) { setStatus('Could not save: ' + err.message, 'bad'); }
+    });
+    wrap.appendChild(save);
+    return wrap;
   }
 
   // Table settings: chosen before the campaign is played, given to the DM every turn.
