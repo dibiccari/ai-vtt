@@ -28,6 +28,7 @@ public/test-lab.html   Test Lab: one click sets up the Rusty Flagon tavern-brawl
 lib/                   Server-side modules: compendium.js (reads data/srd), party.js (gear, coins, attunement, stash, effective stats), journal.js (journal/save file), sheet-edit.js (applies the DM's sheet edits), sheet-fields.json (official sheet field map), campaign-maps.js (places each campaign can move to).
 public/bestiary.html   Bestiary: all 334 SRD 5.1 creatures, searchable/filterable, with the full stat block.
 public/spells.html     Spells: all 319 SRD 5.1 spells, filter by level/school/class/concentration/ritual.
+public/sound-test.html Sound Test: play every ambient scene, mood and sound effect (public/ambience.js) with a volume, level meter and a DM-speaking duck test.
 public/party.html      Party page: each character's inventory, coins, attunement (3 slots), effective AC/saves/speed/abilities with the working shown, conditions (from the saved board), encumbrance, and the shared party stash.
 public/journal.html    Campaign journal + save file: entries by category, delete, "Previously on..." recap, Export/Import save (journal + board + chat as one JSON file).
 public/scenes.js       Ready-made starting boards (map + party + NPCs) for the Lost Mine and tavern campaigns.

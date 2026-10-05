@@ -13,6 +13,7 @@
     { href: '/tokens.html', label: '🧿 Tokens' },
     { href: '/test-lab.html', label: '🧪 Test Lab' },
     { href: '/voice-test.html', label: '🔊 Voice Test' },
+    { href: '/sound-test.html', label: '🎵 Sound Test' },
     { href: '/settings.html', label: '⚙ Settings' }
   ];
 
