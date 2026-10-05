@@ -75,6 +75,8 @@
   .cb-line + .cb-line { margin-top: 4px; }
   .combat input[type="text"], .combat input[type="number"], .combat select { width: auto; padding: 3px 6px; font-size: 13px; }
   .combat input.cb-init { width: 42px; text-align: center; font-weight: 800; padding: 2px 2px; }
+  .cb-init-hidden { display: inline-block; width: 42px; text-align: center; color: var(--muted); font-weight: 800; }
+  .cb-ready { cursor: help; }
   .cb-more { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 12px; }
   .cb-row .cond-dot { flex: none; }
   .cb-name { flex: 1; text-align: left; background: none; border: 0; color: var(--text); font: inherit; font-weight: 700; cursor: pointer; padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -485,6 +487,8 @@ const state = {
   autoTurns: 0,                       // creature turns the table has started in a row without a player acting (capped)
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
   wallsInPicture: false,
+  pendingNotes: [],                  // things the table noticed for the DM to resolve (opportunity attacks, concentration), told with the next message
+  templates: [],                     // spell areas drawn on the map
   pendingCorrections: [],            // moves the table adjusted; told to the DM with the next message
   ambience: '',                      // the map's ambient sound ('' = pick one from the kind of place)
   mood: '',                          // a mood the DM asked for ('' = none; combat sets its own)
@@ -998,7 +1002,8 @@ const CONDITIONS = {
   blinded: ['Bl', '#8e8e9a'], charmed: ['Ch', '#ff7ac8'], deafened: ['De', '#9a8e7a'], frightened: ['Fr', '#b06bff'],
   grappled: ['Gr', '#d98a3d'], incapacitated: ['In', '#cc5555'], invisible: ['Iv', '#6fd0e8'], paralyzed: ['Pa', '#e0c040'],
   petrified: ['Pe', '#9aa0a6'], poisoned: ['Po', '#4cc46a'], prone: ['Pr', '#c08a5a'], restrained: ['Re', '#d9a43d'],
-  stunned: ['St', '#f0a040'], unconscious: ['Un', '#e05050'], exhaustion: ['Ex', '#a07850'], concentrating: ['Co', '#4f9dff']
+  stunned: ['St', '#f0a040'], unconscious: ['Un', '#e05050'], exhaustion: ['Ex', '#a07850'], concentrating: ['Co', '#4f9dff'],
+  surprised: ['Su', '#c9a0ff'], disengaged: ['Di', '#6fd0e8']
 };
 const tokenConditions = (t) => (Array.isArray(t?.conditions) ? t.conditions.filter((c) => c && c.name) : []);
 const conditionKey = (name) => String(name ?? '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 30);
@@ -1021,12 +1026,14 @@ const CONDITION_HELP = {
   stunned: "Incapacitated, can't move, speaks falteringly. Fails Str and Dex saves. Attacks against it have advantage.",
   unconscious: "Incapacitated, can't move or speak, unaware, drops what it holds and falls prone. Attacks against it have advantage; hits within 5 ft are critical.",
   exhaustion: 'Levels of exhaustion impose growing penalties; a long rest removes one level.',
-  concentrating: 'Concentrating on a spell: a hit forces a Constitution save (DC 10 or half the damage) or the spell ends.'
+  concentrating: 'Concentrating on a spell: a hit forces a Constitution save (DC 10 or half the damage) or the spell ends.',
+  surprised: "Surprised: can't move or take an action or a reaction on its first turn; the condition ends when that turn ends.",
+  disengaged: "Disengaged: its movement does not provoke opportunity attacks this turn."
 };
 const conditionHelp = (name) => CONDITION_HELP[name] || '';
 // Speed lost to conditions: held, paralyzed, petrified, stunned or unconscious creatures cannot move; prone ones crawl.
 function effectiveSpeed(t) {
-  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious'].some((n) => hasCondition(t, n))) return 0;
+  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised'].some((n) => hasCondition(t, n))) return 0;
   return hasCondition(t, 'prone') ? Math.floor((t.speed || 0) / 2) : t.speed;
 }
 const conditionLabel = (c) => c.name + (c.rounds > 0 ? ` (${c.rounds} round${c.rounds === 1 ? '' : 's'})` : '');
@@ -1598,6 +1605,7 @@ function render(now) {
   drawFog();
   if (state.drawWalls || state.gmOverride) drawWallSegments(0.85);
   drawReachable();
+  drawTemplates();
   drawTokens(true, now);
   drawDragPreview();
   drawWallPreview();
@@ -2082,8 +2090,10 @@ function finishPointer(e, cancelled) {
     if (target.same) {
       animateToken(t, fromX, fromY);
     } else if (target.legal) {
+      const fromCol = t.col, fromRow = t.row;
       t.col = target.col;
       t.row = target.row;
+      noteOpportunityAttacks(t, fromCol, fromRow);
       if (!state.gmOverride && state.combat.active) t.movementRemaining = Math.max(0, t.movementRemaining - Math.min(t.movementRemaining, Math.round(target.cost)));
       animateToken(t, fromX, fromY);
       revealFog();
@@ -2629,6 +2639,130 @@ function rollInitiative(t, quiet) {
 }
 
 // Hit points go up or down here. A creature at 0 is defeated; a player character at 0 falls unconscious and starts making death saves.
+// ---- Combat extras: opportunity attacks, concentration, spell areas ----
+// Table notes for the DM: things the table noticed that the DM should resolve (told with the next message).
+const adjacentSq = (c1, r1, c2, r2) => Math.max(Math.abs(c1 - c2), Math.abs(r1 - r2)) <= 1;
+const NO_REACTION = ['incapacitated', 'paralyzed', 'stunned', 'unconscious', 'petrified', 'surprised'];
+const canReact = (t) => !t.dead && hpOf(t) !== 0 && !(t.spent && t.spent.r) && !NO_REACTION.some((n) => hasCondition(t, n));
+
+// Creatures that could make an opportunity attack because `mover` left their reach (5 ft) without Disengaging. Foes only, and only ones that can react.
+function provokedBy(mover, fromCol, fromRow, toCol, toRow) {
+  if (!state.combat.active || hasCondition(mover, 'disengaged') || isElsewhere(mover)) return [];
+  return state.tokens.filter((o) => o !== mover && o.kind !== 'trap' && !isSummon(o) && o.isPC !== mover.isPC && !isElsewhere(o)
+    && (o.isPC || seenByParty(o)) && canReact(o) && adjacentSq(o.col, o.row, fromCol, fromRow) && !adjacentSq(o.col, o.row, toCol, toRow));
+}
+function noteOpportunityAttacks(mover, fromCol, fromRow) {
+  const hit = provokedBy(mover, fromCol, fromRow, mover.col, mover.row);
+  if (!hit.length) return;
+  const names = hit.map((o) => o.name).join(', ');
+  if (mover.isPC) {
+    addChat('system', `⚔ ${mover.name} left the reach of ${names} without Disengaging: ${hit.length > 1 ? 'they' : 'it'} can make an opportunity attack (a reaction).`);
+    state.pendingNotes.push(`${mover.name} moved out of the reach of ${names} without Disengaging: they may each make an opportunity attack (a reaction, one melee attack). Resolve them.`);
+  } else {
+    addChat('system', `⚔ ${hit.map((o) => o.name).join(', ')} can make an opportunity attack against ${mover.name} for leaving ${hit.length > 1 ? 'their' : 'its'} reach (a reaction).`);
+  }
+}
+
+// A concentrating creature that takes damage: Constitution save, DC 10 or half the damage, or the spell ends. Dropping to 0 ends it outright.
+function concentrationCheck(t, damage, after) {
+  if (!(damage > 0) || !hasCondition(t, 'concentrating')) return;
+  if (after === 0) { clearCondition(t, 'concentrating'); if (seenByParty(t)) addChat('system', `↳ ${t.name} is down: concentration ends`); return; }
+  const dc = Math.max(10, Math.floor(damage / 2));
+  const c = characterFor(t);
+  if (!c) { state.pendingNotes.push(`${t.name} took ${damage} damage while concentrating: a Constitution saving throw, DC ${dc}, or the spell ends.`); return; }
+  if (store.get('vtt.diceMode', 'ai') === 'player') {
+    addChat('system', `🧠 ${t.name} took ${damage} damage while concentrating: roll a Constitution saving throw, DC ${dc}, and tell the DM.`);
+    state.pendingNotes.push(`${t.name} took ${damage} damage while concentrating and must roll a Constitution saving throw, DC ${dc}: wait for the player's roll.`);
+    return;
+  }
+  const conMod = Math.floor(((c.abilities && c.abilities.con) || 10) / 2) - 5;
+  const parsed = parseInt(String((c.sheet && c.sheet['ST Constitution']) || ''), 10);
+  const mod = Number.isFinite(parsed) ? parsed : conMod;
+  const die = d20(), total = die + mod;
+  const ok = total >= dc;
+  addChat('system', `🎲 ${t.name} Constitution save to keep concentrating: d20 (${die}) ${mod < 0 ? '−' : '+'} ${Math.abs(mod)} = ${total} vs DC ${dc}, ${ok ? 'holds' : 'fails'}`);
+  if (!ok) { clearCondition(t, 'concentrating'); addChat('system', `↳ ${t.name} loses concentration`); state.pendingNotes.push(`${t.name} failed the concentration save: the spell they were concentrating on has ended.`); }
+}
+
+// Spell areas the DM draws: sphere (radius), cube (side), cone (length, from a creature toward a point), line (length, 5 ft wide, from a creature).
+const CONE_COS = Math.cos(Math.atan(0.5));
+function templateShape(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (/sphere|radius|circle|burst/.test(s)) return 'sphere';
+  if (/cube|square|box/.test(s)) return 'cube';
+  if (/cone/.test(s)) return 'cone';
+  if (/line|beam|bolt/.test(s)) return 'line';
+  return '';
+}
+function insideTemplate(tp, x, y) {
+  const ftPx = GRID / FT_PER_SQUARE;
+  if (tp.shape === 'sphere') return Math.hypot(x - tp.x, y - tp.y) <= tp.size * ftPx + 1;
+  if (tp.shape === 'cube') { const h = (tp.size / 2) * ftPx + 1; return Math.abs(x - tp.x) <= h && Math.abs(y - tp.y) <= h; }
+  const vx = x - tp.x, vy = y - tp.y, dist = Math.hypot(vx, vy);
+  if (dist < 1) return false;
+  if (tp.shape === 'cone') return dist <= tp.size * ftPx + 1 && (vx * tp.dx + vy * tp.dy) / dist >= CONE_COS - 0.001;
+  const along = vx * tp.dx + vy * tp.dy, across = Math.abs(vx * tp.dy - vy * tp.dx);
+  return along >= 0 && along <= tp.size * ftPx + 1 && across <= 3 * ftPx;                // a line is 5 ft wide; a little slack for square centres
+}
+function addTemplate(u) {
+  const shape = templateShape(u.shape);
+  if (String(u.shape || '').toLowerCase().trim() === 'clear') { state.templates = []; requestRender(); return; }
+  const size = Math.round(Number(u.size));
+  if (!shape || !(size > 0) || !Number.isInteger(u.col) || !Number.isInteger(u.row)) return;
+  const caster = state.tokens.find((x) => x.id === u.tokenId) || null;
+  const px = centerOf(clamp(u.col, 0, cols() - 1)), py = centerOf(clamp(u.row, 0, rows() - 1));
+  let tp;
+  if (shape === 'sphere' || shape === 'cube') tp = { shape, size, x: px, y: py };
+  else {
+    const ox = caster ? centerOf(caster.col) : px, oy = caster ? centerOf(caster.row) : py;
+    const len = Math.hypot(px - ox, py - oy) || 1;
+    tp = { shape, size, x: ox, y: oy, dx: (px - ox) / len, dy: (py - oy) / len };
+  }
+  tp.label = `${shape === 'sphere' ? 'Sphere' : shape === 'cube' ? 'Cube' : shape === 'cone' ? 'Cone' : 'Line'} ${size} ft`;
+  tp.at = Date.now();
+  state.templates.push(tp);
+  const inside = state.tokens.filter((x) => x !== caster && x.kind !== 'trap' && !isSummon(x) && !isElsewhere(x) && insideTemplate(tp, centerOf(x.col), centerOf(x.row)));
+  const seen = inside.filter(seenByParty);
+  addChat('system', `✨ ${tp.label}: ${seen.length ? 'catches ' + seen.map((x) => x.name).join(', ') : 'catches no one you can see'}`);
+  state.pendingNotes.push(`The ${tp.label} area covers: ${inside.length ? inside.map((x) => x.name + (seenByParty(x) ? '' : ' (hidden from the players)')).join(', ') : 'no one'}. Use this list for saving throws and damage.`);
+  requestRender();
+}
+function drawTemplates() {
+  if (!state.templates.length) return;
+  const now = Date.now();
+  state.templates = state.templates.filter((tp) => state.combat.active || now - tp.at < 25000);       // outside a fight an area fades after a while
+  if (!state.templates.length) return;
+  const ftPx = GRID / FT_PER_SQUARE;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 120, 40, 0.28)';
+  ctx.strokeStyle = 'rgba(255, 170, 70, 0.95)';
+  ctx.lineWidth = 2 / state.view.scale;
+  for (const tp of state.templates) {
+    ctx.beginPath();
+    let lx = tp.x, ly = tp.y;
+    if (tp.shape === 'sphere') ctx.arc(tp.x, tp.y, tp.size * ftPx, 0, Math.PI * 2);
+    else if (tp.shape === 'cube') { const h = (tp.size / 2) * ftPx; ctx.rect(tp.x - h, tp.y - h, h * 2, h * 2); }
+    else if (tp.shape === 'cone') {
+      const L = tp.size * ftPx, nx = -tp.dy, ny = tp.dx, fx = tp.x + tp.dx * L, fy = tp.y + tp.dy * L;
+      ctx.moveTo(tp.x, tp.y); ctx.lineTo(fx + nx * L / 2, fy + ny * L / 2); ctx.lineTo(fx - nx * L / 2, fy - ny * L / 2); ctx.closePath();
+      lx = tp.x + tp.dx * L * 0.6; ly = tp.y + tp.dy * L * 0.6;
+    } else {
+      const L = tp.size * ftPx, w = 2.5 * ftPx, nx = -tp.dy, ny = tp.dx;
+      ctx.moveTo(tp.x + nx * w, tp.y + ny * w); ctx.lineTo(tp.x + tp.dx * L + nx * w, tp.y + tp.dy * L + ny * w);
+      ctx.lineTo(tp.x + tp.dx * L - nx * w, tp.y + tp.dy * L - ny * w); ctx.lineTo(tp.x - nx * w, tp.y - ny * w); ctx.closePath();
+      lx = tp.x + tp.dx * L * 0.5; ly = tp.y + tp.dy * L * 0.5;
+    }
+    ctx.fill(); ctx.stroke();
+    ctx.font = `${12 / state.view.scale}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillText(tp.label, lx, ly);
+    ctx.fillStyle = 'rgba(255, 120, 40, 0.28)';
+  }
+  ctx.restore();
+  requestRender();
+}
+
 function changeHp(t, delta) {
   const max = maxHpOf(t);
   if (max === null || !Number.isFinite(delta)) return null;
@@ -2639,6 +2773,7 @@ function changeHp(t, delta) {
     c.hp = after;
     jsonPost('/api/characters', c).catch((err) => toast(`Could not save ${c.name}'s HP: ${err.message}`, 'error'));
   } else t.hp = after;
+  if (delta < 0 && before > 0) concentrationCheck(t, Math.abs(Math.round(delta)), after);
   if (after === 0 && before > 0) {
     if (t.isPC) { setCondition(t, 'unconscious', 0); t.deathSaves = { success: 0, fail: 0 }; t.stable = false; addChat('system', `↳ ${t.name} falls unconscious and is dying`); }
     else { t.dead = true; if (seenByParty(t)) addChat('system', `↳ ${t.name} is defeated`); }
@@ -2661,6 +2796,9 @@ function beginTurn(t) {
   t.movementRemaining = effectiveSpeed(t);
   for (const s of summonsOf(t)) s.movementRemaining = s.speed;
   t.spent = { a: false, b: false, r: false };
+  t.readied = '';                                              // a readied action that never triggered is lost when the next turn starts
+  state.templates = [];
+  if (hasCondition(t, 'surprised')) { t.spent = { a: true, b: true, r: true }; if (seenByParty(t)) addChat('system', `↳ ${t.name} is surprised and loses this turn`); }
   if (seenByParty(t)) toast(`${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`, 'ok');
 }
 
@@ -2698,6 +2836,8 @@ function nextCombatTurn() {
   if (!order.length) return;
   const waiting = order.filter((t) => t.isPC && !Number.isFinite(t.initiative)).map((t) => t.name);
   if (waiting.length) { toast(`Waiting for initiative: ${waiting.join(', ')}`); return; }
+  const leaving = activeToken();
+  if (leaving && hasCondition(leaving, 'surprised')) clearCondition(leaving, 'surprised');       // surprise ends when its first turn ends
   const idx = order.indexOf(activeToken());
   let wrapped = false, chosen = null;
   for (let n = 1; n <= order.length; n++) {
@@ -2802,7 +2942,10 @@ function combatRow(t) {
   name.textContent = t.name + (t.dead ? ' ✖' : '');
   name.title = `Center on ${t.name}`;
   name.addEventListener('click', () => { centerOnToken(t); });
-  line1.append(init, name);
+  // Initiative numbers of creatures are the DM's business: the players see the order, not the numbers.
+  if (!t.isPC && !state.dmView) { const hidden = document.createElement('span'); hidden.className = 'cb-init cb-init-hidden'; hidden.textContent = '•'; hidden.title = 'Creature initiative is hidden; the order is what counts'; line1.append(hidden, name); }
+  else line1.append(init, name);
+  if (t.readied) { const rd = document.createElement('span'); rd.className = 'cb-ready'; rd.textContent = '⏳'; rd.title = 'Readied: ' + t.readied; line1.appendChild(rd); }
   if (t.monster) {
     const link = document.createElement('a');
     link.href = `/bestiary.html#${t.monster}`;
@@ -3081,6 +3224,7 @@ async function sendTurn(spokenText, opts) {
       inputMode: isVoice ? 'voice' : 'text',
       combat: combatForAi(),
       corrections: state.pendingCorrections.splice(0, 8),
+      notes: state.pendingNotes.splice(0, 8),
       lighting: lightingForAi(),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
@@ -3543,6 +3687,16 @@ async function applyMapUpdates(updates) {
   const hpSaves = [];
   for (const u of updates) {
     switch (u.type) {
+      case 'readyToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t) break;
+        t.readied = String(u.text || '').trim().slice(0, 120);
+        if (t.readied && seenByParty(t)) addChat('system', `⏳ ${t.name} readies: ${t.readied}`);
+        break;
+      }
+      case 'template':
+        addTemplate(u);
+        break;
       case 'setWhere': {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t || !t.isPC) break;
@@ -3586,10 +3740,12 @@ async function applyMapUpdates(updates) {
             if (best) { col = best.c; row = best.r; } else { col = t.col; row = t.row; }
           }
         }
+        const fromCol = t.col, fromRow = t.row;
         t.col = col;
         t.row = row;
         animateToken(t, fromX, fromY);
         if (seenByParty(t)) addChat('system', `↳ ${t.name} moved to (${t.col}, ${t.row})`);
+        if (!t.isPC) noteOpportunityAttacks(t, fromCol, fromRow);
         break;
       }
       case 'addToken': {
