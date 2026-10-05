@@ -460,7 +460,7 @@ const state = {
   wallType: 'wall',
   gmOverride: false,
   busy: false,
-  moveRule: 'standard',                // the standard 5e rule: every square, diagonals too, costs 5 ft (no setting to change it)
+  moveRule: 'circle',                  // movement is round on every map: straight-line distance, so the range is a circle (no setting to change it)
   campaignId: null,
   zoomToParty: false,
   mapKind: 'battle',          // 'regional' and 'town' maps are plain pictures (no grid, no fog, no tokens); 'battle' maps have all three
@@ -1667,7 +1667,7 @@ function drawFog() {
 
 function drawReachable() {
   const t = interaction.mode === 'drag' && interaction.token && isSummon(interaction.token) ? interaction.token : activeToken();
-  if (!t || state.drawWalls || state.gmOverride || plainMap()) return;
+  if (!t || state.drawWalls || state.gmOverride || plainMap() || !state.combat.active) return;       // the range only shows in a fight; outside one there is no budget
   const reach = reachable(t);
   const set = new Set(reach.keys());
   set.add(sqKey(t.col, t.row));
@@ -2893,10 +2893,7 @@ function renderCombat() {
   const cur = activeToken();
   title.innerHTML = state.combat.active ? `⚔ Combat <small>round ${state.combat.round}${cur ? ' · ' + esc(cur.name) + "'s turn" : ''}</small>` : '⚔ Combat <small>not started</small>';
   head.appendChild(title);
-  const btn = (label, tip, fn, cls) => { const b = document.createElement('button'); b.className = `btn btn-sm${cls ? ' ' + cls : ''}`; b.textContent = label; b.title = tip; b.addEventListener('click', fn); head.appendChild(b); return b; };
-  if (state.combat.active) {
-    btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
-  }
+  // No buttons here: the DM starts and ends the fight (token actions startCombat and endCombat), so to stop one, ask it.
   // There is no Start combat button: the DM starts a fight (token action startCombat) when the players act against someone or say they roll for
   // initiative. Once it is running the buttons above let a person step in.
   // Creatures and conjured things (a Spiritual Weapon, Mage Hand) are put on the map by the DM, not from here.
