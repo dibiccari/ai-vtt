@@ -2825,12 +2825,12 @@ function renderCombat() {
 
 // A rest ends lasting effects on the player tokens; a long rest also clears exhaustion and the dying state. (Hit points and spell
 // slots are restored on the server; the characters are reloaded after.)
-function restTokens(kind, fraction = 1) {
-  // Any long rest that restores something gets the dying back on their feet; only a full one also clears exhaustion.
-  const healed = kind === 'long' && fraction > 0, full = kind === 'long' && fraction >= 1;
+function restTokens(kind) {
+  // Timed effects and concentration have ended by the end of a rest. A long rest also brings the dying back on their feet (the dead stay
+  // dead). Exhaustion is left for the DM to reduce by a level.
   for (const t of state.tokens.filter((x) => x.isPC)) {
-    t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(full && c.name === 'exhaustion') && !(healed && c.name === 'unconscious'));
-    if (healed) { t.deathSaves = null; t.stable = false; t.dead = false; }
+    t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(kind === 'long' && !t.dead && c.name === 'unconscious'));
+    if (kind === 'long' && !t.dead) { t.deathSaves = null; t.stable = false; }
   }
   revealFog();
   commitBoard();
@@ -3532,7 +3532,7 @@ async function applyMapUpdates(updates) {
         break;
       }
       case 'restParty':
-        if (!u.refused) restTokens(u.kind, u.fraction);
+        restTokens(u.kind);
         break;
       case 'setMood':
         state.mood = Ambience.moods.includes(u.mood) && u.mood !== 'calm' ? u.mood : '';

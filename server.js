@@ -10,7 +10,7 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
-import { itemFromSrd, restCharacter, planRest, LONG_REST_SUPPLIES, SHORT_RESTS_PER_DAY, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
+import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -398,17 +398,12 @@ app.get('/api/party/srd-item', asyncRoute(async (req, res) => {
 
 // Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).
 async function restParty(kind) {
-  const dir = path.join(CAMPAIGNS_DIR, await getActiveCampaignId());
-  const stash = await readStash(dir);
-  const plan = planRest(stash.camp, kind);
-  if (plan.refused) return { kind, refused: true, note: plan.note, fraction: 0, rested: [], camp: plan.camp };
-  await writeStash(dir, { ...stash, camp: plan.camp });
   const rested = [];
   for (const c of await listCharacters()) {
-    const { character, note } = restCharacter(c, kind, plan.fraction);
+    const { character, note } = restCharacter(c, kind);
     if (note) { await saveCharacter(normalizeCharacter(character)); rested.push(c.id); }
   }
-  return { kind, refused: false, note: plan.note, fraction: plan.fraction, rested, camp: plan.camp };
+  return { kind, rested };
 }
 
 app.post('/api/party/rest', asyncRoute(async (req, res) => {
@@ -826,9 +821,9 @@ Dice: the board state's diceMode is "ai" or "player". In "player" mode the playe
 
 Lighting: the lighting block of the board state gives the place's ambient light (bright, dim or dark) and the map's light sources (id, name, position, bright and dim radius in feet, whether it is on); tokens may carry a light (lightKind). The table shows each player only what their character can see: in bright or dim light, anything in line of sight; in darkness, only what a light source lights (bright light out to the bright radius, dim light out to the dim radius) or what their darkvision reaches (darkvision turns darkness into dim light, out to its range; a character with no darkvision sees nothing in the dark beyond a light). Your narration must match: when a fire goes out or a torch is doused, send a light update, and describe what the characters can and cannot see. Creatures in unlit darkness are not visible to characters without darkvision. A character carrying a light can be seen from afar in the dark.
 
-Camp supplies and resting: the camp block of the board state gives the party's camp supplies, the short rests taken today (two are allowed a day) and the day. This table uses a house rule: a long rest uses 40 camp supplies, and with fewer the rest is partial and restores only that share of hit points and spell slots. When the players say they rest, send token action rest (value 1 short, 2 long); the table applies the rules and your reply should narrate the result it reports (it may refuse a third short rest). If the party is short of supplies, say so before they settle in and let them decide. Change supplies with a gear update (action supplies).
+Resting follows the official 5th Edition rules. A short rest is at least an hour: characters may spend Hit Dice to heal (each die rolled plus the Constitution modifier; apply it with heal updates), and some class features come back. A long rest is at least eight hours (no more than two hours of light activity): characters regain all their hit points and spell slots, regain spent Hit Dice up to half their total (at least one), and have their exhaustion reduced by one level; a character can benefit from only one long rest in 24 hours and must start it with at least 1 hit point. Two short rests per adventuring day is a pacing guideline, not a rule. When a rest is completed without interruption, send token action rest (value 1 short, 2 long): for a long rest the table restores hit points and spell slots, and you handle Hit Dice, exhaustion, class features and anything else in your narration and with updates. An interrupted rest gets no benefit. Food and water: a character needs about a pound of food and a gallon of water a day, and going without can cause exhaustion, so ask about supplies on a long journey. Track rations as ordinary gear items.
 
-Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "supplies": qty is the change in the party's camp supplies (positive to gain, such as buying provisions or foraging; negative to spend). action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
+Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
 
 Safety: the table may have agreed lines (never appear) and veils (off-screen or one sentence), given to you in the TABLE SAFETY block when there is one. Keep to them without ever mentioning that you are doing so. If a player's message contains [PAUSE], they pressed the pause button (the X-card): stop at once, do not continue the scene, do not ask who pressed it or why, say calmly that you are pausing, and offer to skip past it, rewind, or take the story in another direction, then wait for their answer. Never push back or make anyone justify it.
 
@@ -913,7 +908,6 @@ function gearToPartyUpdates(updates) {
     } else if (u.action === 'remove') out.push({ type: 'removeItem', target: u.target, name: u.name, qty: u.qty });
     else if (u.action === 'move') out.push({ type: 'moveItem', from: u.target, to: u.to, name: u.name, qty: u.qty });
     else if (u.action === 'attune' || u.action === 'unattune') out.push({ type: u.action === 'attune' ? 'attuneItem' : 'unattuneItem', characterId: u.target, name: u.name });
-    else if (u.action === 'supplies') out.push({ type: 'adjustSupplies', delta: u.qty });
     else if (u.action === 'coins') out.push({ type: 'adjustCoins', target: u.target, cp: u.cp, sp: u.sp, ep: u.ep, gp: u.gp, pp: u.pp });
   }
   return out;
@@ -942,7 +936,7 @@ const DM_SCHEMA = {
           upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'rest', 'light', 'summon', 'mood', 'sfx'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
-          upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins', 'supplies'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
+          upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
           upd(['journal'], { category: { type: 'string', enum: CATEGORIES }, title: STR, text: STR, status: { type: 'string', enum: STATUSES }, when: STR }),
           upd(['addWall'], { x1: INT, y1: INT, x2: INT, y2: INT, wallType: { type: 'string', enum: ['wall', 'door'] } }),
           upd(['updateCharacter'], {
@@ -1011,7 +1005,7 @@ async function partyForPrompt(campaign) {
     return { id: s.id, name: s.name, inventory: normalizeInventory(s.inventory).map(brief), coins: normalizeCoins(s.coins), effective: { ac: eff.ac, speed: eff.speed, saveBonus: eff.saveBonus, abilities: eff.abilities, attuned: eff.attuned, weight: eff.weight } };
   });
   const stash = await readStash(path.join(CAMPAIGNS_DIR, campaign));
-  return { characters, stash: { items: stash.items.map(brief), coins: stash.coins }, camp: { supplies: stash.camp.supplies, shortRestsToday: stash.camp.shortRests, shortRestsAllowedPerDay: SHORT_RESTS_PER_DAY, day: stash.camp.day, longRestCostInSupplies: LONG_REST_SUPPLIES } };
+  return { characters, stash: { items: stash.items.map(brief), coins: stash.coins } };
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
@@ -1091,11 +1085,9 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const restedIds = [];
     const restNotes = [];
     for (const u of allUpdates.filter((x) => x && x.type === 'restParty')) {
-      // The camp rules decide what the rest does; the result goes to the table (and the tracker applies it to the tokens).
       const out = await restParty(u.kind);
-      Object.assign(u, { refused: out.refused, fraction: out.fraction, note: out.note });
       restedIds.push(...out.rested);
-      restNotes.push(out.note);
+      restNotes.push(u.kind === 'long' ? 'Long rest: hit points and spell slots restored' : 'Short rest');
     }
     const partyResult = await processPartyUpdates(gearToPartyUpdates(allUpdates), {
       list: listCharacters,
