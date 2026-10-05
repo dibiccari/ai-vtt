@@ -198,7 +198,10 @@
   .composer .speaker strong { color: var(--gold); }
   .composer textarea { min-height: 84px; resize: vertical; font-size: 14px; }
   .composer .row { display: flex; gap: 8px; align-items: center; }
-  .composer .hint { font-size: 11px; color: var(--faint); flex: 1; }
+  .composer .hint { font-size: 11px; color: var(--faint); }
+  .composer .row .btn { white-space: nowrap; flex: none; }
+  .composer .row { flex-wrap: wrap; }
+  .composer .row .btn-primary { flex: 1 1 150px; }
 
   /* voice */
   .voice-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -410,8 +413,8 @@
         </span>
       </div>
       <textarea id="chatInput" placeholder="Describe your action… e.g. &quot;I draw my longsword and charge the goblin by the door.&quot;"></textarea>
+      <span class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to send · map, sheets &amp; walls are attached</span>
       <div class="row">
-        <span class="hint"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> to send · map, sheets &amp; walls are attached</span>
         <button class="btn btn-sm" id="pauseBtn" title="Pause: tell the DM to stop this scene and check in. Nobody has to say why.">⏸ Pause</button>
         <button class="btn btn-sm" id="recapBtn" title="The DM tells the story so far, from the campaign journal">Recap</button>
         <button class="btn btn-sm" id="clearChatBtn" title="Clear the chat log">Clear</button>
