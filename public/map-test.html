@@ -92,6 +92,7 @@
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
+    <label class="check"><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token (walls block, difficult terrain costs double)</label>
     <label class="field"><span>Speed: <b id="moveFtVal">30</b> ft</span>
       <input type="range" id="moveFt" min="10" max="120" step="5" value="30">
@@ -167,7 +168,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
-    moveTest: false, moveFt: 30, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false,
+    moveTest: false, moveFt: 30, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
   };
@@ -524,12 +525,13 @@
 
   // Difficult terrain: shaded rectangles (always shown, stronger while the Terrain tool is selected), plus the one being dragged.
   function drawTerrain(px) {
+    if (!S.showTerrain && S.tool !== 'terrain') return;             // hidden unless the box is ticked or the Terrain tool is selected
     const list = S.drag && S.drag.kind === 'terrain' && S.drag.rect ? S.difficult.concat([S.drag.rect]) : S.difficult;
     if (!list.length) return;
     ctx.save();
     const editing = S.tool === 'terrain';
     for (const d of list) {
-      ctx.fillStyle = editing ? 'rgba(200, 120, 40, 0.38)' : 'rgba(200, 120, 40, 0.2)';
+      ctx.fillStyle = editing ? 'rgba(200, 120, 40, 0.38)' : 'rgba(230, 130, 30, 0.34)';
       ctx.fillRect(d.x, d.y, d.w, d.h);
       if (!editing) continue;                       // outlines only while the Terrain tool is selected
       ctx.strokeStyle = 'rgba(240, 160, 70, 0.9)';
@@ -1102,6 +1104,7 @@
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
+  $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
 
   $('#resetFogBtn').addEventListener('click', resetFog);
