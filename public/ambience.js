@@ -10,6 +10,8 @@
   var analyser = null;
   var ctx = null, master = null, sceneBus = null, moodBus = null, noiseBuf = null, brownBuf = null;
   var enabled = true, volume = 0.5, ducked = false;
+  var files = {};       // 'scene:forest' -> '/audio/scene-forest.ogg' (the user's own recordings, see public/audio/README.md)
+  var buffers = {};
   var scene = { kind: 'none', stop: null };
   var mood = { kind: 'calm', stop: null };
 
@@ -89,17 +91,44 @@
     o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
   }
 
-  /* ---------------- ambient scenes ---------------- */
-  function wind(bus, strength) {
-    var n = noise(true), f = filter('bandpass', 380, 0.6), g = gain(0.18 * strength);
-    n.connect(f); f.connect(g); g.connect(bus); n.start();
-    var l1 = lfo(0.07, 220, f.frequency), l2 = lfo(0.11, 0.07 * strength, g.gain);
-    return [n, l1, l2];
+  /* ---------------- recordings dropped into public/audio ---------------- */
+  function loadBuffer(url) {
+    if (!buffers[url]) buffers[url] = fetch(url).then(function (r) { return r.arrayBuffer(); }).then(function (b) { return ctx.decodeAudioData(b); });
+    return buffers[url];
   }
+  // A layer that plays a recording (looping or once) instead of synthesising the sound.
+  function fileLayer(url, loop) {
+    return function (bus) {
+      var cancelled = false, src = null;
+      loadBuffer(url).then(function (buf) {
+        if (cancelled) return;
+        src = ctx.createBufferSource(); src.buffer = buf; src.loop = loop; src.connect(bus); src.start();
+      }).catch(function () { /* an unreadable file is skipped */ });
+      return [{ stop: function () { cancelled = true; if (src) { try { src.stop(); } catch (e) { /* already stopped */ } } } }];
+    };
+  }
+
+  /* ---------------- ambient scenes ---------------- */
+  // Wind: a low body, a mid whoosh that gusts and a high hiss, each swelling at its own slow rate.
+  function wind(bus, strength) {
+    var out = [];
+    [['lowpass', 260, 0.7, 0.09, true], ['bandpass', 850, 0.5, 0.13, true], ['highpass', 2800, 0.4, 0.02, false]].forEach(function (b, i) {
+      var n = noise(b[4]), f = filter(b[0], b[1], b[2]), g = gain(b[3] * strength);
+      n.connect(f); f.connect(g); g.connect(bus); n.start();
+      out.push(n, lfo(0.06 + i * 0.045, b[3] * 0.7 * strength, g.gain));
+      if (i === 1) out.push(lfo(0.08, 300, f.frequency));
+    });
+    return out;
+  }
+  // Rain: a bright wash, a low patter and many tiny drops.
   function rain(bus, strength) {
-    var n = noise(false), hp = filter('highpass', 1400), lp = filter('lowpass', 7500), g = gain(0.06 * strength);
-    n.connect(hp); hp.connect(lp); lp.connect(g); g.connect(bus); n.start();
-    return [n];
+    var out = [];
+    [['bandpass', 3600, 0.35, 0.05], ['highpass', 6500, 0.5, 0.018], ['lowpass', 400, 0.7, 0.03]].forEach(function (b, i) {
+      var n = noise(i === 2), f = filter(b[0], b[1], b[2]), g = gain(b[3] * strength);
+      n.connect(f); f.connect(g); g.connect(bus); n.start(); out.push(n);
+    });
+    out.push({ stop: every(function () { burst(1800 + Math.random() * 4200, 9, 0.012 + Math.random() * 0.02, 0.025 * strength * Math.random(), 'bandpass', bus); }, 12, 45) });
+    return out;
   }
   function fire(bus, strength) {
     var n = noise(true), f = filter('lowpass', 500), g = gain(0.1 * strength);
@@ -145,21 +174,29 @@
     });
     return out;
   }
+  // A crowd: noise through speech-like bands that each swell and fade at the rate of syllables, so it reads as many people talking.
   function murmur(bus, strength) {
-    var n = noise(true), f1 = filter('bandpass', 330, 1.2), f2 = filter('bandpass', 1100, 1.5), g = gain(0.2 * strength);
-    n.connect(f1); n.connect(f2); f1.connect(g); f2.connect(g); g.connect(bus); n.start();
-    var l1 = lfo(0.4, 0.09 * strength, g.gain), l2 = lfo(0.17, 120, f1.frequency);
-    var clink = every(function () { ping(2300 + Math.random() * 1500, 0.25, 0.012 * strength, bus); }, 2500, 8000);
-    return [n, l1, l2, { stop: clink }];
+    var out = [];
+    [[480, 3.1], [1300, 4.3], [2300, 5.4], [850, 2.3], [3200, 6.1]].forEach(function (f, i) {
+      var n = noise(false), bp = filter('bandpass', f[0], 2.6), g = gain(0.05 * strength);
+      n.connect(bp); bp.connect(g); g.connect(bus); n.start();
+      out.push(n, lfo(f[1], 0.045 * strength, g.gain), lfo(0.13 + i * 0.07, 140, bp.frequency));
+    });
+    out.push({ stop: every(function () { ping(2300 + Math.random() * 1500, 0.25, 0.012 * strength, bus); }, 2500, 8000) });
+    return out;
   }
+  // Birds: short phrases of two to four rising or falling notes, at different pitches.
   function birds(bus, strength) {
     var stop = every(function () {
-      var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime, base = 2400 + Math.random() * 1600;
-      o.type = 'sine';
-      o.frequency.setValueAtTime(base, t); o.frequency.linearRampToValueAtTime(base * 1.25, t + 0.08); o.frequency.linearRampToValueAtTime(base * 0.9, t + 0.2);
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.02 * strength, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
-      o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.3);
-    }, 1200, 5200);
+      var base = 2200 + Math.random() * 2200, notes = 2 + Math.floor(Math.random() * 3), dir = Math.random() < 0.5 ? 1 : -1, t0 = ctx.currentTime;
+      for (var k = 0; k < notes; k++) {
+        var o = ctx.createOscillator(), g = ctx.createGain(), t = t0 + k * (0.09 + Math.random() * 0.05), f0 = base * (1 + dir * k * 0.1);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (1 + 0.18 * dir), t + 0.07);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.022 * strength, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+        o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.14);
+      }
+    }, 1400, 5600);
     return [{ stop: stop }];
   }
 
@@ -202,7 +239,13 @@
         o.connect(lp); lp.connect(g); g.connect(b); o.start();
         out.push(o, lfo(0.09 + i * 0.04, 7, o.frequency));
       });
-      out.push({ stop: every(function () { burst(1800 + Math.random() * 1500, 6, 1.4, 0.03, 'bandpass', b); }, 4000, 9000) });
+      [1760, 2093, 2637].forEach(function (f, i) {                                    // a glassy shimmer above the low pad
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = f; g.gain.value = 0.004;
+        o.connect(g); g.connect(b); o.start();
+        out.push(o, lfo(0.2 + i * 0.13, 0.003, g.gain), lfo(5 + i, 6, o.frequency));
+      });
+      out.push({ stop: every(function () { burst(1800 + Math.random() * 1500, 6, 1.4, 0.04, 'bandpass', b); }, 3000, 7000) });
       return out;
     },
     triumph: function (b) {
@@ -241,17 +284,65 @@
   }
 
   /* ---------------- sound effects ---------------- */
+  // A rusty hinge: a sawtooth that glides down with a fast wobble, through a resonant band.
+  function creak(dur, level) {
+    var t = ctx.currentTime, o = ctx.createOscillator(), f = filter('bandpass', 1100, 5), g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(230, t + dur);
+    lfo(21, 28, o.frequency).stop(t + dur + 0.1);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.12); g.gain.linearRampToValueAtTime(level * 0.6, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+  }
+  // A growl: a low sawtooth chopped by a fast tremor and shaped by two vowel-like bands.
+  function growl(f0a, f0b, dur, level) {
+    var t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), f1 = filter('bandpass', 550, 4), f2 = filter('bandpass', 1150, 5), mix = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0a, t); o.frequency.exponentialRampToValueAtTime(f0b, t + dur);
+    var trem = ctx.createGain(); trem.gain.value = 0.6; lfo(26, 0.4, trem.gain).stop(t + dur + 0.1);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.2); g.gain.setValueAtTime(level, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(trem); trem.connect(f1); trem.connect(f2); f1.connect(mix); f2.connect(mix); mix.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
   var EFFECTS = {
-    door: function () { burst(180, 1, 0.5, 0.5, 'lowpass', master); sweep(110, 70, 0.55, 0.12, 'sawtooth'); },
-    creak: function () { sweep(260, 150, 1.1, 0.07, 'sawtooth'); },
-    thunder: function () { var n = noise(true, false), f = filter('lowpass', 180), g = ctx.createGain(), t = ctx.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1.1, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2); n.connect(f); f.connect(g); g.connect(master); n.start(t, 0); n.stop(t + 3.3); },
-    bell: function () { [523.3, 1046.5, 1568, 2093].forEach(function (f, i) { ping(f, 3.2 - i * 0.5, 0.13 / (i + 1), master); }); },
-    roar: function () { sweep(95, 60, 1.6, 0.3, 'sawtooth'); burst(500, 1, 1.4, 0.35, 'lowpass', master); },
-    howl: function () { sweep(300, 520, 0.8, 0.1, 'sine'); setTimeout(function () { sweep(520, 280, 1.8, 0.1, 'sine'); }, 700); },
-    clash: function () { burst(3500, 2, 0.35, 0.4, 'highpass', master); [1900, 2740, 4100].forEach(function (f) { ping(f, 0.5, 0.06, master); }); },
-    magic: function () { sweep(300, 1800, 0.9, 0.08, 'sine'); [1600, 2100, 2800].forEach(function (f, i) { setTimeout(function () { ping(f, 0.9, 0.05, master); }, 150 + i * 110); }); },
-    explosion: function () { burst(900, 0.5, 1.8, 0.8, 'lowpass', master); sweep(120, 35, 1.2, 0.35, 'sine'); },
-    splash: function () { burst(2200, 0.7, 0.7, 0.35, 'bandpass', master); burst(600, 0.7, 0.5, 0.3, 'lowpass', master); }
+    door: function () {
+      [[85, 0.55], [170, 0.32], [330, 0.2]].forEach(function (p) { ping(p[0], 0.5, p[1], master); });   // the wooden body of the door
+      burst(1500, 1.2, 0.07, 0.35, 'bandpass', master);                                                 // wood knocking on the frame
+      setTimeout(function () { creak(0.9, 0.2); }, 90);
+    },
+    creak: function () { creak(1.4, 0.35); },
+    thunder: function () {
+      burst(3200, 0.6, 0.14, 0.5, 'highpass', master);                                                  // the crack
+      [[170, 3.4, 1.1], [90, 4.6, 0.9]].forEach(function (p, i) {
+        setTimeout(function () { var n = noise(true, false), f = filter('lowpass', p[0]), g = ctx.createGain(), t = ctx.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(p[2], t + 0.3 + i * 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + p[1]); n.connect(f); f.connect(g); g.connect(master); n.start(t, 0); n.stop(t + p[1] + 0.1); }, 80 + i * 260);
+      });
+    },
+    bell: function () { [523.3, 1046.5, 1568, 2093, 2637].forEach(function (f, i) { ping(f, 3.4 - i * 0.5, 0.13 / (i + 1), master); }); burst(2400, 2, 0.05, 0.12, 'bandpass', master); },
+    roar: function () { growl(95, 55, 1.9, 1.6); burst(500, 1, 1.4, 0.22, 'lowpass', master); },
+    howl: function () {
+      var t = ctx.currentTime, o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = filter('bandpass', 900, 1.2);
+      [o, o2].forEach(function (x, i) {
+        x.type = i ? 'triangle' : 'sine';
+        x.frequency.setValueAtTime(i ? 640 : 320, t); x.frequency.linearRampToValueAtTime(i ? 960 : 480, t + 0.9); x.frequency.setValueAtTime(i ? 960 : 480, t + 1.5); x.frequency.exponentialRampToValueAtTime(i ? 560 : 280, t + 3);
+        lfo(5.2, i ? 14 : 8, x.frequency).stop(t + 3.2);
+        x.connect(f); x.start(t); x.stop(t + 3.1);
+      });
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.14, t + 0.5); g.gain.setValueAtTime(0.14, t + 1.8); g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+      f.connect(g); g.connect(master);
+    },
+    clash: function () {
+      [0, 0.045].forEach(function (d, k) {
+        setTimeout(function () { burst(4200, 1.5, 0.06, 0.4, 'highpass', master); [1450, 2210, 3170, 4380, 5900].forEach(function (f, i) { ping(f * (1 + k * 0.01), 1.0 - i * 0.12, 0.07 / (1 + i * 0.3), master); }); }, d * 1000);
+      });
+    },
+    magic: function () { sweep(300, 1800, 0.9, 0.08, 'sine'); [1600, 2100, 2800, 3500].forEach(function (f, i) { setTimeout(function () { ping(f, 0.9, 0.05, master); }, 150 + i * 110); }); },
+    explosion: function () {
+      burst(900, 0.5, 1.8, 0.8, 'lowpass', master); sweep(120, 35, 1.2, 0.35, 'sine'); burst(3000, 0.5, 0.1, 0.35, 'highpass', master);
+      for (var i = 0; i < 14; i++) setTimeout(function () { burst(1500 + Math.random() * 3500, 4, 0.05, 0.1 * Math.random(), 'bandpass', master); }, 200 + Math.random() * 1500);     // falling debris
+    },
+    splash: function () {
+      burst(2600, 0.7, 0.55, 0.32, 'bandpass', master); burst(900, 0.7, 0.45, 0.3, 'lowpass', master); ping(170, 0.25, 0.3, master);
+      for (var i = 0; i < 7; i++) setTimeout(function () { var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime, f = 500 + Math.random() * 700; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.07); g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.1); }, 80 + Math.random() * 500);   // bubbles
+    }
   };
   function sweep(from, to, dur, level, type) {
     var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
@@ -273,20 +364,36 @@
       kind = SCENES.indexOf(kind) >= 0 ? kind : 'none';
       scene.wanted = kind;
       if (!ensure() || ctx.state === 'suspended' || scene.kind === kind) return;
-      crossfade(sceneBus, scene, BUILD[kind], 2500, kind);
+      crossfade(sceneBus, scene, files['scene:' + kind] ? fileLayer(files['scene:' + kind], true) : BUILD[kind], 2500, kind);
     },
     setMood: function (kind) {
       kind = MOODS.indexOf(kind) >= 0 ? kind : 'calm';
       mood.wanted = kind;
       if (!ensure() || ctx.state === 'suspended' || mood.kind === kind) return;
-      crossfade(moodBus, mood, MOOD[kind], kind === 'triumph' ? 200 : 1800, kind);
+      crossfade(moodBus, mood, files['mood:' + kind] ? fileLayer(files['mood:' + kind], kind !== 'triumph') : MOOD[kind], kind === 'triumph' ? 200 : 1800, kind);
     },
-    sfx: function (name) { if (enabled && ensure() && ctx.state !== 'suspended' && EFFECTS[name]) EFFECTS[name](); },
+    sfx: function (name) {
+      if (!enabled || !ensure() || ctx.state === 'suspended') return;
+      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(); s.buffer = buf; s.connect(master); s.start(); }).catch(function () { /* skipped */ }); return; }
+      if (EFFECTS[name]) EFFECTS[name]();
+    },
+    // True when a recording in public/audio replaces this sound.
+    hasFile: function (kind, name) { return Boolean(files[kind + ':' + name]); },
     // After unlock(), start whatever was asked for before the browser allowed sound.
     resume: function () { api.unlock(); if (scene.wanted && scene.kind !== scene.wanted) { var k = scene.wanted; scene.kind = ''; api.setScene(k); } if (mood.wanted && mood.kind !== mood.wanted) { var m = mood.wanted; mood.kind = ''; api.setMood(m); } },
     // How loud the output is right now (0 to 1): a self-test, since nobody can see sound.
     level: function () { if (!analyser) return 0; var d = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(d); var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i] * d[i]; return Math.sqrt(sum / d.length); },
+    // The frequency content right now (0 to 255 per bin, low to high), for the Sound Test spectrogram.
+    spectrum: function (out) { if (analyser) analyser.getByteFrequencyData(out); return Boolean(analyser); },
+    sampleRate: function () { return ctx ? ctx.sampleRate : 44100; },
     state: function () { return { enabled: enabled, volume: volume, scene: scene.kind, mood: mood.kind, running: Boolean(ctx && ctx.state === 'running') }; }
   };
+  // Which recordings exist (the server lists public/audio). Pages can wait on Ambience.ready before showing which sounds are recordings.
+  api.ready = typeof fetch === 'function' ? fetch('/api/audio-files').then(function (r) { return r.json(); }).then(function (data) {
+    (data.files || []).forEach(function (f) {
+      var m = /^(scene|mood|sfx)-([a-z0-9-]+)\.(mp3|ogg|wav|m4a|webm|flac)$/i.exec(f);
+      if (m) files[m[1].toLowerCase() + ':' + m[2].toLowerCase()] = '/audio/' + encodeURIComponent(f);
+    });
+  }).catch(function () { /* no list: everything stays synthesised */ }) : Promise.resolve();
   root.Ambience = api;
 })(typeof window !== 'undefined' ? window : globalThis);

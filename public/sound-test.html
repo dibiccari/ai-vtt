@@ -5,53 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI-VTT Sound Test</title>
 <style>
-  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; }
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --warn:#f0c048; --bad:#ff6b6b; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
-  .page { margin:0 auto; padding:20px; max-width:980px; }
+  .page { margin:0 auto; padding:20px; max-width:1040px; }
   h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
   h2 { margin:24px 0 8px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
   p.lead { color:var(--muted); margin:0 0 14px; }
-  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:6px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
   button:hover { border-color:var(--accent); }
   button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
   button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  input[type=text] { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:5px 8px; }
   .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
-  .grid { display:flex; flex-wrap:wrap; gap:8px; }
   .bar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .meter { flex:1; min-width:200px; height:10px; background:#0d1117; border-radius:5px; overflow:hidden; border:1px solid var(--border); }
   .meter i { display:block; height:100%; width:0; background:var(--ok); transition:width .08s; }
   .status { color:var(--muted); font-size:13px; }
+  canvas#spec { width:100%; height:120px; background:#05070a; border-radius:8px; border:1px solid var(--border); margin-top:10px; display:block; }
+  .row { display:grid; grid-template-columns:150px 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid #1c2330; }
+  .row:first-child { border-top:0; }
+  .row .meant { color:var(--muted); font-size:12.5px; }
+  .row .meant input { width:100%; margin-top:4px; }
+  .rate { display:flex; gap:4px; }
+  .rate button { padding:4px 10px; font-size:12px; }
+  .rate button[data-r="good"][aria-pressed="true"] { background:var(--ok); border-color:var(--ok); }
+  .rate button[data-r="close"][aria-pressed="true"] { background:var(--warn); border-color:var(--warn); }
+  .rate button[data-r="wrong"][aria-pressed="true"] { background:var(--bad); border-color:var(--bad); color:#fff; }
   .hint { color:var(--muted); font-size:12px; margin:6px 0 0; }
+  .saved { color:var(--ok); font-size:12px; margin-left:8px; }
+  @media (max-width:700px) { .row { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>Sound <span>Test</span></h1>
-  <p class="lead">Listen to the ambient sound, the moods and the sound effects the table can play. All of it is made in your browser, so nothing is downloaded. Click anything to start the audio (browsers need a click first).</p>
+  <p class="lead">Listen to every ambient scene, mood and sound effect, and tell me which ones sound like what they say. The sounds are made in your browser. For each one, press play, then mark it Good, Close or Wrong and type what you hear or what it should sound like. Your notes are saved on this computer and I read them to fix the sounds.</p>
 
   <div class="card">
     <div class="bar">
       <label>Volume <input type="range" id="vol" min="0" max="100" value="50" style="width:200px"></label>
       <div class="meter" title="Output level"><i id="level"></i></div>
       <button id="stopAll">Stop everything</button>
+      <button id="duck" aria-pressed="false" title="This is how quiet the ambience gets while the DM speaks">DM speaking</button>
     </div>
-    <div class="status" id="status" style="margin-top:8px"></div>
+    <canvas id="spec" width="1000" height="120" aria-label="Spectrogram of the sound playing"></canvas>
+    <div class="status" id="status" style="margin-top:8px">Click any Play button to start the audio (browsers need a click first).</div>
   </div>
 
-  <h2>Ambient scene (loops until you pick another)</h2>
-  <div class="grid" id="scenes"></div>
-  <p class="hint">On the tabletop the scene follows the map: a map can name its own sound (Map Test, "Ambient sound"), otherwise it follows the kind of place and its light.</p>
+  <h2>Ambient scenes (loop until you pick another)</h2>
+  <div class="card" id="scenes"></div>
 
-  <h2>Mood (plays over the scene; combat switches on by itself)</h2>
-  <div class="grid" id="moods"></div>
-  <p class="hint">The Dungeon Master can ask for calm, tense, eerie or triumph. "Triumph" is a short fanfare.</p>
+  <h2>Moods (play over the scene; combat switches on by itself)</h2>
+  <div class="card" id="moods"></div>
 
   <h2>Sound effects (one shot)</h2>
-  <div class="grid" id="sfx"></div>
-
-  <h2>While the DM speaks</h2>
-  <div class="grid"><button id="duck" aria-pressed="false">Pretend the DM is speaking (ambient sound drops)</button></div>
+  <div class="card" id="sfx"></div>
+  <p class="hint" id="saveNote"></p>
 </div>
 <script src="/nav.js"></script>
 <script src="/ambience.js"></script>
@@ -59,36 +69,121 @@
 (function () {
   'use strict';
   var $ = function (s) { return document.querySelector(s); };
-  var current = { scene: 'none', mood: 'calm' };
-  var LABELS = { none: 'None', forest: 'Forest by day', night: 'Night (crickets, fire)', wind: 'Wind', cave: 'Cave (drips)', dungeon: 'Dungeon', tavern: 'Tavern', town: 'Town', rain: 'Rain', fire: 'Campfire',
+  var LABELS = { none: 'Silence', forest: 'Forest by day', night: 'Night camp', wind: 'Wind', cave: 'Cave', dungeon: 'Dungeon', tavern: 'Tavern', town: 'Town', rain: 'Rain', fire: 'Campfire',
     calm: 'Calm', tense: 'Tense', combat: 'Combat', eerie: 'Eerie', triumph: 'Triumph' };
+  var MEANT = {
+    scene: {
+      none: 'Nothing playing.',
+      forest: 'Gentle wind in leaves with the odd birdsong.',
+      night: 'Crickets chirping, a soft night breeze and a distant campfire crackle.',
+      wind: 'Steady wind that gusts and fades.',
+      cave: 'A low hollow drone with water dripping and echoing.',
+      dungeon: 'A deeper drone, slow drips and a torch crackling.',
+      tavern: 'A crowd murmuring with the odd clink and a fire in the hearth.',
+      town: 'Light wind, a distant crowd and a few birds.',
+      rain: 'Steady rainfall with a little wind.',
+      fire: 'A crackling campfire with faint crickets behind it.'
+    },
+    mood: {
+      calm: 'Nothing extra.',
+      tense: 'A low, unsettling drone.',
+      combat: 'A driving drum pulse over a low drone.',
+      eerie: 'A high ghostly pad with faint whispers.',
+      triumph: 'A short bright heroic chord swell.'
+    },
+    sfx: {
+      door: 'A heavy wooden door: a thud and a creak.',
+      creak: 'A slow rusty hinge creak.',
+      thunder: 'Deep rolling thunder that fades.',
+      bell: 'A church bell struck once, ringing out.',
+      roar: 'A deep monstrous roar.',
+      howl: 'A wolf howl rising then falling.',
+      clash: 'Sword hitting sword, a ringing steel clash.',
+      magic: 'A rising sparkling shimmer.',
+      explosion: 'A boom with a rolling aftermath.',
+      splash: 'Something falling into water.'
+    }
+  };
+  var feedback = {};
+  var saveTimer = null;
 
   function say(text) { $('#status').textContent = text; }
-  function pressed(group, name) { document.querySelectorAll(group + ' button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.name === name)); }); }
 
-  function makeButtons(box, names, onClick) {
-    names.forEach(function (n) {
-      var b = document.createElement('button');
-      b.textContent = LABELS[n] || n.charAt(0).toUpperCase() + n.slice(1);
-      b.dataset.name = n;
-      b.addEventListener('click', function () { Ambience.unlock(); Ambience.resume(); onClick(n); });
-      $(box).appendChild(b);
-    });
+  async function loadFeedback() {
+    try { feedback = await (await fetch('/api/sound-feedback')).json(); } catch (e) { feedback = {}; }
+    try { var local = JSON.parse(localStorage.getItem('vtt.soundFeedback') || '{}'); for (var k in local) if (!feedback[k]) feedback[k] = local[k]; } catch (e) { /* none */ }
+  }
+  function queueSave() {
+    try { localStorage.setItem('vtt.soundFeedback', JSON.stringify(feedback)); } catch (e) { /* storage blocked */ }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async function () {
+      try {
+        var res = await fetch('/api/sound-feedback', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feedback) });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        $('#saveNote').textContent = 'Notes saved. (' + Object.keys(feedback).filter(function (k) { return feedback[k].rating || feedback[k].note; }).length + ' sounds reviewed)';
+      } catch (e) { $('#saveNote').textContent = 'Could not save on the server (' + e.message + '). Your notes are kept in this browser.'; }
+    }, 600);
   }
 
-  makeButtons('#scenes', Ambience.scenes, function (n) { current.scene = n; Ambience.setScene(n); pressed('#scenes', n); say('Scene: ' + (LABELS[n] || n)); });
-  makeButtons('#moods', Ambience.moods, function (n) { current.mood = n; Ambience.setMood(n); pressed('#moods', n); say('Mood: ' + (LABELS[n] || n)); });
-  makeButtons('#sfx', Ambience.sfxNames, function (n) { Ambience.sfx(n); say('Sound effect: ' + n); });
-  pressed('#scenes', 'none'); pressed('#moods', 'calm');
+  function row(group, kind, name, onPlay) {
+    var key = kind + ':' + name;
+    var fb = feedback[key] || { rating: '', note: '' };
+    var r = document.createElement('div'); r.className = 'row';
+    var play = document.createElement('button'); play.textContent = '▶ ' + (LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1)); play.dataset.name = name;
+    play.addEventListener('click', function () { Ambience.unlock(); Ambience.resume(); onPlay(name); group.querySelectorAll('.row > button').forEach(function (b) { if (kind !== 'sfx') b.setAttribute('aria-pressed', String(b === play)); }); });
+    var meant = document.createElement('div'); meant.className = 'meant';
+    meant.textContent = 'Meant to sound like: ' + MEANT[kind][name] + (Ambience.hasFile(kind, name) ? '  [your recording]' : '  [synthesised]');
+    var note = document.createElement('input'); note.type = 'text'; note.placeholder = 'What do you hear? What should it be?'; note.value = fb.note || ''; note.maxLength = 500;
+    note.addEventListener('input', function () { feedback[key] = { rating: (feedback[key] || {}).rating || '', note: note.value }; queueSave(); });
+    meant.appendChild(note);
+    var rate = document.createElement('div'); rate.className = 'rate';
+    [['good', 'Good'], ['close', 'Close'], ['wrong', 'Wrong']].forEach(function (p) {
+      var b = document.createElement('button'); b.textContent = p[1]; b.dataset.r = p[0]; b.setAttribute('aria-pressed', String(fb.rating === p[0]));
+      b.addEventListener('click', function () {
+        var now = (feedback[key] || {}).rating === p[0] ? '' : p[0];
+        feedback[key] = { rating: now, note: note.value };
+        rate.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.r === now)); });
+        queueSave();
+      });
+      rate.appendChild(b);
+    });
+    r.append(play, meant, rate);
+    group.appendChild(r);
+  }
+
+  async function init() {
+    await loadFeedback();
+    await Ambience.ready;
+    Ambience.scenes.forEach(function (n) { if (n !== 'none') row($('#scenes'), 'scene', n, function (x) { Ambience.setScene(x); say('Scene: ' + LABELS[x]); }); });
+    Ambience.moods.forEach(function (n) { if (n !== 'calm') row($('#moods'), 'mood', n, function (x) { Ambience.setMood(x); say('Mood: ' + LABELS[x]); }); });
+    Ambience.sfxNames.forEach(function (n) { row($('#sfx'), 'sfx', n, function (x) { Ambience.sfx(x); say('Sound effect: ' + x); }); });
+  }
 
   $('#vol').addEventListener('input', function (e) { Ambience.unlock(); Ambience.setVolume(e.target.value / 100); });
   Ambience.setVolume(0.5);
-  $('#stopAll').addEventListener('click', function () { Ambience.setScene('none'); Ambience.setMood('calm'); pressed('#scenes', 'none'); pressed('#moods', 'calm'); say('Stopped.'); });
+  $('#stopAll').addEventListener('click', function () { Ambience.setScene('none'); Ambience.setMood('calm'); document.querySelectorAll('.row > button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); }); say('Stopped.'); });
   $('#duck').addEventListener('click', function (e) {
     var on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
-    Ambience.unlock(); Ambience.duck(on); e.currentTarget.setAttribute('aria-pressed', String(on)); say(on ? 'Ducked: this is how quiet the ambience gets while the DM talks.' : 'Back to full volume.');
+    Ambience.unlock(); Ambience.duck(on); e.currentTarget.setAttribute('aria-pressed', String(on));
   });
-  setInterval(function () { $('#level').style.width = Math.min(100, Ambience.level() * 400) + '%'; }, 80);
+
+  // A scrolling spectrogram (low sounds at the bottom, high at the top) and a level meter.
+  var spec = $('#spec'), sctx = spec.getContext('2d'), bins = new Uint8Array(512);
+  function frame() {
+    $('#level').style.width = Math.min(100, Ambience.level() * 400) + '%';
+    if (Ambience.spectrum(bins)) {
+      sctx.drawImage(spec, -2, 0);
+      for (var y = 0; y < spec.height; y++) {
+        var f = Math.pow(1 - y / spec.height, 2.2);          // log-ish: more rows for the low end
+        var v = bins[Math.min(bins.length - 1, Math.floor(f * bins.length * 0.75))] / 255;
+        sctx.fillStyle = 'hsl(' + (240 - v * 220) + ', 90%, ' + (8 + v * 55) + '%)';
+        sctx.fillRect(spec.width - 2, y, 2, 1);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  init();
 })();
 </script>
 </body>

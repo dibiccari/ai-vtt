@@ -415,6 +415,26 @@ app.put('/api/party/stash', asyncRoute(async (req, res) => {
   const campaign = await getActiveCampaignId();
   res.json({ stash: await writeStash(path.join(CAMPAIGNS_DIR, campaign), req.body) });
 }));
+// The user's own recordings (public/audio/scene-*, mood-*, sfx-*) replace the synthesised sounds.
+app.get('/api/audio-files', asyncRoute(async (_req, res) => {
+  try { res.json({ files: (await readdir(path.join(PUBLIC_DIR, 'audio'))).filter((f) => /\.(mp3|ogg|wav|m4a|webm|flac)$/i.test(f)).sort() }); } catch { res.json({ files: [] }); }
+}));
+
+// ---------------------------------------------------------------- sound review notes (from the Sound Test page)
+const SOUND_FEEDBACK_FILE = path.join(__dirname, 'data', 'sound-feedback.json');
+app.get('/api/sound-feedback', asyncRoute(async (_req, res) => {
+  try { res.json(JSON.parse(await readFile(SOUND_FEEDBACK_FILE, 'utf8'))); } catch { res.json({}); }
+}));
+app.put('/api/sound-feedback', localOnly, asyncRoute(async (req, res) => {
+  const clean = {};
+  for (const [key, v] of Object.entries(req.body && typeof req.body === 'object' ? req.body : {}).slice(0, 80)) {
+    if (!/^[a-z0-9-]{1,30}:[a-z0-9-]{1,30}$/.test(key)) continue;
+    clean[key] = { rating: ['good', 'close', 'wrong'].includes(v?.rating) ? v.rating : '', note: String(v?.note ?? '').slice(0, 500) };
+  }
+  await writeFile(SOUND_FEEDBACK_FILE, JSON.stringify(clean, null, 2));
+  res.json({ ok: true, saved: Object.keys(clean).length });
+}));
+
 // ---------------------------------------------------------------- safety tools
 
 app.get('/api/campaigns/:id/safety', asyncRoute(async (req, res) => {
