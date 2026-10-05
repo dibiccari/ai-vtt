@@ -281,7 +281,9 @@ app.get('/api/map-configs', asyncRoute(async (_req, res) => {
     if (!f.endsWith('.json')) continue;
     try {
       const c = JSON.parse(await readFile(path.join(MAP_CONFIG_DIR, f), 'utf8'));
-      out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0, group: c.group || null, variant: c.variant || null });
+      const start = (Array.isArray(c.starts) ? c.starts : []).find((s) => s && s.name === 'start');
+      out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0, group: c.group || null, variant: c.variant || null,
+        squares: Number(c.squares) || 0, light: c.light || 'bright', ambience: c.ambience || '', startPin: start ? { x: start.x, y: start.y } : null, pins: Array.isArray(c.starts) ? c.starts.length : 0 });
     } catch { /* skip unreadable config */ }
   }
   res.json({ configs: out });

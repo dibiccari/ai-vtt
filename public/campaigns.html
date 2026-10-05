@@ -169,7 +169,7 @@
     mapsBtn.title = 'Choose which maps this campaign can use, what kind each is, and what the DM is told about it';
     mapsBtn.addEventListener('click', async () => {
       if (openMaps.has(c.id)) { openMaps.delete(c.id); render(); return; }
-      try { mapData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps'); openMaps.add(c.id); } catch (err) { setStatus('Could not load the maps: ' + err.message, 'bad'); }
+      try { mapData[c.id] = await api('/api/campaigns/' + encodeURIComponent(c.id) + '/maps'); await loadMapSetup(mapData[c.id]); openMaps.add(c.id); } catch (err) { setStatus('Could not load the maps: ' + err.message, 'bad'); }
       render();
     });
     const safetyBtn = el('button', '', openSafety.has(c.id) ? 'Hide safety' : 'Safety');
@@ -275,6 +275,11 @@
     return wrap;
   }
 
+  // What each map picture has set up (start pin, grid, light), from the per-map settings the Map Test page saves.
+  async function loadMapSetup(d) {
+    try { d.setup = Object.fromEntries(((await api('/api/map-configs')).configs || []).map((x) => [x.map, x])); } catch { d.setup = {}; }
+  }
+
   // Which maps a campaign can use. The AI is offered exactly these (with the description), and the Map picker lists them.
   function mapsEditor(c) {
     const d = mapData[c.id];
@@ -283,7 +288,7 @@
     wrap.appendChild(el('p', 'note', 'The Dungeon Master can move the table to any map listed here, and the Map picker on the tabletop offers them. Kind decides how the map behaves: battle (grid, tokens, fog of war), camp (grid and tokens, no fog), town or regional (a plain picture, no tokens or fog). Set where the party arrives with the Pins tool on the Map Test page.' + (d.custom ? '' : ' This campaign is using its built-in list; saving here replaces it with your own.')));
     const table = el('table');
     const head = el('tr');
-    ['Picture', 'Name', 'Kind', 'What the DM is told', ''].forEach((t) => head.appendChild(el('th', '', t)));
+    ['Picture', 'Setup', 'Name', 'Kind', 'What the DM is told', ''].forEach((t) => head.appendChild(el('th', '', t)));
     table.appendChild(head);
     d.maps.forEach((m, i) => {
       const tr = el('tr');
@@ -305,7 +310,7 @@
       const del = el('button', 'danger', 'Remove');
       del.addEventListener('click', () => { d.maps.splice(i, 1); render(); });
       actCell.appendChild(del);
-      tr.append(fileCell, nameCell, kindCell, descCell, actCell);
+      tr.append(fileCell, setupCell(d, m), nameCell, kindCell, descCell, actCell);
       table.appendChild(tr);
     });
     wrap.appendChild(table);
@@ -343,6 +348,35 @@
     addRow.append(pick, add, save, reset);
     wrap.appendChild(addRow);
     return wrap;
+  }
+
+  // The map's setup at a glance: a thumbnail with its start pin, what is missing, and a link into the Map Test page to fix it.
+  function setupCell(d, m) {
+    const cell = el('td');
+    const cfg = (d.setup || {})[m.file] || null;
+    const plain = m.kind === 'regional' || m.kind === 'town';
+    const thumb = el('div'); thumb.style.cssText = 'position:relative;width:120px;margin-bottom:6px;';
+    const img = el('img'); img.src = '/uploads/' + encodeURIComponent(m.file); img.alt = ''; img.loading = 'lazy'; img.style.cssText = 'width:100%;display:block;border-radius:4px;';
+    thumb.appendChild(img);
+    if (!plain && cfg && cfg.startPin) {
+      img.addEventListener('load', () => {
+        const dot = el('div'); dot.title = 'Start pin: where the party arrives';
+        dot.style.cssText = 'position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#f0c048;border:2px solid #e5534b;left:' + (cfg.startPin.x / img.naturalWidth * 100) + '%;top:' + (cfg.startPin.y / img.naturalHeight * 100) + '%;';
+        thumb.appendChild(dot);
+      });
+    }
+    cell.appendChild(thumb);
+    const line = (ok, text) => { const p = el('div', 'note', (ok ? '✓ ' : '⚠ ') + text); p.style.color = ok ? 'var(--ok)' : 'var(--gold)'; return p; };
+    if (plain) cell.appendChild(el('div', 'note', 'A plain picture: nothing to set up.'));
+    else {
+      cell.appendChild(line(Boolean(cfg && cfg.startPin), cfg && cfg.startPin ? 'start pin set' : 'no start pin'));
+      cell.appendChild(line(Boolean(cfg && cfg.squares), cfg && cfg.squares ? 'grid: ' + cfg.squares + ' squares across' : 'grid not calibrated'));
+      if (cfg) cell.appendChild(el('div', 'note', 'light: ' + cfg.light + (cfg.walls ? ' · ' + cfg.walls + ' walls' : '')));
+    }
+    const open = el('a', 'note', 'Set up this map…'); open.href = '/map-test.html?map=' + encodeURIComponent('/uploads/' + m.file); open.target = '_blank'; open.rel = 'noopener';
+    open.title = 'Open the Map Test page on this map to drag its pins, calibrate the grid and set the light';
+    if (!plain) cell.appendChild(open);
+    return cell;
   }
 
   function documents(c) {
