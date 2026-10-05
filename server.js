@@ -459,6 +459,60 @@ app.put('/api/campaigns/:id/safety', localOnly, asyncRoute(async (req, res) => {
   res.json(await writeSafety(path.join(CAMPAIGNS_DIR, id), req.body));
 }));
 
+// ---------------------------------------------------------------- saved game (board, chat, explored fog)
+// The tabletop keeps its board and chat in the browser for speed and mirrors them here, so the game survives clearing the browser
+// and can be continued from another computer. data/campaigns/<id>/game.json {savedAt, board, chat}; fog.json {<map url>: png data URL}.
+
+const gamePaths = (id) => ({ game: path.join(CAMPAIGNS_DIR, id, 'game.json'), fog: path.join(CAMPAIGNS_DIR, id, 'fog.json') });
+async function readJsonOr(file, fallback) { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } }
+async function writeJsonAtomic(file, value) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(value));
+  await rename(tmp, file);
+}
+async function gameCampaign(req, res) {
+  const id = safeCampaignId(req.params.id);
+  if (!id || !(await campaignIds()).includes(id)) { res.status(404).json({ error: 'No such campaign' }); return null; }
+  return id;
+}
+
+app.get('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
+  const id = await gameCampaign(req, res); if (!id) return;
+  const p = gamePaths(id);
+  const game = await readJsonOr(p.game, null);
+  res.json({ savedAt: game?.savedAt || 0, board: game?.board || null, chat: game?.chat || [], fog: await readJsonOr(p.fog, {}) });
+}));
+
+app.put('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
+  const id = await gameCampaign(req, res); if (!id) return;
+  const board = req.body?.board && typeof req.body.board === 'object' && !Array.isArray(req.body.board) ? req.body.board : null;
+  if (!board) return res.status(400).json({ error: 'No board to save' });
+  const chat = (Array.isArray(req.body?.chat) ? req.body.chat : []).slice(-200);
+  const savedAt = Number.isFinite(Number(req.body?.savedAt)) ? Number(req.body.savedAt) : Date.now();
+  await writeJsonAtomic(gamePaths(id).game, { savedAt, board, chat });
+  res.json({ ok: true, savedAt });
+}));
+
+app.put('/api/campaigns/:id/game/fog', asyncRoute(async (req, res) => {
+  const id = await gameCampaign(req, res); if (!id) return;
+  const mapUrl = String(req.body?.mapUrl ?? '');
+  const data = String(req.body?.data ?? '');
+  if (!/^\/uploads\/[A-Za-z0-9._-]{1,120}$/.test(mapUrl) || !data.startsWith('data:image/png;base64,') || data.length > 8_000_000) return res.status(400).json({ error: 'Not a fog image' });
+  const p = gamePaths(id);
+  const fog = await readJsonOr(p.fog, {});
+  fog[mapUrl] = data;
+  await writeJsonAtomic(p.fog, fog);
+  res.json({ ok: true });
+}));
+
+// Forget the saved game of a campaign (Start over).
+app.delete('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
+  const id = await gameCampaign(req, res); if (!id) return;
+  const p = gamePaths(id);
+  for (const f of [p.game, p.fog]) { try { await unlink(f); } catch { /* nothing saved */ } }
+  res.json({ ok: true });
+}));
+
 // ---------------------------------------------------------------- table settings
 
 // Real dice, for the tabletop's Roll for me button (free: no AI call).

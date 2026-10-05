@@ -511,6 +511,59 @@ const interaction = {
 /* =====================================================================
    SAFE STORAGE
    ===================================================================== */
+/* SERVER SAVE: the board, the chat and the explored fog live in the browser for speed and are mirrored to the server
+   (data/campaigns/<id>/game.json and fog.json), so the game survives clearing the browser and can be continued from another
+   computer. Whichever copy was saved last wins when the table opens. */
+const serverSave = (() => {
+  let timer = null, quiet = false;
+  const on = () => state.campaignId && state.campaignId !== 'default';
+  const atKey = () => `vtt.savedAt.${state.campaignId}`;
+  const url = (suffix = '') => `/api/campaigns/${encodeURIComponent(state.campaignId)}/game${suffix}`;
+  const put = (suffix, body) => fetch(url(suffix), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => { /* offline: the browser copy still has it */ });
+  const push = () => {
+    timer = null;
+    try {
+      const board = JSON.parse(localStorage.getItem(`vtt.board.${state.campaignId}`) || 'null');
+      if (!board) return;
+      const chat = JSON.parse(localStorage.getItem(`vtt.chat.${state.campaignId}`) || '[]');
+      put('', { board, chat, savedAt: Number(localStorage.getItem(atKey())) || Date.now() });
+    } catch { /* storage blocked */ }
+  };
+  return {
+    // Called after every local save of a board or chat.
+    touched(key) {
+      if (quiet || !on() || (key !== `vtt.board.${state.campaignId}` && key !== `vtt.chat.${state.campaignId}`)) return;
+      try { localStorage.setItem(atKey(), String(Date.now())); } catch { /* storage blocked */ }
+      clearTimeout(timer);
+      timer = setTimeout(push, 1500);
+    },
+    fog(mapUrl, data) { if (on() && mapUrl) put('/fog', { mapUrl, data }); },
+    // At start-up: take the server copy if it is newer than this browser's, or send this browser's if it is newer.
+    async pull() {
+      if (!on()) return;
+      try {
+        const g = await (await fetch(url())).json();
+        const localAt = Number(localStorage.getItem(atKey())) || 0;
+        const hasLocal = Boolean(localStorage.getItem(`vtt.board.${state.campaignId}`));
+        if (g.board && Number(g.savedAt) > localAt) {
+          quiet = true;
+          try {
+            localStorage.setItem(`vtt.board.${state.campaignId}`, JSON.stringify(g.board));
+            localStorage.setItem(`vtt.chat.${state.campaignId}`, JSON.stringify(g.chat || []));
+            for (const [m, d] of Object.entries(g.fog || {})) localStorage.setItem(`vtt.fog.${m}`, d);
+            localStorage.setItem(atKey(), String(g.savedAt));
+          } finally { quiet = false; }
+        } else if (hasLocal && localAt >= Number(g.savedAt || 0)) {
+          if (!localAt) localStorage.setItem(atKey(), String(Date.now()));
+          push();
+          const maps = new Set(JSON.parse(localStorage.getItem(`vtt.board.${state.campaignId}`)).visitedMaps || []);
+          for (const m of maps) { const d = localStorage.getItem(`vtt.fog.${m}`); if (d) this.fog(m, d); }
+        }
+      } catch { /* the server is not reachable: the browser copy is used */ }
+    }
+  };
+})();
+
 const store = {
   get(key, fallback) {
     try {
@@ -519,7 +572,9 @@ const store = {
     } catch { return fallback; }
   },
   set(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { return false; }
+    serverSave.touched(key);
+    return true;
   },
   getRaw(key) {
     try { return localStorage.getItem(key); } catch { return null; }
@@ -1252,7 +1307,9 @@ function scheduleFogSave() {
   const key = fogKey();
   fogSaveTimer = setTimeout(() => {
     try {
-      if (!store.setRaw(key, shroud.toDataURL('image/png'))) console.info('Fog not persisted (storage full or unavailable)');
+      const data = shroud.toDataURL('image/png');
+      if (!store.setRaw(key, data)) console.info('Fog not persisted (storage full or unavailable)');
+      serverSave.fog(state.map.url, data);
     } catch (err) {
       console.info('Fog not persisted:', err.message);
     }
@@ -3760,6 +3817,7 @@ async function init() {
   try { active = ((await api('/api/campaigns')).campaigns || []).find((c) => c.active) || null; } catch { /* the table still works without it */ }
   state.campaignId = active ? active.id : 'default';
   try { state.permadeath = (await api('/api/campaigns/' + encodeURIComponent(state.campaignId) + '/settings')).permadeath === true; } catch { state.permadeath = false; }
+  await serverSave.pull();
   let board = store.get(boardKey(), null);
   // A campaign with a ready-made starting scene (and no saved board yet) begins there.
   if (!board && window.Scenes && Scenes.has(state.campaignId, active && active.template)) {

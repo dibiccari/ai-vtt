@@ -286,7 +286,8 @@
         const saved = JSON.parse(localStorage.getItem('vtt.board.' + c.id) || 'null');
         if (saved && saved.mapUrl) localStorage.removeItem('vtt.fog.' + saved.mapUrl);
       } catch { /* nothing saved */ }
-      for (const key of ['vtt.board.' + c.id, 'vtt.chat.' + c.id]) { try { localStorage.removeItem(key); } catch { /* storage blocked */ } }
+      try { await fetch('/api/campaigns/' + c.id + '/game', { method: 'DELETE' }); } catch { /* nothing saved on the server */ }
+      for (const key of ['vtt.board.' + c.id, 'vtt.chat.' + c.id, 'vtt.savedAt.' + c.id]) { try { localStorage.removeItem(key); } catch { /* storage blocked */ } }
       try {
         await fetch('/api/campaigns/' + c.id + '/journal', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: [] }) });
       } catch { /* the board is cleared even if the journal could not be */ }

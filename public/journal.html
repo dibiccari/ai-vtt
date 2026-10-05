@@ -191,6 +191,7 @@
           else localStorage.removeItem(p + state.campaign);
         } catch (e) { /* storage blocked */ }
       });
+      try { localStorage.setItem('vtt.savedAt.' + state.campaign, String(Date.now())); } catch (e) { /* storage blocked */ }     // the imported game is now the newest copy
       await load();
       setStatus('Save imported. Open the tabletop to continue.', 'ok');
     } catch (err) { setStatus(err.message, 'err'); }
