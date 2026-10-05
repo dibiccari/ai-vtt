@@ -66,15 +66,16 @@
     return (await Uvtt.importAsMap(u, 'rusty-flagon')).url;
   }
 
-  var has = function (id) { return id === TAVERN || id === LOST_MINE; };
+  // A campaign made from another has that one's scene: pass its template as the second argument.
+  var has = function (id, template) { var key = template || id; return key === TAVERN || key === LOST_MINE; };
 
   // Lost Mine of Phandelver starts on the road: the Sword Coast map, with the party on the Triboar Trail
   // a half-day's march from Phandalin (where the Goblin Arrows chapter begins). Returns null if the map is not installed.
-  async function createLostMine(opts) {
+  async function createLostMine(opts, id) {
     var maps = (await getJson('/api/maps')).maps || [];
     var url = maps.filter(function (u) { return /\/northswordcoast-playerversion\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /northswordcoast/.test(u); })[0] || null;
     if (!url) return null;
-    var chars = await getJson('/api/characters?campaign=' + LOST_MINE);
+    var chars = await getJson('/api/characters?campaign=' + (id || LOST_MINE));
     var spots = [[31, 49], [32, 49], [31, 50], [32, 50], [33, 49], [33, 50]];
     var tokens = chars.slice(0, spots.length).map(function (c, i) {
       return { id: 'tok-' + c.id, name: c.name, col: spots[i][0], row: spots[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' };
@@ -85,9 +86,10 @@
 
   // A fresh board for a scenario campaign: { mapUrl, tokens, activeIndex, fogEnabled, gridOpacity }.
   async function create(id, options) {
-    if (!has(id)) throw new Error('No ready-made scene for ' + id);
     var opts = options || {};
-    if (id === LOST_MINE) return createLostMine(opts);
+    var key = opts.template || id;
+    if (!has(id, opts.template)) throw new Error('No ready-made scene for ' + id);
+    if (key === LOST_MINE) return createLostMine(opts, id);
     var mapUrl = await ensureTavernMap();
     var chars = await getJson('/api/characters?campaign=' + id);
     if (!chars.length) throw new Error('There are no characters yet. Make some on the Character Sheets page first.');

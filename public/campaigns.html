@@ -105,6 +105,7 @@
   function render() {
     const list = $('#list');
     list.innerHTML = '';
+    list.appendChild(newCampaignBox());
     for (const c of campaigns.filter((x) => !x.test)) list.appendChild(card(c));
     const tests = campaigns.filter((x) => x.test);
     if (tests.length) {
@@ -112,6 +113,28 @@
       list.appendChild(el('p', 'note', 'Short scenes for trying out the table and the AI. Each one builds its own map and tokens the first time you open it.'));
       for (const c of tests) list.appendChild(card(c));
     }
+  }
+
+  // Start another playthrough: the new campaign copies the documents, voices, maps list and table settings of the one you pick, so it has the same maps and starting positions, and begins with a fresh journal, board and chat.
+  function newCampaignBox() {
+    const box = el('div', 'card');
+    box.appendChild(el('h3', '', 'New campaign'));
+    box.appendChild(el('p', 'note', 'Start another playthrough of a campaign you already have. It gets the same documents, maps, starting positions and table settings, and starts fresh: new journal, board and chat. Then pick its settings and press Use this campaign.'));
+    const row = el('div', 'row');
+    const from = el('select'); from.setAttribute('aria-label', 'Copy from');
+    campaigns.filter((x) => x.template === x.id).forEach((x) => { const o = el('option', '', x.name); o.value = x.id; from.appendChild(o); });
+    const name = el('input'); name.placeholder = 'Name of the new campaign'; name.style.width = '260px'; name.setAttribute('aria-label', 'Name');
+    const go = el('button', 'primary', 'Create');
+    go.addEventListener('click', async () => {
+      try {
+        const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: from.value, name: name.value }) });
+        setStatus('Created ' + out.name + '. Open its Settings, then press Use this campaign to play it.', 'ok');
+        await load();
+      } catch (err) { setStatus('Could not create it: ' + err.message, 'bad'); }
+    });
+    row.append(from, name, go);
+    box.appendChild(row);
+    return box;
   }
 
   function card(c) {

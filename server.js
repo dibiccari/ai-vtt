@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
-import { mkdir, readdir, readFile, writeFile, unlink, rename, stat } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -111,6 +111,7 @@ function normalizeCharacter(body) {
 
 // A character may name the campaigns it plays in (`campaigns`); with none it plays in every campaign. Pass a campaign id to get only its party.
 async function listCharacters(campaign) {
+  const template = campaign ? await templateOfCampaign(campaign) : '';
   const files = (await readdir(CHAR_DIR)).filter((f) => f.endsWith('.json'));
   const chars = [];
   for (const file of files) {
@@ -120,7 +121,7 @@ async function listCharacters(campaign) {
       console.warn(`Skipping unreadable character file ${file}: ${err.message}`);
     }
   }
-  return chars.filter((c) => !campaign || !Array.isArray(c.campaigns) || !c.campaigns.length || c.campaigns.includes(campaign)).sort((a, b) => a.name.localeCompare(b.name));
+  return chars.filter((c) => !campaign || !Array.isArray(c.campaigns) || !c.campaigns.length || c.campaigns.includes(campaign) || c.campaigns.includes(template)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const saveCharacter = (c) => writeFile(path.join(CHAR_DIR, `${c.id}.json`), JSON.stringify(c, null, 2));
@@ -315,14 +316,14 @@ async function savedMapList(id) {
 async function mapsForCampaign(id) {
   const files = await pictureFiles();
   const saved = await savedMapList(id);
-  return Array.isArray(saved) ? mapsFromList(saved, files) : mapsFor(id, files);
+  return Array.isArray(saved) ? mapsFromList(saved, files) : mapsFor(await templateOfCampaign(id), files);
 }
 
 app.get('/api/campaigns/:id/maps', asyncRoute(async (req, res) => {
   const id = safeCampaignId(req.params.id);
   const saved = await savedMapList(id);
   const files = await pictureFiles();
-  res.json({ custom: Array.isArray(saved), maps: Array.isArray(saved) ? cleanMapList(saved, files).list : entriesToList(mapsFor(id, files)), uploads: files.sort(), kinds: MAP_KINDS });
+  res.json({ custom: Array.isArray(saved), maps: Array.isArray(saved) ? cleanMapList(saved, files).list : entriesToList(mapsFor(await templateOfCampaign(id), files)), uploads: files.sort(), kinds: MAP_KINDS });
 }));
 
 app.put('/api/campaigns/:id/maps', localOnly, asyncRoute(async (req, res) => {
@@ -527,13 +528,32 @@ app.get('/api/campaigns', asyncRoute(async (_req, res) => {
     let voiceCount = 0;
     try { voiceCount = Object.keys(await loadCharacterVoices(id)).length; } catch { /* none */ }
     campaigns.push({
-      id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test),
+      id, template: meta.template || id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test),
       active: id === active,
       files: files.map((f) => ({ name: f.name, chars: f.chars })),
       totalChars, approxTokens: Math.round(totalChars / 4), voiceCount
     });
   }
   res.json({ active, campaigns });
+}));
+
+// Start another playthrough of a campaign: copies its documents, voices, maps list and table settings (not its journal, party stash or chat), so the new one begins fresh with the same maps and starting positions.
+app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
+  const from = safeCampaignId(req.body?.template);
+  const ids = await campaignIds();
+  if (!from || !ids.includes(from)) return res.status(404).json({ error: 'No such campaign to copy' });
+  const root = await templateOfCampaign(from);
+  const base = await readCampaignMeta(root);
+  const name = String(req.body?.name ?? '').trim().slice(0, 80) || `${base.name} (new)`;
+  let id = safeCampaignId(name.replace(/\s+/g, '-')) || safeCampaignId(root + '-new');
+  for (let n = 2; ids.includes(id); n++) id = safeCampaignId(`${id.replace(/-\d+$/, '')}-${n}`);
+  const src = path.join(CAMPAIGNS_DIR, root), dest = path.join(CAMPAIGNS_DIR, id);
+  await mkdir(dest, { recursive: true });
+  for (const f of await readdir(src)) {
+    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json', 'settings.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
+  }
+  await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: root, system: base.system, levels: base.levels, description: base.description }, null, 2));
+  res.json({ ok: true, id, name, template: root });
 }));
 
 app.post('/api/campaigns/active', localOnly, asyncRoute(async (req, res) => {
@@ -774,6 +794,11 @@ async function readCampaignMeta(id) {
   } catch {
     return base;
   }
+}
+
+// A campaign made from another ("New campaign" on the Campaigns page) remembers which one in campaign.json `template`; it shares that one's maps list, party and starting scene.
+async function templateOfCampaign(id) {
+  try { return safeCampaignId((await readCampaignMeta(safeCampaignId(id))).template) || safeCampaignId(id); } catch { return safeCampaignId(id); }
 }
 
 async function campaignFiles(id) {

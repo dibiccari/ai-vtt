@@ -3762,9 +3762,9 @@ async function init() {
   try { state.permadeath = (await api('/api/campaigns/' + encodeURIComponent(state.campaignId) + '/settings')).permadeath === true; } catch { state.permadeath = false; }
   let board = store.get(boardKey(), null);
   // A campaign with a ready-made starting scene (and no saved board yet) begins there.
-  if (!board && window.Scenes && Scenes.has(state.campaignId)) {
+  if (!board && window.Scenes && Scenes.has(state.campaignId, active && active.template)) {
     try {
-      board = await Scenes.create(state.campaignId);
+      board = await Scenes.create(state.campaignId, { template: active && active.template });
       if (board && board.mapUrl) store.remove('vtt.fog.' + board.mapUrl);
     } catch (err) { toast(`Could not build the starting scene: ${err.message}`, 'error', 6000); }
   }
