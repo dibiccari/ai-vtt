@@ -32,8 +32,6 @@
   style.textContent = [
     '.vtt-nav { display:flex; align-items:center; gap:4px; padding:6px 12px; background:#0d1117; border-bottom:1px solid #2a3242;',
     '  position:sticky; top:0; z-index:40; font:600 13px "Segoe UI", system-ui, sans-serif; overflow-x:auto; white-space:nowrap; }',
-    '.vtt-nav .vtt-brand { font-weight:800; letter-spacing:.04em; margin-right:10px; color:#edf1f7; }',
-    '.vtt-nav .vtt-brand span { color:#f0c048; }',
     '.vtt-nav a { color:#9ba7b9; text-decoration:none; padding:6px 12px; border-radius:6px; border:1px solid transparent; }',
     '.vtt-nav a:hover { color:#edf1f7; border-color:#3a4558; }',
     '.vtt-nav a[aria-current="page"] { color:#f0c048; background:#1f2632; border-color:#3a4558; }',
@@ -46,10 +44,6 @@
   nav.className = 'vtt-nav';
   nav.setAttribute('aria-label', 'Pages');
 
-  var brand = document.createElement('span');
-  brand.className = 'vtt-brand';
-  brand.innerHTML = 'AI<span>·</span>VTT';
-  nav.appendChild(brand);
 
   PAGES.forEach(function (p) {
     var a = document.createElement('a');
