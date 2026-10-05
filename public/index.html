@@ -2640,21 +2640,15 @@ function startCombat() {
   if (!members.length) { toast('Put some tokens on the map first'); return; }
   state.combat = { active: true, round: 1, order: members.map((t) => t.id) };
   for (const t of members) {
-    if (t.isPC) t.initiative = null; else rollInitiative(t);     // the players give their own; creatures are rolled here
+    // Creatures are always rolled here. The players are too when the DM rolls for them; at a table where they roll their own, they give theirs.
+    if (t.isPC && store.get('vtt.diceMode', 'ai') === 'player') t.initiative = null; else rollInitiative(t);
     t.spent = { a: false, b: false, r: false };
   }
   sortCombat();
   const first = combatTokens()[0];
   if (first) state.activeIndex = state.tokens.indexOf(first);
-  addChat('system', '⚔ Combat begins. Players: enter your initiative, or press "Roll for players".');
+  addChat('system', members.some((t) => t.isPC && !Number.isFinite(t.initiative)) ? '⚔ Combat begins. Players: tell the DM your initiative, or say "roll for me".' : '⚔ Combat begins');
   syncAmbience();
-  commitBoard();
-  renderCombat();
-}
-
-function rollForPlayers() {
-  for (const t of combatTokens()) if (t.isPC && !Number.isFinite(t.initiative)) rollInitiative(t);
-  sortCombat();
   commitBoard();
   renderCombat();
 }
@@ -2872,7 +2866,6 @@ function renderCombat() {
   head.appendChild(title);
   const btn = (label, tip, fn, cls) => { const b = document.createElement('button'); b.className = `btn btn-sm${cls ? ' ' + cls : ''}`; b.textContent = label; b.title = tip; b.addEventListener('click', fn); head.appendChild(b); return b; };
   if (state.combat.active) {
-    btn('Roll for players', 'Roll initiative for every player character that has none yet', rollForPlayers);
     btn('End combat', 'Finish the fight', () => { if (confirm('End combat?')) endCombat(); });
   }
   // There is no Start combat button: the DM starts a fight (token action startCombat) when the players act against someone or say they roll for
