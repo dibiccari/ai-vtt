@@ -23,7 +23,7 @@
     // A small animal: a higher, quicker, lighter voice.
     smallbeast: { rate: 1.38, keepPitch: false, lowpass: 8000 },
     // A huge animal: much lower and slower, with a rough rumble.
-    largebeast: { rate: 0.66, keepPitch: false, distort: 7, lowpass: 2200, bass: 7 },
+    largebeast: { rate: 0.82, keepPitch: false, distort: 5, lowpass: 3200, bass: 4 },
     // The dead: slow, thin and hollow, with a slow tremble and the highs rolled off.
     undead: { rate: 0.84, keepPitch: true, thin: 320, vibrato: { hz: 3.2, depth: 0.0013 }, lowpass: 3400 }
   };
