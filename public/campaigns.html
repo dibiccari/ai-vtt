@@ -118,6 +118,7 @@
 
   // The left navigation: Continue (the campaigns you have) or New (start another playthrough).
   let section = 'continue';
+  let lastCreated = '';           // the campaign just made on the New page, shown below the form for finishing setup
   function renderSide() {
     const side = $('#side');
     side.innerHTML = '';
@@ -134,7 +135,16 @@
     const list = $('#list');
     list.innerHTML = '';
     renderSide();
-    if (section === 'new') { list.appendChild(newCampaignBox()); return; }
+    if (section === 'new') {
+      list.appendChild(newCampaignBox());
+      const made = campaigns.find((x) => x.id === lastCreated);
+      if (made) {
+        list.appendChild(el('h2', '', 'Finish setting up ' + made.name));
+        list.appendChild(el('p', 'note', 'Its maps are already chosen. Review them here, add safety lines and veils, check the documents, then press Continue to play.'));
+        list.appendChild(card(made, true));
+      }
+      return;
+    }
     list.appendChild(el('h2', '', 'Continue a campaign'));
     for (const c of campaigns.filter((x) => !x.test)) list.appendChild(card(c));
     const tests = campaigns.filter((x) => x.test);
@@ -209,8 +219,8 @@
       try {
         const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: newForm.from, name: newForm.name, party: picker.ids(), settings: { rules: newForm.rules, permadeath: newForm.permadeath, tableNotes: newForm.notes } }) });
         Object.assign(newForm, { name: '', party: [] });
-        setStatus('Created ' + out.name + '. Press Continue on it to play.', 'ok');
-        section = 'continue';
+        setStatus('Created ' + out.name + '. Finish setting it up below, then press Continue to play.', 'ok');
+        lastCreated = out.id;
         await load();
       } catch (err) { setStatus('Could not create it: ' + err.message, 'bad'); }
     });
@@ -224,7 +234,8 @@
     return box;
   }
 
-  function card(c) {
+  // setup = false: the card you continue from (Continue, Settings, who is in the party). setup = true: the full setup card, for a campaign you are creating (documents, maps, safety, PDF import, start over).
+  function card(c, setup) {
     const box = el('div', 'card' + (c.active ? ' active' : ''));
     const h = el('h3');
     h.appendChild(document.createTextNode(c.name));
@@ -241,10 +252,16 @@
       stats.appendChild(s);
     }
     box.appendChild(stats);
+    if (!setup) {
+      const party = el('div', 'meta');
+      party.appendChild(el('b', '', 'Party: '));
+      party.appendChild(document.createTextNode((c.party || []).map((p) => p.name).join(', ') || 'no characters yet'));
+      box.appendChild(party);
+    }
 
-    if (!c.totalChars) {
+    if (!c.totalChars && setup) {
       box.appendChild(el('div', 'warnbox', 'This campaign has no text, so the DM is improvising without a module. Import the adventure PDF below.'));
-    } else if (c.active) {
+    } else if (c.active && setup) {
       box.appendChild(el('div', 'okbox', 'The DM is running this campaign now. Changes to its documents apply on the next message, with no restart.'));
     }
 
@@ -293,14 +310,14 @@
       try { settingsData[c.id] = { ...(await api('/api/campaigns/' + encodeURIComponent(c.id) + '/settings')), party: (await api('/api/campaigns/' + encodeURIComponent(c.id) + '/party')).party }; openSettings.add(c.id); } catch (err) { setStatus('Could not load the settings: ' + err.message, 'bad'); }
       render();
     });
-    row.append(use, settingsBtn, docs, mapsBtn, safetyBtn, startOver);
+    if (setup) row.append(use, settingsBtn, docs, mapsBtn, safetyBtn, startOver); else row.append(use, settingsBtn);
     box.appendChild(row);
 
     if (openSettings.has(c.id) && settingsData[c.id]) box.appendChild(settingsEditor(c));
-    if (open.has(c.id)) box.appendChild(documents(c));
-    if (openMaps.has(c.id) && mapData[c.id]) box.appendChild(mapsEditor(c));
-    if (openSafety.has(c.id) && safetyData[c.id]) box.appendChild(safetyEditor(c));
-    if (!c.test) box.appendChild(importer(c));
+    if (setup && open.has(c.id)) box.appendChild(documents(c));
+    if (setup && openMaps.has(c.id) && mapData[c.id]) box.appendChild(mapsEditor(c));
+    if (setup && openSafety.has(c.id) && safetyData[c.id]) box.appendChild(safetyEditor(c));
+    if (setup && !c.test) box.appendChild(importer(c));
     return box;
   }
 

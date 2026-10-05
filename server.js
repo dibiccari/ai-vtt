@@ -530,6 +530,7 @@ app.get('/api/campaigns', asyncRoute(async (_req, res) => {
     let voiceCount = 0;
     try { voiceCount = Object.keys(await loadCharacterVoices(id)).length; } catch { /* none */ }
     campaigns.push({
+      party: (await listCharacters(id)).map((ch) => ({ id: ch.id, name: ch.name, class: ch.class, level: ch.level })),
       id, template: meta.template || id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test),
       active: id === active,
       files: files.map((f) => ({ name: f.name, chars: f.chars })),
