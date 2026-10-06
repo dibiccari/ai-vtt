@@ -116,7 +116,7 @@ Everything is tracked except four things: **`.env`** (the only file with secrets
 - `GET /api/tts/status`, `POST /api/tts`, `POST /api/tts/voices`: OpenAI text-to-speech (`gpt-4o-mini-tts`). Clips are cached on disk. Named NPCs use the active campaign's `voices.json`; others get a voice by style tag.
 - `GET/POST /api/settings`, `POST /api/settings/test`: **local-only** (loopback + Host/Origin checks). Never returns full keys. The server listens on `127.0.0.1` by default (`HOST` env to change).
 
-- Sound takes: public/audio/candidates/ holds CC0 candidate clips (manifest.json, credited in public/audio/CREDITS.md) for bell, clash, creak, explosion, magic, roar, splash. The Sound Test page plays each take and "Use this one" copies it to public/audio/sfx-<effect>.mp3 (POST /api/sound-choice, local-only; choice recorded in data/sound-choices.json). Not yet listened to by the assistant.
+- Sound takes: public/audio/candidates/ holds CC0 candidate clips (manifest.json, credited in public/audio/CREDITS.md) for bell, clash, creak, explosion, magic, roar, splash, howl, thunder. The Sound Test page plays each take and "Use this one" copies it to public/audio/sfx-<effect>.mp3 (POST /api/sound-choice, local-only; choice recorded in data/sound-choices.json). Not yet listened to by the assistant.
 
 ## Voices
 

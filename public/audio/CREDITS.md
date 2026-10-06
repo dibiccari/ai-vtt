@@ -70,3 +70,13 @@ All CC0 (checked on each page). The Sound Test page lets you listen and choose; 
 | splash-364700.mp3 | Water Splash by alegemaate | https://freesound.org/people/alegemaate/sounds/364700/ |
 | splash-210428.mp3 | Water Splash 1 by qubodup | https://freesound.org/people/qubodup/sounds/210428/ |
 | splash-9508.mp3 | SPLASH.wav by petenice | https://freesound.org/people/petenice/sounds/9508/ |
+| howl-267179.mp3 | Scary Ghost Wolf Howling.wav by BrainClaim | https://freesound.org/people/BrainClaim/sounds/267179/ |
+| howl-370360.mp3 | Wolf Square Howl.aif by JohnLaVine333 | https://freesound.org/people/JohnLaVine333/sounds/370360/ |
+| howl-472402.mp3 | 22_Lobo_aullando.wav by JoseAgudelo | https://freesound.org/people/JoseAgudelo/sounds/472402/ |
+| howl-158780.mp3 | wolves.wav by Paresh | https://freesound.org/people/Paresh/sounds/158780/ |
+| howl-500646.mp3 | Cooper Creek 20160313_014852 solitary wolf howl very clear.wav by betchkal | https://freesound.org/people/betchkal/sounds/500646/ |
+| howl-427694.mp3 | 13-Aullido Lobo.wav by efsdcnveoi | https://freesound.org/people/efsdcnveoi/sounds/427694/ |
+| howl-399186.mp3 | wolf 2.wav by genel | https://freesound.org/people/genel/sounds/399186/ |
+| thunder-672776.mp3 | Thunder Clap by DaniloSFX | https://freesound.org/people/DaniloSFX/sounds/672776/ |
+| thunder-128307.mp3 | Thunder.wav by DiArchangeli | https://freesound.org/people/DiArchangeli/sounds/128307/ |
+| thunder-195344.mp3 | Thunder by MorningGloryProductions | https://freesound.org/people/MorningGloryProductions/sounds/195344/ |
