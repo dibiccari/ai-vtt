@@ -10,7 +10,16 @@
   // The ones rated "Good" (scenes forest, wind, rain; mood eerie; effects thunder, clash) are kept as they are.
   var RETIRED = { scene: ['tavern', 'town', 'fire', 'cave', 'dungeon'], mood: ['tense', 'triumph'], sfx: ['door', 'creak', 'magic'] };
   var allowRetired = false;      // the Sound Test page turns this on so every sound can still be played and judged
-  var isRetired = function (kind, name) { return !allowRetired && RETIRED[kind].indexOf(name) >= 0; };
+  // A retired sound comes back as soon as a recording for it exists in public/audio.
+  var isRetired = function (kind, name) { return !allowRetired && RETIRED[kind].indexOf(name) >= 0 && !files[kind + ':' + name]; };
+  // Recordings differ a lot in loudness, so each has a gain that brings it to a similar level (measured from the files in public/audio).
+  var FILE_GAIN = {
+    'scene:night': 1.4, 'scene:tavern': 3.5, 'scene:town': 4.5, 'scene:fire': 1.7, 'scene:cave': 0.34, 'scene:dungeon': 1.8,
+    'mood:tense': 0.23, 'mood:triumph': 0.56, 'sfx:door': 1.1, 'sfx:magic': 0.73, 'sfx:owl': 6, 'sfx:howl': 1.9
+  };
+  var fileGain = function (key) { return FILE_GAIN[key] || 1; };
+  // Scenes whose recording is a bed that gets extra one-shot recordings now and then: [sound, least ms, most ms between plays].
+  var EXTRAS = { night: [['owl', 8000, 20000], ['howl', 30000, 80000]] };
 
   var analyser = null;
   var ctx = null, master = null, sceneBus = null, moodBus = null, noiseBuf = null, brownBuf = null;
@@ -107,14 +116,37 @@
     return buffers[url];
   }
   // A layer that plays a recording (looping or once) instead of synthesising the sound.
-  function fileLayer(url, loop) {
+  function fileLayer(url, loop, level) {
     return function (bus) {
-      var cancelled = false, src = null;
+      var cancelled = false, src = null, g = ctx.createGain();
+      g.gain.value = level || 1; g.connect(bus);
       loadBuffer(url).then(function (buf) {
         if (cancelled) return;
-        src = ctx.createBufferSource(); src.buffer = buf; src.loop = loop; src.connect(bus); src.start();
+        src = ctx.createBufferSource(); src.buffer = buf; src.loop = loop; src.connect(g); src.start();
       }).catch(function () { /* an unreadable file is skipped */ });
-      return [{ stop: function () { cancelled = true; if (src) { try { src.stop(); } catch (e) { /* already stopped */ } } } }];
+      return [{ stop: function () { cancelled = true; if (src) { try { src.stop(); } catch (e) { /* already stopped */ } } try { g.disconnect(); } catch (e) { /* done */ } } }];
+    };
+  }
+  // A scene recording plus its extras: the bed loops, and short recordings (an owl, a howl) are played now and then on top of it.
+  function sceneFile(kind) {
+    var base = fileLayer(files['scene:' + kind], true, fileGain('scene:' + kind));
+    return function (bus) {
+      var nodes = base(bus);
+      (EXTRAS[kind] || []).forEach(function (x, i) {
+        if (!files['sfx:' + x[0]]) return;
+        var dead = false, timers = [];
+        function play() {
+          loadBuffer(files['sfx:' + x[0]]).then(function (buf) {
+            if (dead) return;
+            var s = ctx.createBufferSource(), g = ctx.createGain();
+            s.buffer = buf; g.gain.value = fileGain('sfx:' + x[0]) * 0.6; s.connect(g); g.connect(bus); s.start();
+          }).catch(function () { /* skipped */ });
+        }
+        timers.push(setTimeout(play, 4000 + i * 9000));
+        var stop = every(play, x[1], x[2]);
+        nodes.push({ stop: function () { dead = true; timers.forEach(clearTimeout); stop(); } });
+      });
+      return nodes;
     };
   }
 
@@ -146,20 +178,22 @@
     var stop = every(function () { burst(1200 + Math.random() * 2400, 3, 0.04 + Math.random() * 0.05, 0.06 * strength * Math.random(), 'bandpass', bus); }, 60, 260);
     return [n, { stop: stop }];
   }
+  // Crickets: three insects, each a high tone (4 to 5 kHz) that is switched fully on and off in fast pulses (the "trrr"), and on and off again
+  // more slowly (the chirps with silence between them). Both switches swing the volume between 0 and 1, so nothing sounds between chirps.
   function crickets(bus, strength) {
     var stops = [];
     [4300, 4650, 5100].forEach(function (hz, i) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = hz; g.gain.value = 0;
-      o.connect(g); g.connect(bus); o.start();
-      var rate = 7 + i * 1.7;
-      var l = ctx.createOscillator(), lg = ctx.createGain();
-      l.type = 'square'; l.frequency.value = rate; lg.gain.value = 0.006 * strength;
-      var slow = ctx.createOscillator(), sg = ctx.createGain();
-      slow.frequency.value = 0.15 + i * 0.05; sg.gain.value = 0.5; slow.connect(sg);
-      var gate = ctx.createGain(); gate.gain.value = 0.5; sg.connect(gate.gain);
-      l.connect(lg); lg.connect(gate); gate.connect(g.gain); l.start(); slow.start();
-      stops.push(o, l, slow);
+      var o = ctx.createOscillator(), pulse = ctx.createGain(), chirp = ctx.createGain(), out = gain(0.007 * strength);
+      o.frequency.value = hz;
+      o.connect(pulse); pulse.connect(chirp); chirp.connect(out); out.connect(bus);
+      pulse.gain.value = 0.5;
+      var fast = ctx.createOscillator(), fg = gain(0.5);
+      fast.type = 'square'; fast.frequency.value = 22 + i * 4; fast.connect(fg); fg.connect(pulse.gain);
+      chirp.gain.value = 0.5;
+      var slow = ctx.createOscillator(), sg = gain(0.5);
+      slow.type = 'square'; slow.frequency.value = 0.9 + i * 0.27; slow.connect(sg); sg.connect(chirp.gain);
+      o.start(); fast.start(); slow.start();
+      stops.push(o, fast, slow);
     });
     return stops;
   }
@@ -210,11 +244,66 @@
     return [{ stop: stop }];
   }
 
+  // Distance: a quiet, dark echo that makes a call sound like it is coming from across the valley. Returns the node to send calls into.
+  function farAway(bus, wet) {
+    var echo = ctx.createDelay(1); echo.delayTime.value = 0.34;
+    var lp = filter('lowpass', 800), fb = gain(0.3), out = gain(wet);
+    echo.connect(lp); lp.connect(fb); fb.connect(echo); lp.connect(out); out.connect(bus);
+    return { input: echo, stop: function () { try { echo.disconnect(); lp.disconnect(); fb.disconnect(); out.disconnect(); } catch (e) { /* done */ } } };
+  }
+  // Owls: a soft, low "hoo, hoo-hoo, hoooo" (a pure low tone with a touch of second harmonic, gliding down a little), now and then answered by a second, more distant owl.
+  function owls(bus, strength) {
+    var far = farAway(bus, 0.6);
+    function hoot(t, f, dur, level) {
+      var o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), g2 = gain(0.16), lpf = filter('lowpass', 1100);
+      [[o, f], [o2, f * 2]].forEach(function (p) {
+        p[0].type = 'sine';
+        p[0].frequency.setValueAtTime(p[1] * 1.05, t); p[0].frequency.exponentialRampToValueAtTime(p[1], t + 0.07); p[0].frequency.exponentialRampToValueAtTime(p[1] * 0.92, t + dur);
+      });
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.06); g.gain.setValueAtTime(level * 0.9, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); o2.connect(g2); g2.connect(g); g.connect(lpf); lpf.connect(bus); lpf.connect(far.input);
+      o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+    }
+    var stop = every(function () {
+      var f = 320 + Math.random() * 90, t0 = ctx.currentTime;
+      [[0, 0.26, 1.08], [0.6, 0.2, 1], [1.0, 0.2, 1], [1.5, 0.55, 0.96]].forEach(function (h) { hoot(t0 + h[0], f * h[2], h[1], 0.05 * strength); });
+      if (Math.random() < 0.45) [[3.2, 0.24, 1.2], [3.75, 0.5, 1.12]].forEach(function (h) { hoot(t0 + h[0], f * h[2], h[1], 0.022 * strength); });      // another owl answers from farther off
+    }, 8000, 19000);
+    return [{ stop: stop }, { stop: far.stop }];
+  }
+  // A wolf far away: one long, rising and falling howl with a slow wobble, heard through distance; once in a while, sometimes with a second voice joining.
+  function wolves(bus, strength) {
+    var far = farAway(bus, 0.7), dead = false, timers = [];
+    function voice(t, f0, dur, level) {
+      var o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), lpf = filter('lowpass', 1500);
+      o.type = 'sine'; o2.type = 'triangle';
+      [o, o2].forEach(function (x, i) {
+        var m = i ? 1.004 : 1;
+        x.frequency.setValueAtTime(f0 * m, t); x.frequency.exponentialRampToValueAtTime(f0 * 1.55 * m, t + dur * 0.35);
+        x.frequency.setValueAtTime(f0 * 1.55 * m, t + dur * 0.55); x.frequency.exponentialRampToValueAtTime(f0 * 1.15 * m, t + dur);
+      });
+      var vib = ctx.createOscillator(), vg = gain(f0 * 0.012);
+      vib.frequency.value = 5.2; vib.connect(vg); vg.connect(o.frequency); vg.connect(o2.frequency);
+      var tri = gain(0.3); o2.connect(tri); tri.connect(g); o.connect(g);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.7); g.gain.setValueAtTime(level, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      g.connect(lpf); lpf.connect(bus); lpf.connect(far.input);
+      o.start(t); o2.start(t); vib.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05); vib.stop(t + dur + 0.05);
+    }
+    function howl() {
+      var t = ctx.currentTime, dur = 3 + Math.random() * 1.6, f0 = 300 + Math.random() * 110;
+      voice(t, f0, dur, 0.04 * strength);
+      if (Math.random() < 0.35) voice(t + 0.9, f0 * 1.17, dur * 0.85, 0.025 * strength);
+    }
+    timers.push(setTimeout(function () { if (!dead) howl(); }, 7000));                       // the first one comes soon, the rest only now and then
+    var stop = every(howl, 26000, 70000);
+    return [{ stop: function () { dead = true; timers.forEach(clearTimeout); stop(); } }, { stop: far.stop }];
+  }
+
   var BUILD = {
     none: function () { return []; },
     wind: function (b) { return wind(b, 1); },
     forest: function (b) { return wind(b, 0.5).concat(birds(b, 1)); },
-    night: function (b) { return wind(b, 0.4).concat(crickets(b, 1), fire(b, 0.7)); },
+    night: function (b) { return wind(b, 0.25).concat(crickets(b, 1), owls(b, 1), wolves(b, 1), fire(b, 0.2)); },
     cave: function (b) { return drone(b, 55, 0.05).concat(drips(b, 1), wind(b, 0.25)); },
     dungeon: function (b) { return drone(b, 49, 0.06).concat(drips(b, 0.8), fire(b, 0.25)); },
     tavern: function (b) { return murmur(b, 1).concat(fire(b, 0.6)); },
@@ -365,7 +454,7 @@
   /* ---------------- public API ---------------- */
   var api = {
     scenes: SCENES, moods: MOODS, sfxNames: SFX, retired: RETIRED,
-    isRetired: function (kind, name) { return RETIRED[kind].indexOf(name) >= 0; },
+    isRetired: function (kind, name) { return RETIRED[kind].indexOf(name) >= 0 && !files[kind + ':' + name]; },
     allowRetired: function (on) { allowRetired = Boolean(on); },
     // Browsers only allow sound after a click or key press; call this from one.
     unlock: function () { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
@@ -376,17 +465,17 @@
       kind = SCENES.indexOf(kind) >= 0 && !isRetired('scene', kind) ? kind : 'none';
       scene.wanted = kind;
       if (!ensure() || ctx.state === 'suspended' || scene.kind === kind) return;
-      crossfade(sceneBus, scene, files['scene:' + kind] ? fileLayer(files['scene:' + kind], true) : BUILD[kind], 2500, kind);
+      crossfade(sceneBus, scene, files['scene:' + kind] ? sceneFile(kind) : BUILD[kind], 2500, kind);
     },
     setMood: function (kind) {
       kind = MOODS.indexOf(kind) >= 0 && !isRetired('mood', kind) ? kind : 'calm';
       mood.wanted = kind;
       if (!ensure() || ctx.state === 'suspended' || mood.kind === kind) return;
-      crossfade(moodBus, mood, files['mood:' + kind] ? fileLayer(files['mood:' + kind], kind !== 'triumph') : MOOD[kind], kind === 'triumph' ? 200 : 1800, kind);
+      crossfade(moodBus, mood, files['mood:' + kind] ? fileLayer(files['mood:' + kind], kind !== 'triumph', fileGain('mood:' + kind)) : MOOD[kind], kind === 'triumph' ? 200 : 1800, kind);
     },
     sfx: function (name) {
       if (!enabled || isRetired('sfx', name) || !ensure() || ctx.state === 'suspended') return;
-      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(); s.buffer = buf; s.connect(master); s.start(); }).catch(function () { /* skipped */ }); return; }
+      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = fileGain('sfx:' + name); s.connect(g); g.connect(sfxOut); s.start(); }).catch(function () { /* skipped */ }); return; }
       if (EFFECTS[name]) EFFECTS[name]();
     },
     // Stop: a scene fades out, a mood returns to calm, and for sound effects everything still ringing is cut at once (the Sound Test page's Stop buttons).
