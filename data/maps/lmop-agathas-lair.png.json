@@ -262,9 +262,12 @@
     {
       "name": "start",
       "x": 618,
-      "y": 2012
+      "y": 2012,
+      "radius": 2
     }
   ],
+  "light": "dim",
+  "ambience": "forest",
   "source": "dd2vtt",
   "lights": [
     {
@@ -387,7 +390,5 @@
       "color": "ff0b0905"
     }
   ],
-  "ambient": "ffffffff",
-  "light": "dim",
-  "ambience": "forest"
+  "ambient": "ffffffff"
 }
