@@ -1,6 +1,6 @@
 {
   "note": "Read by the assistant from the WotC Redbrand Hideout picture with a labelled grid overlay (cell units: 1 = one 5 ft square, 82.5 px, origin = top-left of the picture). First attempt: check it in Map Test. The picture shown on the tabletop is the WotC player version (no numbers), enlarged from 580 px; the walls are read from the full-size DM version (inkPicture).",
-  "picture": "wotc-redbrand-hideout.jpg",
+  "picture": "dnd-redbrand-hideout.jpg",
   "cell": 82.5,
   "origin": [
     1,
@@ -373,5 +373,5 @@
     }
   ],
   "snap": true,
-  "inkPicture": "data/map-sources/wotc-redbrand-hideout-dm.jpg"
+  "inkPicture": "data/map-sources/dnd-redbrand-hideout-dm.jpg"
 }

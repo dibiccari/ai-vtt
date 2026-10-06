@@ -147,6 +147,16 @@ await seedCharacters();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
+// Map pictures were renamed in Oct 2026 (vtt- for the maps we generated, dnd- for the Wizards of the Coast ones). A saved game or browser copy may still name the
+// old file, so the old names keep working: the picture is redirected and the config and DM picture lookups use the new name.
+const OLD_MAP_NAMES = {
+  'camp-day.png': 'vtt-camp-day.png', 'camp-night.png': 'vtt-camp-night.png', 'dungeon-cellars.png': 'vtt-dungeon-cellars.png', 'terrain-test.png': 'vtt-terrain-test.png',
+  'wotc-redbrand-hideout.jpg': 'dnd-redbrand-hideout.jpg', 'phandalin.jpg': 'dnd-phandalin.jpg', 'phandalin-dmversion.jpg': 'dnd-phandalin-dmversion.jpg',
+  'phandalin-playerversion.jpg': 'dnd-phandalin-playerversion.jpg', 'phandelver.jpg': 'dnd-phandelver.jpg', 'northswordcoast.jpg': 'dnd-northswordcoast.jpg',
+  'northswordcoast-playerversion.jpg': 'dnd-northswordcoast-playerversion.jpg', 'map-kings-road.gif': 'dnd-map-kings-road.gif', 'hillside.jpg': 'dnd-hillside.jpg'
+};
+const currentMapName = (name) => { const base = path.basename(String(name ?? '')); return OLD_MAP_NAMES[base] || (/^rusty-flagon-[^/]+\.png$/.test(base) ? 'vtt-' + base : base); };
+app.use('/uploads/:file', (req, res, next) => { const now = currentMapName(req.params.file); if (now !== req.params.file) return res.redirect(301, '/uploads/' + now); next(); });
 app.use(express.static(PUBLIC_DIR));
 
 const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -226,7 +236,7 @@ const MAP_CONFIG_DIR = path.join(__dirname, 'data', 'maps');
 await mkdir(MAP_CONFIG_DIR, { recursive: true });
 
 function mapConfigFile(name) {
-  const base = path.basename(String(name ?? ''));
+  const base = currentMapName(name);
   if (!/^[a-z0-9][a-z0-9._-]{0,80}$/i.test(base) || !IMAGE_EXT.has(path.extname(base).toLowerCase())) {
     throw Object.assign(new Error('map must be the file name of an uploaded image'), { status: 400 });
   }
@@ -1279,7 +1289,7 @@ function cleanVoiceLines(lines) {
 // current map has one it is shown to the AI with the message; players never see it on the table.
 const DM_MAP_DIR = path.join(__dirname, 'data', 'dm-maps');
 const DM_MEDIA = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
-const dmStem = (mapFile) => path.basename(String(mapFile ?? '')).replace(/\.[^.]+$/, '');
+const dmStem = (mapFile) => currentMapName(mapFile).replace(/\.[^.]+$/, '');
 async function dmMapFor(mapFile) {
   const stem = dmStem(mapFile);
   if (!/^[\w.-]{1,120}$/.test(stem)) return null;

@@ -1,5 +1,5 @@
 // Adds a generated map's settings (squares, light, ambience, start pins, difficult terrain) to its saved map config in data/maps/.
-//   node scripts/apply-map-sidecar.mjs public/scenarios/terrain-test.config.json terrain-test.png
+//   node scripts/apply-map-sidecar.mjs public/scenarios/terrain-test.config.json vtt-terrain-test.png
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

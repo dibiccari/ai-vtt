@@ -1,8 +1,8 @@
 // Draws "Terrain Test Grounds", a small outdoor map for trying out fog of war, line of sight and difficult terrain, and writes it as a
 // Universal VTT file plus a sidecar with its difficult terrain and start pins.
 //   node scripts/make-terrain-test-map.mjs     writes public/scenarios/terrain-test.dd2vtt and terrain-test.config.json (40 x 30 squares, 50 px)
-// Then: node scripts/import-dd2vtt.mjs public/scenarios/terrain-test.dd2vtt terrain-test
-//       node scripts/apply-map-sidecar.mjs public/scenarios/terrain-test.config.json terrain-test.png
+// Then: node scripts/import-dd2vtt.mjs public/scenarios/terrain-test.dd2vtt vtt-terrain-test
+//       node scripts/apply-map-sidecar.mjs public/scenarios/terrain-test.config.json vtt-terrain-test.png
 // What is on it: trees (the trunks block sight and movement), two boulders (block both), a creek you can wade (difficult terrain), a field
 // of rubble with a ruined wall (difficult terrain, the wall blocks sight), a thicket of undergrowth (difficult terrain, does not block sight),
 // a small house with two doors (walls block sight until a door is opened), a window (stops movement, not sight) and a dark interior lit by a lantern,
@@ -214,7 +214,7 @@ difficult.push({ x: THICKET.x * PPG, y: THICKET.y * PPG, w: THICKET.w * PPG, h: 
 let starts = [{ name: 'start', x: 278, y: 479 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
 // Pins and terrain you have edited in Map Test win over these defaults when the map is drawn again.
 try {
-  const old = JSON.parse(await readFile(path.join(root, 'data', 'maps', 'terrain-test.png.json'), 'utf8'));
+  const old = JSON.parse(await readFile(path.join(root, 'data', 'maps', 'vtt-terrain-test.png.json'), 'utf8'));
   if (Array.isArray(old.starts) && old.starts.length) starts = old.starts;
   if (Array.isArray(old.difficult) && old.difficult.length) { difficult.length = 0; difficult.push(...old.difficult); }
 } catch { /* first time: the defaults */ }

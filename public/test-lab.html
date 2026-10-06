@@ -296,7 +296,7 @@
   async function drawTavernDm() {
     if (tavernDm) return tavernDm;
     const maps = (await api('/api/maps')).maps || [];
-    const existing = maps.find((u) => /\/rusty-flagon-[^/]+$/.test(u));
+    const existing = maps.find((u) => /\/vtt-rusty-flagon-[^/]+$/.test(u));
     let src = existing;
     if (!src) { const u = JSON.parse(await (await fetch('/scenarios/rusty-flagon.dd2vtt')).text()); src = `data:image/png;base64,${u.image}`; }
     const img = new Image();

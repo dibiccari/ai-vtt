@@ -3,7 +3,7 @@
   "maps": [
     {
       "id": "sword-coast",
-      "file": "northswordcoast-playerversion.jpg",
+      "file": "dnd-northswordcoast-playerversion.jpg",
       "name": "The Sword Coast (regional map)",
       "kind": "regional",
       "description": "Regional map around Neverwinter. Use it for travel between places: the High Road, the Triboar Trail, Neverwinter, Phandalin, Thundertree, Conyberry, Old Owl Well and Leilon. This is only a regional map: the party tokens are not shown on it and there is no fog or movement limit."
@@ -59,21 +59,21 @@
     },
     {
       "id": "camp-day",
-      "file": "camp-day.png",
+      "file": "vtt-camp-day.png",
       "name": "Campsite (day)",
       "kind": "camp",
       "description": "A forest clearing campsite by day: a stone-ringed campfire with log benches, three tents, bedrolls and supplies, with trails leading out to the south and west. Use it when the party makes camp, rests or spends a quiet day in the wild. It is a camp map: tokens are shown, there is no fog of war."
     },
     {
       "id": "camp-night",
-      "file": "camp-night.png",
+      "file": "vtt-camp-night.png",
       "name": "Campsite (night)",
       "kind": "camp",
       "description": "The same campsite at night, lit by the campfire and lanterns in the tents, dark under the trees. Use it instead of the day map when the party makes camp at dusk or night, or rests overnight. There is no fog of war."
     },
     {
       "id": "dungeon-cellars",
-      "file": "dungeon-cellars.png",
+      "file": "vtt-dungeon-cellars.png",
       "name": "The Old Cellars (stone dungeon)",
       "kind": "battle",
       "description": "A torch-lit stone dungeon of five rooms: an entry hall with stairs up, a pillared chamber with a central brazier, a flagstone crypt with four sarcophagi and a pool, and a plank-floored storeroom of crates and barrels, joined by short corridors with double doors. Use it for any cellar, crypt or small dungeon scene."

@@ -921,7 +921,7 @@
         $('#onlyUvtt').checked = false;
       }
     }
-    shown = shown.slice().sort((a, b) => (b.endsWith('/terrain-test.png') ? 1 : 0) - (a.endsWith('/terrain-test.png') ? 1 : 0));     // the Terrain Test Grounds map always comes first
+    shown = shown.slice().sort((a, b) => (b.endsWith('/vtt-terrain-test.png') ? 1 : 0) - (a.endsWith('/vtt-terrain-test.png') ? 1 : 0));     // the Terrain Test Grounds map always comes first
     for (const url of shown) {
       const opt = document.createElement('option');
       opt.value = url;

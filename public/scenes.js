@@ -52,7 +52,7 @@
   // The tavern map: reuse it if it is already imported, otherwise import the .dd2vtt that ships with the app.
   async function ensureTavernMap() {
     var maps = (await getJson('/api/maps')).maps || [];
-    var existing = maps.filter(function (u) { return /\/rusty-flagon-[^/]+$/.test(u); })[0];
+    var existing = maps.filter(function (u) { return /\/vtt-rusty-flagon-[^/]+$/.test(u); })[0];
     var text = await (await fetch('/scenarios/rusty-flagon.dd2vtt')).text();
     var u = Uvtt.parse(text);
     if (existing) {
@@ -63,7 +63,7 @@
       }
       return existing;
     }
-    return (await Uvtt.importAsMap(u, 'rusty-flagon')).url;
+    return (await Uvtt.importAsMap(u, 'vtt-rusty-flagon')).url;
   }
 
   // A campaign made from another has that one's scene: pass its template as the second argument.
@@ -73,7 +73,7 @@
   // a half-day's march from Phandalin (where the Goblin Arrows chapter begins). Returns null if the map is not installed.
   async function createLostMine(opts, id) {
     var maps = (await getJson('/api/maps')).maps || [];
-    var url = maps.filter(function (u) { return /\/northswordcoast-playerversion\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /northswordcoast/.test(u); })[0] || null;
+    var url = maps.filter(function (u) { return /\/dnd-northswordcoast-playerversion\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /northswordcoast/.test(u); })[0] || null;
     if (!url) return null;
     var chars = await getJson('/api/characters?campaign=' + (id || LOST_MINE));
     var spots = [[31, 49], [32, 49], [31, 50], [32, 50], [33, 49], [33, 50]];
