@@ -37,6 +37,10 @@
   .radio small { display:block; color:var(--muted); font-size:12px; }
   .help { font-size:12px; color:var(--muted); }
   code { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 5px; font:12px Consolas,monospace; }
+  table.usage { width:100%; border-collapse:collapse; font-size:13px; }
+  table.usage th, table.usage td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--border, #2a3242); }
+  table.usage th:first-child, table.usage td:first-child { text-align:left; }
+  table.usage td.cost { color:#f0c048; font-weight:700; }
 </style>
 </head>
 <body>
@@ -61,6 +65,14 @@
     <button class="danger" id="anClear">Remove key</button>
   </div>
   <div class="msg" id="anMsg"></div>
+</div>
+
+<div class="card">
+  <h2>AI Dungeon Master: usage and estimated cost</h2>
+  <p class="help" style="margin:0 0 8px">Tokens used by the DM and the "Previously on" recap. The dollar figures are <b>estimates</b> at list prices (data/usage-prices.json); the real bill is on the Anthropic Console. Your Claude subscription does not cover these calls, the API key above does. ChatGPT voices are billed by OpenAI and are not counted here.</p>
+  <table class="usage" id="usageTable"><thead><tr><th></th><th>Calls</th><th>In</th><th>Out</th><th>Cached in</th><th>Est. cost</th></tr></thead><tbody></tbody></table>
+  <div class="help" id="usageNote" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:8px"><button id="usageRefresh">Refresh</button> <button class="danger" id="usageReset">Reset the totals</button></div>
 </div>
 
 <div class="card">
@@ -243,6 +255,30 @@ $('#narratorTest').addEventListener('click', () => {
 });
 
 load();
+
+(function () {
+  var fmt = function (n) { return Number(n || 0).toLocaleString(); };
+  var money = function (v) { return '$' + Number(v || 0).toFixed(v >= 10 ? 2 : 3); };
+  async function loadUsage() {
+    var body = document.querySelector('#usageTable tbody');
+    try {
+      var res = await fetch('/api/usage'); var u = await res.json(); if (!res.ok) throw new Error(u.error || 'HTTP ' + res.status);
+      var rows = [['This session (since the server started)', u.session], ['Today', u.today], ['All time (since ' + String(u.since || '').slice(0, 10) + ')', u.total]];
+      Object.keys(u.byCampaign || {}).forEach(function (k) { rows.push(['Campaign: ' + k, u.byCampaign[k]]); });
+      Object.keys(u.byKind || {}).forEach(function (k) { rows.push([k === 'dm' ? 'DM replies' : k === 'recap' ? 'Recaps' : k, u.byKind[k]]); });
+      body.innerHTML = '';
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr'); var d = r[1] || {};
+        [r[0], fmt(d.calls), fmt(d.input), fmt(d.output), fmt((d.cacheRead || 0) + (d.cacheWrite || 0)), money(d.cost)].forEach(function (t, i) { var td = document.createElement('td'); td.textContent = t; if (i === 5) td.className = 'cost'; tr.appendChild(td); });
+        body.appendChild(tr);
+      });
+      document.getElementById('usageNote').textContent = 'Estimated: input tokens at the model price, cached input at 0.1x (read) and 1.25x (written), output at its price. Prices per million tokens: ' + Object.keys(u.prices || {}).slice(0, 3).map(function (k) { return k + ' ' + u.prices[k][0] + '/' + u.prices[k][1]; }).join(', ') + ' (in/out).';
+    } catch (e) { body.innerHTML = '<tr><td colspan="6">Could not load the usage: ' + e.message + '</td></tr>'; }
+  }
+  document.getElementById('usageRefresh').addEventListener('click', loadUsage);
+  document.getElementById('usageReset').addEventListener('click', async function () { if (confirm('Reset the saved usage totals to zero? (The Anthropic Console is not affected.)')) { await fetch('/api/usage/reset', { method: 'POST' }); loadUsage(); } });
+  loadUsage();
+})();
 </script>
 </div>
 </body>

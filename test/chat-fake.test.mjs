@@ -117,3 +117,19 @@ test('with no campaign chosen the DM is not called (409)', async () => {
     assert.equal(r.status, 409); assert.equal(f.requests.length, 0);
   } finally { await srv.stop(); await f.close(); }
 });
+
+test('usage: every DM call is counted (tokens and an estimated cost) in the session and the totals, and the totals can be reset', async () => {
+  const before = (await s.get('/api/usage')).json;
+  await s.post('/api/chat', { message: 'count this one' });
+  await s.post('/api/chat', { message: 'and this one' });
+  const after = (await s.get('/api/usage')).json;
+  assert.equal(after.session.calls - before.session.calls, 2);
+  assert.equal(after.total.calls - before.total.calls, 2);
+  assert.equal(after.total.input - before.total.input, 20);      // the fake API reports 10 input and 5 output tokens per call
+  assert.equal(after.total.output - before.total.output, 10);
+  assert.ok(after.total.cost > before.total.cost, 'a cost estimate is added');
+  assert.equal(after.estimate, true);
+  assert.ok(after.byKind.dm.calls >= 2 && after.byCampaign[LOST].calls >= 2);
+  const reset = (await s.post('/api/usage/reset')).json;
+  assert.equal(reset.total.calls, 0); assert.equal(reset.session.calls, 0);
+});

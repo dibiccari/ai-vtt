@@ -14,6 +14,7 @@ import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
 import { rollExpr, diceTray } from './lib/dice.js';
 import { writeTavernParty } from './lib/tavern-party.js';
+import { createUsageTracker } from './lib/usage.js';
 import { readSettings, writeSettings, settingsForPrompt } from './lib/settings.js';
 import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
 import { liveMiddleware, liveHandler, revisionOf } from './lib/live.js';
@@ -25,6 +26,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
 const CHAR_DIR = path.join(__dirname, 'data', 'characters');
+const usageTracker = createUsageTracker(path.join(__dirname, 'data'));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
@@ -780,6 +782,7 @@ app.post('/api/recap', asyncRoute(async (_req, res) => {
   if (!anthropic) return res.status(503).json({ error: 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured.' });
   try {
     const response = await anthropic.messages.create({ model: MODEL, max_tokens: 1500, system: RECAP_SYSTEM, messages: [{ role: 'user', content: `JOURNAL:\n${text}` }] });
+    usageTracker.record(response.model || MODEL, response.usage, await getActiveCampaignId().catch(() => ''), 'recap');
     const block = response.content.find((b) => b.type === 'text');
     const narrative = String(block?.text ?? '').trim();
     if (!narrative) throw new Error('The recap came back empty.');
@@ -1528,6 +1531,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       fallbacks: 'default'
     });
 
+    usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
     if (response.stop_reason === 'refusal') {
       const narrative = 'The DM declines to narrate that action. Try describing it differently.';
       return res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: [] });
@@ -1652,6 +1656,10 @@ app.get('/api/settings', localOnly, (_req, res) => {
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL }
   });
 });
+
+// What the AI calls have used and roughly cost (an estimate at list prices; the Anthropic Console has the real bill).
+app.get('/api/usage', localOnly, asyncRoute(async (_req, res) => { res.json(await usageTracker.summary()); }));
+app.post('/api/usage/reset', localOnly, asyncRoute(async (_req, res) => { await usageTracker.reset(); res.json(await usageTracker.summary()); }));
 
 app.post('/api/settings', localOnly, asyncRoute(async (req, res) => {
   const body = req.body ?? {};

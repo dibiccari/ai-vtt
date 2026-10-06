@@ -4,3 +4,4 @@ node_modules/
 # Regenerated on demand
 data/tts-cache/
 public/scenarios/.preview-*
+data/usage.json
