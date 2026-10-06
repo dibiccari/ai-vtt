@@ -152,7 +152,7 @@
     meant.textContent = 'Meant to sound like: ' + MEANT[kind][name] + (Ambience.hasFile(kind, name) ? '  [your recording]' : '  [synthesised]') + (Ambience.isRetired(kind, name) ? '  [switched off in the game until it is retuned]' : '');
     var note = document.createElement('input'); note.type = 'text'; note.placeholder = 'What do you hear? What should it be?'; note.value = fb.note || ''; note.maxLength = 500;
     note.addEventListener('input', function () { feedback[key] = { rating: (feedback[key] || {}).rating || '', note: note.value }; queueSave(); });
-    meant.appendChild(note);
+    if (kind === 'sfx') meant.appendChild(note);        // scenes and moods have no note box
     if (kind === 'mood' && name === 'tense') {                       // the synthesised Tense mood was built to match this recording: play it to compare
       var ref = document.createElement('button'); ref.textContent = '▶ the recording it copies'; ref.className = 'small'; ref.style.marginTop = '6px';
       var au = new Audio('/audio/mood-tense.reference.ogg'); au.loop = true; au.volume = 0.5;
