@@ -4491,7 +4491,86 @@
       "open": false
     }
   ],
-  "starts": [],
+  "starts": [
+    {
+      "name": "start",
+      "x": 900,
+      "y": 1563,
+      "desc": "the party arrives from the forest at the bottom of the crevasse cave"
+    },
+    {
+      "name": "area-1",
+      "x": 1989,
+      "y": 1316,
+      "desc": "Cellar"
+    },
+    {
+      "name": "area-2",
+      "x": 1486,
+      "y": 1233,
+      "desc": "Barracks"
+    },
+    {
+      "name": "area-3",
+      "x": 1981,
+      "y": 903,
+      "desc": "Trapped Hall"
+    },
+    {
+      "name": "area-4",
+      "x": 1461,
+      "y": 738,
+      "desc": "Tresendar Crypts"
+    },
+    {
+      "name": "area-5",
+      "x": 1775,
+      "y": 532,
+      "desc": "Slave Pens"
+    },
+    {
+      "name": "area-6",
+      "x": 1515,
+      "y": 367,
+      "desc": "Armory"
+    },
+    {
+      "name": "area-7",
+      "x": 1090,
+      "y": 367,
+      "desc": "Storeroom and Work Area"
+    },
+    {
+      "name": "area-8",
+      "x": 958,
+      "y": 1002,
+      "desc": "Crevasse"
+    },
+    {
+      "name": "area-9",
+      "x": 393,
+      "y": 1439,
+      "desc": "Guard Barracks"
+    },
+    {
+      "name": "area-10",
+      "x": 389,
+      "y": 862,
+      "desc": "Common Room"
+    },
+    {
+      "name": "area-11",
+      "x": 331,
+      "y": 408,
+      "desc": "Wizard's Workshop"
+    },
+    {
+      "name": "area-12",
+      "x": 661,
+      "y": 367,
+      "desc": "Glasstaff's Quarters"
+    }
+  ],
   "source": "dd2vtt",
   "secrets": [
     {

@@ -75,6 +75,7 @@
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
+    <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check"><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token (walls block, difficult terrain costs double)</label>
     <label class="field"><span>Speed: <b id="moveFtVal">30</b> ft</span>
@@ -184,10 +185,12 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
   };
+  window.mapTest = { state: S };                       // a handle for the automated browser tests
+
   const cell = () => S.W / S.squares;
   S.onlyUvtt = store.get('vtt.maptest.onlyUvtt', true) !== false;
   const testKey = () => `vtt.maptest.${S.url}`;
@@ -566,6 +569,7 @@
     ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
     ctx.textBaseline = 'middle';
     const editing = S.tool === 'start';
+    if (!S.showPins && !editing) { ctx.restore(); return; }                 // the Show pins box (the Pins tool always shows them)
     const fogged = S.fog && S.tokens.length > 0 && !S.dm;
     for (const s of S.starts) {
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
@@ -1072,6 +1076,7 @@
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       // Click a pin to select it (and drag it to move it); click empty ground to add a new pin and name it on the spot.
       const grab = startAt(p);
+      if (!grab && tokenAt(p) >= 0) { S.drag = { kind: 'token', index: tokenAt(p) }; return; }          // a test token can be dragged with the Pins tool too
       if (grab) {
         selectPin(grab, false);
         S.drag = { kind: 'start', spot: grab };
@@ -1108,6 +1113,7 @@
     } else if (S.drag && S.drag.kind === 'start') {
       S.drag.spot.x = Math.round(clamp(p.x, 0, S.W));
       S.drag.spot.y = Math.round(clamp(p.y, 0, S.H));
+      if (S.drag.spot.name === 'start') { parkAtStart(); queueReveal(); }           // the test token stands on the start pin: drag the pin and watch the line of sight
     } else if (S.drag && S.drag.kind === 'token') {
       const t = S.tokens[S.drag.index];
       if (t) { t.x = clamp(p.x, 0, S.W); t.y = clamp(p.y, 0, S.H); queueReveal(); }
@@ -1261,6 +1267,7 @@
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
+  $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
 
