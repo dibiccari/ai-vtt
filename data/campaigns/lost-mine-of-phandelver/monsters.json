@@ -19,7 +19,8 @@
       },
       "dexterity": 14,
       "attacks": "Multiattack: two melee attacks. Shortsword +4 to hit, reach 5 ft., 5 (1d6+2) piercing. Skills Intimidation +2. CR 1/2.",
-      "image": "/tokens/male-soldier-145c0.png"
+      "image": "/tokens/male-soldier-145c0.png",
+      "passivePerception": 9
     },
     {
       "index": "sildar-hallwinter",
@@ -39,7 +40,8 @@
       },
       "dexterity": 10,
       "attacks": "Multiattack: two melee attacks. Longsword +3 to hit, 5 (1d8+1) slashing. Heavy Crossbow +2 to hit, range 100/400 ft., 5 (1d10) piercing. Reaction Parry: +1d6 to AC against one melee hit while wielding a melee weapon. CR 1.",
-      "image": "/tokens/veteran-in-plate-armor-ab3f7.png"
+      "image": "/tokens/veteran-in-plate-armor-ab3f7.png",
+      "passivePerception": 12
     },
     {
       "index": "evil-mage",
@@ -59,7 +61,8 @@
       },
       "dexterity": 14,
       "attacks": "Quarterstaff +1 to hit, 3 (1d8-1) bludgeoning. 4th-level spellcaster (Int, save DC 13, +5 to hit): cantrips light, mage hand, shocking grasp; 1st (4 slots) charm person, magic missile; 2nd (3 slots) hold person, misty step. CR 1. Used for Iarno Albrek (Glasstaff).",
-      "image": "/tokens/elder-wizened-mage-fd96b.png"
+      "image": "/tokens/elder-wizened-mage-fd96b.png",
+      "passivePerception": 11
     },
     {
       "index": "mormesk-the-wraith",
@@ -79,7 +82,8 @@
       },
       "dexterity": 16,
       "attacks": "Life Drain +5 to hit, reach 5 ft., 16 (3d8+3) necrotic and DC 13 Con save or hit point maximum drops by the damage until a long rest. Resists acid, cold, fire, lightning, thunder, and nonmagical non-silvered weapons; immune necrotic, poison. Incorporeal Movement. Sunlight Sensitivity. CR 3.",
-      "image": "/tokens/wraith-a0f9c.png"
+      "image": "/tokens/wraith-a0f9c.png",
+      "passivePerception": 12
     },
     {
       "index": "nezznar-the-black-spider",
@@ -99,7 +103,8 @@
       },
       "dexterity": 13,
       "attacks": "Spider Staff +1 to hit, 2 (1d6-1) bludgeoning plus 3 (1d6) poison. Innate: dancing lights at will; darkness and faerie fire (DC 12) 1/day each. 4th-level wizard (Int, DC 13, +5): mage hand, ray of frost, shocking grasp; mage armor, magic missile, shield; invisibility, suggestion. Darkvision 120 ft., Fey Ancestry, Sunlight Sensitivity. CR 2.",
-      "image": "/tokens/drow-archmage-b360f.png"
+      "image": "/tokens/drow-archmage-b360f.png",
+      "passivePerception": 14
     },
     {
       "index": "flameskull",
@@ -119,7 +124,8 @@
       },
       "dexterity": 17,
       "attacks": "See the module statistics in Appendix B / Monster Descriptions (fire bolt, fireball, rejuvenation).",
-      "image": "/tokens/demilich-3edf0.png"
+      "image": "/tokens/demilich-3edf0.png",
+      "passivePerception": 12
     },
     {
       "index": "nothic",
@@ -139,7 +145,8 @@
       },
       "dexterity": 16,
       "attacks": "Multiattack: two claw attacks. Rotting Gaze (weird insight). See the module statistics for details.",
-      "image": "/tokens/eyeless-undead-a7e8d.png"
+      "image": "/tokens/eyeless-undead-a7e8d.png",
+      "passivePerception": 12
     },
     {
       "index": "spectator",
@@ -159,7 +166,8 @@
       },
       "dexterity": 14,
       "attacks": "Bite +1 to hit, 2 (1d4-1) piercing. Eye Rays (two per turn, DC 13). Spell Reflection reaction. Darkvision 120 ft. CR 3.",
-      "image": "/tokens/beholder-5764a.png"
+      "image": "/tokens/beholder-5764a.png",
+      "passivePerception": 16
     },
     {
       "index": "twig-blight",
@@ -179,7 +187,8 @@
       },
       "dexterity": 13,
       "attacks": "See the module statistics (Claws). CR 1/8.",
-      "image": "/tokens/treant-987d3.png"
+      "image": "/tokens/treant-987d3.png",
+      "passivePerception": 9
     }
   ]
 }

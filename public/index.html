@@ -1237,7 +1237,7 @@ function endTurn() {
 
 function serializeToken(t) {
   return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
-    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
+    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
 /* =====================================================================
@@ -2977,7 +2977,7 @@ async function addMonsters(name, count, hidden) {
       id: `mon-${entry.index}-${Date.now().toString(36)}${i}`, name: n + sameBefore > 1 ? `${entry.name} ${number}` : entry.name,
       color: '#a04545', isPC: false, hidden, kind: 'creature', speed: Number.isFinite(walk) ? walk : 30, image: entry.image || '', ...spot
     });
-    Object.assign(t, { monster: entry.index, hp: entry.hit_points, maxHp: entry.hit_points, ac: entry.armor_class[0].value, dexMod: Math.floor((entry.dexterity - 10) / 2) });
+    Object.assign(t, { monster: entry.index, hp: entry.hit_points, maxHp: entry.hit_points, ac: entry.armor_class[0].value, dexMod: Math.floor((entry.dexterity - 10) / 2), passivePerception: Number(entry.senses && entry.senses.passive_perception) || 10 + Math.floor(((Number(entry.wisdom) || 10) - 10) / 2) });
     state.tokens.push(t);
     joinCombat(t);
   }
@@ -3898,6 +3898,7 @@ async function applyMapUpdates(updates) {
           if (u.monster) token.monster = String(u.monster);
           if (/^\/tokens\/[\w.-]+$/.test(String(u.image || ''))) token.image = u.image;
           if (Number.isFinite(Number(u.dexMod))) token.dexMod = Number(u.dexMod);
+          if (Number(u.passivePerception) > 0) token.passivePerception = Number(u.passivePerception);
           // Several creatures with the same name get their id number ("Goblin 1", "Goblin 2") so the chat, the rolls and the tracker can tell them apart.
           const numbered = (x) => { const m = /-(\d+)$/.exec(String(x.id)); return m ? m[1] : ''; };
           const twins = state.tokens.filter((x) => !x.isPC && x.name === token.name && numbered(x));
