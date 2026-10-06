@@ -1042,9 +1042,9 @@
   /* ---------------- pointer input ---------------- */
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  cv.addEventListener('pointerdown', (e) => {
+  function handleDown(e) {
     if (!S.img) return;
-    cv.setPointerCapture(e.pointerId);
+    try { cv.setPointerCapture(e.pointerId); } catch { /* a replayed click has no live pointer */ }
     const p = toWorld(e);
 
     if (e.button === 1 || S.tool === 'pan' || S.spaceDown) {
@@ -1103,12 +1103,26 @@
       const w = nearestWall(p, true);
       if (w) { w.open = !w.open; wallsChanged(); }
     }
+  }
+
+  // Click and drag on empty ground pans the map in the Pins, Token and Open/Close tools: a press on empty ground waits to see whether it becomes a drag (pan) or stays a click (the tool's own action).
+  cv.addEventListener('pointerdown', (e) => {
+    if (!S.img) return;
+    const p = toWorld(e);
+    const empty = e.button === 0 && !S.spaceDown && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'toggle' ? !nearestWall(p, true) : false);
+    if (!empty) { handleDown(e); return; }
+    try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    S.drag = { kind: 'pending', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy, press: { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, shiftKey: e.shiftKey } };
   });
 
   cv.addEventListener('pointermove', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
     S.hover = p;
+    if (S.drag && S.drag.kind === 'pending' && Math.hypot(e.clientX - S.drag.sx, e.clientY - S.drag.sy) > 5) {
+      S.drag = { kind: 'pan', sx: S.drag.sx, sy: S.drag.sy, ox: S.drag.ox, oy: S.drag.oy };
+      cv.style.cursor = 'grabbing';
+    }
     if (S.drag && S.drag.kind === 'pan') {
       S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
       S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
@@ -1132,6 +1146,7 @@
   });
 
   function endDrag(e) {
+    if (S.drag && S.drag.kind === 'pending') { const press = S.drag.press; S.drag = null; handleDown(press); }       // it stayed a click: do the tool's action now
     if (!S.drag) return;
     const kind = S.drag.kind;
     const drag = S.drag;
