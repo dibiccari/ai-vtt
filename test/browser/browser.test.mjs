@@ -225,6 +225,116 @@ test('the DM\'s board updates: applyMapUpdates adds, moves, hides, reveals and r
   assert.deepEqual(r.cond, ['prone:2']); assert.equal(r.removed, true);
 });
 
+test('light: ambient levels, a lamp\'s bright and dim rings, walls stop light, a carried torch', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const s = vtt.state, hero = s.tokens[0];
+    s.lights = [{ id: 'lamp', name: 'lamp', x: centerOf(15), y: centerOf(10), bright: 100, dim: 200 }];
+    const at = (dx) => lightLevelAt(centerOf(15) + dx, centerOf(10));
+    const out = {};
+    s.ambient = 'bright'; out.bright = [at(0), at(500)]; s.ambient = 'dim'; out.dim = [at(0), at(500)];
+    s.ambient = 'dark'; s.ambientOverride = '';
+    out.dark = [at(0), at(90), at(150), at(250)];
+    s.ambientOverride = 'bright'; out.override = at(500); s.ambientOverride = '';
+    s.walls = [{ x1: centerOf(15) + 60, y1: 0, x2: centerOf(15) + 60, y2: s.map.height, type: 'wall', open: false }]; s.wallsVersion++;
+    out.behindWall = at(90); out.nearSide = lightLevelAt(centerOf(15) - 50, centerOf(10));
+    s.walls = []; s.wallsVersion++;
+    s.lightsOff = { [s.map.url || '']: ['lamp'] }; out.lampOut = at(0); s.lightsOff = {};
+    s.lights = []; hero.lightKind = 'torch';
+    const near = (d) => lightLevelAt(centerOf(hero.col) + d, centerOf(hero.row));
+    out.torch = [near(150), near(300), near(500)];      // torch 20/40 ft = 200 / 400 px
+    hero.lightKind = ''; s.ambient = 'bright';
+    return out;
+  })()`);
+  assert.deepEqual(r.bright, [2, 2]); assert.deepEqual(r.dim, [1, 1]);
+  assert.deepEqual(r.dark, [2, 2, 1, 0], 'bright to the half radius, dim to the full radius, dark beyond');
+  assert.equal(r.override, 2, 'the table\'s own light level replaces the map\'s');
+  assert.equal(r.behindWall, 0, 'a wall stops the light'); assert.equal(r.nearSide, 2);
+  assert.equal(r.lampOut, 0, 'a lamp that is put out gives nothing');
+  assert.deepEqual(r.torch, [2, 1, 0]);
+});
+
+test('darkvision and sight in the dark: lit squares and darkvision range are seen, the rest is not; blindness shrinks sight to the own square', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const s = vtt.state, hero = s.tokens[0], c = characterFor(hero);
+    s.fogEnabled = true; s.ambient = 'dark'; s.ambientOverride = ''; s.walls = []; s.wallsVersion++;
+    s.lights = [{ id: 'lamp', name: 'lamp', x: centerOf(16), y: centerOf(10), bright: 100, dim: 200 }];
+    const out = {}, see = (col, row) => { vtt.revealFog(); return s.sight.some((sg) => visibleFrom(sg, centerOf(col), centerOf(row))); };
+    c.darkvision = 0;
+    out.noDv = { lit: see(16, 10), adjacentDark: see(11, 10), farDark: see(10, 4) };
+    c.darkvision = 60;
+    out.dv60 = { within: see(10, 5), beyond: see(10, 20), lampStillSeen: see(16, 10) };
+    hero.conditions = [{ name: 'blinded', rounds: 0 }];
+    out.blind = { own: see(10, 10), next: see(11, 10) };
+    hero.conditions = [];
+    s.walls = [{ x1: centerOf(13), y1: 0, x2: centerOf(13), y2: s.map.height, type: 'wall', open: false }]; s.wallsVersion++;
+    out.walled = { lampBehindWall: see(16, 10) };
+    const gob = makeToken({ id: 'gob', name: 'Goblin', color: '#0a0', isPC: false, col: 10, row: 19 }); s.tokens.push(gob);
+    s.walls = []; s.wallsVersion++; c.darkvision = 0; vtt.revealFog(); out.unseenGoblinInDark = vtt.seenByParty(gob);
+    c.darkvision = 120; vtt.revealFog(); out.goblinWithDv = vtt.seenByParty(gob);
+    s.tokens.pop(); c.darkvision = 0; s.fogEnabled = false; s.ambient = 'bright'; s.lights = [];
+    return out;
+  })()`);
+  assert.deepEqual(r.noDv, { lit: true, adjacentDark: false, farDark: false });
+  assert.deepEqual(r.dv60, { within: true, beyond: false, lampStillSeen: true });
+  assert.deepEqual(r.blind, { own: true, next: false });
+  assert.equal(r.walled.lampBehindWall, false);
+  assert.equal(r.unseenGoblinInDark, false); assert.equal(r.goblinWithDv, true, 'darkvision 120 ft reaches 9 squares');
+});
+
+test('difficult terrain: entering a difficult square costs double movement in a fight (Terrain Test Grounds)', opts, async () => {
+  const terrainUrl = '/uploads/vtt-terrain-test.png';
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state;
+    await vtt.travelTo({ mapUrl: ${JSON.stringify(terrainUrl)}, mapName: 'Terrain', kind: 'battle', col: 5, row: 5 });
+    s.tokens = s.tokens.filter((t) => t.isPC).slice(0, 1); const hero = s.tokens[0];
+    s.walls = []; s.wallsVersion++; s.fogEnabled = false; s.gmOverride = false; s.moveRule = 'circle';
+    const out = { difficultRects: s.difficult.length };
+    const D = (c, r) => isDifficult(c, r);
+    let pick = null;
+    for (let r = 1; r < rows() - 1 && !pick; r++) for (let c = 2; c < cols() - 3; c++) if (!D(c - 1, r) && D(c, r) && D(c + 1, r) && inBounds(c - 1, r)) { pick = { c, r }; break; }
+    out.pick = pick;
+    if (!pick) return out;
+    hero.col = pick.c - 1; hero.row = pick.r;
+    s.combat = { active: true, round: 1, order: [hero.id] };
+    const reach = (ft) => { hero.movementRemaining = ft; s.wallsVersion++; return vtt.reachable(hero); };
+    out.open5 = reach(5).has((pick.c - 2) + ',' + pick.r);
+    out.diff5 = reach(5).has(pick.c + ',' + pick.r);
+    out.diff10 = reach(10).has(pick.c + ',' + pick.r);
+    out.second15 = reach(15).has((pick.c + 1) + ',' + pick.r);
+    out.second20 = reach(20).has((pick.c + 1) + ',' + pick.r);
+    s.combat = { active: false, round: 0, order: [] }; hero.movementRemaining = 5; s.wallsVersion++;
+    out.freeRoamIgnoresBudget = vtt.reachable(hero).has((pick.c + 6) + ',' + pick.r);
+    return out;
+  })()`);
+  assert.ok(r.difficultRects >= 10, 'the terrain map has its difficult rectangles');
+  assert.ok(r.pick, 'found a straight run of difficult squares next to open ground');
+  assert.equal(r.open5, true, 'open ground costs 5 ft per square'); assert.equal(r.diff5, false, 'a difficult square needs 10 ft');
+  assert.equal(r.diff10, true); assert.equal(r.second15, false, 'two difficult squares need 20 ft'); assert.equal(r.second20, true);
+  assert.equal(r.freeRoamIgnoresBudget, true, 'outside a fight there is no movement budget');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
+});
+
+test('watch mode (?watch=1): the page refuses every write, so a spectator can never save or call the paid DM; reads still work', opts, async () => {
+  await page.goto(`${server.base}/index.html?watch=1&nosave=1`);
+  await page.waitFor('window.WATCH === true && window.vtt && window.vtt.state.tokens.length >= 1 && document.querySelector("#watchBanner")');
+  const r = await page.eval(`(async () => {
+    const out = {};
+    for (const [method, url] of [['POST', '/api/roll'], ['PUT', '/api/campaigns/lost-mine-of-phandelver/journal'], ['POST', '/api/chat'], ['DELETE', '/api/characters/edric']]) {
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: method === 'DELETE' ? undefined : '{}' });
+      out[method + ' ' + url] = [res.status, (await res.json()).error];
+    }
+    out.get = (await fetch('/api/campaigns')).status;
+    out.banner = document.querySelector('#watchBanner').textContent;
+    out.pointerEvents = getComputedStyle(document.querySelector('#board')).pointerEvents;
+    return out;
+  })()`);
+  for (const k of Object.keys(r).filter((x) => /^(POST|PUT|DELETE) /.test(x))) assert.deepEqual(r[k], [403, 'Watching only'], k);
+  assert.equal(r.get, 200); assert.match(r.banner, /Watching/); assert.equal(r.pointerEvents, 'none');
+  assert.equal((await server.get('/api/characters')).json.some((c) => c.id === 'edric'), true, 'nothing was deleted');
 });

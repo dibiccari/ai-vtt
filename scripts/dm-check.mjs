@@ -28,7 +28,7 @@ const STEPS = [
   { id: 'insight', say: '[Lyra] I want to know whether the barkeep is hiding something. Make an Insight check for me.', expect: 'dice taken from the tray, in order' },
   { id: 'secrets', say: '[Vex] Is anyone hiding in this room, or is there a trap on the floor? Tell me only what I can already see.', expect: 'hidden tokens not mentioned' },
   { id: 'brawl', say: '[Thorin] I shove the nearest drunk and start a brawl. Roll initiative and start combat.', expect: 'startCombat sent, new creatures carry hit points and AC' },
-  { id: 'attack', say: '[Thorin] I attack Drunk Bram with my longsword.', expect: 'attack and damage from the tray, updates name real tokens' },
+  { id: 'attack', say: '[Thorin] It is my turn. Drunk Bram is right next to me: I attack him with my longsword and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
 
@@ -101,7 +101,7 @@ try {
   let tokens = chars.map((c, i) => mk({ id: 'pc-' + c.id, name: c.name, col: c0 + i, row: r0, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: Math.floor((c.abilities.dex - 10) / 2) }));
   tokens.push(
     mk({ id: 'npc-orla', name: 'Orla the barkeep', col: c0 + 2, row: r0 - 6, color: '#c9a', isPC: false, hp: 9, maxHp: 9, ac: 10, dexMod: 0 }),
-    mk({ id: 'npc-bram', name: 'Drunk Bram', col: c0 + 1, row: r0 - 3, color: '#a96', isPC: false, hp: 11, maxHp: 11, ac: 10, dexMod: 0 }),
+    mk({ id: 'npc-bram', name: 'Drunk Bram', col: c0, row: r0 - 1, color: '#a96', isPC: false, hp: 11, maxHp: 11, ac: 10, dexMod: 0 }),
     mk({ id: 'npc-hidden', name: MARK_CREATURE + ' the Unseen', col: c0 + 5, row: r0 - 4, color: '#333', isPC: false, hidden: true, visibleToParty: false, hp: 20, maxHp: 20, ac: 13, dexMod: 2 }),
     mk({ id: 'trap-hidden', name: MARK_TRAP + ' snare', col: c0 + 3, row: r0 - 2, color: '#a00', isPC: false, hidden: true, kind: 'trap', visibleToParty: false })
   );
@@ -144,7 +144,9 @@ try {
       const verdict = checkDice(j.rolls, tray, used);
       check(verdict.bad.length === 0, `${step.id}: reported dice match the supplied tray (${verdict.ok} verified, ${verdict.unknown} lines with no checkable natural roll)`, verdict.bad.join(' | ').slice(0, 200));
       if (step.id === 'insight') check(j.rolls.length > 0, 'insight: the DM reported at least one roll');
-      if (step.id === 'attack' && !j.rolls.length) warn('attack: no roll reported (the DM may have ruled on turn order or range instead)');
+      if (step.id === 'attack') {
+        check(j.rolls.length > 0, 'attack: the DM reported at least one roll', diagnose(j, raw));
+      }
     }
 
     // 3. secrets
@@ -244,4 +246,12 @@ function checkDice(lines, tray, usedCount) {
     }
   }
   return verdict;
+}
+
+// Why a reply had no roll, without printing any story text: which updates it sent, whether the narrative contains dice notation or
+// turn-order words, and what the board said about whose turn it was.
+function diagnose(j, raw) {
+  const text = String(j.narrative || '').toLowerCase();
+  const kinds = (raw?.mapUpdates || []).map((u) => u.type === 'token' ? 'token:' + u.action : u.type).join(',') || 'none';
+  return `updates [${kinds}]; narrative has digits-with-d20/damage notation: ${/\bd\d+|\d+\s*(damage|to hit)/.test(text)}; mentions turn/initiative: ${/turn|initiative/.test(text)}; mentions range/move/reach: ${/\b(move|reach|range|too far|distance|closer|step)\b/.test(text)}; ${j.narrative?.length || 0} narrative chars`;
 }
