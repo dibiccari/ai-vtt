@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Character conditions</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width:1040px; margin:0 auto; padding:20px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 16px; font-size:13px; }
+  .layout { display:grid; grid-template-columns:minmax(0,560px) minmax(0,1fr); gap:20px; align-items:start; }
+  .stage { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  canvas { width:100%; height:auto; display:block; border-radius:8px; background:#05070a; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  h2 { margin:0 0 8px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .conds { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; margin-bottom:12px; }
+  .conds label { display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 4px; border-radius:6px; }
+  .conds label:hover { background:var(--panel2); }
+  .swatch { width:22px; height:12px; border-radius:6px; border:2px solid; flex:none; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  button, select { font:inherit; font-size:13px; color:inherit; background:#1f2632; border:1px solid #3a4558; border-radius:6px; padding:5px 12px; cursor:pointer; font-weight:600; }
+  button:hover { border-color:var(--accent); }
+  #help { min-height:2.8em; color:var(--muted); font-size:13px; }
+  #help b { color:var(--text); }
+  @media (max-width:820px) { .layout { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="page">
+  <h1>Character <span>conditions</span></h1>
+  <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. This is the look being tried before it goes on the tabletop.</p>
+  <div class="layout">
+    <div class="stage"><canvas id="cv" width="680" height="680" aria-label="A five by five room with a token in the centre"></canvas></div>
+    <div class="panel">
+      <h2>Token</h2>
+      <div class="row">
+        <select id="pick" aria-label="Token picture"></select>
+        <button id="clear">Clear all</button>
+        <button id="some">Try a mix</button>
+      </div>
+      <h2>Conditions</h2>
+      <div class="conds" id="conds"></div>
+      <h2>What the ring means</h2>
+      <div id="help">Hover a condition to read its rule.</div>
+    </div>
+  </div>
+</div>
+<script src="/condition-rings.js"></script>
+<script>
+(function () {
+  'use strict';
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var SQUARE = 100, MARGIN = 90, ROOM = SQUARE * 5;             // a 5 x 5 room, 100 px a square, with a margin so rings never clip
+  var TOKENS = [
+    ['determined-warrior-9af2f.png', 'Warrior'], ['dwarf-paladin-2-6bb90.png', 'Dwarf paladin'], ['rogue-dungeon-delver-9a55e.png', 'Rogue'],
+    ['elder-wizened-mage-fd96b.png', 'Mage'], ['drow-archmage-b360f.png', 'Drow'], ['goblin-king-f00b8.png', 'Goblin']
+  ];
+  var ORDER = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious', 'exhaustion', 'concentrating', 'surprised', 'disengaged'];
+  var on = {}, img = new Image(), imgReady = false;
+
+  function room() {
+    ctx.fillStyle = '#0b0e14'; ctx.fillRect(0, 0, cv.width, cv.height);
+    var x0 = MARGIN, y0 = MARGIN;
+    // stone floor: soft tiles with a little variation, then the 5 ft grid
+    for (var r = 0; r < 5; r++) for (var c = 0; c < 5; c++) {
+      var v = 168 + ((c * 37 + r * 53) % 5) * 5;
+      ctx.fillStyle = 'rgb(' + v + ',' + (v - 4) + ',' + (v - 12) + ')';
+      ctx.fillRect(x0 + c * SQUARE, y0 + r * SQUARE, SQUARE, SQUARE);
+    }
+    ctx.strokeStyle = 'rgba(40, 36, 30, 0.45)'; ctx.lineWidth = 1;
+    for (var i = 0; i <= 5; i++) {
+      ctx.beginPath(); ctx.moveTo(x0 + i * SQUARE + 0.5, y0); ctx.lineTo(x0 + i * SQUARE + 0.5, y0 + ROOM); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0, y0 + i * SQUARE + 0.5); ctx.lineTo(x0 + ROOM, y0 + i * SQUARE + 0.5); ctx.stroke();
+    }
+    ctx.strokeStyle = '#1b1814'; ctx.lineWidth = 14; ctx.strokeRect(x0 - 7, y0 - 7, ROOM + 14, ROOM + 14);
+    ctx.strokeStyle = '#4a4338'; ctx.lineWidth = 4; ctx.strokeRect(x0 - 15, y0 - 15, ROOM + 30, ROOM + 30);
+  }
+
+  function token(names) {
+    var cx = MARGIN + ROOM / 2, cy = MARGIN + ROOM / 2, r = SQUARE * 0.42;
+    ctx.save();
+    ctx.globalAlpha = ConditionRings.tokenAlpha(names);
+    ctx.fillStyle = '#1b2230'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    if (imgReady) { ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r - 2, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2); ctx.restore(); }
+    ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ConditionRings.draw(ctx, cx, cy, r, names, 1.7);
+  }
+
+  function render() {
+    var names = ORDER.filter(function (n) { return on[n]; });
+    room();
+    token(names);
+  }
+
+  // controls
+  var box = document.getElementById('conds'), help = document.getElementById('help');
+  ORDER.forEach(function (name) {
+    var d = ConditionRings.info(name);
+    var l = document.createElement('label');
+    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'c-' + name;
+    var sw = document.createElement('span'); sw.className = 'swatch'; sw.style.borderColor = d[1];
+    sw.style.borderStyle = d[2] === 'double' ? 'double' : d[2] === 'solid' ? 'solid' : d[2];
+    sw.style.borderWidth = d[2] === 'double' ? '4px' : '3px'; sw.style.height = d[2] === 'double' ? '14px' : '12px';
+    l.append(cb, sw, document.createTextNode(d[0]));
+    l.addEventListener('mouseenter', function () { help.innerHTML = '<b>' + d[0] + '.</b> ' + d[3]; });
+    cb.addEventListener('change', function () { on[name] = cb.checked; render(); });
+    box.appendChild(l);
+  });
+  function setAll(list) { ORDER.forEach(function (n) { on[n] = list.indexOf(n) >= 0; document.getElementById('c-' + n).checked = on[n]; }); render(); }
+  document.getElementById('clear').addEventListener('click', function () { setAll([]); });
+  document.getElementById('some').addEventListener('click', function () { setAll(['invisible', 'concentrating', 'poisoned', 'prone']); });
+
+  var pick = document.getElementById('pick');
+  TOKENS.forEach(function (t) { var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; pick.appendChild(o); });
+  function loadToken() { imgReady = false; img = new Image(); img.onload = function () { imgReady = true; render(); }; img.onerror = render; img.src = '/tokens/' + pick.value; }
+  pick.addEventListener('change', loadToken);
+  loadToken();
+  render();
+})();
+</script>
+</body>
+</html>
