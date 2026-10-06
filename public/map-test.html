@@ -810,9 +810,7 @@
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
         S.lightZones = remote && Array.isArray(remote.lightZones) ? remote.lightZones.filter((z) => z && [z.x, z.y, z.w, z.h].every(isFinite) && z.w > 0 && z.h > 0 && ['dark', 'dim', 'bright'].includes(z.level)) : [];
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
-        // A map with no test token yet starts one at its start pin, so the line-of-sight check begins where the party would.
-        const startPin = S.starts.find((p) => p.name === 'start');
-        if (!S.tokens.length && startPin) S.tokens.push({ x: clamp(startPin.x, 0, S.W), y: clamp(startPin.y, 0, S.H) });
+        parkAtStart();
         syncControls();
         resetFog();
         fitView();
@@ -824,6 +822,14 @@
       img.onerror = () => { $('#banner').textContent = 'Could not load that map image.'; resolve(); };
       img.src = url;
     });
+  }
+
+  // The first test token stands on the start pin (a saved token from an earlier visit would otherwise be left wherever it was), so the checks begin where the party would.
+  function parkAtStart() {
+    const startPin = S.starts.find((p) => p.name === 'start');
+    if (!startPin) return;
+    const at = { x: clamp(startPin.x, 0, S.W), y: clamp(startPin.y, 0, S.H) };
+    if (S.tokens.length) S.tokens[0] = at; else S.tokens.push(at);
   }
 
   async function loadMapList(initial = false) {
@@ -1027,6 +1033,7 @@
       }
       const pin = { name: nextPinName(), x: Math.round(p.x), y: Math.round(p.y) };
       S.starts.push(pin);
+      parkAtStart(); revealFog();
       save();
       selectPin(pin, true);
     } else if (S.tool === 'terrain') {
@@ -1079,7 +1086,7 @@
     S.drag = null;
     try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (kind === 'token') save();
-    if (kind === 'start') { save(); renderStartList(); }
+    if (kind === 'start') { if (drag.spot.name === 'start') parkAtStart(); save(); renderStartList(); revealFog(); requestRender(); }
     if (kind === 'terrain' && drag.rect && drag.rect.w > 0 && drag.rect.h > 0) { S.difficult.push(drag.rect); save(); }
     if (kind === 'light' && drag.rect && drag.rect.w > 0 && drag.rect.h > 0) { S.lightZones.push(drag.rect); save(); }
     setTool(S.tool);
@@ -1168,6 +1175,7 @@
     if (old) old.name = nextPinName();                     // the old start pin becomes an ordinary pin
     pin.name = 'start';
     $('#pcName').value = 'start'; $('#pcStart').hidden = true;
+    parkAtStart(); revealFog();
     save(); renderStartList(); requestRender();
   });
   $('#pcRemove').addEventListener('click', () => { if (S.selected) removePin(S.selected); });
