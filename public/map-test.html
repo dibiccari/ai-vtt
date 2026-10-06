@@ -1235,7 +1235,8 @@
     const pin = S.selected;
     if (!pin) return;
     const name = pinSlug($('#pcName').value);
-    if (!name || S.starts.some((x) => x !== pin && x.name === name)) { $('#pcName').value = pin.name; setSavedNote(name ? 'There is already a pin called ' + name + '.' : 'A pin needs a name.'); return; }
+    // pins may share a name (alternative spots, two guard posts); only "start" is unique, use Make start for that
+    if (!name || (name === 'start' && S.starts.some((x) => x !== pin && x.name === 'start'))) { $('#pcName').value = pin.name; setSavedNote(name ? 'There is already a start pin: use Make start on the pin you want.' : 'A pin needs a name.'); return; }
     if (name !== pin.name) { pin.name = name; $('#pcName').value = name; $('#pcStart').hidden = name === 'start'; save(); renderStartList(); requestRender(); }
   }
   function removePin(pin) {

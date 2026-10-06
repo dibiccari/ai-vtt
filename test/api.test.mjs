@@ -95,7 +95,7 @@ test('map configs: list, areas, config read, save round trip with cleaning (and 
   const put = await s.put('/api/map-config?map=lmop-thundertree.png', body); ok(put); assert.equal(put.json.walls, 2);
   const back = (await s.get('/api/map-config?map=lmop-thundertree.png')).json.config;
   assert.equal(back.squares, 400); assert.deepEqual(back.walls.map((w) => w.type), ['fence', 'door']); assert.equal(back.walls[0].x1, 1.23);
-  assert.deepEqual(back.starts, [{ name: 'start', x: 5, y: 6 }], 'names are cleaned and duplicates dropped');
+  assert.equal(back.starts.filter((p) => p.name === 'start').length, 1, 'names are cleaned and only one start pin is kept'); assert.ok(back.starts.some((p) => p.name === 'start' && p.x === 5 && p.y === 6));
   assert.equal(back.light, 'dark'); assert.equal(back.ambience, undefined); assert.equal(back.difficult.length, 1);
   assert.equal((await s.put('/api/map-config?map=notes.txt', body)).status, 400);
   const real = JSON.parse(await readFile(path.join(import.meta.dirname, '..', 'data', 'maps', 'lmop-thundertree.png.json'), 'utf8'));
@@ -229,4 +229,15 @@ test('chat without an API key answers that the DM is offline and spends nothing'
   const r = await s.post('/api/chat', { message: 'hello' }); ok(r);
   assert.equal(r.json.offline, true); assert.deepEqual(r.json.mapUpdates, []);
   assert.equal((await s.post('/api/chat', { message: '  ' })).status, 400);
+});
+
+test('map config: pins may share a name (only start is unique) and keep their arrival radius', async () => {
+  const body = { squares: 30, walls: [], starts: [{ name: 'guard-post', x: 10, y: 10 }, { name: 'guard-post', x: 40, y: 40, radius: 1.5 }, { name: 'start', x: 5, y: 5, radius: 2 }, { name: 'start', x: 6, y: 6 }] };
+  const put = await s.put('/api/map-config?map=lmop-thundertree.png', body);
+  assert.equal(put.status, 200);
+  const back = (await s.get('/api/map-config?map=lmop-thundertree.png')).json.config;
+  assert.equal(back.starts.filter((p) => p.name === 'guard-post').length, 2);
+  assert.equal(back.starts.filter((p) => p.name === 'start').length, 1);
+  assert.equal(back.starts.find((p) => p.x === 40).radius, 1.5);
+  assert.equal(back.starts.find((p) => p.name === 'start').radius, 2);
 });

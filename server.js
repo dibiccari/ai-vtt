@@ -261,12 +261,12 @@ function normalizeMapConfig(body) {
     walls.push({ x1, y1, x2, y2, type: w.type === 'door' ? 'door' : (w.type === 'fence' || w.type === 'window') ? 'fence' : 'wall', open: Boolean(w.open) });
   }
   const starts = [];
-  for (const s of Array.isArray(body?.starts) ? body.starts.slice(0, 60) : []) {
+  for (const s of Array.isArray(body?.starts) ? body.starts.slice(0, 200) : []) {
     const name = String(s?.name ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
     const [x, y] = [num(s?.x), num(s?.y)];
     const desc = String(s?.desc ?? '').replace(/\s+/g, ' ').trim().slice(0, 140);
     const radius = Math.max(0, Math.min(12, Math.round((Number(s?.radius) || 0) * 2) / 2));          // squares: the arrival area around the pin
-    if (name && x !== null && y !== null && !starts.some((o) => o.name === name)) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}) });
+    if (name && x !== null && y !== null && !(name === 'start' && starts.some((o) => o.name === 'start'))) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}) });
   }
   // Light sources from a .dd2vtt file (image pixels; range in squares). Kept for the lighting work.
   const lights = [];
@@ -412,7 +412,7 @@ async function withSavedStarts(maps) {
   for (const m of maps) {
     let starts = [];
     try { starts = JSON.parse(await readFile(mapConfigFile(m.url.split('/').pop()), 'utf8')).starts || []; } catch { /* no saved config */ }
-    out.push({ ...m, startPx: starts.find((s) => s.name === 'start') || null, spotsPx: Object.fromEntries(starts.filter((s) => s.name !== 'start').map((s) => [s.name, { x: s.x, y: s.y }])), spotNotes: Object.fromEntries(starts.filter((s) => s.desc).map((s) => [s.name, s.desc])) });
+    out.push({ ...m, startPx: starts.find((s) => s.name === 'start') || null, spotsPx: Object.fromEntries(starts.filter((s, i) => s.name !== 'start' && starts.findIndex((o) => o.name === s.name) === i).map((s) => [s.name, { x: s.x, y: s.y }])), spotNotes: Object.fromEntries(starts.filter((s, i) => s.desc && starts.findIndex((o) => o.name === s.name && o.desc) === i).map((s) => [s.name, s.desc])) });
   }
   return out;
 }
