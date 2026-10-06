@@ -10,7 +10,7 @@ const spots = JSON.parse(json);
 const areas = JSON.parse(await readFile(path.join(root, 'data', 'campaigns', 'lost-mine-of-phandelver', 'areas.json'), 'utf8'))[picture] || [];
 const file = path.join(root, 'data', 'maps', picture + '.json');
 const cfg = JSON.parse(await readFile(file, 'utf8'));
-cfg.starts = (cfg.starts || []).filter((s) => !/^area-\d+$/.test(s.name));
+cfg.starts = (cfg.starts || []).filter((s) => !/^area-\d+(-\d+)?$/.test(s.name));
 for (const a of areas) {
   const p = spots[a.n];
   if (!p) { console.log('no position for area', a.n, a.name); continue; }

@@ -681,7 +681,7 @@
 
   // The pins of this map as a list: click one to select it and bring it into view.
   /* ---------------- module areas: numbered rooms dragged onto the map as pins named area-N ---------------- */
-  const isAreaPin = (p) => /^area-\d+$/.test(p.name);
+  const isAreaPin = (p) => /^area-\d+(-\d+)?$/.test(p.name);          // area-3 is the first pin of area 3, area-3-2 a second one (a room with two parts)
   let AREAS = [];
   async function loadAreas() {
     try { AREAS = (await (await fetch('/api/map-areas?map=' + encodeURIComponent(mapName()))).json()).areas || []; } catch { AREAS = []; }
@@ -695,22 +695,31 @@
       const pin = S.starts.find((p) => p.name === 'area-' + a.n);
       const chip = document.createElement('button');
       chip.type = 'button'; chip.draggable = true; chip.className = 'small';
-      chip.textContent = a.n + ' ' + a.name + (pin ? ' ✓' : '');
+      const count = S.starts.filter((p) => p.name === 'area-' + a.n || p.name.startsWith('area-' + a.n + '-')).length;
+      chip.textContent = a.n + ' ' + a.name + (count > 1 ? ' ✓ x' + count : pin ? ' ✓' : '');
       chip.title = pin ? 'Placed. Click to centre on it, or drag to move it.' : 'Drag onto the map';
       chip.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', 'area:' + a.n); e.dataTransfer.effectAllowed = 'copyMove'; });
       chip.addEventListener('click', () => { if (!pin) return; S.view.ox = $('#stage').clientWidth / 2 - pin.x * S.view.scale; S.view.oy = $('#stage').clientHeight / 2 - pin.y * S.view.scale; requestRender(); });
       list.appendChild(chip);
+      if (pin) {                                                      // a second (third...) pin for an area that has several parts
+        const more = document.createElement('button');
+        more.type = 'button'; more.draggable = true; more.className = 'small'; more.textContent = '+';
+        more.title = 'Drag onto the map to add another pin for area ' + a.n;
+        more.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', 'area:' + a.n + ':more'); e.dataTransfer.effectAllowed = 'copy'; });
+        list.appendChild(more);
+      }
     }
   }
   cv.addEventListener('dragover', (e) => { if (AREAS.length) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
   cv.addEventListener('drop', (e) => {
-    const m = /^area:(\d+)$/.exec(e.dataTransfer.getData('text/plain'));
+    const m = /^area:(\d+)(:more)?$/.exec(e.dataTransfer.getData('text/plain'));
     const area = m && AREAS.find((a) => a.n === Number(m[1]));
     if (!area || !S.img) return;
     e.preventDefault();
     const p = toWorld(e);
     const x = Math.round(clamp(p.x, 0, S.W)), y = Math.round(clamp(p.y, 0, S.H));
-    const name = 'area-' + area.n;
+    let name = 'area-' + area.n;
+    if (m[2]) { let k = 2; while (S.starts.some((s) => s.name === name + '-' + k)) k++; name = name + '-' + k; }
     const pin = S.starts.find((s) => s.name === name);
     if (pin) { pin.x = x; pin.y = y; } else S.starts.push({ name, x, y, desc: area.name });
     save(); renderStartList(); requestRender();
