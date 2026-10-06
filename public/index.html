@@ -1793,7 +1793,7 @@ function drawTokens(pcs, now) {
     }
 
     const hpMax = maxHpOf(t), hpNow = hpOf(t);
-    if (hpMax > 0 && (t.isPC || hpNow < hpMax)) {
+    if (hpMax > 0) {
       const bw = GRID * 0.8, bh = 5, bx = x - bw / 2, by = y + radius + 4;
       const pct = clamp(hpNow / hpMax, 0, 1);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
