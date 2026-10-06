@@ -264,6 +264,18 @@
       "x": 618,
       "y": 2012,
       "radius": 2
+    },
+    {
+      "name": "lair-door",
+      "x": 84,
+      "y": 189,
+      "desc": "A low doorway in a screen of warped, interwoven branches: the entrance to Agatha's domelike shelter."
+    },
+    {
+      "name": "agathas-home",
+      "x": 84,
+      "y": 273,
+      "desc": "Inside: old elven chests, shelves, a table and a reclined couch. Agatha the banshee manifests shortly after the party enters."
     }
   ],
   "light": "dim",

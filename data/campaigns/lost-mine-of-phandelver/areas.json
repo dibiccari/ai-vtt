@@ -334,5 +334,115 @@
    "n": 14,
    "name": "King's Quarters"
   }
- ]
+ ],
+ "dnd-redbrand-hideout.jpg": [
+  {
+   "n": 1,
+   "name": "Cellar"
+  },
+  {
+   "n": 2,
+   "name": "Barracks"
+  },
+  {
+   "n": 3,
+   "name": "Trapped Hall"
+  },
+  {
+   "n": 4,
+   "name": "Tresendar Crypts"
+  },
+  {
+   "n": 5,
+   "name": "Slave Pens"
+  },
+  {
+   "n": 6,
+   "name": "Armory"
+  },
+  {
+   "n": 7,
+   "name": "Storeroom and Work Area"
+  },
+  {
+   "n": 8,
+   "name": "Crevasse"
+  },
+  {
+   "n": 9,
+   "name": "Guard Barracks"
+  },
+  {
+   "n": 10,
+   "name": "Common Room"
+  },
+  {
+   "n": 11,
+   "name": "Wizard's Workshop"
+  },
+  {
+   "n": 12,
+   "name": "Glasstaff's Quarters"
+  }
+ ],
+ "dnd-dm-redbrand-hideout.jpg": [
+  {
+   "n": 1,
+   "name": "Cellar"
+  },
+  {
+   "n": 2,
+   "name": "Barracks"
+  },
+  {
+   "n": 3,
+   "name": "Trapped Hall"
+  },
+  {
+   "n": 4,
+   "name": "Tresendar Crypts"
+  },
+  {
+   "n": 5,
+   "name": "Slave Pens"
+  },
+  {
+   "n": 6,
+   "name": "Armory"
+  },
+  {
+   "n": 7,
+   "name": "Storeroom and Work Area"
+  },
+  {
+   "n": 8,
+   "name": "Crevasse"
+  },
+  {
+   "n": 9,
+   "name": "Guard Barracks"
+  },
+  {
+   "n": 10,
+   "name": "Common Room"
+  },
+  {
+   "n": 11,
+   "name": "Wizard's Workshop"
+  },
+  {
+   "n": 12,
+   "name": "Glasstaff's Quarters"
+  }
+ ],
+ "_sources": {
+  "lmop-cragmaw-hideout.png": "06-cragmaw-hideout.md",
+  "lmop-redbrand-hideout.png": "10-redbrand-hideout.md",
+  "dnd-redbrand-hideout.jpg": "10-redbrand-hideout.md",
+  "dnd-dm-redbrand-hideout.jpg": "10-redbrand-hideout.md",
+  "lmop-thundertree.png": "14-ruins-of-thundertree.md",
+  "lmop-wave-echo-cave.png": "16-part-4-wave-echo-cave.md",
+  "lmop-cragmaw-castle-day.png": "15-wyvern-tor.md",
+  "lmop-cragmaw-castle-night.png": "15-wyvern-tor.md"
+ }
 }

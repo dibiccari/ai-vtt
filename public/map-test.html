@@ -34,6 +34,9 @@
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
   #pinCard { position:absolute; z-index:6; width:240px; background:var(--panel); border:1px solid var(--accent); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
   #pinCard[hidden] { display:none; }
+  #pcGuide { font-size:12px; color:var(--muted); }
+  #pcGuide summary { cursor:pointer; color:var(--text); font-weight:600; }
+  #pcGuideText { margin-top:6px; max-height:220px; overflow:auto; line-height:1.45; white-space:normal; }
   #pinCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
   #pinCard input { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
   #pinCard .pc-row { display:flex; gap:6px; }
@@ -1204,8 +1207,9 @@
   pinCard.id = 'pinCard';
   pinCard.hidden = true;
   pinCard.innerHTML = '<label>Name <input type="text" id="pcName" maxlength="40" spellcheck="false"></label>' +
-    '<label>Note for the DM <input type="text" id="pcNote" maxlength="140" spellcheck="false" placeholder="e.g. the cellar door at the back"></label>' +
+    '<label>Note for the DM <input type="text" id="pcNote" maxlength="300" spellcheck="false" placeholder="e.g. the cellar door at the back"></label>' +
     '<label id="pcRadiusRow">Arrival circle (squares) <input type="number" id="pcRadius" min="0" max="12" step="0.5"></label>' +
+    '<details id="pcGuide" hidden><summary>What the guide says</summary><div id="pcGuideText"></div></details>' +
     '<div class="pc-row"><button id="pcStart">Make start</button><button id="pcRemove" class="danger">Remove</button><button id="pcDone">Done</button></div>';
   $('#stage').appendChild(pinCard);
 
@@ -1225,6 +1229,10 @@
       $('#pcStart').hidden = pin.name === 'start';
       $('#pcRadius').value = pin.radius || 0;
       $('#pcRadiusRow').hidden = isAreaPin(pin);
+      const am = /^area-(\d+)/.exec(pin.name), area = am && AREAS.find((a) => a.n === Number(am[1]));        // a module area pin shows its text from the adventure
+      $('#pcGuide').hidden = !(area && area.text);
+      $('#pcGuide').open = false;
+      $('#pcGuideText').textContent = area && area.text ? area.name + '. ' + area.text : '';
     }
     positionPinCard();
     renderStartList();
@@ -1254,7 +1262,7 @@
     if (S.selected.name === 'start') { parkAtStart(); revealFog(); }
     save(); requestRender();
   });
-  $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $('#pcNote').value.slice(0, 140); save(); renderStartList(); } });
+  $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $("#pcNote").value.slice(0, 300); save(); renderStartList(); } });
   $('#pcStart').addEventListener('click', () => {
     const pin = S.selected;
     if (!pin) return;

@@ -559,6 +559,24 @@
       "name": "start",
       "x": 2967,
       "y": 3025
+    },
+    {
+      "name": "orc-sentry",
+      "x": 84,
+      "y": 189,
+      "desc": "A single orc keeps watch by a boulder 20 yards outside the cave; if it spots intruders it retreats to warn the others."
+    },
+    {
+      "name": "cave-mouth",
+      "x": 84,
+      "y": 273,
+      "desc": "The cave mouth at the bottom of a ravine, 50 yards from the ridge."
+    },
+    {
+      "name": "orc-camp",
+      "x": 84,
+      "y": 357,
+      "desc": "Inside the cave: Brughor Axe-Biter, six orcs and the ogre Gog; an unlocked treasure chest."
     }
   ],
   "light": "bright",

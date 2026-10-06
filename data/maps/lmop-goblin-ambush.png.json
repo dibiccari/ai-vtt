@@ -6,6 +6,30 @@
       "name": "start",
       "x": 245,
       "y": 735
+    },
+    {
+      "name": "dead-horses",
+      "x": 84,
+      "y": 189,
+      "desc": "About 50 ft along the trail: two dead horses with black-feathered arrows, blocking the path (Gundren and Sildar's)."
+    },
+    {
+      "name": "goblins-one-side",
+      "x": 84,
+      "y": 273,
+      "desc": "Two goblins hide in the thickets on one side of the trail and shoot when someone examines the horses."
+    },
+    {
+      "name": "goblins-other-side",
+      "x": 84,
+      "y": 357,
+      "desc": "Two more goblins hide on the other side of the trail."
+    },
+    {
+      "name": "goblin-trail",
+      "x": 84,
+      "y": 441,
+      "desc": "The goblins' trail leads away from the ambush toward the Cragmaw hideout."
     }
   ],
   "source": "dd2vtt",

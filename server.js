@@ -264,7 +264,7 @@ function normalizeMapConfig(body) {
   for (const s of Array.isArray(body?.starts) ? body.starts.slice(0, 200) : []) {
     const name = String(s?.name ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
     const [x, y] = [num(s?.x), num(s?.y)];
-    const desc = String(s?.desc ?? '').replace(/\s+/g, ' ').trim().slice(0, 140);
+    const desc = String(s?.desc ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
     const radius = Math.max(0, Math.min(12, Math.round((Number(s?.radius) || 0) * 2) / 2));          // squares: the arrival area around the pin
     if (name && x !== null && y !== null && !(name === 'start' && starts.some((o) => o.name === 'start'))) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}) });
   }
@@ -342,8 +342,19 @@ app.get('/api/map-areas', asyncRoute(async (req, res) => {
   const areas = [];
   for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
     if (!dirent.isDirectory()) continue;
-    const list = (await readJson(path.join(CAMPAIGNS_DIR, dirent.name, 'areas.json'), {}))[file];
-    if (Array.isArray(list)) { for (const a of list) if (Number.isFinite(a?.n) && typeof a?.name === 'string' && !areas.some((o) => o.n === a.n)) areas.push({ n: a.n, name: a.name.slice(0, 60) }); }
+    const doc = await readJson(path.join(CAMPAIGNS_DIR, dirent.name, 'areas.json'), {});
+    const list = doc[file];
+    // what the adventure text says about each area: the section under its '## N. NAME' heading, tidied and capped (the pin card shows it)
+    let guide = '';
+    const source = doc._sources?.[file];
+    if (source) guide = await readFile(path.join(CAMPAIGNS_DIR, dirent.name, path.basename(source)), 'utf8').catch(() => '');
+    const sectionOf = (n) => {
+      const m = new RegExp('^## ' + n + '\\. .*', 'm').exec(guide);
+      if (!m) return '';
+      const rest = guide.slice(m.index + m[0].length), next = /^## /m.exec(rest);
+      return rest.slice(0, next ? next.index : rest.length).replace(/\s+/g, ' ').trim().slice(0, 3200);
+    };
+    if (Array.isArray(list)) { for (const a of list) if (Number.isFinite(a?.n) && typeof a?.name === 'string' && !areas.some((o) => o.n === a.n)) areas.push({ n: a.n, name: a.name.slice(0, 60), text: sectionOf(a.n) }); }
   }
   res.json({ areas: areas.sort((a, b) => a.n - b.n) });
 }));

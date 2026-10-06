@@ -5294,7 +5294,8 @@
     {
       "name": "start",
       "x": 96,
-      "y": 1524
+      "y": 1524,
+      "radius": 2
     },
     {
       "name": "south",
@@ -5394,6 +5395,11 @@
       "x": 2450,
       "y": 1027,
       "desc": "King's Quarters"
+    },
+    {
+      "name": "area-3",
+      "x": 1086,
+      "y": 1598
     }
   ],
   "light": "dark",

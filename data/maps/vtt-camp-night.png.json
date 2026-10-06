@@ -9925,8 +9925,9 @@
   "starts": [
     {
       "name": "start",
-      "x": 1025,
-      "y": 975
+      "x": 758,
+      "y": 1024,
+      "radius": 2
     }
   ],
   "light": "dark",
