@@ -1087,38 +1087,16 @@ function endConcentrationEffects(caster) {
     if (seenByParty(o)) addChat('system', `↳ ${o.name} loses ${ended.join(', ')} (${caster.name} stopped concentrating)`);
   }
 }
-// What counts as an effect (not one of the 15 official conditions): every effect in effect-data.json, any spell or state the DM names freely, and the internal "dashing".
-const OFFICIAL_CONDITIONS = new Set(['blinded', 'charmed', 'deafened', 'exhaustion', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious']);
-const isEffectName = (name) => !OFFICIAL_CONDITIONS.has(name);
-// At the end of combat the effects that only last a fight go: a known effect lasting under 10 minutes (bless, sanctuary, haste, rage...), surprised, disengaged, dashing, and any other
-// effect that only has a round timer. Effects of 10 minutes or more (shield of faith, mage armor, hex...), concentration itself, effects on the game clock and the 15 conditions stay,
-// as the rulebook gives them their own duration.
-function endsWithCombat(c) {
-  if (!isEffectName(c.name) || c.name === 'concentrating') return false;
-  if (Number.isFinite(c.untilMin) && !(EFFECT_DEFS[c.name] && !(EFFECT_DEFS[c.name].minutes >= 10))) return false;
-  const def = EFFECT_DEFS[c.name];
-  if (def) return !(def.minutes >= 10);
-  return c.rounds > 0 || c.name === 'dashing';
-}
-// A short rest (an hour) ends the effects of an hour or less and everything without a duration; a long rest ends every effect. Conditions are left alone.
-function endsWithRest(c, kind) {
-  if (!isEffectName(c.name)) return false;
-  if (kind === 'long') return true;
-  const def = EFFECT_DEFS[c.name];
-  if (c.name === 'concentrating') return true;
-  if (def) return !(def.minutes > 60);
-  return !(Number.isFinite(c.untilMin) && minutesLeft(c) > 60);
-}
-function removeEffects(test, why) {
-  let any = false;
-  for (const t of state.tokens) {
-    const gone = tokenConditions(t).filter(test);
-    if (!gone.length) continue;
-    t.conditions = tokenConditions(t).filter((c) => !gone.includes(c));
-    if (seenByParty(t) && !t.dead) addChat('system', `↳ ${t.name} is no longer ${gone.map((c) => c.name).join(', ')} (${why})`);
-    any = true;
-  }
-  return any;
+// The game clock moves with the story: every combat round is 6 seconds, so ten rounds make a minute and an effect that lasts a minute or ten runs out when the book says (the DM and rests add
+// their own time). The seconds left over are kept with the board; whole minutes are added locally and sent to the server's clock.
+function advanceGameClock(minutes, seconds) {
+  state.clockSeconds = (Number(state.clockSeconds) || 0) + (Number(seconds) || 0);
+  let m = Math.max(0, Math.round(Number(minutes) || 0));
+  while (state.clockSeconds >= 60) { state.clockSeconds -= 60; m += 1; }
+  if (!m) return;
+  if (Number.isFinite(state.clockTotal)) state.clockTotal += m;
+  fetch('/api/party/clock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minutes: m }) }).catch(() => {});
+  expireTimedConditions();
 }
 
 // Effects with an end on the game clock run out when the clock passes it (after a DM reply, a rest or the time action).
@@ -2375,6 +2353,7 @@ function saveBoard() {
     fogEnabled: state.fogEnabled,
     gridOpacity: state.gridOpacity,
     zoomToParty: state.zoomToParty,
+    clockSeconds: state.clockSeconds || 0,
     mapKind: state.mapKind,
     mapMemory: state.mapMemory,
     visitedMaps: state.visitedMaps,
@@ -2979,6 +2958,7 @@ function nextCombatTurn() {
     for (const t of order) if (t.delayed && t !== chosen) { t.delayed = false; if (seenByParty(t)) addChat('system', `↳ ${t.name} waited out the round and acts in their usual place`); }
     addChat('system', `⏱ Round ${state.combat.round}`);
     if (tickConditions()) revealFog();
+    advanceGameClock(0, 6);
   }
   chosen.delayed = false;
   state.activeIndex = state.tokens.indexOf(chosen);
@@ -3022,7 +3002,6 @@ function endCombat() {
   state.combat = { active: false, round: 0, order: [] };
   for (const t of state.tokens) { t.initiative = null; t.spent = null; t.delayed = false; }
   addChat('system', '⚔ Combat ends');
-  removeEffects(endsWithCombat, 'the fight is over');
   syncAmbience();
   commitBoard();
   renderCombat();
@@ -3233,7 +3212,6 @@ function restTokens(kind) {
     t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(kind === 'long' && !t.dead && c.name === 'unconscious'));
     if (kind === 'long' && !t.dead) { t.deathSaves = null; t.stable = false; }
   }
-  removeEffects((c) => endsWithRest(c, kind), kind === 'long' ? 'a long rest' : 'a short rest');           // effects on everyone, creatures included
   revealFog();
   commitBoard();
 }
@@ -4199,6 +4177,7 @@ function bindUi() {
     for (const id of ['chat', 'journal', 'party']) $('#panel-' + id).classList.toggle('active', id === name);
     if (name === 'journal') $('#frameJournal').src = '/journal.html?embed=1&t=' + Date.now();     // reloaded each time, so it shows what the DM just wrote
     if (name === 'party') $('#frameParty').src = '/party.html?embed=1&t=' + Date.now();
+    if (name === 'chat') refreshClock();                                    // a rest on the Party tab moved the game clock
     store.set('vtt.sideTab', name);
   };
   document.querySelectorAll('.sidebar .tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -4300,6 +4279,7 @@ async function init() {
     state.fogEnabled = board.fogEnabled !== false;   // on by default; only the Test Lab checkbox can start a board with it off
     state.gridOpacity = 0;                      // always off at the table
     state.zoomToParty = board.zoomToParty === true;
+    state.clockSeconds = Number.isFinite(board.clockSeconds) ? board.clockSeconds : 0;
     // Boards saved before the kind was recorded: the Sword Coast map is the overland one.
     state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : board.mapKind === 'camp' ? 'camp' : 'battle';
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
