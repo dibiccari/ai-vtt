@@ -979,7 +979,7 @@ function reachable(token) {
   }
   // Allies may be passed through, but a move cannot end on an occupied square.
   for (const other of state.tokens) {
-    if (other !== token) cost.delete(sqKey(other.col, other.row));
+    if (other !== token && !(other.dead && !other.isPC)) cost.delete(sqKey(other.col, other.row));   // a defeated creature lies on the ground: it does not block
   }
   reachCache = { sig, map: cost };
   return cost;
@@ -1145,7 +1145,7 @@ function artFor(url) {
 }
 
 function freeSquareNear(col, row) {
-  const taken = new Set(state.tokens.map((t) => sqKey(t.col, t.row)));
+  const taken = new Set(state.tokens.filter((t) => !(t.dead && !t.isPC)).map((t) => sqKey(t.col, t.row)));
   for (let radius = 0; radius < Math.max(cols(), rows()); radius++) {
     for (let dc = -radius; dc <= radius; dc++) {
       for (let dr = -radius; dr <= radius; dr++) {
@@ -1212,7 +1212,7 @@ function tokenAt(wx, wy) {
   if (plainMap()) return null;
   for (let i = state.tokens.length - 1; i >= 0; i--) {
     const t = state.tokens[i];
-    if (!canSee(t)) continue;
+    if (!canSee(t) || (t.dead && !t.isPC)) continue;                // bodies cannot be picked up or targeted
     if (Math.hypot(wx - centerOf(t.col), wy - centerOf(t.row)) <= GRID * 0.45) return t;
   }
   return null;
@@ -1433,7 +1433,7 @@ async function travelTo(u) {
   if (!u || !u.mapUrl || u.mapUrl === state.map.url) return;
   const from = state.map.url || 'default';
   state.mapMemory[from] = {
-    npcs: state.tokens.filter((t) => !t.isPC).map(serializeToken),
+    npcs: state.tokens.filter((t) => !t.isPC && !t.dead).map(serializeToken),         // bodies stay behind when the party leaves
     party: Object.fromEntries(state.tokens.filter((t) => t.isPC).map((t) => [t.id, { col: t.col, row: t.row }]))
   };
   if (!noFogMap() && u.kind !== 'battle') state.fogBeforeOverland = state.fogEnabled;
@@ -3290,7 +3290,13 @@ async function sendTurn(spokenText, opts) {
   } finally {
     setBusy(false);
   }
-  if (ok) aiTakesItsTurn();
+  if (ok) {
+    // A move the table refused or shortened: tell the DM now, so it can fix what it just narrated before anyone acts on it.
+    if (state.pendingCorrections.length && state.autoTurns < 12) {
+      state.autoTurns += 1;
+      sendTurn(`[Correction] ${state.pendingCorrections.join('; ')}. In one or two sentences say where they really stand now, without repeating the earlier narration or redoing any rolls.`, { typed: true, auto: true, as: { name: 'Table' } });
+    } else aiTakesItsTurn();
+  }
 }
 
 // Nobody has to press anything for a creature to act: when the tracker lands on one, the DM is asked to play its turn (and the next, until a player is up).
@@ -3793,7 +3799,7 @@ async function applyMapUpdates(updates) {
         // The DM's moves obey the table's walls and the token's speed: a move that cannot be done stops at the nearest square that can.
         if (!plainMap() && !(col === t.col && row === t.row)) {
           const saved = t.movementRemaining;
-          t.movementRemaining = effectiveSpeed(t);
+          t.movementRemaining = effectiveSpeed(t) * (hasCondition(t, 'dashing') ? 2 : 1);
           const reach = reachable(t);
           t.movementRemaining = saved;
           if (!reach.has(sqKey(col, row))) {
@@ -3803,7 +3809,7 @@ async function applyMapUpdates(updates) {
               const d = Math.hypot(col - c, row - r);
               if (d < bestD) { bestD = d; best = { c, r }; }
             }
-            const note = `${t.name} could not reach (${col}, ${row}) (speed ${effectiveSpeed(t)} ft and the walls): it went to (${best ? best.c : t.col}, ${best ? best.r : t.row}) instead`;
+            const note = `${t.name} could not reach (${col}, ${row}) (speed ${effectiveSpeed(t) * (hasCondition(t, 'dashing') ? 2 : 1)} ft and the walls): it went to (${best ? best.c : t.col}, ${best ? best.r : t.row}) instead`;
             state.pendingCorrections.push(note);
             if (seenByParty(t)) addChat('system', '↳ ' + note);
             if (best) { col = best.c; row = best.r; } else { col = t.col; row = t.row; }
@@ -3900,6 +3906,8 @@ async function applyMapUpdates(updates) {
         const rounds = Number(u.rounds);
         if (!t || !setCondition(t, u.condition, rounds)) break;
         if (seenByParty(t)) addChat('system', `↳ ${t.name} is ${conditionKey(u.condition)}${rounds > 0 ? ` (${rounds} round${rounds === 1 ? '' : 's'})` : ''}`);
+        // Surprise is decided right after startCombat: if the combatant whose turn it already is turns out to be surprised, that turn is lost at once.
+        if (conditionKey(u.condition) === 'surprised' && state.combat.active && activeToken() === t) { t.spent = { a: true, b: true, r: true }; nextCombatTurn(); }
         break;
       }
       case 'removeCondition': {

@@ -225,6 +225,27 @@ test('the DM\'s board updates: applyMapUpdates adds, moves, hides, reveals and r
   assert.deepEqual(r.cond, ['prone:2']); assert.equal(r.removed, true);
 });
 
+test('combat: surprised first combatant is skipped at once; Dash doubles a DM move; bodies do not block or get picked', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.fogEnabled = false;
+    const mk = (id, name, col, row, extra = {}) => Object.assign(makeToken({ id, name, color: '#0a0', isPC: false, col, row }), { hp: 10, maxHp: 10, ac: 12, dexMod: 0 }, extra);
+    s.tokens.push(mk('a', 'Ant', 11, 12), mk('b', 'Bat', 12, 12));
+    vtt.startCombat();
+    const hero = s.tokens[0];
+    hero.initiative = 5; s.tokens[s.tokens.length - 2].initiative = 20; s.tokens[s.tokens.length - 1].initiative = 10; sortCombat();
+    s.activeIndex = s.tokens.indexOf(s.tokens.find(t => t.id === 'a'));
+    await vtt.applyMapUpdates([{ type: 'addCondition', tokenId: 'a', condition: 'surprised', rounds: 1 }]);
+    const out = { active: s.tokens[s.activeIndex].id };
+    // a body does not block reach and is not clickable
+    const body = mk('body', 'Body', 14, 12, { dead: true, hp: 0 }); s.tokens.push(body);
+    out.reachBody = vtt.reachable(hero).has(\`\${body.col},\${body.row}\`);
+    return out;
+  })()`);
+  assert.equal(r.active, 'b', 'the surprised combatant at the top of the order loses its turn at once');
+  assert.equal(r.reachBody, true, 'a defeated creature does not block movement');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });
