@@ -23,6 +23,12 @@
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
   button, select { font:inherit; font-size:13px; color:inherit; background:#1f2632; border:1px solid #3a4558; border-radius:6px; padding:5px 12px; cursor:pointer; font-weight:600; }
   button:hover { border-color:var(--accent); }
+  .effects { margin-bottom:12px; font-size:13px; }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .stat { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:5px 10px; min-width:90px; }
+  .stat small { display:block; color:var(--muted); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+  .stat b.bad { color:#ff8f8f; }
+  .effects ul { margin:0; padding-left:18px; color:var(--muted); }
   #help { min-height:2.8em; color:var(--muted); font-size:13px; }
   #help b { color:var(--text); }
   @media (max-width:820px) { .layout { grid-template-columns:1fr; } }
@@ -32,7 +38,7 @@
 <script src="/nav.js"></script>
 <div class="page">
   <h1>Character <span>conditions</span></h1>
-  <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. This is the look being tried before it goes on the tabletop.</p>
+  <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. The effects box shows what the table does with the same conditions: speed, how far it sees (the room goes dark when sight shrinks), whether it can act, and who gets advantage or disadvantage.</p>
   <div class="layout">
     <div class="stage"><canvas id="cv" width="680" height="680" aria-label="A five by five room with a token in the centre"></canvas></div>
     <div class="panel">
@@ -44,6 +50,8 @@
       </div>
       <h2>Conditions</h2>
       <div class="conds" id="conds"></div>
+      <h2>Effects on this character</h2>
+      <div id="effects" class="effects"></div>
       <h2>What the ring means</h2>
       <div id="help">Hover a condition to read its rule.</div>
     </div>
@@ -80,7 +88,7 @@
     ctx.strokeStyle = '#4a4338'; ctx.lineWidth = 4; ctx.strokeRect(x0 - 15, y0 - 15, ROOM + 30, ROOM + 30);
   }
 
-  function token(names) {
+  function token(names, again) {
     var cx = MARGIN + ROOM / 2, cy = MARGIN + ROOM / 2, r = SQUARE * 0.42;
     ctx.save();
     ctx.globalAlpha = ConditionRings.tokenAlpha(names);
@@ -95,6 +103,35 @@
     var names = ORDER.filter(function (n) { return on[n]; });
     room();
     token(names);
+    var fx = ConditionRings.effects(names, { speed: 30, vision: 60 });
+    dark(fx.vision);
+    showEffects(fx);
+  }
+
+  // Outside what the character can see the room goes dark: with 60 ft of sight a 25 ft room is all visible; blinded or unconscious leaves only the own square (1 ft).
+  function dark(visionFt) {
+    var cx = MARGIN + ROOM / 2, cy = MARGIN + ROOM / 2, r = visionFt / 5 * SQUARE;
+    if (r >= ROOM * 0.75) return;
+    ctx.save();
+    var g = ctx.createRadialGradient(cx, cy, Math.max(1, r * 0.8), cx, cy, Math.max(2, r));
+    g.addColorStop(0, 'rgba(5, 7, 10, 0)'); g.addColorStop(1, 'rgba(5, 7, 10, 0.93)');
+    ctx.fillStyle = g; ctx.fillRect(MARGIN - 20, MARGIN - 20, ROOM + 40, ROOM + 40);
+    ctx.restore();
+    // the token and its rings stay drawn on top of the dark
+    token(ORDER.filter(function (n) { return on[n]; }), true);
+  }
+
+  function showEffects(fx) {
+    var box = document.getElementById('effects');
+    box.innerHTML = '';
+    var stats = document.createElement('div'); stats.className = 'stats';
+    [['Speed', fx.speed + ' ft', fx.speed === 0], ['Sight', fx.vision + ' ft', fx.vision < 60], ['Acts', fx.canAct ? 'yes' : 'no', !fx.canAct]].forEach(function (s) {
+      var d = document.createElement('div'); d.className = 'stat'; var sm = document.createElement('small'); sm.textContent = s[0]; var b = document.createElement('b'); b.textContent = s[1]; if (s[2]) b.className = 'bad'; d.append(sm, b); stats.appendChild(d);
+    });
+    box.appendChild(stats);
+    var ul = document.createElement('ul');
+    (fx.lines.length ? fx.lines : ['Nothing changes: normal speed (30 ft) and sight (60 ft).']).forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    box.appendChild(ul);
   }
 
   // controls

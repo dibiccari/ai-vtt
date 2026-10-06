@@ -64,5 +64,44 @@
     return 1;
   }
 
-  root.ConditionRings = { RINGS: RINGS, info: info, draw: draw, tokenAlpha: tokenAlpha };
+  // What the conditions do, in the table's own rules (the same numbers as effectiveSpeed() and the blinded/unconscious sight rule in index.html).
+  // base = { speed: 30, vision: 60 } in feet. Returns the speed and sight left, whether it can act, and who gets advantage or disadvantage.
+  function effects(names, base) {
+    var has = function (n) { return (names || []).indexOf(n) >= 0; };
+    base = base || { speed: 30, vision: 60 };
+    var any = function (list) { return list.filter(has); };
+    var out = { speed: base.speed, vision: base.vision, canAct: true, againstAdv: [], againstDis: [], ownAdv: [], ownDis: [], lines: [] };
+    // speed
+    var stopped = any(['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised']);
+    if (stopped.length) { out.speed = 0; out.lines.push('Speed 0 ft (' + stopped.join(', ') + ').'); }
+    else if (has('prone')) { out.speed = Math.floor(base.speed / 2); out.lines.push('Speed ' + out.speed + ' ft: crawling (prone).'); }
+    // sight: a blinded or unconscious character feels only their own square (1 ft)
+    var blind = any(['blinded', 'unconscious']);
+    if (blind.length) { out.vision = 1; out.lines.push('Sight 1 ft: feels only its own square (' + blind.join(', ') + ').'); }
+    // actions
+    var cannot = any(['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious']);
+    if (cannot.length) { out.canAct = false; out.lines.push("Can't take actions or reactions (" + cannot.join(', ') + ').'); }
+    if (has('surprised')) out.lines.push('Loses its first turn (surprised).');
+    // attacks against it
+    out.againstAdv = any(['blinded', 'paralyzed', 'petrified', 'restrained', 'stunned', 'unconscious']);
+    if (has('prone')) out.againstAdv.push('prone (melee within 5 ft)');
+    out.againstDis = any(['invisible']);
+    if (has('prone')) out.againstDis.push('prone (ranged)');
+    // its own attacks
+    out.ownAdv = any(['invisible']);
+    out.ownDis = any(['blinded', 'frightened', 'poisoned', 'prone', 'restrained']);
+    if (out.againstAdv.length) out.lines.push('Attacks against it have advantage (' + out.againstAdv.join(', ') + ').');
+    if (out.againstDis.length) out.lines.push('Attacks against it have disadvantage (' + out.againstDis.join(', ') + ').');
+    if (out.ownAdv.length) out.lines.push('Its attacks have advantage (' + out.ownAdv.join(', ') + ').');
+    if (out.ownDis.length) out.lines.push('Its attacks have disadvantage (' + out.ownDis.join(', ') + ').');
+    if (has('frightened')) out.lines.push('Cannot willingly move closer to what frightens it.');
+    if (has('charmed')) out.lines.push("Can't attack the one who charmed it.");
+    if (has('deafened')) out.lines.push('Fails anything that needs hearing.');
+    if (has('exhaustion')) out.lines.push('Exhaustion: penalties grow by level (see the Party page).');
+    if (has('concentrating')) out.lines.push('A hit forces a Constitution save to keep the spell.');
+    if (has('invisible')) out.lines.push('Not seen by the other side without magic or special senses.');
+    return out;
+  }
+
+  root.ConditionRings = { RINGS: RINGS, info: info, draw: draw, tokenAlpha: tokenAlpha, effects: effects };
 })(window);
