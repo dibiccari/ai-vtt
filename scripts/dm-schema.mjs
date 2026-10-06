@@ -9,6 +9,7 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 import { EFFECT_KINDS } from '../lib/party.js';
 import { getEntry, monsterImage } from '../lib/compendium.js';
 import { adventureMonsterFor } from '../lib/adventure-monsters.js';
+import '../public/token-size.js';              // sets globalThis.TokenSize, used by expandTokenUpdates
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 

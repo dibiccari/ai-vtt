@@ -48,6 +48,8 @@ export async function launchChrome() {
       if (r.exceptionDetails) throw new Error('page error: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text));
       return r.result.value;
     },
+    // A PNG of the page (as a Buffer), to look at with the Read tool.
+    async screenshot() { const r = await send('Page.captureScreenshot', { format: 'png' }); return Buffer.from(r.data, 'base64'); },
     async waitFor(expression, ms = 15000) {
       const end = Date.now() + ms;
       for (;;) { let v = false; try { v = await api.eval(expression); } catch { /* page not ready */ } if (v) return v; if (Date.now() > end) throw new Error('timed out waiting for: ' + expression); await new Promise((r) => setTimeout(r, 100)); }
