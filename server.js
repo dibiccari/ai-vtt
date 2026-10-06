@@ -7,6 +7,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
+import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
@@ -1141,7 +1142,7 @@ function expandSheetEdits(u) {
 }
 
 // The DM's flat "token" update, turned into the specific board updates the tabletop applies.
-async function expandTokenUpdates(updates) {
+async function expandTokenUpdates(updates, adventureMonsters = []) {
   const out = [];
   for (const u of updates) {
     if (!u) continue;
@@ -1150,11 +1151,12 @@ async function expandTokenUpdates(updates) {
     if (u.action === 'move') out.push({ type: 'moveToken', ...base, col: u.col, row: u.row });
     else if (u.action === 'add') {
       // A creature from the SRD brings its real hit points, Armor Class and speed.
-      const srd = u.monster ? await getEntry('monsters', String(u.monster).toLowerCase().replace(/[^a-z0-9-]/g, '')) : null;
+      const fromSrd = u.monster ? await getEntry('monsters', String(u.monster).toLowerCase().replace(/[^a-z0-9-]/g, '')) : null;
+      const srd = fromSrd || (u.monster ? adventureMonsterFor(adventureMonsters, u.monster) : null);         // the adventure's own creatures (not in the SRD)
       const walk = srd ? parseInt(srd.speed?.walk, 10) : NaN;
       out.push({
         type: 'addToken', ...base, name: u.name || srd?.name || 'Creature', col: u.col, row: u.row, color: u.color, hidden: u.hidden, kind: u.kind,
-        monster: srd ? srd.index : '', image: srd ? await monsterImage(srd) : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
+        monster: fromSrd ? fromSrd.index : '', image: srd ? await monsterImage(srd) : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
         speed: Number.isFinite(walk) ? walk : 30, dexMod: srd ? Math.floor((srd.dexterity - 10) / 2) : 0
       });
     }
@@ -1377,6 +1379,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const campaignText = await loadCampaignText(activeCampaign);
     const settingsText = settingsForPrompt(await readSettings(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const safetyText = safetyForPrompt(await readSafety(path.join(CAMPAIGNS_DIR, activeCampaign)));
+    const adventureMonsters = await loadAdventureMonsters(path.join(CAMPAIGNS_DIR, await templateOfCampaign(activeCampaign)));
+    const monstersText = adventureMonstersForPrompt(adventureMonsters);
     const journalText = journalForPrompt((await readSave(path.join(CAMPAIGNS_DIR, activeCampaign))).entries);
     const response = await anthropic.beta.messages.create({
       model: MODEL,
@@ -1387,6 +1391,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         // The journal changes every few turns, so it comes after the cached campaign text.
         { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
         { type: 'text', text: settingsText },
+        ...(monstersText ? [{ type: 'text', text: monstersText }] : []),
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       messages: buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl)),
@@ -1407,7 +1412,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const rolls = (Array.isArray(parsed.rolls) ? parsed.rolls : []).map((x) => String(x ?? '').trim().slice(0, 200)).filter(Boolean).slice(0, 30);
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
-    const allUpdates = await expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []);
+    const allUpdates = await expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : [], adventureMonsters);
     const mapProblems = [];
     const travel = [];
     for (const u of allUpdates.filter((x) => x && x.type === 'changeMap')) {

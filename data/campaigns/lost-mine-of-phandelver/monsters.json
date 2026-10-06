@@ -1,0 +1,176 @@
+{
+  "note": "Klarg is a bugbear (monster bugbear), Yeemik and the other goblins are goblins, Ripper is a wolf.",
+  "monsters": [
+    {
+      "index": "redbrand-ruffian",
+      "name": "Redbrand Ruffian",
+      "size": "Medium",
+      "type": "humanoid",
+      "hit_points": 16,
+      "hit_dice": "3d8+3",
+      "armor_class": [
+        {
+          "value": 14,
+          "type": "studded leather armor"
+        }
+      ],
+      "speed": {
+        "walk": "30 ft."
+      },
+      "dexterity": 14,
+      "attacks": "Multiattack: two melee attacks. Shortsword +4 to hit, reach 5 ft., 5 (1d6+2) piercing. Skills Intimidation +2. CR 1/2."
+    },
+    {
+      "index": "sildar-hallwinter",
+      "name": "Sildar Hallwinter",
+      "size": "Medium",
+      "type": "humanoid",
+      "hit_points": 27,
+      "hit_dice": "5d8+5",
+      "armor_class": [
+        {
+          "value": 16,
+          "type": "chain mail"
+        }
+      ],
+      "speed": {
+        "walk": "30 ft."
+      },
+      "dexterity": 10,
+      "attacks": "Multiattack: two melee attacks. Longsword +3 to hit, 5 (1d8+1) slashing. Heavy Crossbow +2 to hit, range 100/400 ft., 5 (1d10) piercing. Reaction Parry: +1d6 to AC against one melee hit while wielding a melee weapon. CR 1."
+    },
+    {
+      "index": "evil-mage",
+      "name": "Evil Mage",
+      "size": "Medium",
+      "type": "humanoid",
+      "hit_points": 22,
+      "hit_dice": "5d8",
+      "armor_class": [
+        {
+          "value": 12,
+          "type": ""
+        }
+      ],
+      "speed": {
+        "walk": "30 ft."
+      },
+      "dexterity": 14,
+      "attacks": "Quarterstaff +1 to hit, 3 (1d8-1) bludgeoning. 4th-level spellcaster (Int, save DC 13, +5 to hit): cantrips light, mage hand, shocking grasp; 1st (4 slots) charm person, magic missile; 2nd (3 slots) hold person, misty step. CR 1. Used for Iarno Albrek (Glasstaff)."
+    },
+    {
+      "index": "mormesk-the-wraith",
+      "name": "Mormesk the Wraith",
+      "size": "Medium",
+      "type": "undead",
+      "hit_points": 45,
+      "hit_dice": "6d8+18",
+      "armor_class": [
+        {
+          "value": 13,
+          "type": ""
+        }
+      ],
+      "speed": {
+        "walk": "0 ft., fly 60 ft."
+      },
+      "dexterity": 16,
+      "attacks": "Life Drain +5 to hit, reach 5 ft., 16 (3d8+3) necrotic and DC 13 Con save or hit point maximum drops by the damage until a long rest. Resists acid, cold, fire, lightning, thunder, and nonmagical non-silvered weapons; immune necrotic, poison. Incorporeal Movement. Sunlight Sensitivity. CR 3."
+    },
+    {
+      "index": "nezznar-the-black-spider",
+      "name": "Nezznar the Black Spider",
+      "size": "Medium",
+      "type": "humanoid",
+      "hit_points": 27,
+      "hit_dice": "6d8",
+      "armor_class": [
+        {
+          "value": 11,
+          "type": "14 with mage armor"
+        }
+      ],
+      "speed": {
+        "walk": "30 ft."
+      },
+      "dexterity": 13,
+      "attacks": "Spider Staff +1 to hit, 2 (1d6-1) bludgeoning plus 3 (1d6) poison. Innate: dancing lights at will; darkness and faerie fire (DC 12) 1/day each. 4th-level wizard (Int, DC 13, +5): mage hand, ray of frost, shocking grasp; mage armor, magic missile, shield; invisibility, suggestion. Darkvision 120 ft., Fey Ancestry, Sunlight Sensitivity. CR 2."
+    },
+    {
+      "index": "flameskull",
+      "name": "Flameskull",
+      "size": "Tiny",
+      "type": "undead",
+      "hit_points": 40,
+      "hit_dice": "9d4+18",
+      "armor_class": [
+        {
+          "value": 13,
+          "type": ""
+        }
+      ],
+      "speed": {
+        "walk": "0 ft., fly 40 ft."
+      },
+      "dexterity": 17,
+      "attacks": "See the module statistics in Appendix B / Monster Descriptions (fire bolt, fireball, rejuvenation)."
+    },
+    {
+      "index": "nothic",
+      "name": "Nothic",
+      "size": "Medium",
+      "type": "aberration",
+      "hit_points": 45,
+      "hit_dice": "6d8+18",
+      "armor_class": [
+        {
+          "value": 15,
+          "type": "natural armor"
+        }
+      ],
+      "speed": {
+        "walk": "30 ft."
+      },
+      "dexterity": 16,
+      "attacks": "Multiattack: two claw attacks. Rotting Gaze (weird insight). See the module statistics for details."
+    },
+    {
+      "index": "spectator",
+      "name": "Spectator",
+      "size": "Medium",
+      "type": "aberration",
+      "hit_points": 39,
+      "hit_dice": "6d8+12",
+      "armor_class": [
+        {
+          "value": 14,
+          "type": "natural armor"
+        }
+      ],
+      "speed": {
+        "walk": "0 ft., fly 30 ft."
+      },
+      "dexterity": 14,
+      "attacks": "Bite +1 to hit, 2 (1d4-1) piercing. Eye Rays (two per turn, DC 13). Spell Reflection reaction. Darkvision 120 ft. CR 3."
+    },
+    {
+      "index": "twig-blight",
+      "name": "Twig Blight",
+      "size": "Small",
+      "type": "plant",
+      "hit_points": 4,
+      "hit_dice": "1d6+1",
+      "armor_class": [
+        {
+          "value": 13,
+          "type": "natural armor"
+        }
+      ],
+      "speed": {
+        "walk": "20 ft."
+      },
+      "dexterity": 13,
+      "attacks": "See the module statistics (Claws). CR 1/8."
+    }
+  ]
+}
