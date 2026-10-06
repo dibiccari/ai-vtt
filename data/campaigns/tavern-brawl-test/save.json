@@ -1,4 +1,68 @@
 {
   "version": 1,
-  "entries": []
+  "entries": [
+    {
+      "id": "jmuusilut60z2",
+      "category": "place",
+      "title": "The Rusty Flagon",
+      "text": "A warm, busy tavern on Phandalin's town green, run by the halfling barkeep Marta.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791176962853
+    },
+    {
+      "id": "jmuusilutlj0e",
+      "category": "npc",
+      "title": "Marta",
+      "text": "Halfling barkeep and owner of the Rusty Flagon. Sharp-eyed, practical, and protective of her furniture. Welcomed the party.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791176962853
+    },
+    {
+      "id": "jmuut7k9ru1rn",
+      "category": "event",
+      "title": "The stool that started it",
+      "text": "Lyra threw one of Marta's bar stools at Bruno the bouncer, smashing it across his chest. The scarred mercenary jumped up gleefully and a brawl broke out in the Rusty Flagon.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791178127199
+    },
+    {
+      "id": "jmuuua6f7bfxe",
+      "category": "event",
+      "title": "Skinny Jo knocked out",
+      "text": "In the middle of the brawl, Lyra knocked out Skinny Jo, one of the scarred mercenary's crew, with the pommel of her dagger.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791179928835
+    },
+    {
+      "id": "jmuuun0ks3hnm",
+      "category": "event",
+      "title": "Gruk knocked out",
+      "text": "Thorin flattened Gruk Tannerson with the flat of his longsword, knocking the mercenary out cold in the middle of the brawl. Dagger Dan looks ready to bolt.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791180527788
+    },
+    {
+      "id": "jmuvi6odf803v",
+      "category": "event",
+      "title": "Dagger Dan gives up",
+      "text": "With Gruk and Skinny Jo knocked out, Dagger Dan raised his hands and surrendered. Marta wants someone to pay for her broken stool.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791220076259
+    },
+    {
+      "id": "jmuvi6odfzvjz",
+      "category": "npc",
+      "title": "Bruno",
+      "text": "The Rusty Flagon's huge, calm bouncer. Took a thrown stool to the chest from Lyra and wants a quiet explanation.",
+      "status": "none",
+      "when": "Day 1, evening",
+      "at": 1791220076259
+    }
+  ]
 }
