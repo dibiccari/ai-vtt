@@ -151,9 +151,9 @@ app.use(express.json({ limit: '10mb' }));
 // old file, so the old names keep working: the picture is redirected and the config and DM picture lookups use the new name.
 const OLD_MAP_NAMES = {
   'camp-day.png': 'vtt-camp-day.png', 'camp-night.png': 'vtt-camp-night.png', 'dungeon-cellars.png': 'vtt-dungeon-cellars.png', 'terrain-test.png': 'vtt-terrain-test.png',
-  'wotc-redbrand-hideout.jpg': 'dnd-redbrand-hideout.jpg', 'phandalin.jpg': 'dnd-phandalin.jpg', 'phandalin-dmversion.jpg': 'dnd-phandalin-dmversion.jpg',
+  'wotc-redbrand-hideout.jpg': 'dnd-redbrand-hideout.jpg', 'phandalin.jpg': 'dnd-phandalin.jpg', 'phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg',
   'phandalin-playerversion.jpg': 'dnd-phandalin-playerversion.jpg', 'phandelver.jpg': 'dnd-phandelver.jpg', 'northswordcoast.jpg': 'dnd-northswordcoast.jpg',
-  'northswordcoast-playerversion.jpg': 'dnd-northswordcoast-playerversion.jpg', 'map-kings-road.gif': 'dnd-map-kings-road.gif', 'hillside.jpg': 'dnd-hillside.jpg'
+  'northswordcoast-playerversion.jpg': 'dnd-northswordcoast-playerversion.jpg', 'map-kings-road.gif': 'dnd-map-kings-road.gif', 'hillside.jpg': 'dnd-hillside.jpg', 'dnd-phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg'
 };
 const currentMapName = (name) => { const base = path.basename(String(name ?? '')); return OLD_MAP_NAMES[base] || (/^rusty-flagon-[^/]+\.png$/.test(base) ? 'vtt-' + base : base); };
 app.use('/uploads/:file', (req, res, next) => { const now = currentMapName(req.params.file); if (now !== req.params.file) return res.redirect(301, '/uploads/' + now); next(); });
