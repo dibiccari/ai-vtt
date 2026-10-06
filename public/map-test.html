@@ -108,6 +108,10 @@
     <h2>Pins</h2>
     <p class="hint">Use the Pins tool: click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
     <div id="startList" class="hint"></div>
+    <div id="areaBox" hidden>
+      <p class="hint">Module areas: drag a number onto the map to drop its pin (a ✓ means it is placed; drag it again to move it, or right-click the pin to remove it). The AI reads these to know where each area is.</p>
+      <div id="areaList" class="chips"></div>
+    </div>
     <div class="row">
       <select id="copyTarget" aria-label="Copy pins to this map"></select>
       <button id="copyPinsBtn" title="Copy this map's pins onto another map (for example the night version of the same place). Pins with the same name are replaced; the other map's walls are untouched.">Copy pins</button>
@@ -676,11 +680,48 @@
   }
 
   // The pins of this map as a list: click one to select it and bring it into view.
+  /* ---------------- module areas: numbered rooms dragged onto the map as pins named area-N ---------------- */
+  const isAreaPin = (p) => /^area-\d+$/.test(p.name);
+  let AREAS = [];
+  async function loadAreas() {
+    try { AREAS = (await (await fetch('/api/map-areas?map=' + encodeURIComponent(mapName()))).json()).areas || []; } catch { AREAS = []; }
+    renderAreaList();
+  }
+  function renderAreaList() {
+    const box = $('#areaBox'), list = $('#areaList');
+    box.hidden = !AREAS.length;
+    list.innerHTML = '';
+    for (const a of AREAS) {
+      const pin = S.starts.find((p) => p.name === 'area-' + a.n);
+      const chip = document.createElement('button');
+      chip.type = 'button'; chip.draggable = true; chip.className = 'small';
+      chip.textContent = a.n + ' ' + a.name + (pin ? ' ✓' : '');
+      chip.title = pin ? 'Placed. Click to centre on it, or drag to move it.' : 'Drag onto the map';
+      chip.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', 'area:' + a.n); e.dataTransfer.effectAllowed = 'copyMove'; });
+      chip.addEventListener('click', () => { if (!pin) return; S.view.ox = $('#stage').clientWidth / 2 - pin.x * S.view.scale; S.view.oy = $('#stage').clientHeight / 2 - pin.y * S.view.scale; requestRender(); });
+      list.appendChild(chip);
+    }
+  }
+  cv.addEventListener('dragover', (e) => { if (AREAS.length) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  cv.addEventListener('drop', (e) => {
+    const m = /^area:(\d+)$/.exec(e.dataTransfer.getData('text/plain'));
+    const area = m && AREAS.find((a) => a.n === Number(m[1]));
+    if (!area || !S.img) return;
+    e.preventDefault();
+    const p = toWorld(e);
+    const x = Math.round(clamp(p.x, 0, S.W)), y = Math.round(clamp(p.y, 0, S.H));
+    const name = 'area-' + area.n;
+    const pin = S.starts.find((s) => s.name === name);
+    if (pin) { pin.x = x; pin.y = y; } else S.starts.push({ name, x, y, desc: area.name });
+    save(); renderStartList(); requestRender();
+  });
+
   function renderStartList() {
     const box = $('#startList');
     box.innerHTML = '';
-    if (!S.starts.length) { box.textContent = 'No arrival spots saved for this map. With the Pins tool selected, click the map to add one.'; return; }
-    S.starts.forEach((pin) => {
+    const plain = S.starts.filter((p) => !isAreaPin(p));
+    if (!plain.length) { box.textContent = 'No arrival spots saved for this map. With the Pins tool selected, click the map to add one.'; renderAreaList(); return; }
+    plain.forEach((pin) => {
       const row = document.createElement('div');
       row.className = 'row';
       const b = document.createElement('button');
@@ -696,6 +737,7 @@
       if (pin.desc) { const d = document.createElement('span'); d.textContent = pin.desc; row.appendChild(d); }
       box.appendChild(row);
     });
+    renderAreaList();
   }
 
   function drawWalls(px) {
@@ -795,6 +837,7 @@
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         parkAtStart();
         refreshMapLabels();
+        loadAreas();
         syncControls();
         resetFog();
         fitView();

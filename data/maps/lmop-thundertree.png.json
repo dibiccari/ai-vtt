@@ -1951,6 +1951,84 @@
       "name": "start",
       "x": 83,
       "y": 395
+    },
+    {
+      "name": "area-1",
+      "x": 420,
+      "y": 900,
+      "desc": "Westernmost Cottage"
+    },
+    {
+      "name": "area-2",
+      "x": 1050,
+      "y": 1230,
+      "desc": "Blighted Cottages"
+    },
+    {
+      "name": "area-3",
+      "x": 1260,
+      "y": 330,
+      "desc": "The Brown Horse"
+    },
+    {
+      "name": "area-4",
+      "x": 1125,
+      "y": 1950,
+      "desc": "Druid's Watch"
+    },
+    {
+      "name": "area-5",
+      "x": 1680,
+      "y": 2280,
+      "desc": "Blighted Farmhouse"
+    },
+    {
+      "name": "area-6",
+      "x": 2250,
+      "y": 1890,
+      "desc": "Ruined Store"
+    },
+    {
+      "name": "area-7",
+      "x": 2100,
+      "y": 315,
+      "desc": "Dragon's Tower"
+    },
+    {
+      "name": "area-8",
+      "x": 2520,
+      "y": 2295,
+      "desc": "Old Smithy"
+    },
+    {
+      "name": "area-9",
+      "x": 3000,
+      "y": 1875,
+      "desc": "Herbalist's Shop"
+    },
+    {
+      "name": "area-10",
+      "x": 3300,
+      "y": 900,
+      "desc": "Town Square"
+    },
+    {
+      "name": "area-11",
+      "x": 3570,
+      "y": 450,
+      "desc": "Old Garrison"
+    },
+    {
+      "name": "area-12",
+      "x": 3270,
+      "y": 1260,
+      "desc": "Weaver's Cottage"
+    },
+    {
+      "name": "area-13",
+      "x": 3780,
+      "y": 2220,
+      "desc": "Dragon Cultists"
     }
   ],
   "light": "bright",

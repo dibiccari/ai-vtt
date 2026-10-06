@@ -1540,6 +1540,54 @@
       "name": "cave-mouth",
       "x": 887,
       "y": 946
+    },
+    {
+      "name": "area-1",
+      "x": 570,
+      "y": 1200,
+      "desc": "Cave Mouth"
+    },
+    {
+      "name": "area-2",
+      "x": 960,
+      "y": 1200,
+      "desc": "Goblin Blind"
+    },
+    {
+      "name": "area-3",
+      "x": 1140,
+      "y": 840,
+      "desc": "Kennel"
+    },
+    {
+      "name": "area-4",
+      "x": 750,
+      "y": 390,
+      "desc": "Steep Passage"
+    },
+    {
+      "name": "area-5",
+      "x": 1148,
+      "y": 352,
+      "desc": "Overpass"
+    },
+    {
+      "name": "area-6",
+      "x": 330,
+      "y": 420,
+      "desc": "Goblin Den"
+    },
+    {
+      "name": "area-7",
+      "x": 1590,
+      "y": 450,
+      "desc": "Twin Pools Cave"
+    },
+    {
+      "name": "area-8",
+      "x": 1695,
+      "y": 975,
+      "desc": "Klarg's Cave"
     }
   ],
   "light": "dim",

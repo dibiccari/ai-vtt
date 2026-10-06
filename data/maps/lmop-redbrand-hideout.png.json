@@ -3060,6 +3060,78 @@
       "name": "south-passage",
       "x": 735,
       "y": 1715
+    },
+    {
+      "name": "area-1",
+      "x": 1755,
+      "y": 1350,
+      "desc": "Cellar"
+    },
+    {
+      "name": "area-2",
+      "x": 1200,
+      "y": 1275,
+      "desc": "Barracks"
+    },
+    {
+      "name": "area-3",
+      "x": 1875,
+      "y": 960,
+      "desc": "Trapped Hall"
+    },
+    {
+      "name": "area-4",
+      "x": 1215,
+      "y": 780,
+      "desc": "Tresendar Crypts"
+    },
+    {
+      "name": "area-5",
+      "x": 1500,
+      "y": 630,
+      "desc": "Slave Pens"
+    },
+    {
+      "name": "area-6",
+      "x": 1223,
+      "y": 480,
+      "desc": "Armory"
+    },
+    {
+      "name": "area-7",
+      "x": 840,
+      "y": 450,
+      "desc": "Storeroom and Work Area"
+    },
+    {
+      "name": "area-8",
+      "x": 555,
+      "y": 1050,
+      "desc": "Crevasse"
+    },
+    {
+      "name": "area-9",
+      "x": 225,
+      "y": 1425,
+      "desc": "Guard Barracks"
+    },
+    {
+      "name": "area-10",
+      "x": 225,
+      "y": 900,
+      "desc": "Common Room"
+    },
+    {
+      "name": "area-11",
+      "x": 240,
+      "y": 495,
+      "desc": "Wizard's Workshop"
+    },
+    {
+      "name": "area-12",
+      "x": 495,
+      "y": 480,
+      "desc": "Glasstaff's Quarters"
     }
   ],
   "light": "dark",

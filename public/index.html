@@ -2447,6 +2447,7 @@ async function loadMapLighting() {
   state.ambient = 'bright';
   state.lights = [];
   state.difficult = [];
+  state.areaPins = [];
   state.difficultSquares = null;
   if (!state.map.url || !state.map.img) return;
   try {
@@ -2456,6 +2457,8 @@ async function loadMapLighting() {
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
     state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;
+    // The module's numbered areas (pins named area-N, set on Map Test) as board squares, so the DM knows where each room is.
+    state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+$/.test(s.name)).map((s) => ({ area: Number(s.name.slice(5)), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
@@ -3231,6 +3234,7 @@ async function sendTurn(spokenText, opts) {
       corrections: state.pendingCorrections.splice(0, 8),
       notes: state.pendingNotes.splice(0, 8),
       lighting: lightingForAi(),
+      areas: state.areaPins.slice(0, 40),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];

@@ -788,6 +788,126 @@
       "name": "old-entrance",
       "x": 2695,
       "y": 5145
+    },
+    {
+      "name": "area-1",
+      "x": 855,
+      "y": 5130,
+      "desc": "Cave Entrance"
+    },
+    {
+      "name": "area-2",
+      "x": 1125,
+      "y": 3825,
+      "desc": "Mine Tunnels"
+    },
+    {
+      "name": "area-3",
+      "x": 2250,
+      "y": 4995,
+      "desc": "Old Entrance"
+    },
+    {
+      "name": "area-4",
+      "x": 1980,
+      "y": 5805,
+      "desc": "Old Guardroom"
+    },
+    {
+      "name": "area-5",
+      "x": 3105,
+      "y": 5805,
+      "desc": "Assayers' Office"
+    },
+    {
+      "name": "area-6",
+      "x": 2453,
+      "y": 4050,
+      "desc": "South Barracks"
+    },
+    {
+      "name": "area-7",
+      "x": 3285,
+      "y": 3870,
+      "desc": "Ruined Storeroom"
+    },
+    {
+      "name": "area-8",
+      "x": 4050,
+      "y": 4455,
+      "desc": "Fungi Cavern"
+    },
+    {
+      "name": "area-9",
+      "x": 2520,
+      "y": 3105,
+      "desc": "Great Cavern"
+    },
+    {
+      "name": "area-10",
+      "x": 518,
+      "y": 1935,
+      "desc": "Dark Pool"
+    },
+    {
+      "name": "area-11",
+      "x": 1755,
+      "y": 1935,
+      "desc": "North Barracks"
+    },
+    {
+      "name": "area-12",
+      "x": 3105,
+      "y": 2205,
+      "desc": "Smelter Cavern"
+    },
+    {
+      "name": "area-13",
+      "x": 3960,
+      "y": 3330,
+      "desc": "Starry Cavern"
+    },
+    {
+      "name": "area-14",
+      "x": 4545,
+      "y": 3803,
+      "desc": "Wizards' Quarters"
+    },
+    {
+      "name": "area-15",
+      "x": 4455,
+      "y": 2655,
+      "desc": "Forge of Spells"
+    },
+    {
+      "name": "area-16",
+      "x": 4050,
+      "y": 810,
+      "desc": "Booming Cavern"
+    },
+    {
+      "name": "area-17",
+      "x": 2160,
+      "y": 720,
+      "desc": "Old Streambed"
+    },
+    {
+      "name": "area-18",
+      "x": 1755,
+      "y": 1350,
+      "desc": "Collapsed Cavern"
+    },
+    {
+      "name": "area-19",
+      "x": 495,
+      "y": 540,
+      "desc": "Temple Of Dumathoin"
+    },
+    {
+      "name": "area-20",
+      "x": 1035,
+      "y": 540,
+      "desc": "Priests' Quarters"
     }
   ],
   "source": "dd2vtt",

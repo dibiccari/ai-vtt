@@ -309,6 +309,18 @@ app.get('/api/map-configs', asyncRoute(async (_req, res) => {
   res.json({ configs: out });
 }));
 
+// The numbered areas of the adventure module on a map (data/campaigns/<campaign>/areas.json: picture file -> [{n, name}]); Map Test turns them into pins.
+app.get('/api/map-areas', asyncRoute(async (req, res) => {
+  const file = path.basename(String(req.query.map ?? ''));
+  const areas = [];
+  for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!dirent.isDirectory()) continue;
+    const list = (await readJson(path.join(CAMPAIGNS_DIR, dirent.name, 'areas.json'), {}))[file];
+    if (Array.isArray(list)) { for (const a of list) if (Number.isFinite(a?.n) && typeof a?.name === 'string' && !areas.some((o) => o.n === a.n)) areas.push({ n: a.n, name: a.name.slice(0, 60) }); }
+  }
+  res.json({ areas: areas.sort((a, b) => a.n - b.n) });
+}));
+
 app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   const config = normalizeMapConfig(req.body);
   const file = mapConfigFile(req.query.map);
@@ -1122,7 +1134,7 @@ fits them best (gruff, sly, noble, elderly, child, monstrous, ethereal, feminine
 same NPC across turns. Write dice math in a speakable way. When the player's input is marked as spoken, it was
 transcribed from speech and may contain recognition errors - interpret it charitably.`;
 
-const CAMPAIGN_RULES = `A campaign module follows. You are running it. Treat it as secret DM material: never read boxed text or stat blocks verbatim unless it is the right moment, never reveal secrets, traps, or monster stats before the players earn them, and keep track of where the party is. Use the module's NPC names, personalities, and locations. The board state tells you which map is loaded (mapName); the players move tokens themselves, so describe what their position can see.`;
+const CAMPAIGN_RULES = `A campaign module follows. When the board state has moduleAreas, they are the module's numbered areas on the current map with the board square (col, row) of each; use them to know which part of the picture is which area, to place creatures where the module puts them (addToken at or near that square) and to answer where things are. You are running it. Treat it as secret DM material: never read boxed text or stat blocks verbatim unless it is the right moment, never reveal secrets, traps, or monster stats before the players earn them, and keep track of where the party is. Use the module's NPC names, personalities, and locations. The board state tells you which map is loaded (mapName); the players move tokens themselves, so describe what their position can see.`;
 
 // The sheet update arrives as one list of { field, value } edits; skills, saves, spells and slots are written as
 // "skill Stealth" / "save dex" / "spell add 2" / "slots 3" and turned back into the lists lib/sheet-edit.js applies.
@@ -1339,7 +1351,7 @@ async function partyForPrompt(campaign) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
-  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes } = req.body ?? {};
+  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
@@ -1370,6 +1382,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     diceTray: diceTray(),
     ...(Array.isArray(notes) && notes.length ? { tableNotes: notes.slice(0, 8).map((n) => String(n).slice(0, 300)) } : {}),
     ...(Array.isArray(corrections) && corrections.length ? { moveCorrections: corrections.slice(0, 8).map((c) => String(c).slice(0, 200)) } : {}),
+    ...(Array.isArray(areas) && areas.length ? { moduleAreas: areas.slice(0, 40).map((a) => ({ area: Number(a?.area) || 0, name: String(a?.name ?? '').slice(0, 60), col: Number(a?.col) || 0, row: Number(a?.row) || 0 })) } : {}),
     lighting: lighting && typeof lighting === 'object' ? { ambient: ['bright', 'dim', 'dark'].includes(lighting.ambient) ? lighting.ambient : 'bright', mapLights: (Array.isArray(lighting.mapLights) ? lighting.mapLights : []).slice(0, 40) } : { ambient: 'bright', mapLights: [] },
     combat: combat && typeof combat === 'object' ? { active: Boolean(combat.active), round: Number(combat.round) || 0, currentTokenId: String(combat.currentTokenId ?? ''), order: (Array.isArray(combat.order) ? combat.order : []).slice(0, 60).map((o) => ({ tokenId: String(o?.tokenId ?? ''), initiative: Number.isFinite(Number(o?.initiative)) ? Number(o.initiative) : null })) } : { active: false },
     party: await partyForPrompt(activeCampaign)
