@@ -569,7 +569,7 @@
     ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
     ctx.textBaseline = 'middle';
     const editing = S.tool === 'start';
-    if (!S.showPins && !editing) { ctx.restore(); return; }                 // the Show pins box (the Pins tool always shows them)
+    if (!S.showPins) { ctx.restore(); return; }                              // the Show pins box hides them whatever the tool
     const fogged = S.fog && S.tokens.length > 0 && !S.dm;
     for (const s of S.starts) {
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
@@ -956,6 +956,7 @@
 
   function setTool(tool) {
     S.tool = tool;
+    if (tool === 'start' && !S.showPins) { S.showPins = true; $('#showPins').checked = true; }       // choosing the Pins tool turns the pins back on
     if (tool !== 'start') S.selected = null;
     positionPinCard();
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
