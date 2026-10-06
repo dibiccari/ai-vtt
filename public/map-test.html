@@ -775,13 +775,15 @@
     const range = (S.visionFt / FT_PER_SQUARE) * cell();
     ctx.save();
     S.tokens.forEach((t, i) => {
-      ctx.setLineDash([6 * px, 6 * px]);
-      ctx.strokeStyle = 'rgba(240, 192, 72, 0.55)';
-      ctx.lineWidth = 1.5 * px;
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, range, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      if (S.showPoly) {                                  // the dashed vision-range ring only shows with the Show sight outline box
+        ctx.setLineDash([6 * px, 6 * px]);
+        ctx.strokeStyle = 'rgba(240, 192, 72, 0.55)';
+        ctx.lineWidth = 1.5 * px;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, range, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       ctx.fillStyle = '#1b2230';
       ctx.strokeStyle = '#f0c048';
       ctx.lineWidth = 3 * px;
