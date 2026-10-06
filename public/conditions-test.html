@@ -19,7 +19,10 @@
   .conds { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; margin-bottom:12px; }
   .conds label { display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 4px; border-radius:6px; }
   .conds label:hover { background:var(--panel2); }
+  h2 small { text-transform:none; letter-spacing:0; font-weight:400; color:var(--muted); margin-left:6px; }
+  .badge { width:22px; height:22px; border-radius:50%; border:2px solid; flex:none; display:flex; align-items:center; justify-content:center; font-size:13px; line-height:1; background:#0c1018; }
   .swatch { width:22px; height:12px; border-radius:6px; border:2px solid; flex:none; }
+  .check { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
   button, select { font:inherit; font-size:13px; color:inherit; background:#1f2632; border:1px solid #3a4558; border-radius:6px; padding:5px 12px; cursor:pointer; font-weight:600; }
   button:hover { border-color:var(--accent); }
@@ -38,7 +41,7 @@
 <script src="/nav.js"></script>
 <div class="page">
   <h1>Character <span>conditions</span></h1>
-  <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. The effects box shows what the table does with the same conditions: speed, how far it sees (the room goes dark when sight shrinks), whether it can act, and who gets advantage or disadvantage.</p>
+  <p class="lead">Tick a condition to put a ring around the token (the 15 official 5e conditions: each has its own colour and line style, and several rings stack outward). Tick an effect (concentrating, surprised, a spell like sanctuary or bless) to put a small pill with its name beside the token; effects are not conditions. An invisible token is drawn faint. The effects box shows what the table does with the same conditions: speed, how far it sees (the room goes dark when sight shrinks), whether it can act, and who gets advantage or disadvantage.</p>
   <div class="layout">
     <div class="stage"><canvas id="cv" width="1080" height="1080" aria-label="A nine by nine room with a token in the centre"></canvas></div>
     <div class="panel">
@@ -46,10 +49,13 @@
       <div class="row">
         <select id="pick" aria-label="Token picture"></select>
         <button id="clear">Clear all</button>
+        <label class="check"><input type="checkbox" id="showNames" checked> Show names</label>
         <button id="some">Try a mix</button>
       </div>
-      <h2>Conditions</h2>
+      <h2>Conditions <small>the 15 official ones, drawn as rings</small></h2>
       <div class="conds" id="conds"></div>
+      <h2>Effects <small>states and spell effects, drawn as pills beside the token</small></h2>
+      <div class="conds" id="effs"></div>
       <h2>Effects on this character</h2>
       <div id="effects" class="effects"></div>
       <h2>What the ring means</h2>
@@ -72,7 +78,7 @@
     ['adult-green-dragon-f25c4.png', 'Large: Young green dragon (2 x 2)', 2], ['treant-987d3.png', 'Huge: Treant (3 x 3)', 3], ['kraken-b920c.png', 'Gargantuan: Kraken (4 x 4)', 4], ['tarrasque-661ba.png', 'Gargantuan: Tarrasque (6 x 6)', 6]
   ];
   var size = 1;
-  var ORDER = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious', 'exhaustion', 'concentrating', 'surprised', 'disengaged'];
+  var COND_ORDER = Object.keys(ConditionRings.RINGS), EFFECT_ORDER = ConditionRings.EFFECT_ORDER, ORDER = COND_ORDER.concat(EFFECT_ORDER);
   var on = {}, img = new Image(), imgReady = false;
 
   // the token's footprint sits on whole squares near the middle of the room (an odd-sized token on a square centre, an even-sized one on a grid corner)
@@ -104,7 +110,9 @@
     if (imgReady) { ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r - 2, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2); ctx.restore(); }
     ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-    ConditionRings.draw(ctx, cx, cy, r, names, 2.1 * (size < 1 ? 0.8 : 1));          // the canvas is shown smaller than it is drawn, so lines are drawn thicker to stay readable
+    var scale = 2.1 * (size < 1 ? 0.8 : 1), opts = { labels: document.getElementById('showNames').checked };
+    var reach = ConditionRings.draw(ctx, cx, cy, r, names, scale, opts);
+    ConditionRings.drawEffects(ctx, cx, cy, r + reach, names, scale * 0.62, opts);          // the canvas is shown smaller than it is drawn, so lines are drawn thicker to stay readable
   }
 
   function render() {
@@ -143,22 +151,27 @@
   }
 
   // controls
-  var box = document.getElementById('conds'), help = document.getElementById('help');
-  ORDER.forEach(function (name) {
-    var d = ConditionRings.info(name);
+  var help = document.getElementById('help');
+  function addBox(name, kind) {
+    var isEff = kind === 'effect', d = isEff ? ConditionRings.effectInfo(name) : ConditionRings.info(name);
     var l = document.createElement('label');
-    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'c-' + name;
-    var sw = document.createElement('span'); sw.className = 'swatch'; sw.style.borderColor = d[1];
-    sw.style.borderStyle = d[2] === 'double' ? 'double' : d[2] === 'solid' ? 'solid' : d[2];
-    sw.style.borderWidth = d[2] === 'double' ? '4px' : '3px'; sw.style.height = d[2] === 'double' ? '14px' : '12px';
-    l.append(cb, sw, document.createTextNode(d[0]));
-    l.addEventListener('mouseenter', function () { help.innerHTML = '<b>' + d[0] + '.</b> ' + d[3]; });
+    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'c-' + name.replace(/[^a-z]/gi, '-');
+    var mark;
+    if (isEff) { mark = document.createElement('span'); mark.className = 'badge'; mark.style.borderColor = d[1]; mark.style.color = d[1]; mark.textContent = d[2]; }
+    else { mark = document.createElement('span'); mark.className = 'swatch'; mark.style.borderColor = d[1]; mark.style.borderStyle = d[2] === 'double' ? 'double' : d[2]; mark.style.borderWidth = d[2] === 'double' ? '4px' : '3px'; mark.style.height = d[2] === 'double' ? '14px' : '12px'; }
+    l.append(cb, mark, document.createTextNode(d[0]));
+    l.addEventListener('mouseenter', function () { help.innerHTML = isEff ? '<b>' + d[0] + ' (effect).</b> ' + d[3] + ' <br><i>Ends:</i> ' + d[4] : '<b>' + d[0] + ' (condition).</b> ' + d[3]; });
     cb.addEventListener('change', function () { on[name] = cb.checked; render(); });
-    box.appendChild(l);
-  });
-  function setAll(list) { ORDER.forEach(function (n) { on[n] = list.indexOf(n) >= 0; document.getElementById('c-' + n).checked = on[n]; }); render(); }
+    document.getElementById(isEff ? 'effs' : 'conds').appendChild(l);
+    cbs[name] = cb;
+  }
+  var cbs = {};
+  COND_ORDER.forEach(function (n) { addBox(n, 'condition'); });
+  EFFECT_ORDER.forEach(function (n) { addBox(n, 'effect'); });
+  function setAll(list) { ORDER.forEach(function (n) { on[n] = list.indexOf(n) >= 0; cbs[n].checked = on[n]; }); render(); }
+  document.getElementById('showNames').addEventListener('change', render);
   document.getElementById('clear').addEventListener('click', function () { setAll([]); });
-  document.getElementById('some').addEventListener('click', function () { setAll(['invisible', 'concentrating', 'poisoned', 'prone']); });
+  document.getElementById('some').addEventListener('click', function () { setAll(['invisible', 'poisoned', 'prone', 'concentrating', 'sanctuary', 'bless']); });
 
   var pick = document.getElementById('pick');
   TOKENS.forEach(function (t, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = t[1]; pick.appendChild(o); });

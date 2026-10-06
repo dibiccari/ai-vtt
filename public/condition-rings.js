@@ -19,42 +19,133 @@
     restrained:    ['Restrained',    '#d9a43d', 'dashed', 'Speed 0; attacks against it have advantage, its attacks have disadvantage.'],
     stunned:       ['Stunned',       '#f0a040', 'double', "Incapacitated, can't move; attacks against it have advantage."],
     unconscious:   ['Unconscious',   '#e05050', 'double', 'Incapacitated, unaware, falls prone; hits within 5 ft are critical.'],
-    exhaustion:    ['Exhaustion',    '#a07850', 'solid',  'Growing penalties by level; a long rest removes one level.'],
-    concentrating: ['Concentrating', '#4f9dff', 'dotted', 'Holding a spell: a hit forces a Constitution save.'],
-    surprised:     ['Surprised',     '#c9a0ff', 'dashed', 'Loses its first turn.'],
-    disengaged:    ['Disengaged',    '#6fd0e8', 'dotted', 'Its movement this turn does not provoke opportunity attacks.']
+    exhaustion:    ['Exhaustion',    '#a07850', 'solid',  'Growing penalties by level; a long rest removes one level.']
   };
 
+  // Effects are not conditions: states and spell effects (concentrating, surprised, a spell like sanctuary). They are drawn as small badges above the token, not as rings.
+  // name: [label, colour, icon, short rule, what ends it]
+  var EFFECTS = {
+    concentrating: ['Concentrating', '#4f9dff', '\u25CE',     'Holding a spell: a hit forces a Constitution save (DC 10 or half the damage).', 'A failed save, being incapacitated or killed, casting another concentration spell, or ending it.'],
+    surprised:     ['Surprised',     '#c9a0ff', '\u2757',     "Can't move, act or react on its first turn.", 'The end of its first turn.'],
+    disengaged:    ['Disengaged',    '#6fd0e8', '\u21E2',     'Its movement this turn does not provoke opportunity attacks.', 'The end of its turn.'],
+    sanctuary:     ['Sanctuary',     '#ffe28a', '\u2726',     'Anyone who targets it with an attack or a harmful spell makes a Wisdom save first; on a failure they pick another target or lose the attack or spell. Area effects ignore it.', 'It attacks, or casts a spell that harms another creature; or 1 minute passes.'],
+    bless:         ['Bless',         '#f5d76e', '\u271A',     'Adds 1d4 to attack rolls and saving throws (up to three creatures).', 'Concentration ends or 1 minute passes.'],
+    bane:          ['Bane',          '#a05a5a', '\u2716',     'Subtracts 1d4 from attack rolls and saving throws (up to three creatures).', 'Concentration ends or 1 minute passes.'],
+    'shield of faith': ['Shield of faith', '#7cc4ff', '\u26E8', '+2 to Armor Class.', 'Concentration ends or 10 minutes pass.'],
+    'mage armor':  ['Mage armor',    '#8fa8ff', '\u2748',     'Armor Class 13 + Dexterity modifier while unarmored.', '8 hours pass, or it dons armor.'],
+    haste:         ['Haste',         '#ff9f43', '\u00BB',     'Double speed, +2 AC, advantage on Dexterity saves, one extra limited action.', 'Concentration ends (then it is lethargic for a turn) or 1 minute passes.'],
+    slow:          ['Slow',          '#7a8aa6', '\u00AB',     'Half speed, -2 AC and Dexterity saves, no reactions, one action or bonus action only.', 'It succeeds on a Wisdom save at the end of a turn, concentration ends or 1 minute passes.'],
+    hex:           ['Hex',           '#9b59b6', '\u2620',     'Takes extra 1d6 necrotic damage from the caster\'s attacks; disadvantage on one chosen ability\'s checks.', 'Concentration ends or the time runs out (1 to 24 hours).'],
+    'hunter\'s mark': ['Hunter\'s mark', '#c0392b', '\u2316', 'Takes extra 1d6 damage from the ranger\'s weapon attacks; the ranger tracks it easily.', 'Concentration ends or the time runs out.'],
+    rage:          ['Rage',          '#e74c3c', '\u2694',     'Advantage on Strength checks and saves, bonus damage, resistance to bludgeoning, piercing and slashing; cannot cast spells or concentrate.', 'Its turn passes with no attack made or damage taken, it falls unconscious, or 1 minute passes.']
+  };
+  var EFFECT_ORDER = Object.keys(EFFECTS);
+
   function info(name) { return RINGS[name] || [String(name), '#4f9dff', 'solid', '']; }
+  function effectInfo(name) { return EFFECTS[name] || null; }
+  function isEffect(name) { return !!EFFECTS[name]; }
+  function isCondition(name) { return !!RINGS[name]; }
+
+  // Draw the effects of `names` as pills (icon and name) stacked to the right of the token and its rings. `outer` is the radius the rings reach (token radius + what draw() returned).
+  function drawEffects(ctx, x, y, outer, names, px, opts) {
+    px = px || 1;
+    var list = (names || []).filter(function (n) { return EFFECTS[n]; });
+    if (!list.length) return 0;
+    var labels = !opts || opts.labels !== false;
+    var h = 15 * px, gap = 4 * px, total = list.length * h * 2 + (list.length - 1) * gap;
+    var top = y - total / 2 + h, left = x + outer + 8 * px;
+    ctx.save();
+    list.forEach(function (n, i) {
+      var d = EFFECTS[n], cy = top + i * (h * 2 + gap), cx = left + h;
+      ctx.font = '700 ' + Math.round(h * 1.05) + 'px "Segoe UI", system-ui, sans-serif';
+      var textW = labels ? ctx.measureText(d[0]).width : 0, pillW = h * 2 + (labels ? textW + h * 0.9 : 0);
+      ctx.fillStyle = 'rgba(12, 16, 24, 0.92)';
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(left - h * 0.2, cy - h, pillW + h * 0.2, h * 2, h) : ctx.rect(left - h * 0.2, cy - h, pillW + h * 0.2, h * 2); ctx.fill();
+      ctx.strokeStyle = d[1]; ctx.lineWidth = 2.2 * px; ctx.stroke();
+      ctx.fillStyle = d[1]; ctx.font = '700 ' + Math.round(h * 1.25) + 'px "Segoe UI Symbol", "Segoe UI", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(d[2], cx, cy + px * 0.5);
+      if (labels) { ctx.fillStyle = '#edf1f7'; ctx.font = '700 ' + Math.round(h * 1.05) + 'px "Segoe UI", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(d[0], left + h * 1.95, cy + px * 0.5); }
+    });
+    ctx.restore();
+    return list.length;
+  }
+
+
+  // Text along a circle, centred on `centre` (radians; -PI/2 is the top), reading clockwise. Shrinks to fit when the name is longer than the arc allows.
+  function arcText(ctx, text, x, y, radius, centre, fontPx, color) {
+    var size = fontPx;
+    ctx.font = '800 ' + size + 'px "Segoe UI", system-ui, sans-serif';
+    var widths = function () { return Array.prototype.map.call(text, function (ch) { return ctx.measureText(ch).width + size * 0.08; }); };
+    var w = widths(), total = w.reduce(function (a, b) { return a + b; }, 0);
+    var limit = radius * Math.PI * 1.7;
+    if (total > limit) { size = size * limit / total; ctx.font = '800 ' + size + 'px "Segoe UI", system-ui, sans-serif'; w = widths(); total = w.reduce(function (a, b) { return a + b; }, 0); }
+    var angle = centre - total / (2 * radius), done = 0;
+    ctx.save();
+    ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (var i = 0; i < text.length; i++) {
+      var a = angle + (done + w[i] / 2) / radius;
+      ctx.save();
+      ctx.translate(x + radius * Math.cos(a), y + radius * Math.sin(a));
+      ctx.rotate(a + Math.PI / 2);
+      ctx.fillText(text[i], 0, 0);
+      ctx.restore();
+      done += w[i];
+    }
+    ctx.restore();
+  }
+  function inkFor(hex) {                                  // dark text on a light ring, light text on a dark one
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#0b0e14' : '#ffffff';
+  }
 
   // Draw the rings of `names` around a token centred at (x, y) with radius r (pixels). `px` scales line widths (1 = normal).
-  function draw(ctx, x, y, r, names, px) {
+  // opts.labels: each ring becomes a band with the condition's name written along it, curved with the circumference (the line style is kept on the band's edges).
+  // Returns how far the rings reach beyond the token's edge.
+  function draw(ctx, x, y, r, names, px, opts) {
     px = px || 1;
-    var list = (names || []).filter(Boolean);
+    var labels = !!(opts && opts.labels);
+    var list = (names || []).filter(function (n) { return RINGS[n]; });
     if (!list.length) return 0;
-    var width = (list.length > 5 ? 2.5 : 3.5) * px, gap = 1.6 * px;
+    var width = labels ? 15 * px : (list.length > 5 ? 2.5 : 3.5) * px, gap = (labels ? 1.2 : 1.6) * px;
     var radius = r + 2 * px + width / 2;
     ctx.save();
-    list.forEach(function (name) {
+    list.forEach(function (name, i) {
       var d = info(name), color = d[1], style = d[2];
-      ctx.strokeStyle = color;
-      ctx.lineCap = 'butt';
-      if (style === 'double') {
+      if (labels) {
         ctx.setLineDash([]);
-        ctx.lineWidth = width * 0.42;
-        ctx.beginPath(); ctx.arc(x, y, radius - width * 0.29, 0, Math.PI * 2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(x, y, radius + width * 0.29, 0, Math.PI * 2); ctx.stroke();
-      } else {
-        ctx.lineWidth = width;
-        ctx.setLineDash(style === 'dashed' ? [width * 3.2, width * 2] : style === 'dotted' ? [width * 0.9, width * 1.6] : []);
-        if (style === 'dotted') ctx.lineCap = 'round';
+        ctx.strokeStyle = color; ctx.globalAlpha = 0.93; ctx.lineWidth = width;
         ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        // the line style on both edges of the band: dashed and dotted rings stay different from solid ones
+        ctx.strokeStyle = 'rgba(8, 10, 14, 0.85)'; ctx.lineWidth = 1.4 * px;
+        ctx.setLineDash(style === 'dashed' ? [4 * px, 3 * px] : style === 'dotted' ? [1 * px, 2.4 * px] : []);
+        [radius - width / 2, radius + width / 2].forEach(function (rr) { ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.stroke(); });
+        if (style === 'double') { ctx.setLineDash([]); ctx.lineWidth = 0.9 * px; ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.setLineDash([]);
+        // start each name at a different place round the ring so they do not stack into one column
+        var centre = -Math.PI / 2 + (i % 2 ? Math.PI : 0) * 0 + i * 0.32;
+        arcText(ctx, d[0].toUpperCase(), x, y, radius, centre, width * 0.72, inkFor(color));
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineCap = 'butt';
+        if (style === 'double') {
+          ctx.setLineDash([]);
+          ctx.lineWidth = width * 0.42;
+          ctx.beginPath(); ctx.arc(x, y, radius - width * 0.29, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x, y, radius + width * 0.29, 0, Math.PI * 2); ctx.stroke();
+        } else {
+          ctx.lineWidth = width;
+          ctx.setLineDash(style === 'dashed' ? [width * 3.2, width * 2] : style === 'dotted' ? [width * 0.9, width * 1.6] : []);
+          if (style === 'dotted') ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke();
+        }
       }
       radius += width + gap;
     });
     ctx.restore();
-    return radius - r;                                    // how far the rings reach beyond the token's edge
+    return radius - r;
   }
+
 
   // How see-through the token itself is drawn (an invisible creature shows faintly to its own side).
   function tokenAlpha(names) {
@@ -81,7 +172,6 @@
     // actions
     var cannot = any(['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious']);
     if (cannot.length) { out.canAct = false; out.lines.push("Can't take actions or reactions (" + cannot.join(', ') + ').'); }
-    if (has('surprised')) out.lines.push('Loses its first turn (surprised).');
     // attacks against it
     out.againstAdv = any(['blinded', 'paralyzed', 'petrified', 'restrained', 'stunned', 'unconscious']);
     if (has('prone')) out.againstAdv.push('prone (melee within 5 ft)');
@@ -98,10 +188,10 @@
     if (has('charmed')) out.lines.push("Can't attack the one who charmed it.");
     if (has('deafened')) out.lines.push('Fails anything that needs hearing.');
     if (has('exhaustion')) out.lines.push('Exhaustion: penalties grow by level (see the Party page).');
-    if (has('concentrating')) out.lines.push('A hit forces a Constitution save to keep the spell.');
+    (names || []).forEach(function (n) { if (EFFECTS[n]) out.lines.push(EFFECTS[n][0] + ': ' + EFFECTS[n][3]); });
     if (has('invisible')) out.lines.push('Not seen by the other side without magic or special senses.');
     return out;
   }
 
-  root.ConditionRings = { RINGS: RINGS, info: info, draw: draw, tokenAlpha: tokenAlpha, effects: effects };
+  root.ConditionRings = { RINGS: RINGS, EFFECTS: EFFECTS, EFFECT_ORDER: EFFECT_ORDER, info: info, effectInfo: effectInfo, isEffect: isEffect, isCondition: isCondition, draw: draw, drawEffects: drawEffects, tokenAlpha: tokenAlpha, effects: effects };
 })(window);
