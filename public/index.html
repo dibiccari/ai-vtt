@@ -694,14 +694,9 @@ function plainMap() { return state.mapKind === 'regional' || state.mapKind === '
 function noFogMap() { return state.mapKind !== 'battle'; }
 
 // Opening view for boards that ask for it (a big battle map is too large to show whole): close on the active token.
+// Every map opens fitted to the view, whole, whatever its size (zoom in with the + button or the wheel).
 function focusStart() {
-  if (plainMap()) { fitView(); return; }
-  const t = activeToken();
-  if (state.zoomToParty && t) {
-    // A large battle map opens about 35 squares wide around the party.
-    state.view.scale = clamp(wrap.clientWidth / (35 * GRID), 0.3, 1);
-    centerOnToken(t);
-  } else fitView();
+  fitView();
 }
 
 function centerOnToken(t) {
