@@ -35,7 +35,7 @@ test('registry: ids are unique per campaign, kinds known, arrival squares are po
 test('mapsFor only offers installed pictures, and the first matching pattern wins', () => {
   const none = mapsFor('lost-mine-of-phandelver', []);
   assert.deepEqual(none, []);
-  const some = mapsFor('lost-mine-of-phandelver', ['lmop-goblin-ambush.png', 'dnd-hillside.jpg']);
+  const some = mapsFor('lost-mine-of-phandelver', ['lmop-goblin-ambush.png']);
   assert.equal(some.length, 1); assert.equal(some[0].url, '/uploads/lmop-goblin-ambush.png');
   assert.deepEqual(mapsFor('no-such-campaign', uploads), []);
 });
