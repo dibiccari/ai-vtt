@@ -1046,7 +1046,7 @@ function setCondition(t, name, rounds) {
   const left = Number.isFinite(rounds) && rounds > 0 ? Math.min(Math.round(rounds), 999) : 0;
   const have = t.conditions.find((c) => c.name === key);
   if (have) have.rounds = left; else t.conditions.push({ name: key, rounds: left });
-  if (t === activeToken() && Number.isFinite(t.movementRemaining)) t.movementRemaining = Math.min(t.movementRemaining, effectiveSpeed(t));
+  if (t === activeToken() && Number.isFinite(t.movementRemaining) && !t.conditions.some((c) => c.name === 'dashing')) t.movementRemaining = Math.min(t.movementRemaining, effectiveSpeed(t));
   return true;
 }
 
@@ -2851,6 +2851,7 @@ function nextCombatTurn() {
   if (waiting.length) { toast(`Waiting for initiative: ${waiting.join(', ')}`); return; }
   const leaving = activeToken();
   if (leaving && hasCondition(leaving, 'surprised')) clearCondition(leaving, 'surprised');       // surprise ends when its first turn ends
+  if (leaving && hasCondition(leaving, 'dashing')) clearCondition(leaving, 'dashing');         // a Dash lasts for the turn it was taken
   // Defeated creatures are skipped; creatures the party cannot see are skipped too (the AI plays their turns in the narration); so are delayed ones.
   const pick = CombatOrder.nextActor(order.map((t) => ({ id: t.id, dead: t.dead, unseen: !seenByParty(t), delayed: t.delayed })), leaving ? leaving.id : '');
   const chosen = pick ? order.find((t) => t.id === pick.id) : null;
@@ -2865,6 +2866,12 @@ function nextCombatTurn() {
   chosen.delayed = false;
   state.activeIndex = state.tokens.indexOf(chosen);
   beginTurn(chosen);
+  // A surprised combatant's turn is lost whoever it is, so the table moves on at once (nobody has to say "I end my turn").
+  if (hasCondition(chosen, 'surprised') && (nextCombatTurn.depth || 0) < 20) {
+    nextCombatTurn.depth = (nextCombatTurn.depth || 0) + 1;
+    try { nextCombatTurn(); } finally { nextCombatTurn.depth = 0; }
+    return;
+  }
   commitBoard();
   renderCombat();
 }
@@ -3722,6 +3729,12 @@ async function applyMapUpdates(updates) {
   if (travel) await travelTo(travel);
   let wallsTouched = false;
   const hpSaves = [];
+  // Dash: the table has no Dash button, so the DM sends condition "dashing"; it adds one more move's worth of movement (done first, so the moves in the same reply can use it).
+  for (const u of updates) {
+    if (u.type !== 'addCondition' || String(u.condition || '').toLowerCase().trim() !== 'dashing') continue;
+    const t = state.tokens.find((x) => x.id === u.tokenId);
+    if (t && state.combat.active && !hasCondition(t, 'dashing')) { t.movementRemaining = (Number(t.movementRemaining) || 0) + effectiveSpeed(t); if (seenByParty(t)) addChat('system', `↳ ${t.name} dashes (${t.movementRemaining} ft of movement this turn)`); }
+  }
   for (const u of updates) {
     switch (u.type) {
       case 'readyToken': {
@@ -3827,6 +3840,14 @@ async function applyMapUpdates(updates) {
           if (u.monster) token.monster = String(u.monster);
           if (/^\/tokens\/[\w.-]+$/.test(String(u.image || ''))) token.image = u.image;
           if (Number.isFinite(Number(u.dexMod))) token.dexMod = Number(u.dexMod);
+          // Several creatures with the same name get their id number ("Goblin 1", "Goblin 2") so the chat, the rolls and the tracker can tell them apart.
+          const numbered = (x) => { const m = /-(\d+)$/.exec(String(x.id)); return m ? m[1] : ''; };
+          const twins = state.tokens.filter((x) => !x.isPC && x.name === token.name && numbered(x));
+          if (twins.length && numbered(token)) {
+            for (const x of [...twins, token]) x.name = `${x.name} ${numbered(x)}`;
+          } else if (/ \d+$/.test(token.name) === false && numbered(token) && state.tokens.some((x) => !x.isPC && x.name.replace(/ \d+$/, '') === token.name && x.name !== token.name)) {
+            token.name = `${token.name} ${numbered(token)}`;
+          }
           state.tokens.push(token);
           joinCombat(token);
         }
