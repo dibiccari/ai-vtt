@@ -40,12 +40,11 @@
   <h1>Character <span>conditions</span></h1>
   <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. The effects box shows what the table does with the same conditions: speed, how far it sees (the room goes dark when sight shrinks), whether it can act, and who gets advantage or disadvantage.</p>
   <div class="layout">
-    <div class="stage"><canvas id="cv" width="880" height="880" aria-label="A seven by seven room with a token in the centre"></canvas></div>
+    <div class="stage"><canvas id="cv" width="1180" height="1180" aria-label="A ten by ten room with a token in the centre"></canvas></div>
     <div class="panel">
       <h2>Token</h2>
       <div class="row">
         <select id="pick" aria-label="Token picture"></select>
-        <select id="roomSize" aria-label="Room size"><option value="5">Room 5 x 5</option><option value="7" selected>Room 7 x 7</option><option value="9">Room 9 x 9</option></select>
         <button id="clear">Clear all</button>
         <button id="some">Try a mix</button>
       </div>
@@ -63,7 +62,7 @@
 (function () {
   'use strict';
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  var SQUARE = 100, MARGIN = 90, N = 7, ROOM = SQUARE * N;      // an N x N room (7 x 7 to start), 100 px a square, with a margin so rings never clip
+  var SQUARE = 100, MARGIN = 90, N = 10, ROOM = SQUARE * N;     // a fixed 10 x 10 room, 100 px a square, with a margin so rings never clip
   function setRoom(n) { N = n; ROOM = SQUARE * N; cv.width = ROOM + 2 * MARGIN; cv.height = ROOM + 2 * MARGIN; cv.setAttribute('aria-label', 'A ' + N + ' by ' + N + ' room with a token in the centre'); }
   // [picture, label, size in squares across]: the 5e sizes: Tiny takes half a square across (four fit in one), Small and Medium one, Large 2 x 2, Huge 3 x 3, Gargantuan 4 x 4 or more
   var TOKENS = [
@@ -75,6 +74,9 @@
   var size = 1;
   var ORDER = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious', 'exhaustion', 'concentrating', 'surprised', 'disengaged'];
   var on = {}, img = new Image(), imgReady = false;
+
+  // the token's footprint sits on whole squares near the middle of the room (an odd-sized token on a square centre, an even-sized one on a grid corner)
+  function centre() { var s = Math.max(1, size), first = Math.floor((N - s) / 2); return MARGIN + (first + s / 2) * SQUARE; }
 
   function room() {
     ctx.fillStyle = '#0b0e14'; ctx.fillRect(0, 0, cv.width, cv.height);
@@ -95,7 +97,7 @@
   }
 
   function token(names, again) {
-    var cx = MARGIN + ROOM / 2, cy = MARGIN + ROOM / 2, r = SQUARE * 0.42 * size;
+    var cx = centre(), cy = cx, r = SQUARE * 0.42 * size;
     ctx.save();
     ctx.globalAlpha = ConditionRings.tokenAlpha(names);
     ctx.fillStyle = '#1b2230'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
@@ -116,7 +118,7 @@
 
   // Outside what the character can see the room goes dark: with 60 ft of sight a 25 ft room is all visible; blinded or unconscious leaves only the own square (1 ft).
   function dark(visionFt) {
-    var cx = MARGIN + ROOM / 2, cy = MARGIN + ROOM / 2, r = visionFt / 5 * SQUARE;
+    var cx = centre(), cy = cx, r = visionFt / 5 * SQUARE;
     if (r >= ROOM * 0.75) return;
     ctx.save();
     var g = ctx.createRadialGradient(cx, cy, Math.max(1, r * 0.8), cx, cy, Math.max(2, r));
@@ -162,8 +164,7 @@
   TOKENS.forEach(function (t, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = t[1]; pick.appendChild(o); });
   function loadToken() { var t = TOKENS[Number(pick.value)]; size = t[2]; imgReady = false; img = new Image(); img.onload = function () { imgReady = true; render(); }; img.onerror = render; img.src = '/tokens/' + t[0]; }
   pick.addEventListener('change', loadToken);
-  document.getElementById('roomSize').addEventListener('change', function (e) { setRoom(Number(e.target.value)); render(); });
-  setRoom(7);
+  setRoom(10);
   loadToken();
   render();
 })();
