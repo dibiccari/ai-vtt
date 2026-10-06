@@ -15,6 +15,9 @@
   var analyser = null;
   var ctx = null, master = null, sceneBus = null, moodBus = null, noiseBuf = null, brownBuf = null;
   var enabled = true, volume = 0.5, ducked = false;
+  var sfxOut = null;      // every sound effect goes through this bus, so the Stop button can cut the ones still ringing
+  var epoch = 0;          // bumped by stop(): effects that are still scheduling their later parts check it and give up
+  function later(fn, ms) { var e = epoch; return setTimeout(function () { if (e === epoch) fn(); }, ms); }
   var files = {};       // 'scene:forest' -> '/audio/scene-forest.ogg' (the user's own recordings, see public/audio/README.md)
   var buffers = {};
   var scene = { kind: 'none', stop: null };
@@ -26,6 +29,8 @@
     if (!AC) return false;
     ctx = new AC();
     master = ctx.createGain();
+    sfxOut = ctx.createGain();
+    sfxOut.connect(master);
     sceneBus = ctx.createGain();
     moodBus = ctx.createGain();
     var comp = ctx.createDynamicsCompressor();
@@ -296,7 +301,7 @@
     o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(230, t + dur);
     lfo(21, 28, o.frequency).stop(t + dur + 0.1);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.12); g.gain.linearRampToValueAtTime(level * 0.6, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+    o.connect(f); f.connect(g); g.connect(sfxOut); o.start(t); o.stop(t + dur + 0.05);
   }
   // A growl: a low sawtooth chopped by a fast tremor and shaped by two vowel-like bands.
   function growl(f0a, f0b, dur, level) {
@@ -305,24 +310,24 @@
     o.frequency.setValueAtTime(f0a, t); o.frequency.exponentialRampToValueAtTime(f0b, t + dur);
     var trem = ctx.createGain(); trem.gain.value = 0.6; lfo(26, 0.4, trem.gain).stop(t + dur + 0.1);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.2); g.gain.setValueAtTime(level, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(trem); trem.connect(f1); trem.connect(f2); f1.connect(mix); f2.connect(mix); mix.connect(g); g.connect(master);
+    o.connect(trem); trem.connect(f1); trem.connect(f2); f1.connect(mix); f2.connect(mix); mix.connect(g); g.connect(sfxOut);
     o.start(t); o.stop(t + dur + 0.05);
   }
   var EFFECTS = {
     door: function () {
-      [[85, 0.55], [170, 0.32], [330, 0.2]].forEach(function (p) { ping(p[0], 0.5, p[1], master); });   // the wooden body of the door
-      burst(1500, 1.2, 0.07, 0.35, 'bandpass', master);                                                 // wood knocking on the frame
-      setTimeout(function () { creak(0.9, 0.2); }, 90);
+      [[85, 0.55], [170, 0.32], [330, 0.2]].forEach(function (p) { ping(p[0], 0.5, p[1], sfxOut); });   // the wooden body of the door
+      burst(1500, 1.2, 0.07, 0.35, 'bandpass', sfxOut);                                                 // wood knocking on the frame
+      later(function () { creak(0.9, 0.2); }, 90);
     },
     creak: function () { creak(1.4, 0.35); },
     thunder: function () {
-      burst(3200, 0.6, 0.14, 0.5, 'highpass', master);                                                  // the crack
+      burst(3200, 0.6, 0.14, 0.5, 'highpass', sfxOut);                                                  // the crack
       [[170, 3.4, 1.1], [90, 4.6, 0.9]].forEach(function (p, i) {
-        setTimeout(function () { var n = noise(true, false), f = filter('lowpass', p[0]), g = ctx.createGain(), t = ctx.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(p[2], t + 0.3 + i * 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + p[1]); n.connect(f); f.connect(g); g.connect(master); n.start(t, 0); n.stop(t + p[1] + 0.1); }, 80 + i * 260);
+        later(function () { var n = noise(true, false), f = filter('lowpass', p[0]), g = ctx.createGain(), t = ctx.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(p[2], t + 0.3 + i * 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + p[1]); n.connect(f); f.connect(g); g.connect(sfxOut); n.start(t, 0); n.stop(t + p[1] + 0.1); }, 80 + i * 260);
       });
     },
-    bell: function () { [523.3, 1046.5, 1568, 2093, 2637].forEach(function (f, i) { ping(f, 3.4 - i * 0.5, 0.13 / (i + 1), master); }); burst(2400, 2, 0.05, 0.12, 'bandpass', master); },
-    roar: function () { growl(95, 55, 1.9, 1.6); burst(500, 1, 1.4, 0.22, 'lowpass', master); },
+    bell: function () { [523.3, 1046.5, 1568, 2093, 2637].forEach(function (f, i) { ping(f, 3.4 - i * 0.5, 0.13 / (i + 1), sfxOut); }); burst(2400, 2, 0.05, 0.12, 'bandpass', sfxOut); },
+    roar: function () { growl(95, 55, 1.9, 1.6); burst(500, 1, 1.4, 0.22, 'lowpass', sfxOut); },
     howl: function () {
       var t = ctx.currentTime, o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = filter('bandpass', 900, 1.2);
       [o, o2].forEach(function (x, i) {
@@ -332,21 +337,21 @@
         x.connect(f); x.start(t); x.stop(t + 3.1);
       });
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.14, t + 0.5); g.gain.setValueAtTime(0.14, t + 1.8); g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
-      f.connect(g); g.connect(master);
+      f.connect(g); g.connect(sfxOut);
     },
     clash: function () {
       [0, 0.045].forEach(function (d, k) {
-        setTimeout(function () { burst(4200, 1.5, 0.06, 0.4, 'highpass', master); [1450, 2210, 3170, 4380, 5900].forEach(function (f, i) { ping(f * (1 + k * 0.01), 1.0 - i * 0.12, 0.07 / (1 + i * 0.3), master); }); }, d * 1000);
+        later(function () { burst(4200, 1.5, 0.06, 0.4, 'highpass', sfxOut); [1450, 2210, 3170, 4380, 5900].forEach(function (f, i) { ping(f * (1 + k * 0.01), 1.0 - i * 0.12, 0.07 / (1 + i * 0.3), sfxOut); }); }, d * 1000);
       });
     },
-    magic: function () { sweep(300, 1800, 0.9, 0.08, 'sine'); [1600, 2100, 2800, 3500].forEach(function (f, i) { setTimeout(function () { ping(f, 0.9, 0.05, master); }, 150 + i * 110); }); },
+    magic: function () { sweep(300, 1800, 0.9, 0.08, 'sine'); [1600, 2100, 2800, 3500].forEach(function (f, i) { later(function () { ping(f, 0.9, 0.05, sfxOut); }, 150 + i * 110); }); },
     explosion: function () {
-      burst(900, 0.5, 1.8, 0.8, 'lowpass', master); sweep(120, 35, 1.2, 0.35, 'sine'); burst(3000, 0.5, 0.1, 0.35, 'highpass', master);
-      for (var i = 0; i < 14; i++) setTimeout(function () { burst(1500 + Math.random() * 3500, 4, 0.05, 0.1 * Math.random(), 'bandpass', master); }, 200 + Math.random() * 1500);     // falling debris
+      burst(900, 0.5, 1.8, 0.8, 'lowpass', sfxOut); sweep(120, 35, 1.2, 0.35, 'sine'); burst(3000, 0.5, 0.1, 0.35, 'highpass', sfxOut);
+      for (var i = 0; i < 14; i++) later(function () { burst(1500 + Math.random() * 3500, 4, 0.05, 0.1 * Math.random(), 'bandpass', sfxOut); }, 200 + Math.random() * 1500);     // falling debris
     },
     splash: function () {
-      burst(2600, 0.7, 0.55, 0.32, 'bandpass', master); burst(900, 0.7, 0.45, 0.3, 'lowpass', master); ping(170, 0.25, 0.3, master);
-      for (var i = 0; i < 7; i++) setTimeout(function () { var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime, f = 500 + Math.random() * 700; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.07); g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.1); }, 80 + Math.random() * 500);   // bubbles
+      burst(2600, 0.7, 0.55, 0.32, 'bandpass', sfxOut); burst(900, 0.7, 0.45, 0.3, 'lowpass', sfxOut); ping(170, 0.25, 0.3, sfxOut);
+      for (var i = 0; i < 7; i++) later(function () { var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime, f = 500 + Math.random() * 700; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.07); g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09); o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t + 0.1); }, 80 + Math.random() * 500);   // bubbles
     }
   };
   function sweep(from, to, dur, level, type) {
@@ -354,7 +359,7 @@
     o.type = type || 'sine';
     o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t + dur);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+    o.connect(g); g.connect(sfxOut); o.start(t); o.stop(t + dur + 0.05);
   }
 
   /* ---------------- public API ---------------- */
@@ -383,6 +388,13 @@
       if (!enabled || isRetired('sfx', name) || !ensure() || ctx.state === 'suspended') return;
       if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(); s.buffer = buf; s.connect(master); s.start(); }).catch(function () { /* skipped */ }); return; }
       if (EFFECTS[name]) EFFECTS[name]();
+    },
+    // Stop: a scene fades out, a mood returns to calm, and for sound effects everything still ringing is cut at once (the Sound Test page's Stop buttons).
+    stop: function (kind) {
+      if (kind === 'scene') { api.setScene('none'); return; }
+      if (kind === 'mood') { api.setMood('calm'); return; }
+      epoch++;
+      if (ctx && sfxOut) { var old = sfxOut; try { old.disconnect(); } catch (e) { /* already gone */ } sfxOut = ctx.createGain(); sfxOut.connect(master); }
     },
     // True when a recording in public/audio replaces this sound.
     hasFile: function (kind, name) { return Boolean(files[kind + ':' + name]); },
