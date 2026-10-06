@@ -15,6 +15,7 @@ import { rollExpr, diceTray } from './lib/dice.js';
 import { writeTavernParty } from './lib/tavern-party.js';
 import { readSettings, writeSettings, settingsForPrompt } from './lib/settings.js';
 import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
+import { liveMiddleware, liveHandler, revisionOf } from './lib/live.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -147,6 +148,7 @@ await seedCharacters();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
+app.use(liveMiddleware(null, () => campaignIds()));
 // Map pictures were renamed in Oct 2026 (vtt- for the maps we generated, dnd- for the Wizards of the Coast ones). A saved game or browser copy may still name the
 // old file, so the old names keep working: the picture is redirected and the config and DM picture lookups use the new name.
 const OLD_MAP_NAMES = {
@@ -598,11 +600,12 @@ async function gameCampaign(req, res) {
   return id;
 }
 
+app.get('/api/campaigns/:id/live', liveHandler(gameCampaign));          // server-sent events: see lib/live.js and docs/multiplayer-plan.md
 app.get('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
   const id = await gameCampaign(req, res); if (!id) return;
   const p = gamePaths(id);
   const game = await readJsonOr(p.game, null);
-  res.json({ savedAt: game?.savedAt || 0, board: game?.board || null, chat: game?.chat || [], fog: await readJsonOr(p.fog, {}) });
+  res.json({ rev: revisionOf(id), savedAt: game?.savedAt || 0, board: game?.board || null, chat: game?.chat || [], fog: await readJsonOr(p.fog, {}) });
 }));
 
 app.put('/api/campaigns/:id/game', asyncRoute(async (req, res) => {

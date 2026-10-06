@@ -325,6 +325,7 @@
 </style>
 </head>
 <body>
+<script src="/watch.js"></script>
 <script src="/nav.js"></script>
 <script src="/voice-fx.js"></script>
 
@@ -522,7 +523,7 @@ const interaction = {
    computer. Whichever copy was saved last wins when the table opens. */
 const serverSave = (() => {
   let timer = null, quiet = false;
-  const on = () => state.campaignId && state.campaignId !== 'default' && !/[?&]nosave=1/.test(location.search);       // ?nosave=1: look around without touching the saved game (for testing)
+  const on = () => state.campaignId && state.campaignId !== 'default' && !/[?&](nosave|watch)=1/.test(location.search);       // ?nosave=1: look around without touching the saved game (for testing)
   const atKey = () => `vtt.savedAt.${state.campaignId}`;
   const url = (suffix = '') => `/api/campaigns/${encodeURIComponent(state.campaignId)}/game${suffix}`;
   const put = (suffix, body) => fetch(url(suffix), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => { /* offline: the browser copy still has it */ });
@@ -546,12 +547,13 @@ const serverSave = (() => {
     fog(mapUrl, data) { if (on() && mapUrl) put('/fog', { mapUrl, data }); },
     // At start-up: take the server copy if it is newer than this browser's, or send this browser's if it is newer.
     async pull() {
-      if (!on()) return;
+      const watching = window.WATCH === true;                          // ?watch=1: always show the server copy (public/watch.js)
+      if (!on() && !watching) return;
       try {
         const g = await (await fetch(url())).json();
         const localAt = Number(localStorage.getItem(atKey())) || 0;
         const hasLocal = Boolean(localStorage.getItem(`vtt.board.${state.campaignId}`));
-        if (g.board && Number(g.savedAt) > localAt) {
+        if (g.board && (watching || Number(g.savedAt) > localAt)) {
           quiet = true;
           try {
             localStorage.setItem(`vtt.board.${state.campaignId}`, JSON.stringify(g.board));
