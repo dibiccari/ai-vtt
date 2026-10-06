@@ -212,17 +212,14 @@ for (let i = 0; i < COLS; i++) {
 difficult.push({ x: RUBBLE.x * PPG, y: RUBBLE.y * PPG, w: RUBBLE.w * PPG, h: RUBBLE.h * PPG });
 difficult.push({ x: THICKET.x * PPG, y: THICKET.y * PPG, w: THICKET.w * PPG, h: THICKET.h * PPG });
 let starts = [{ name: 'start', x: 278, y: 479 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
-let lightZonesExtra = [];
 // Pins and terrain you have edited in Map Test win over these defaults when the map is drawn again.
 try {
   const old = JSON.parse(await readFile(path.join(root, 'data', 'maps', 'terrain-test.png.json'), 'utf8'));
   if (Array.isArray(old.starts) && old.starts.length) starts = old.starts;
   if (Array.isArray(old.difficult) && old.difficult.length) { difficult.length = 0; difficult.push(...old.difficult); }
-  if (Array.isArray(old.lightZones)) lightZonesExtra = old.lightZones.filter((z) => !(z.level === 'dark' && z.x === Math.round(sq(HOUSE.x))));
 } catch { /* first time: the defaults */ }
-const lightZones = [{ x: Math.round(sq(HOUSE.x)), y: Math.round(sq(HOUSE.y)), w: Math.round(sq(HOUSE.w)), h: Math.round(sq(HOUSE.h)), level: 'dark' }, ...lightZonesExtra];
 
 await level.write(path.join(root, 'public', 'scenarios', 'terrain-test.dd2vtt'), { ambient: 'ffffffff' });
-await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult, lightZones, extraWalls, lights: level.lights.map((l) => ({ x: l.x * PPG, y: l.y * PPG, range: l.range, intensity: l.intensity, color: l.color, name: l.name, ...(l.flicker ? { flicker: true } : {}) })) }, null, 2));
+await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult, extraWalls, lights: level.lights.map((l) => ({ x: l.x * PPG, y: l.y * PPG, range: l.range, intensity: l.intensity, color: l.color, name: l.name, ...(l.flicker ? { flicker: true } : {}) })) }, null, 2));
 await level.writePng(path.join(root, 'public', 'scenarios', '.preview-terrain.png'));
 console.log(`terrain-test.dd2vtt: ${COLS}x${ROWS} squares, ${level.walls.length} sight lines, ${difficult.length} difficult-terrain rectangles`);
