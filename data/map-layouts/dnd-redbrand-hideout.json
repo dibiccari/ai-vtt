@@ -32,7 +32,7 @@
       6
     ],
     "pass": [
-      15.4,
+      16,
       3,
       17.1,
       6
@@ -171,28 +171,28 @@
   ],
   "secrets": [
     {
+      "v": 16,
+      "from": 3.15,
+      "to": 3.85,
+      "name": "secret door (legend S)"
+    },
+    {
       "v": 10,
-      "from": 3.3,
-      "to": 3.9,
-      "name": "R12-stair secret door"
-    },
-    {
-      "v": 11,
-      "from": 5.2,
-      "to": 5.9,
-      "name": "stair-R7 secret door"
-    },
-    {
-      "v": 15.4,
-      "from": 3.4,
-      "to": 4,
-      "name": "R7-passage secret door"
+      "from": 3.15,
+      "to": 3.85,
+      "name": "secret door (legend S)"
     },
     {
       "v": 20,
-      "from": 18.2,
-      "to": 18.9,
-      "name": "south corridor-cellar secret door"
+      "from": 18.18,
+      "to": 18.88,
+      "name": "secret door (legend S)"
+    },
+    {
+      "v": 11,
+      "from": 5.18,
+      "to": 5.88,
+      "name": "secret door (legend S)"
     }
   ],
   "detectedDoors": [
@@ -283,14 +283,112 @@
         20
       ],
       "min": 25,
+      "inkDark": 100,
+      "reach": 0.75,
+      "minFence": 6,
       "close": 2,
       "holeMax": 30,
-      "minPiece": 40
+      "minPiece": 40,
+      "chasms": [
+        [
+          10.1,
+          7.4,
+          12.6,
+          16.8
+        ]
+      ]
     }
   },
   "copies": [
     "dnd-dm-redbrand-hideout.jpg"
   ],
   "width": 2475,
-  "height": 1725
+  "height": 1725,
+  "legend": {
+    "box": [
+      2056,
+      105,
+      69,
+      603
+    ],
+    "names": [
+      "Bars",
+      "Bridge",
+      "Bunk Bed",
+      "Locked Door",
+      "Supplies",
+      "Rack",
+      "Secret Door",
+      "Sarcophagus",
+      "Table"
+    ],
+    "channels": {
+      "Secret Door": "red"
+    },
+    "found": {
+      "Secret Door": [
+        {
+          "x": 1314,
+          "y": 284,
+          "score": 0.918,
+          "rot": 0,
+          "scale": 1,
+          "w": 60,
+          "h": 56
+        },
+        {
+          "x": 826,
+          "y": 284,
+          "score": 0.914,
+          "rot": 0,
+          "scale": 1,
+          "w": 60,
+          "h": 56
+        },
+        {
+          "x": 1650,
+          "y": 1524,
+          "score": 0.837,
+          "rot": 180,
+          "scale": 1,
+          "w": 60,
+          "h": 56
+        },
+        {
+          "x": 910,
+          "y": 452,
+          "score": 0.834,
+          "rot": 180,
+          "scale": 1,
+          "w": 60,
+          "h": 56
+        }
+      ]
+    },
+    "scales": {
+      "Secret Door": 1
+    },
+    "crops": {
+      "Bridge": [
+        0.15,
+        0.15,
+        0.85,
+        0.85
+      ]
+    }
+  },
+  "bridges": [
+    [
+      10.6,
+      8.9,
+      12.3,
+      9.9
+    ],
+    [
+      10.5,
+      15,
+      12.3,
+      16
+    ]
+  ]
 }

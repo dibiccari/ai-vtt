@@ -117,7 +117,9 @@ const slanted = pieces.filter((p) => Math.abs(p[0] - p[2]) > 1e-6 && Math.abs(p[
 const toPx = (s, type, extra = {}) => ({ x1: px(s[0], ox), y1: px(s[1], oy), x2: px(s[2], ox), y2: px(s[3], oy), type, open: false, ...extra });
 const walls = [...merged, ...slanted].map((s) => toPx(s, 'wall'));
 for (const d of allDoors) walls.push(toPx(d.h !== undefined ? [d.from, d.h, d.to, d.h] : [d.v, d.from, d.v, d.to], 'door', d.locked ? { locked: true } : {}));
-for (const f of mergeAxis(caveFences)) walls.push(toPx(f, 'fence'));
+// a bridge (rectangles in cell units, read from the legend's bridge symbol) lets you cross a chasm: no bars inside it
+const onBridge = (f) => (layout.bridges || []).some(([bx0, by0, bx1, by1]) => (f[0] + f[2]) / 2 > bx0 - 0.1 && (f[0] + f[2]) / 2 < bx1 + 0.1 && (f[1] + f[3]) / 2 > by0 - 0.1 && (f[1] + f[3]) / 2 < by1 + 0.1);
+for (const f of mergeAxis(caveFences).filter((f) => !onBridge(f))) walls.push(toPx(f, 'fence'));
 for (const f of layout.fences || []) {
   // a fence (bars) with a door gap: split it around any door lying on it
   const gaps = allDoors.filter((d) => d.h !== undefined && Math.abs(d.h - f.h) < 0.1 && d.from >= f.from - 0.2 && d.to <= f.to + 0.2).sort((a, b) => a.from - b.from);
