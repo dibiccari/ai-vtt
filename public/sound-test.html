@@ -78,7 +78,7 @@
     scene: {
       none: 'Nothing playing.',
       forest: 'Gentle wind in leaves with the odd birdsong.',
-      night: 'Crickets chirping, a soft night breeze and a distant campfire crackle.',
+      night: 'Crickets chirping, an owl hooting now and then, an occasional wolf howling far away, a soft breeze and a faint campfire.',
       wind: 'Steady wind that gusts and fades.',
       cave: 'A low hollow drone with water dripping and echoing.',
       dungeon: 'A deeper drone, slow drips and a torch crackling.',
@@ -133,7 +133,16 @@
     var fb = feedback[key] || { rating: '', note: '' };
     var r = document.createElement('div'); r.className = 'row';
     var play = document.createElement('button'); play.textContent = '▶ ' + (LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1)); play.dataset.name = name; play.className = 'play';
-    play.addEventListener('click', function () { Ambience.unlock(); Ambience.resume(); onPlay(name); group.querySelectorAll('.row .ctl > .play').forEach(function (b) { if (kind !== 'sfx') b.setAttribute('aria-pressed', String(b === play)); }); });
+    // Playing one sound stops all the others (the other scene, the mood, any sound effect still ringing), so you only ever hear the one you pressed.
+    play.addEventListener('click', function () {
+      Ambience.unlock(); Ambience.resume();
+      if (kind !== 'scene') Ambience.stop('scene');
+      if (kind !== 'mood') Ambience.stop('mood');
+      Ambience.stop('sfx');
+      document.querySelectorAll('.row .ctl > .play').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      onPlay(name);
+      if (kind !== 'sfx') play.setAttribute('aria-pressed', 'true');
+    });
     var stop = document.createElement('button'); stop.className = 'stop'; stop.textContent = '■ Stop'; stop.title = kind === 'sfx' ? 'Cut this sound off' : 'Stop this ' + kind;
     stop.addEventListener('click', function () { Ambience.stop(kind); group.querySelectorAll('.row .ctl > .play').forEach(function (b) { if (kind !== 'sfx') b.setAttribute('aria-pressed', 'false'); }); say('Stopped'); });
     var ctl = document.createElement('div'); ctl.className = 'ctl'; ctl.append(play, stop);
