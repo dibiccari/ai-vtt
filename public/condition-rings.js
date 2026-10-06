@@ -173,9 +173,22 @@
     var any = function (list) { return list.filter(has); };
     var out = { speed: base.speed, vision: base.vision, canAct: true, againstAdv: [], againstDis: [], ownAdv: [], ownDis: [], lines: [] };
     // speed
-    var stopped = any(['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised']);
+    var stopped = any(['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised', 'lethargic']);
     if (stopped.length) { out.speed = 0; out.lines.push('Speed 0 ft (' + stopped.join(', ') + ').'); }
-    else if (has('prone')) { out.speed = Math.floor(base.speed / 2); out.lines.push('Speed ' + out.speed + ' ft: crawling (prone).'); }
+    else {
+      // haste doubles the speed and slow halves it (both: back to normal); a prone creature crawls at half
+      var sp = base.speed;
+      if (has('haste')) sp *= 2;
+      if (has('slow')) sp = Math.floor(sp / 2);
+      if (has('prone')) sp = Math.floor(sp / 2);
+      out.speed = sp;
+      if (has('haste') || has('slow')) out.lines.push('Speed ' + sp + ' ft (' + [has('haste') ? 'haste doubles it' : '', has('slow') ? 'slow halves it' : '', has('prone') ? 'prone halves it' : ''].filter(Boolean).join(', ') + ').');
+      else if (has('prone')) out.lines.push('Speed ' + sp + ' ft: crawling (prone).');
+    }
+    out.acMod = (has('haste') ? 2 : 0) - (has('slow') ? 2 : 0);
+    if (out.acMod) out.lines.push('Armor Class ' + (out.acMod > 0 ? '+' : '-') + Math.abs(out.acMod) + ' (' + (out.acMod > 0 ? 'haste' : 'slow') + ').');
+    out.canReact = !has('slow');
+    if (!out.canReact) out.lines.push('No reactions (slow).');
     // sight: a blinded or unconscious character feels only their own square (1 ft)
     var blind = any(['blinded', 'unconscious']);
     if (blind.length) { out.vision = 1; out.lines.push('Sight 1 ft: feels only its own square (' + blind.join(', ') + ').'); }

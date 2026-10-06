@@ -437,6 +437,7 @@
 <script src="/wallobjects.js"></script>
 <script src="/combat-order.js"></script>
 <script src="/condition-rings.js"></script>
+<script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
 <script src="/ambience.js"></script>
 <script>
@@ -646,6 +647,10 @@ const cols = () => Math.ceil(state.map.width / GRID);
 const rows = () => Math.ceil(state.map.height / GRID);
 const centerOf = (cell) => cell * GRID + GRID / 2;
 const sqKey = (c, r) => `${c},${r}`;
+// Token size: a creature's footprint is n x n squares with (col,row) its top-left square (token-size.js). Centre, drawing and range all use the footprint centre.
+const fp = (t) => TokenSize.squares(t && t.size);
+const tcx = (t) => (t.col + fp(t) / 2) * GRID;
+const tcy = (t) => (t.row + fp(t) / 2) * GRID;
 
 function screenToWorld(sx, sy) {
   const v = state.view;
@@ -705,8 +710,8 @@ function focusStart() {
 
 function centerOnToken(t) {
   const v = state.view;
-  v.ox = wrap.clientWidth / 2 - centerOf(t.col) * v.scale;
-  v.oy = wrap.clientHeight / 2 - centerOf(t.row) * v.scale;
+  v.ox = wrap.clientWidth / 2 - tcx(t) * v.scale;
+  v.oy = wrap.clientHeight / 2 - tcy(t) * v.scale;
   requestRender();
 }
 
@@ -751,6 +756,8 @@ function pointSegmentDistance(px, py, w) {
 }
 
 const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open));       // stops movement
+// a flyer goes over low fences, windows and chasm bars, but not walls or closed doors
+const flyerWalls = () => blockingWalls().filter((w) => w.type !== 'fence' && w.type !== 'window' && w.type !== 'bars');
 const sightWalls = () => blockingWalls().filter((w) => w.type !== 'fence');                   // stops sight (a fence or a window stops movement only)
 
 // Visibility polygon: cast rays at every wall endpoint (±epsilon) plus a uniform fan.
@@ -780,7 +787,24 @@ function visibilityPolygon(ox, oy) {
   return points;
 }
 
+// moveN is the footprint (squares across) of the creature whose range is being worked out; (c, r) are top-left squares. A big creature
+// is blocked when any square of its body would cross a wall (so it cannot squeeze through a gap narrower than itself), or when a wall
+// stands inside the footprint it would end on.
+let moveN = 1;
+const inFp = (c, r) => inBounds(c, r) && inBounds(c + moveN - 1, r + moveN - 1);
 function moveBlocked(c1, r1, c2, r2, walls) {
+  if (moveN > 1) {
+    for (let i = 0; i < moveN; i++) {
+      for (let j = 0; j < moveN; j++) {
+        const x1 = centerOf(c1 + i), y1 = centerOf(r1 + j), x2 = centerOf(c2 + i), y2 = centerOf(r2 + j);
+        for (const w of walls) if (segmentsIntersect(x1, y1, x2, y2, w)) return true;
+        // a wall between two squares of the destination footprint
+        if (i + 1 < moveN) { const ax = centerOf(c2 + i), ay = centerOf(r2 + j); for (const w of walls) if (segmentsIntersect(ax, ay, centerOf(c2 + i + 1), ay, w)) return true; }
+        if (j + 1 < moveN) { const ax = centerOf(c2 + i), ay = centerOf(r2 + j); for (const w of walls) if (segmentsIntersect(ax, ay, ax, centerOf(r2 + j + 1), w)) return true; }
+      }
+    }
+    return false;
+  }
   const x1 = centerOf(c1), y1 = centerOf(r1), x2 = centerOf(c2), y2 = centerOf(r2);
   for (const w of walls) {
     if (segmentsIntersect(x1, y1, x2, y2, w)) return true;
@@ -813,7 +837,7 @@ function reachStandard(token, radiusFt, near) {
       for (let dr = -1; dr <= 1; dr++) {
         if (dc === 0 && dr === 0) continue;
         const nc = c + dc, nr = r + dr;
-        if (!inBounds(nc, nr)) continue;
+        if (!inFp(nc, nr)) continue;
         const k = sqKey(nc, nr);
         if (steps.has(k)) continue;
         if (near.length && moveBlocked(c, r, nc, nr, near)) continue;
@@ -838,7 +862,7 @@ function reachAlternating(token, radiusFt, near) {
       for (let dr = -1; dr <= 1; dr++) {
         if (dc === 0 && dr === 0) continue;
         const nc = c + dc, nr = r + dr;
-        if (!inBounds(nc, nr) || (near.length && moveBlocked(c, r, nc, nr, near))) continue;
+        if (!inFp(nc, nr) || (near.length && moveBlocked(c, r, nc, nr, near))) continue;
         const diagonal = dc !== 0 && dr !== 0;
         const next = here + (diagonal ? (p === 0 ? 5 : 10) : 5);
         const np = diagonal ? 1 - p : p;
@@ -866,7 +890,7 @@ function reachCircle(token, radiusFt, R, near) {
       const d = Math.hypot(dc, dr) * FT_PER_SQUARE;
       if (d > radiusFt + 1e-9) continue;
       const c = token.col + dc, r = token.row + dr;
-      if (!inBounds(c, r)) continue;
+      if (!inFp(c, r)) continue;
       if (near.length && moveBlocked(token.col, token.row, c, r, near)) continue;
       cost.set(sqKey(c, r), d);
     }
@@ -881,7 +905,7 @@ function reachCircle(token, radiusFt, R, near) {
         for (let dr = -1; dr <= 1; dr++) {
           if (dc === 0 && dr === 0) continue;
           const nc = c + dc, nr = r + dr;
-          if (!inBounds(nc, nr) || moveBlocked(c, r, nc, nr, near)) continue;
+          if (!inFp(nc, nr) || moveBlocked(c, r, nc, nr, near)) continue;
           const next = here + (dc !== 0 && dr !== 0 ? SQRT2 : 1) * FT_PER_SQUARE;
           const k = sqKey(nc, nr);
           if (next > radiusFt + 1e-9 || next >= (cost.get(k) ?? Infinity) - 1e-9) continue;
@@ -896,6 +920,9 @@ function reachCircle(token, radiusFt, R, near) {
 
 // ---- Difficult terrain ----
 // Rectangles saved on the map (Map Test > Terrain). Each foot of movement into a difficult square costs 1 extra foot, so entering one costs double.
+// a big creature moving into a footprint with any difficult square pays double
+let moveFlying = false;
+const difficultFp = (c, r) => { for (let i = 0; i < moveN; i++) for (let j = 0; j < moveN; j++) if (isDifficult(c + i, r + j)) return true; return false; };
 function isDifficult(c, r) {
   if (!state.difficult.length) return false;
   if (!state.difficultSquares) {
@@ -924,14 +951,14 @@ function reachTerrain(token, radiusFt, near, rule) {
       for (let dr = -1; dr <= 1; dr++) {
         if (dc === 0 && dr === 0) continue;
         const nc = c + dc, nr = r + dr;
-        if (!inBounds(nc, nr) || (near.length && moveBlocked(c, r, nc, nr, near))) continue;
+        if (!inFp(nc, nr) || (near.length && moveBlocked(c, r, nc, nr, near))) continue;
         const diagonal = dc !== 0 && dr !== 0;
         let step = FT_PER_SQUARE, np = p;
         if (diagonal) {
           if (rule === 'alternating') { step = p === 0 ? 5 : 10; np = 1 - p; }
           else if (rule === 'circle') step = SQRT2 * FT_PER_SQUARE;
         }
-        const next = here + step * (isDifficult(nc, nr) ? 2 : 1);
+        const next = here + step * (!moveFlying && difficultFp(nc, nr) ? 2 : 1);
         if (next > radiusFt + 1e-9) continue;
         const k = `${nc},${nr},${np}`;
         if (next >= (best.get(k) ?? Infinity) - 1e-9) continue;
@@ -954,20 +981,22 @@ function reachable(token) {
   const free = !state.combat.active && !state.gmOverride;                // no fight: move freely, no turns, no budget
   const rule = state.gmOverride || free ? 'standard' : state.moveRule;
   const leashOwner = token.summon ? state.tokens.find((o) => o.id === token.summon.ownerId) : null;
-  const sig = `${rule}|${free}|${state.difficult.length}|${token.id}|${token.col},${token.row}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
-    state.tokens.map((t) => sqKey(t.col, t.row)).join(';');
+  const sig = `${rule}|${free}|${state.difficult.length}|${token.id}|${token.col},${token.row}|${token.size || ''}|${token.elevation || ''}|${isFlying(token)}|${token.movementRemaining}|${state.wallsVersion}|${state.gmOverride}|${cols()}x${rows()}|${leashOwner ? leashOwner.col + ',' + leashOwner.row : ''}|` +
+    state.tokens.map((t) => sqKey(t.col, t.row) + 'x' + fp(t)).join(';');
   if (reachCache.sig === sig) return reachCache.map;
 
   const radiusFt = state.gmOverride ? Infinity : free ? FREE_ROAM_FT : token.movementRemaining;
   const R = Number.isFinite(radiusFt) ? Math.ceil(radiusFt / FT_PER_SQUARE) : Math.max(cols(), rows());
-  const x0 = centerOf(token.col), y0 = centerOf(token.row);
+  const x0 = tcx(token), y0 = tcy(token);
+  moveN = fp(token);
+  moveFlying = isFlying(token);
   const reachPx = (R + 1) * GRID;
   // Only walls near the token can matter.
-  const near = state.gmOverride ? [] : blockingWalls().filter((w) =>
+  const near = state.gmOverride ? [] : (moveFlying ? flyerWalls() : blockingWalls()).filter((w) =>
     Math.min(w.x1, w.x2) <= x0 + reachPx && Math.max(w.x1, w.x2) >= x0 - reachPx &&
     Math.min(w.y1, w.y2) <= y0 + reachPx && Math.max(w.y1, w.y2) >= y0 - reachPx);
 
-  const cost = state.difficult.length && !state.gmOverride && !free ? reachTerrain(token, radiusFt, near, rule)
+  const cost = state.difficult.length && !state.gmOverride && !free && !moveFlying ? reachTerrain(token, radiusFt, near, rule)
     : rule === 'circle' ? reachCircle(token, radiusFt, R, near)
     : rule === 'alternating' ? reachAlternating(token, radiusFt, near)
     : reachStandard(token, radiusFt, near);
@@ -978,9 +1007,14 @@ function reachable(token) {
       if (Math.hypot(c - leashOwner.col, r - leashOwner.row) * FT_PER_SQUARE > token.summon.leashFt) cost.delete(k);
     }
   }
-  // Allies may be passed through, but a move cannot end on an occupied square.
+  // Allies may be passed through, but a move cannot end on an occupied square (any square of the footprint).
   for (const other of state.tokens) {
-    if (other !== token && !(other.dead && !other.isPC)) cost.delete(sqKey(other.col, other.row));   // a defeated creature lies on the ground: it does not block
+    if (other === token || (other.dead && !other.isPC)) continue;                 // a defeated creature lies on the ground: it does not block
+    const o = { col: other.col, row: other.row, n: fp(other) };
+    for (const k of [...cost.keys()]) {
+      const [c, r] = k.split(',').map(Number);
+      if (TokenSize.overlaps({ col: c, row: r, n: moveN }, o)) cost.delete(k);
+    }
   }
   reachCache = { sig, map: cost };
   return cost;
@@ -992,8 +1026,8 @@ function reachable(token) {
 const activeToken = () => state.tokens[state.activeIndex] || null;
 const characterFor = (t) => (t?.characterId ? state.characters.find((c) => c.id === t.characterId) : null);
 
-function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '', hidden = false, kind = 'creature' }) {
-  return { id, name, color, characterId, isPC, col, row, speed, image, hidden: Boolean(hidden), kind: kind === 'trap' ? 'trap' : 'creature', conditions: [], movementRemaining: speed };
+function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '', hidden = false, kind = 'creature', size = 'medium', flySpeed = 0, hover = false }) {
+  return { id, name, color, characterId, isPC, col, row, speed, image, hidden: Boolean(hidden), kind: kind === 'trap' ? 'trap' : 'creature', size: TokenSize.normalize(size), flySpeed: Number(flySpeed) > 0 ? Number(flySpeed) : 0, hover: Boolean(hover), elevation: 0, conditions: [], movementRemaining: Math.max(0, speed) };
 }
 
 // ---- Conditions and lasting effects on tokens ----
@@ -1033,9 +1067,35 @@ const CONDITION_HELP = {
 };
 const conditionHelp = (name) => CONDITION_HELP[name] || '';
 // Speed lost to conditions: held, paralyzed, petrified, stunned or unconscious creatures cannot move; prone ones crawl.
+// Flying (2014 PHB "Flying Movement"): a creature with a flying speed (its own, or 60 ft from the fly spell) uses it while it is in the air (elevation above 0), or always when it has no walking speed (a ghost, a flameskull).
+const flySpeedOf = (t) => Math.max(Number(t && t.flySpeed) || 0, hasCondition(t, 'fly') ? 60 : 0);
+const isFlying = (t) => Boolean(t) && flySpeedOf(t) > 0 && ((Number(t.elevation) || 0) > 0 || !(Number(t.speed) > 0));
+// Speed now: the walking or flying speed, doubled by haste, halved by slow (both: back to normal), halved when prone; none when held, stunned and so on, or lethargic after haste ends.
 function effectiveSpeed(t) {
-  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised'].some((n) => hasCondition(t, n))) return 0;
-  return hasCondition(t, 'prone') ? Math.floor((t.speed || 0) / 2) : t.speed;
+  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised', 'lethargic'].some((n) => hasCondition(t, n))) return 0;
+  let sp = isFlying(t) ? flySpeedOf(t) : t.speed;
+  if (!Number.isFinite(sp)) return sp;
+  if (hasCondition(t, 'haste')) sp *= 2;
+  if (hasCondition(t, 'slow')) sp = Math.floor(sp / 2);
+  return hasCondition(t, 'prone') ? Math.floor(sp / 2) : sp;
+}
+// Armor Class now: the base AC plus haste (+2) and slow (-2). The base number is never changed.
+const acBonusOf = (t) => (hasCondition(t, 'haste') ? 2 : 0) - (hasCondition(t, 'slow') ? 2 : 0);
+const effAcOf = (t) => { const ac = acOf(t); return ac === null ? null : ac + acBonusOf(t); };
+// A flying creature falls when it is knocked prone, held, paralyzed, stunned, petrified or unconscious or at 0 hit points, unless it can hover or the fly spell holds it up; it also falls when the fly spell ends.
+// Fall damage is 1d6 bludgeoning per 10 ft (at most 20d6) and it lands prone: the table does not roll it, the DM is told.
+const FALL_CONDITIONS = ['prone', 'grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious'];
+function checkFall(t) {
+  const h = Number(t && t.elevation) || 0;
+  if (h <= 0 || t.hover || hasCondition(t, 'fly')) return false;
+  if (flySpeedOf(t) > 0 && !FALL_CONDITIONS.some((n) => hasCondition(t, n)) && hpOf(t) !== 0) return false;
+  t.elevation = 0;
+  const dice = TokenSize.fallDice(h);
+  if (dice > 0) setCondition(t, 'prone', 0);
+  const line = `${t.name} falls ${h} ft${dice ? `: ${dice}d6 bludgeoning damage, lands prone` : ': no damage (under 10 ft)'}`;
+  if (seenByParty(t)) addChat('system', '↳ ' + line);
+  state.pendingNotes.push(line + (dice ? '. Roll the damage (the table does not) and apply it with a damage token update.' : '.'));
+  return true;
 }
 // Effects (not conditions) with how long they last: loaded from /effect-data.json; the game clock (minutes since Day 1, 00:00) comes with every DM reply and from /api/party.
 let EFFECT_DEFS = {};
@@ -1067,6 +1127,7 @@ function setCondition(t, name, rounds, opts = {}) {
   const have = t.conditions.find((c) => c.name === key);
   if (have) { for (const k of ['untilMin', 'source', 'concentration']) delete have[k]; Object.assign(have, entry); } else t.conditions.push(entry);
   if (t === activeToken() && Number.isFinite(t.movementRemaining) && !t.conditions.some((c) => c.name === 'dashing')) t.movementRemaining = Math.min(t.movementRemaining, effectiveSpeed(t));
+  if (FALL_CONDITIONS.includes(key)) checkFall(t);
   return true;
 }
 
@@ -1076,7 +1137,11 @@ function clearCondition(t, name) {
   const before = t.conditions.length;
   t.conditions = t.conditions.filter((c) => c.name !== key);
   if (key === 'concentrating') endConcentrationEffects(t);
-  return t.conditions.length !== before;
+  const removed = t.conditions.length !== before;
+  // Haste ending leaves the creature lethargic: it can't move or take actions until after its next turn (2014 PHB, haste).
+  if (removed && key === 'haste' && !t.dead) { setCondition(t, 'lethargic', 2); if (seenByParty(t)) addChat('system', `↳ ${t.name} is lethargic: it can't move or take actions until after its next turn`); }
+  if (removed && key === 'fly') checkFall(t);
+  return removed;
 }
 // When a caster stops concentrating, every effect that depends on it (put on with the caster's token id as its source) ends too.
 function endConcentrationEffects(caster) {
@@ -1181,7 +1246,9 @@ function seenByParty(t) {
   if (t.isPC) return true;
   if (t.hidden || hasCondition(t, 'invisible')) return false;
   if (!state.fogEnabled || state.gmOverride) return true;
-  const x = centerOf(t.col), y = centerOf(t.row);
+  // A token is seen when its centre is in sight, or (a big one) the centre of any of its squares: the edge-most visible point.
+  if (fp(t) > 1) return TokenSize.cells(t.col, t.row, fp(t)).concat([[t.col + fp(t) / 2 - 0.5, t.row + fp(t) / 2 - 0.5]]).some(([c, r]) => { const x = centerOf(c), y = centerOf(r); return state.sight.some((s) => visibleFrom(s, x, y)); });
+  const x = tcx(t), y = tcy(t);
   return state.sight.some((s) => visibleFrom(s, x, y));
 }
 const canSee = (t) => seenByParty(t) || state.dmView;
@@ -1201,18 +1268,19 @@ function artFor(url) {
   return img.complete && img.naturalWidth && !img.failed ? img : null;
 }
 
-function freeSquareNear(col, row) {
-  const taken = new Set(state.tokens.filter((t) => !(t.dead && !t.isPC)).map((t) => sqKey(t.col, t.row)));
+// The nearest top-left square where a footprint of n x n squares fits on the map and overlaps no other token (a square near (col, row); n = 1 for a medium creature).
+function freeSquareNear(col, row, n = 1) {
+  const others = state.tokens.filter((t) => !(t.dead && !t.isPC)).map((t) => ({ col: t.col, row: t.row, n: fp(t) }));
+  const fits = (c, r) => inBounds(c, r) && inBounds(c + n - 1, r + n - 1) && !others.some((o) => TokenSize.overlaps({ col: c, row: r, n }, o));
   for (let radius = 0; radius < Math.max(cols(), rows()); radius++) {
     for (let dc = -radius; dc <= radius; dc++) {
       for (let dr = -radius; dr <= radius; dr++) {
         if (Math.max(Math.abs(dc), Math.abs(dr)) !== radius) continue;
-        const c = col + dc, r = row + dr;
-        if (inBounds(c, r) && !taken.has(sqKey(c, r))) return { col: c, row: r };
+        if (fits(col + dc, row + dr)) return { col: col + dc, row: row + dr };
       }
     }
   }
-  return { col: clamp(col, 0, cols() - 1), row: clamp(row, 0, rows() - 1) };
+  return { col: clamp(col, 0, cols() - n), row: clamp(row, 0, rows() - n) };
 }
 
 function createDefaultTokens() {
@@ -1237,6 +1305,7 @@ function syncTokensWithCharacters() {
     t.name = c.name;
     t.color = c.color;
     t.image = c.image || '';
+    if (c.size) t.size = TokenSize.normalize(c.size);              // a character record may say Small (a halfling) or something bigger; the default is Medium
     const sp = c.effSpeed ?? c.speed;   // exhaustion slows a character
     if (t.speed !== sp) {
       t.speed = sp;
@@ -1271,7 +1340,7 @@ function tokenAt(wx, wy) {
   for (let i = state.tokens.length - 1; i >= 0; i--) {
     const t = state.tokens[i];
     if (!canSee(t) || (t.dead && !t.isPC)) continue;                // bodies cannot be picked up or targeted
-    if (Math.hypot(wx - centerOf(t.col), wy - centerOf(t.row)) <= GRID * 0.45) return t;
+    if (Math.hypot(wx - tcx(t), wy - tcy(t)) <= GRID * 0.45 * Math.max(1, fp(t))) return t;
   }
   return null;
 }
@@ -1293,7 +1362,7 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds, ...(Number.isFinite(c.untilMin) ? { untilMin: c.untilMin, minutesLeft: minutesLeft(c) } : {}), ...(c.source ? { source: c.source } : {}), ...(c.concentration ? { concentration: true } : {}) })),
+  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', size: TokenSize.normalize(t.size), footprint: fp(t), flySpeed: t.flySpeed || 0, hover: Boolean(t.hover), elevation: Number(t.elevation) || 0, ...(Number(t.elevation) > 0 ? { elevationNote: `${t.elevation} ft up: a melee attacker needs a reach of at least ${t.elevation} ft to hit it (5 ft reach cannot); brought down it falls ${TokenSize.fallDice(t.elevation)}d6 bludgeoning and lands prone` } : {}), speedNow: effectiveSpeed(t), effectiveAc: effAcOf(t), conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds, ...(c.armed ? { armed: true } : {}), ...(Number.isFinite(c.untilMin) ? { untilMin: c.untilMin, minutesLeft: minutesLeft(c) } : {}), ...(c.source ? { source: c.source } : {}), ...(c.concentration ? { concentration: true } : {}) })),
     summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
@@ -1374,7 +1443,7 @@ function revealFog() {
   const members = [];
   for (const t of state.tokens) {
     if (!t.isPC || isElsewhere(t)) continue;
-    const cx = centerOf(t.col), cy = centerOf(t.row);
+    const cx = tcx(t), cy = tcy(t);
     const poly = visibilityPolygon(cx, cy);
     if (poly.length < 3) continue;
     const c = characterFor(t);
@@ -1515,7 +1584,7 @@ async function travelTo(u) {
   for (const t of party) {
     // A named arrival spot (the front door, the alley) wins; otherwise the party goes back where they last stood on that map.
     const was = !u.explicit && memory && memory.party[t.id];
-    const spot = was && inBounds(was.col, was.row) ? { col: was.col, row: was.row } : freeSquareNear(clamp(u.col, 0, cols() - 1), clamp(u.row, 0, rows() - 1));
+    const spot = was && inBounds(was.col, was.row) ? { col: was.col, row: was.row } : freeSquareNear(clamp(u.col, 0, cols() - 1), clamp(u.row, 0, rows() - 1), fp(t));
     t.col = spot.col;
     t.row = spot.row;
     t.movementRemaining = t.speed;
@@ -1756,7 +1825,7 @@ function drawReachable() {
   ctx.fillStyle = 'rgba(240, 192, 72, 0.10)';
   for (const k of set) {
     const [c, r] = k.split(',').map(Number);
-    ctx.fillRect(c * GRID, r * GRID, GRID, GRID);
+    ctx.fillRect(c * GRID, r * GRID, GRID * fp(t), GRID * fp(t));
   }
   ctx.strokeStyle = 'rgba(240, 192, 72, 0.85)';
   ctx.lineWidth = 2 / state.view.scale;
@@ -1764,7 +1833,7 @@ function drawReachable() {
   ctx.beginPath();
   if (state.moveRule === 'circle') {
     // Round rule: the true circle at the movement radius.
-    ctx.arc(centerOf(t.col), centerOf(t.row), (t.movementRemaining / FT_PER_SQUARE) * GRID, 0, Math.PI * 2);
+    ctx.arc(tcx(t), tcy(t), (t.movementRemaining / FT_PER_SQUARE) * GRID, 0, Math.PI * 2);
   } else {
     // Boundary outline: edges whose neighbour is outside the reachable set.
     for (const k of set) {
@@ -1784,7 +1853,7 @@ function tokenDisplayPos(t, now) {
   if (interaction.mode === 'drag' && interaction.token === t) {
     return { x: interaction.wx - interaction.offX, y: interaction.wy - interaction.offY };
   }
-  const tx = centerOf(t.col), ty = centerOf(t.row);
+  const tx = tcx(t), ty = tcy(t);
   if (t._anim) {
     const p = Math.min(1, (now - t._anim.start) / 180);
     if (p >= 1) { t._anim = null; return { x: tx, y: ty }; }
@@ -1798,13 +1867,13 @@ function tokenDisplayPos(t, now) {
 function drawTokens(pcs, now) {
   if (plainMap()) return;          // regional and town maps are just maps: no tokens on them
   const active = activeToken();
-  const radius = GRID * 0.4;
   const ordered = state.tokens.filter((t) => (pcs ? (t.isPC || (state.dmView && !seenByParty(t))) : (!t.isPC && seenByParty(t))));
   // Draw the dragged token last so it floats above the others.
   ordered.sort((a, b) => (a === interaction.token) - (b === interaction.token));
   for (const t of ordered) {
     const { x, y } = tokenDisplayPos(t, now);
     const isActive = t === active;
+    const radius = GRID * (TokenSize.normalize(t.size) === 'tiny' ? 0.2 : 0.4 + 0.5 * (fp(t) - 1));        // a footprint of n squares is drawn n squares across; Tiny at half a square
     const dragging = interaction.mode === 'drag' && interaction.token === t;
     const ghost = !t.isPC && !seenByParty(t);
     const glyph = t.kind === 'trap' ? '⚠' : isSummon(t) ? (SUMMONS[t.summon.kind] || {}).glyph || '✦' : initials(t.name);
@@ -1867,12 +1936,23 @@ function drawTokens(pcs, now) {
     }
     const hpMax = maxHpOf(t), hpNow = hpOf(t);
     if (hpMax > 0) {
-      const bw = GRID * 0.8, bh = 5, bx = x - bw / 2, by = y + radius + 4 + ringReach;
+      const bw = GRID * 0.8 * Math.max(1, fp(t)), bh = 5, bx = x - bw / 2, by = y + radius + 4 + ringReach;
       const pct = clamp(hpNow / hpMax, 0, 1);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
       ctx.fillStyle = pct > 0.5 ? '#3fd27f' : pct > 0.25 ? '#f0c048' : '#ff6b6b';
       ctx.fillRect(bx, by, bw * pct, bh);
+    }
+    if ((Number(t.elevation) || 0) > 0) {
+      const label = `↑${t.elevation}`;
+      ctx.font = `800 ${Math.round(GRID * 0.22)}px Inter, "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const ew = ctx.measureText(label).width + 8, ex = x + radius - ew / 2, ey = y - radius + 8;
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = 'rgba(7, 9, 13, 0.9)';
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(ex - ew / 2, ey - 8, ew, 16, 8); ctx.fill(); } else ctx.fillRect(ex - ew / 2, ey - 8, ew, 16);
+      ctx.fillStyle = '#9ad7ff';
+      ctx.fillText(label, ex, ey + 1);
     }
     if (t.dead) {
       ctx.strokeStyle = 'rgba(255, 90, 90, 0.95)';
@@ -1904,8 +1984,9 @@ function dragTarget() {
   const t = interaction.token;
   const x = interaction.wx - interaction.offX;
   const y = interaction.wy - interaction.offY;
-  const { col, row } = worldToCell(x, y);
-  const cell = { col: clamp(col, 0, cols() - 1), row: clamp(row, 0, rows() - 1) };
+  const n = fp(t);
+  // (x, y) is where the token's centre is: the top-left square of its footprint is half its width up and left of it
+  const cell = { col: clamp(Math.round(x / GRID - n / 2), 0, cols() - n), row: clamp(Math.round(y / GRID - n / 2), 0, rows() - n) };
   const same = cell.col === t.col && cell.row === t.row;
   const cost = reachable(t).get(sqKey(cell.col, cell.row));
   return { ...cell, same, cost, legal: same || cost !== undefined };
@@ -1920,13 +2001,14 @@ function drawDragPreview() {
   ctx.fillStyle = target.legal ? 'rgba(63, 210, 127, 0.28)' : 'rgba(255, 107, 107, 0.30)';
   ctx.strokeStyle = target.legal ? '#3fd27f' : '#ff6b6b';
   ctx.lineWidth = 2 / s;
-  ctx.fillRect(target.col * GRID, target.row * GRID, GRID, GRID);
-  ctx.strokeRect(target.col * GRID, target.row * GRID, GRID, GRID);
+  const nn = fp(t);
+  ctx.fillRect(target.col * GRID, target.row * GRID, GRID * nn, GRID * nn);
+  ctx.strokeRect(target.col * GRID, target.row * GRID, GRID * nn, GRID * nn);
   ctx.setLineDash([6 / s, 5 / s]);
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.beginPath();
-  ctx.moveTo(centerOf(t.col), centerOf(t.row));
-  ctx.lineTo(centerOf(target.col), centerOf(target.row));
+  ctx.moveTo(tcx(t), tcy(t));
+  ctx.lineTo((target.col + nn / 2) * GRID, (target.row + nn / 2) * GRID);
   ctx.stroke();
   ctx.setLineDash([]);
   const label = target.same ? '0 ft'
@@ -1935,7 +2017,7 @@ function drawDragPreview() {
   ctx.font = `700 ${14 / s}px Inter, "Segoe UI", system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const lx = centerOf(target.col), ly = target.row * GRID - 14 / s;
+  const lx = (target.col + nn / 2) * GRID, ly = target.row * GRID - 14 / s;
   const tw = ctx.measureText(label).width + 14 / s;
   ctx.fillStyle = 'rgba(7, 9, 13, 0.9)';
   ctx.fillRect(lx - tw / 2, ly - 11 / s, tw, 22 / s);
@@ -2039,8 +2121,8 @@ canvas.addEventListener('pointerdown', (e) => {
       interaction.token = t;
       interaction.wx = world.x;
       interaction.wy = world.y;
-      interaction.offX = world.x - centerOf(t.col);
-      interaction.offY = world.y - centerOf(t.row);
+      interaction.offX = world.x - tcx(t);
+      interaction.offY = world.y - tcy(t);
       t._anim = null;
       updateCursor(world);
       requestRender();
@@ -2374,7 +2456,7 @@ function allLights() {
   for (const l of state.lights) if (!off.includes(l.id)) out.push(l);
   for (const t of state.tokens) {
     const k = LIGHT_KINDS[t.lightKind];
-    if (k && !t.dead) out.push({ id: `token-${t.id}`, name: `${t.name}'s ${k[2].toLowerCase()}`, x: centerOf(t.col), y: centerOf(t.row), bright: feetToPx(k[0]), dim: feetToPx(k[1]) });
+    if (k && !t.dead) out.push({ id: `token-${t.id}`, name: `${t.name}'s ${k[2].toLowerCase()}`, x: tcx(t), y: tcy(t), bright: feetToPx(k[0]), dim: feetToPx(k[1]) });
   }
   return out;
 }
@@ -2702,21 +2784,23 @@ function rollInitiative(t, quiet) {
 // Hit points go up or down here. A creature at 0 is defeated; a player character at 0 falls unconscious and starts making death saves.
 // ---- Combat extras: opportunity attacks, concentration, spell areas ----
 // Table notes for the DM: things the table noticed that the DM should resolve (told with the next message).
+// Reach is measured edge to edge between footprints (5 ft reach = touching), and a target in the air above that reach cannot be hit in melee.
 const adjacentSq = (c1, r1, c2, r2) => Math.max(Math.abs(c1 - c2), Math.abs(r1 - r2)) <= 1;
-const NO_REACTION = ['incapacitated', 'paralyzed', 'stunned', 'unconscious', 'petrified', 'surprised'];
+const inMeleeReach = (o, mover, col, row) => TokenSize.meleeReaches(5, TokenSize.gap({ col: o.col, row: o.row, n: fp(o) }, { col, row, n: fp(mover) }), (Number(o.elevation) || 0) - (Number(mover.elevation) || 0));
+const NO_REACTION = ['incapacitated', 'paralyzed', 'stunned', 'unconscious', 'petrified', 'surprised', 'slow'];
 const canReact = (t) => !t.dead && hpOf(t) !== 0 && !(t.spent && t.spent.r) && !NO_REACTION.some((n) => hasCondition(t, n));
 
 // Creatures that could make an opportunity attack because `mover` left their reach (5 ft) without Disengaging. Foes only, and only ones that can react.
 function provokedBy(mover, fromCol, fromRow, toCol, toRow) {
   if (!state.combat.active || hasCondition(mover, 'disengaged') || isElsewhere(mover)) return [];
   return state.tokens.filter((o) => o !== mover && o.kind !== 'trap' && !isSummon(o) && o.isPC !== mover.isPC && !isElsewhere(o)
-    && (o.isPC || seenByParty(o)) && canReact(o) && adjacentSq(o.col, o.row, fromCol, fromRow) && !adjacentSq(o.col, o.row, toCol, toRow));
+    && (o.isPC || seenByParty(o)) && canReact(o) && inMeleeReach(o, mover, fromCol, fromRow) && !inMeleeReach(o, mover, toCol, toRow));
 }
 // Foes that were next to the mover's old square and are not next to the new one but cannot make the attack, with the reason (the DM is told the facts).
 function cannotReactTo(mover, fromCol, fromRow, toCol, toRow) {
   if (!state.combat.active || hasCondition(mover, 'disengaged') || isElsewhere(mover)) return [];
   return state.tokens.filter((o) => o !== mover && o.kind !== 'trap' && !isSummon(o) && o.isPC !== mover.isPC && !isElsewhere(o)
-    && (o.isPC || seenByParty(o)) && !canReact(o) && adjacentSq(o.col, o.row, fromCol, fromRow) && !adjacentSq(o.col, o.row, toCol, toRow))
+    && (o.isPC || seenByParty(o)) && !canReact(o) && inMeleeReach(o, mover, fromCol, fromRow) && !inMeleeReach(o, mover, toCol, toRow))
     .map((o) => ({ name: o.name, why: o.dead || hpOf(o) === 0 ? 'down' : o.spent && o.spent.r ? 'has already used its reaction this round' : (NO_REACTION.find((n) => hasCondition(o, n)) || 'cannot react') }));
 }
 function noteOpportunityAttacks(mover, fromCol, fromRow) {
@@ -2774,6 +2858,8 @@ function insideTemplate(tp, x, y) {
   const along = vx * tp.dx + vy * tp.dy, across = Math.abs(vx * tp.dy - vy * tp.dx);
   return along >= 0 && along <= tp.size * ftPx + 1 && across <= 3 * ftPx;                // a line is 5 ft wide; a little slack for square centres
 }
+// A creature is inside an area when its footprint overlaps it: any square of the footprint counts (the centre of its centre for a tiny or medium one).
+const insideTemplateFp = (tp, t) => TokenSize.cells(t.col, t.row, fp(t)).some(([c, r]) => insideTemplate(tp, centerOf(c), centerOf(r)));
 function addTemplate(u) {
   const shape = templateShape(u.shape);
   if (String(u.shape || '').toLowerCase().trim() === 'clear') { state.templates = []; requestRender(); return; }
@@ -2784,14 +2870,14 @@ function addTemplate(u) {
   let tp;
   if (shape === 'sphere' || shape === 'cube') tp = { shape, size, x: px, y: py };
   else {
-    const ox = caster ? centerOf(caster.col) : px, oy = caster ? centerOf(caster.row) : py;
+    const ox = caster ? tcx(caster) : px, oy = caster ? tcy(caster) : py;
     const len = Math.hypot(px - ox, py - oy) || 1;
     tp = { shape, size, x: ox, y: oy, dx: (px - ox) / len, dy: (py - oy) / len };
   }
   tp.label = `${shape === 'sphere' ? 'Sphere' : shape === 'cube' ? 'Cube' : shape === 'cone' ? 'Cone' : 'Line'} ${size} ft`;
   tp.at = Date.now();
   state.templates.push(tp);
-  const inside = state.tokens.filter((x) => x !== caster && x.kind !== 'trap' && !isSummon(x) && !isElsewhere(x) && insideTemplate(tp, centerOf(x.col), centerOf(x.row)));
+  const inside = state.tokens.filter((x) => x !== caster && x.kind !== 'trap' && !isSummon(x) && !isElsewhere(x) && insideTemplateFp(tp, x));
   const seen = inside.filter(seenByParty);
   addChat('system', `✨ ${tp.label}: ${seen.length ? 'catches ' + seen.map((x) => x.name).join(', ') : 'catches no one you can see'}`);
   state.pendingNotes.push(`The ${tp.label} area covers: ${inside.length ? inside.map((x) => x.name + (seenByParty(x) ? '' : ' (hidden from the players)')).join(', ') : 'no one'}. Use this list for saving throws and damage.`);
@@ -2860,6 +2946,7 @@ function changeHp(t, delta) {
     if (t.isPC) { clearCondition(t, 'unconscious'); t.deathSaves = null; t.stable = false; }
     else t.dead = false;
   }
+  if (after === 0) checkFall(t);
   return { before, after };
 }
 
@@ -2880,6 +2967,8 @@ function beginTurn(t) {
   t.actsAfter = '';
   t.readied = '';                                              // a readied action that never triggered is lost when the next turn starts
   state.templates = [];
+  const lazy = tokenConditions(t).find((c) => c.name === 'lethargic');
+  if (lazy) { lazy.armed = true; t.spent = { a: true, b: true, r: false }; }                     // the turn after haste ended: no move, no actions (a reaction is not an action)
   if (hasCondition(t, 'surprised')) { t.spent = { a: true, b: true, r: true }; if (seenByParty(t)) addChat('system', `↳ ${t.name} is surprised and loses this turn`); }
   if (seenByParty(t)) toast(`${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`, 'ok');
 }
@@ -2932,7 +3021,8 @@ function nextCombatTurn() {
   state.combat.fresh = false;
   const leaving = activeToken();
   if (leaving && hasCondition(leaving, 'surprised')) clearCondition(leaving, 'surprised');       // surprise ends when its first turn ends
-  if (leaving && hasCondition(leaving, 'dashing')) clearCondition(leaving, 'dashing');         // a Dash lasts for the turn it was taken
+  if (leaving && hasCondition(leaving, 'dashing')) clearCondition(leaving, 'dashing');
+  if (leaving && tokenConditions(leaving).some((c) => c.name === 'lethargic' && c.armed)) clearCondition(leaving, 'lethargic');       // lethargy lasts until after its next turn         // a Dash lasts for the turn it was taken
   // Defeated creatures are skipped; creatures the party cannot see are skipped too (the AI plays their turns in the narration); so are delayed ones.
   const pick = CombatOrder.nextActor(order.map((t) => ({ id: t.id, dead: t.dead, unseen: !seenByParty(t), delayed: t.delayed })), leaving ? leaving.id : '');
   const chosen = pick ? order.find((t) => t.id === pick.id) : null;
@@ -3014,11 +3104,11 @@ async function addMonsters(name, count, hidden) {
   const n = clamp(Math.round(count) || 1, 1, 20);
   const sameBefore = state.tokens.filter((t) => t.monster === entry.index).length;
   for (let i = 0; i < n; i++) {
-    const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
+    const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1), TokenSize.squares(entry.size));
     const number = sameBefore + i + 1;
     const t = makeToken({
       id: `mon-${entry.index}-${Date.now().toString(36)}${i}`, name: n + sameBefore > 1 ? `${entry.name} ${number}` : entry.name,
-      color: '#a04545', isPC: false, hidden, kind: 'creature', speed: Number.isFinite(walk) ? walk : 30, image: entry.image || '', ...spot
+      color: '#a04545', isPC: false, hidden, kind: 'creature', speed: Number.isFinite(walk) ? walk : 30, image: entry.image || '', size: entry.size, flySpeed: TokenSize.parseSpeeds(entry.speed).fly, hover: Boolean(entry.speed && entry.speed.hover), ...spot
     });
     Object.assign(t, { monster: entry.index, hp: entry.hit_points, maxHp: entry.hit_points, ac: entry.armor_class[0].value, dexMod: Math.floor((entry.dexterity - 10) / 2), passivePerception: Number(entry.senses && entry.senses.passive_perception) || 10 + Math.floor(((Number(entry.wisdom) || 10) - 10) / 2) });
     state.tokens.push(t);
@@ -3105,8 +3195,8 @@ function combatRow(t) {
     if (hideNumbers) { text.style.minWidth = '0'; bar.title = pct > 0.75 ? 'Unhurt or lightly wounded' : pct > 0.5 ? 'Wounded' : pct > 0.25 ? 'Bloodied' : 'Near death'; }
     line1.append(bar, text);
   }
-  const ac = acOf(t);
-  if (ac !== null) { const s = document.createElement('span'); s.className = 'cb-ac'; s.textContent = `AC ${ac}`; line1.appendChild(s); }
+  const ac = effAcOf(t);
+  if (ac !== null) { const s = document.createElement('span'); s.className = 'cb-ac'; s.textContent = `AC ${ac}`; if (ac !== acOf(t)) s.title = `Base AC ${acOf(t)} ${acBonusOf(t) > 0 ? '+' : '−'} ${Math.abs(acBonusOf(t))} (${acBonusOf(t) > 0 ? 'haste' : 'slow'})`; line1.appendChild(s); }
   if (!current) {
     const more = document.createElement('button');
     more.type = 'button';
@@ -3870,6 +3960,27 @@ async function applyMapUpdates(updates) {
       case 'template':
         addTemplate(u);
         break;
+      case 'elevateToken': {
+        // How high a creature is above the ground, in feet (0 lands). Only a flyer can choose to stay up; a fall is checked when something takes its flight away.
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t) break;
+        const h = clamp(Math.round(Number(u.feet) || 0), 0, 5000);
+        t.elevation = h;
+        if (seenByParty(t)) addChat('system', h ? `↳ ${t.name} is ${h} ft in the air` : `↳ ${t.name} is on the ground`);
+        break;
+      }
+      case 'resizeToken': {
+        // Enlarge, reduce or polymorph: a new size. The footprint stays anchored at its top-left square; if it no longer fits there it moves to the nearest place it does.
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (!t) break;
+        t.size = TokenSize.normalize(u.size);
+        const n = fp(t);
+        const others = state.tokens.filter((x) => x !== t && !(x.dead && !x.isPC)).map((x) => ({ col: x.col, row: x.row, n: fp(x) }));
+        const here = { col: clamp(t.col, 0, cols() - n), row: clamp(t.row, 0, rows() - n), n };
+        if (others.some((o) => TokenSize.overlaps(here, o))) { t.col = -100; t.row = -100; const spot = freeSquareNear(here.col, here.row, n); t.col = spot.col; t.row = spot.row; } else { t.col = here.col; t.row = here.row; }
+        if (seenByParty(t)) addChat('system', `↳ ${t.name} is now ${t.size}`);
+        break;
+      }
       case 'setWhere': {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t || !t.isPC) break;
@@ -3892,8 +4003,8 @@ async function applyMapUpdates(updates) {
       case 'moveToken': {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
-        const fromX = centerOf(t.col), fromY = centerOf(t.row);
-        let col = clamp(u.col, 0, cols() - 1), row = clamp(u.row, 0, rows() - 1);
+        const fromX = tcx(t), fromY = tcy(t);
+        let col = clamp(u.col, 0, cols() - fp(t)), row = clamp(u.row, 0, rows() - fp(t));
         // The DM's moves obey the table's walls and the token's speed: a move that cannot be done stops at the nearest square that can.
         if (!plainMap() && !(col === t.col && row === t.row)) {
           const saved = t.movementRemaining;
@@ -3924,7 +4035,11 @@ async function applyMapUpdates(updates) {
       case 'addToken': {
         if (!u.tokenId || !Number.isInteger(u.col) || !Number.isInteger(u.row)) break;
         const existing = state.tokens.find((x) => x.id === u.tokenId);
-        const spot = existing ? { col: clamp(u.col, 0, cols() - 1), row: clamp(u.row, 0, rows() - 1) } : freeSquareNear(u.col, u.row);
+        // (col, row) is the top-left square of the footprint. A big creature put exactly on a module-area pin is centred on it when it fits.
+        const n = existing ? fp(existing) : TokenSize.squares(u.size);
+        let want = { col: u.col, row: u.row };
+        if (n > 1 && state.areaPins.some((p) => p.col === u.col && p.row === u.row)) want = TokenSize.topLeftFor(u.col, u.row, n);
+        const spot = existing ? { col: clamp(u.col, 0, cols() - n), row: clamp(u.row, 0, rows() - n) } : freeSquareNear(clamp(want.col, 0, cols() - n), clamp(want.row, 0, rows() - n), n);
         let token = existing;
         if (existing) {
           Object.assign(existing, spot, { name: u.name || existing.name, color: /^#[0-9a-f]{6}$/i.test(u.color || '') ? u.color : existing.color });
@@ -3938,7 +4053,8 @@ async function applyMapUpdates(updates) {
             isPC: false,
             hidden: u.hidden === true,
             kind: u.kind,
-            speed: Number.isFinite(Number(u.speed)) && Number(u.speed) > 0 ? Number(u.speed) : 30,
+            speed: u.speed != null && Number.isFinite(Number(u.speed)) && Number(u.speed) >= 0 && (Number(u.speed) > 0 || Number(u.flySpeed) > 0) ? Number(u.speed) : 30,
+            size: u.size, flySpeed: u.flySpeed, hover: u.hover === true,
             ...spot
           });
           if (Number(u.maxHp) > 0) Object.assign(token, { hp: Number(u.maxHp), maxHp: Number(u.maxHp) });
@@ -4311,7 +4427,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn };
+window.vtt = { fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn };
 
 init().catch((err) => {
   console.error(err);

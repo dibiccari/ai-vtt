@@ -78,12 +78,12 @@ ConditionRings.load().then(function () {
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
   var SQUARE = 100, MARGIN = 90, N = 9, ROOM = SQUARE * N;      // a fixed 9 x 9 room, 100 px a square, with a margin so rings never clip
   function setRoom(n) { N = n; ROOM = SQUARE * N; cv.width = ROOM + 2 * MARGIN; cv.height = ROOM + 2 * MARGIN; cv.setAttribute('aria-label', 'A ' + N + ' by ' + N + ' room with a token in the centre'); }
-  // [picture, label, size in squares across]: the 5e sizes: Tiny takes half a square across (four fit in one), Small and Medium one, Large 2 x 2, Huge 3 x 3, Gargantuan 4 x 4 or more (there is no upper limit; a kraken or a dragon is often drawn 6 x 6 or bigger)
+  // [picture, label, size in squares across]: the 5e sizes: Tiny takes half a square across (four fit in one), Small and Medium one, Large 2 x 2, Huge 3 x 3, Gargantuan 4 x 4 or more (the tabletop uses 4 x 4 for every Gargantuan creature)
   var TOKENS = [
     ['determined-warrior-9af2f.png', 'Medium: Warrior (1 square)', 1], ['dwarf-paladin-2-6bb90.png', 'Medium: Dwarf paladin (1 square)', 1], ['rogue-dungeon-delver-9a55e.png', 'Medium: Rogue (1 square)', 1],
     ['elder-wizened-mage-fd96b.png', 'Medium: Mage (1 square)', 1], ['drow-archmage-b360f.png', 'Medium: Drow (1 square)', 1],
     ['rat-05a85.png', 'Tiny: Rat (half a square)', 0.5], ['goblin-1-f3d19.png', 'Small: Goblin (1 square)', 1], ['owlbear-2aeb2.png', 'Large: Owlbear (2 x 2)', 2],
-    ['adult-green-dragon-f25c4.png', 'Large: Young green dragon (2 x 2)', 2], ['treant-987d3.png', 'Huge: Treant (3 x 3)', 3], ['kraken-b920c.png', 'Gargantuan: Kraken (4 x 4)', 4], ['tarrasque-661ba.png', 'Gargantuan: Tarrasque (6 x 6)', 6]
+    ['adult-green-dragon-f25c4.png', 'Large: Young green dragon (2 x 2)', 2], ['treant-987d3.png', 'Huge: Treant (3 x 3)', 3], ['kraken-b920c.png', 'Gargantuan: Kraken (4 x 4)', 4], ['tarrasque-661ba.png', 'Gargantuan: Tarrasque (4 x 4 on the table)', 4]
   ];
   var size = 1;
   var COND_ORDER = Object.keys(ConditionRings.RINGS), EFFECT_ORDER = ConditionRings.EFFECT_ORDER, ORDER = COND_ORDER.concat(EFFECT_ORDER);
@@ -149,7 +149,7 @@ ConditionRings.load().then(function () {
     var box = document.getElementById('effects');
     box.innerHTML = '';
     var stats = document.createElement('div'); stats.className = 'stats';
-    [['Speed', fx.speed + ' ft', fx.speed === 0], ['Sight', fx.vision + ' ft', fx.vision < 60], ['Acts', fx.canAct ? 'yes' : 'no', !fx.canAct]].forEach(function (s) {
+    [['Speed', fx.speed + ' ft', fx.speed === 0], ['Sight', fx.vision + ' ft', fx.vision < 60], ['Acts', fx.canAct ? 'yes' : 'no', !fx.canAct]].concat(fx.acMod ? [['AC', (fx.acMod > 0 ? '+' : '-') + Math.abs(fx.acMod), fx.acMod < 0]] : [], fx.canReact === false ? [['Reacts', 'no', true]] : []).forEach(function (s) {
       var d = document.createElement('div'); d.className = 'stat'; var sm = document.createElement('small'); sm.textContent = s[0]; var b = document.createElement('b'); b.textContent = s[1]; if (s[2]) b.className = 'bad'; d.append(sm, b); stats.appendChild(d);
     });
     box.appendChild(stats);

@@ -494,6 +494,196 @@ test('effects end by the book: a fight or a rest ends nothing by itself; combat 
   assert.deepEqual(r.after8h, ['poisoned'], 'the 8 hour effect has run out and the condition is still there');
 });
 
+test('sizes: a large creature covers 2x2 squares: its whole body must fit between walls, edges and other tokens', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const s = vtt.state, hero = s.tokens[0]; s.combat = { active: false, round: 0, order: [] };
+    hero.col = 10; hero.row = 10;
+    const ogre = Object.assign(makeToken({ id: 'ogre', name: 'Ogre', color: '#a00', isPC: false, col: 10, row: 10, size: 'large' }), {});
+    s.tokens = [ogre];
+    const has = (t, c, r) => vtt.reachable(t).has(c + ',' + r);
+    const out = { footprint: vtt.fp(ogre), centre: [vtt.tcx(ogre), vtt.tcy(ogre)] };
+    // the map's last column and row cannot hold a top-left square of a 2x2 body
+    out.edge = [has(ogre, cols() - 2, 10), has(ogre, cols() - 1, 10), has(ogre, 10, rows() - 1)];
+    // a wall with a one-square gap (row 10): a medium token passes, a large one does not; a two-square gap lets it through
+    const H = s.map.height;
+    s.walls = [{ x1: 800, y1: 0, x2: 800, y2: 500, type: 'wall', open: false }, { x1: 800, y1: 550, x2: 800, y2: H, type: 'wall', open: false }]; s.wallsVersion++;
+    const med = makeToken({ id: 'm', name: 'M', color: '#0a0', isPC: true, col: 10, row: 10 }); s.tokens = [med];
+    out.mediumThroughGap = has(med, 20, 10);
+    out.largeThroughGap = has(ogre, 20, 10) || has(Object.assign(ogre, { row: 10 }), 20, 10);
+    s.tokens = [ogre];
+    out.largeInFrontOfWall = has(ogre, 14, 9);
+    s.walls = [{ x1: 800, y1: 0, x2: 800, y2: 500, type: 'wall', open: false }, { x1: 800, y1: 600, x2: 800, y2: H, type: 'wall', open: false }]; s.wallsVersion++;
+    out.largeThroughTwoGap = has(ogre, 20, 10);
+    // a wall stub inside the footprint it would end on stops it
+    s.walls = [{ x1: 1000, y1: 450, x2: 1000, y2: 550, type: 'wall', open: false }]; s.wallsVersion++;
+    out.stubInside = has(ogre, 19, 9);
+    // other tokens: it cannot end overlapping any square of another token
+    s.walls = []; s.wallsVersion++;
+    const pawn = makeToken({ id: 'p', name: 'P', color: '#0a0', isPC: true, col: 15, row: 11 }); s.tokens = [ogre, pawn];
+    out.overlapPawn = [has(ogre, 14, 10), has(ogre, 15, 10), has(ogre, 14, 12), has(ogre, 16, 12), has(ogre, 13, 10)];
+    // placement: the nearest top-left where the whole footprint fits
+    const spot = vtt.freeSquareNear(15, 11, 2);
+    out.spot = spot;
+    out.spotFits = !(spot.col <= 15 && 15 <= spot.col + 1 && spot.row <= 11 && 11 <= spot.row + 1);
+    out.edgeSpot = vtt.freeSquareNear(cols() - 1, 3, 3);
+    s.tokens = [s.tokens[1]]; s.walls = []; s.wallsVersion++;
+    return out;
+  })()`);
+  assert.equal(r.footprint, 2); assert.deepEqual(r.centre, [550, 550], 'the centre of a 2x2 body at (10,10) is the corner shared by its four squares');
+  assert.deepEqual(r.edge, [true, false, false], 'a 2x2 body can stand with its top-left on the second-to-last column, not the last');
+  assert.equal(r.mediumThroughGap, true); assert.equal(r.largeThroughGap, false, 'a large creature cannot squeeze through a one-square gap');
+  assert.equal(r.largeInFrontOfWall, true); assert.equal(r.largeThroughTwoGap, true);
+  assert.equal(r.stubInside, false, 'a wall inside the footprint it would end on blocks it');
+  assert.deepEqual(r.overlapPawn, [false, false, true, true, true], 'ending on any square of another token is refused');
+  assert.equal(r.spotFits, true);
+  assert.ok(r.edgeSpot.col <= (await page.eval('cols()')) - 3, 'a huge creature near the right edge is placed so all 3 columns fit');
+});
+
+test('sizes: picking up, sight and areas use the whole body; reach is edge to edge', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const s = vtt.state; s.pendingNotes.length = 0; s.fogEnabled = false; s.dmView = false;
+    const hero = s.tokens[0]; hero.col = 12; hero.row = 10;
+    const ogre = Object.assign(makeToken({ id: 'ogre', name: 'Ogre', color: '#a00', isPC: false, col: 9, row: 10, size: 'large' }), { hp: 59, maxHp: 59, ac: 11, dexMod: -1 });
+    s.tokens = [hero, ogre]; s.combat = { active: true, round: 1, order: [hero.id, ogre.id] };
+    const out = {};
+    // hit testing: anywhere over the body picks it up
+    out.pick = [tokenAt(vtt.tcx(ogre), vtt.tcy(ogre)) === ogre, tokenAt(9 * 50 + 20, 10 * 50 + 20) === ogre, tokenAt(10 * 50 + 30, 11 * 50 + 30) === ogre, tokenAt(11 * 50 + 25, 10 * 50 + 25) === null || tokenAt(11 * 50 + 25, 10 * 50 + 25) === hero];
+    // reach: the ogre covers cols 9-10, so the hero at col 12 is 2 squares away (10 ft); at col 11 it is touching
+    const left = (from, to) => vtt.provokedBy(hero, from[0], from[1], to[0], to[1]).map(o => o.name);
+    out.gapTwo = left([11, 10], [13, 10]);          // from touching to away: provokes
+    out.neverNear = left([12, 10], [14, 10]);       // never in reach: nothing
+    out.slideAlong = left([11, 10], [11, 12]);      // still touching the footprint's lower row: no
+    // a creature in the air out of reach: no opportunity attack from a 5 ft reach
+    ogre.elevation = 20; out.airborneFoe = left([11, 10], [13, 10]); ogre.elevation = 0;
+    // areas: a 5 ft radius sphere at the hero's square catches a big creature whose body overlaps it, not one that only has its centre outside
+    const tp = { shape: 'sphere', size: 5, x: 12 * 50 + 25, y: 11 * 50 + 25 };
+    ogre.col = 10; ogre.row = 10;      // covers 10-11 x 10-11: the square (11,11) is inside the 5 ft sphere around (12,11)
+    out.sphereCatches = vtt.insideTemplateFp(tp, ogre);
+    ogre.col = 7; out.sphereMisses = vtt.insideTemplateFp(tp, ogre);
+    // fog: a big creature is seen when any square of its body is in sight; the sight starts at the observer's footprint centre
+    const wall = { x1: 600, y1: 0, x2: 600, y2: 260, type: 'wall', open: false };
+    s.walls = [wall]; s.wallsVersion++; s.fogEnabled = true; hero.col = 14; hero.row = 5; ogre.col = 10; ogre.row = 4; vtt.revealFog();
+    out.partlySeen = vtt.seenByParty(ogre);
+    ogre.col = 10; ogre.row = 0; vtt.revealFog(); out.hiddenBehind = vtt.seenByParty(ogre);
+    s.fogEnabled = false; s.walls = []; s.wallsVersion++; s.combat = { active: false, round: 0, order: [] }; s.tokens = [hero];
+    return out;
+  })()`);
+  assert.deepEqual(r.pick, [true, true, true, true]);
+  assert.deepEqual(r.gapTwo, ['Ogre']); assert.deepEqual(r.neverNear, []); assert.deepEqual(r.slideAlong, []);
+  assert.deepEqual(r.airborneFoe, [], 'a 5 ft reach cannot hit something 20 ft up');
+  assert.equal(r.sphereCatches, true); assert.equal(r.sphereMisses, false);
+  assert.equal(r.partlySeen, true, 'a body that is only partly in sight is seen'); assert.equal(r.hiddenBehind, false);
+});
+
+test('sizes: the DM adds a big creature (top-left square, centred on a module-area pin, size from the stat block), saved with the board', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.areaPins = [{ area: 3, name: 'Hall', col: 20, row: 20 }];
+    const add = (id, col, row, extra) => ({ type: 'addToken', tokenId: id, name: id, col, row, color: '#a04545', hidden: false, kind: 'creature', monster: 'owlbear', maxHp: 59, ac: 13, speed: 40, dexMod: 1, image: '', ...extra });
+    await vtt.applyMapUpdates([add('ob1', 5, 5, { size: 'large' }), add('ob2', 5, 5, { size: 'large' }), add('dr', 20, 20, { size: 'huge' }), add('gob', 8, 8, { size: 'small' }), add('kr', cols() - 1, 0, { size: 'gargantuan' })]);
+    const t = (id) => s.tokens.find((x) => x.id === id);
+    const out = { ob1: [t('ob1').col, t('ob1').row, t('ob1').size], ob2: [t('ob2').col, t('ob2').row], dr: [t('dr').col, t('dr').row], gob: [t('gob').size, vtt.fp(t('gob'))], kr: [t('kr').col, t('kr').row, vtt.fp(t('kr'))] };
+    const ser = vtt.serializeToken(t('ob1')); out.ser = { size: ser.size, footprint: ser.footprint, elevation: ser.elevation };
+    await vtt.applyMapUpdates([{ type: 'resizeToken', tokenId: 'gob', size: 'huge' }, { type: 'elevateToken', tokenId: 'ob1', feet: 15 }]);
+    out.grown = [t('gob').size, vtt.fp(t('gob'))]; out.note = vtt.serializeToken(t('ob1')).elevationNote;
+    for (const id of ['ob1', 'ob2', 'dr', 'gob', 'kr']) s.tokens.splice(s.tokens.indexOf(t(id)), 1);
+    s.areaPins = [];
+    return out;
+  })()`);
+  assert.deepEqual(r.ob1, [5, 5, 'large']); assert.notDeepEqual(r.ob2, [5, 5], 'the second large creature goes to the nearest place its whole body fits');
+  assert.deepEqual(r.dr, [19, 19], 'a huge creature put on the pin (20,20) is centred on it');
+  assert.deepEqual(r.gob, ['small', 1]); assert.equal(r.kr[2], 4); assert.ok(r.kr[0] <= (await page.eval('cols()')) - 4 && r.kr[1] >= 0, 'a gargantuan body stays on the map');
+  assert.deepEqual(r.ser, { size: 'large', footprint: 2, elevation: 0 });
+  assert.deepEqual(r.grown, ['huge', 3]); assert.match(r.note, /15 ft up.*reach of at least 15 ft.*1d6/);
+});
+
+test('haste and slow by the book: speed, Armor Class, reactions, lethargy when haste ends', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.pendingNotes.length = 0; s.combat = { active: false, round: 0, order: [] };
+    const hero = s.tokens[0]; hero.speed = 30; hero.conditions = []; hero.col = 10; hero.row = 10;
+    const foe = Object.assign(makeToken({ id: 'foe', name: 'Foe', color: '#a00', isPC: false, col: 11, row: 10 }), { hp: 20, maxHp: 20, ac: 14, dexMod: 0 });
+    s.tokens = [hero, foe];
+    const out = { base: [vtt.effectiveSpeed(foe), vtt.effAcOf(foe), foe.ac] };
+    vtt.setCondition(foe, 'haste', 0); out.haste = [vtt.effectiveSpeed(foe), vtt.effAcOf(foe), foe.ac];
+    vtt.setCondition(foe, 'slow', 0); out.both = [vtt.effectiveSpeed(foe), vtt.effAcOf(foe)];
+    vtt.clearCondition(foe, 'haste'); out.lethargyAfterHaste = vtt.effectiveSpeed(foe); vtt.clearCondition(foe, 'lethargic');
+    out.slowOnly = [vtt.effectiveSpeed(foe), vtt.effAcOf(foe), foe.ac, foe.conditions.map(c => c.name).sort()];
+    // a slowed creature cannot react: no opportunity attack, and the DM is told why
+    s.combat = { active: true, round: 1, order: [hero.id, foe.id] };
+    out.provoked = vtt.provokedBy(hero, 10, 10, 8, 10).map(o => o.name);
+    out.cannot = vtt.cannotReactTo(hero, 10, 10, 8, 10).map(o => o.why);
+    vtt.clearCondition(foe, 'slow');
+    out.reacts = vtt.provokedBy(hero, 10, 10, 8, 10).map(o => o.name);
+    // haste ends: lethargic, no movement, no actions until its next turn has passed
+    vtt.setCondition(foe, 'haste', 0); vtt.clearCondition(foe, 'haste');
+    out.lethargic = [foe.conditions.map(c => c.name), vtt.effectiveSpeed(foe)];
+    vtt.beginTurn(foe); out.turnSpent = [foe.spent.a, foe.spent.b, foe.movementRemaining];
+    s.activeIndex = s.tokens.indexOf(foe);
+    hero.initiative = 5; foe.initiative = 15; s.combat.order = [foe.id, hero.id];
+    vtt.nextCombatTurn(); out.after = foe.conditions.map(c => c.name);
+    s.combat = { active: false, round: 0, order: [] }; s.tokens = [hero];
+    return out;
+  })()`);
+  assert.deepEqual(r.base, [30, 14, 14]); assert.deepEqual(r.haste, [60, 16, 14], 'haste doubles speed and adds 2 to AC without changing the base AC');
+  assert.deepEqual(r.both, [30, 14]);
+  assert.equal(r.lethargyAfterHaste, 0);
+  assert.deepEqual(r.slowOnly, [15, 12, 14, ['slow']]);
+  assert.deepEqual(r.provoked, []); assert.deepEqual(r.cannot, ['slow']); assert.deepEqual(r.reacts, ['Foe']);
+  assert.deepEqual(r.lethargic, [['lethargic'], 0]);
+  assert.deepEqual(r.turnSpent, [true, true, 0]); assert.deepEqual(r.after, [], 'lethargy lasts until its next turn is over');
+});
+
+test('flying: fly speed, elevation, terrain and fences ignored, walls still block, falls by the book', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.pendingNotes.length = 0; s.combat = { active: true, round: 1, order: [] }; s.moveRule = 'circle';
+    const bat = Object.assign(makeToken({ id: 'bat', name: 'Griffon', color: '#a00', isPC: false, col: 10, row: 10, speed: 30, flySpeed: 80, size: 'large' }), { hp: 59, maxHp: 59, ac: 12 });
+    s.tokens = [bat]; bat.order = 0; s.combat.order = ['bat'];
+    const out = { ground: vtt.effectiveSpeed(bat), flyingOnGround: vtt.isFlying(bat) };
+    bat.elevation = 30; out.air = [vtt.effectiveSpeed(bat), vtt.isFlying(bat)];
+    bat.movementRemaining = 80; const has = (c, r) => vtt.reachable(bat).has(c + ',' + r);
+    s.walls = [{ x1: 650, y1: 0, x2: 650, y2: s.map.height, type: 'fence', open: false }]; s.wallsVersion++;
+    out.overFence = has(15, 10);
+    s.walls = [{ x1: 650, y1: 0, x2: 650, y2: s.map.height, type: 'wall', open: false }]; s.wallsVersion++;
+    out.overWall = has(15, 10);
+    s.walls = []; s.wallsVersion++;
+    // difficult ground costs a flyer nothing
+    s.difficult = [{ x: 600, y: 400, w: 400, h: 300 }]; s.difficultSquares = null; s.wallsVersion++;
+    bat.movementRemaining = 80; const far = has(19, 10); bat.elevation = 0; bat.speed = 30; bat.movementRemaining = 80; const walk = vtt.reachable(bat).has('19,10');
+    s.difficult = []; s.difficultSquares = null; s.wallsVersion++;
+    out.terrain = [far, walk];
+    // a creature with only a flying speed always uses it (a ghost, a flameskull)
+    const ghost = makeToken({ id: 'g', name: 'Ghost', color: '#aaa', isPC: false, col: 3, row: 3, speed: 0, flySpeed: 40, hover: true });
+    out.ghost = [vtt.isFlying(ghost), vtt.effectiveSpeed(ghost)];
+    // falls: knocked prone in the air, 1d6 per 10 ft, lands prone; told to the DM, not rolled
+    bat.elevation = 45; vtt.setCondition(bat, 'prone', 0);
+    out.fall = [bat.elevation, bat.conditions.map(c => c.name), s.pendingNotes.filter(n => /falls 45 ft: 4d6/.test(n)).length];
+    // a hovering creature does not fall; the fly spell holds a creature up until it ends; at 0 hit points a natural flyer falls
+    ghost.elevation = 20; s.tokens.push(ghost); vtt.setCondition(ghost, 'prone', 0); out.hover = ghost.elevation;
+    const mage = Object.assign(makeToken({ id: 'mg', name: 'Mage', color: '#00a', isPC: false, col: 5, row: 5 }), { hp: 20, maxHp: 20, ac: 12 }); s.tokens.push(mage);
+    vtt.setCondition(mage, 'fly', 0); mage.elevation = 60; out.flySpell = [vtt.flySpeedOf(mage), vtt.isFlying(mage), vtt.effectiveSpeed(mage)];
+    vtt.setCondition(mage, 'prone', 0); out.heldAloft = mage.elevation;
+    vtt.clearCondition(mage, 'fly'); out.spellEnds = [mage.elevation, s.pendingNotes.filter(n => /Mage falls 60 ft: 6d6/.test(n)).length];
+    bat.conditions = []; bat.elevation = 20; bat.hp = 1; vtt.changeHp(bat, -5); out.zeroHp = bat.elevation;
+    // no fall damage under 10 ft
+    const imp = Object.assign(makeToken({ id: 'imp', name: 'Imp', color: '#a0a', isPC: false, col: 2, row: 2, flySpeed: 40 }), { hp: 5, maxHp: 5 }); s.tokens.push(imp);
+    imp.elevation = 5; vtt.setCondition(imp, 'stunned', 0); out.low = [imp.elevation, imp.conditions.map(c => c.name)];
+    s.combat = { active: false, round: 0, order: [] }; s.tokens = [s.tokens.find(t => t.isPC)]; s.walls = []; s.wallsVersion++;
+    return out;
+  })()`);
+  assert.equal(r.ground, 30); assert.equal(r.flyingOnGround, false, 'a creature on the ground walks'); assert.deepEqual(r.air, [80, true]);
+  assert.equal(r.overFence, true, 'a flyer crosses a low fence'); assert.equal(r.overWall, false, 'but not a wall');
+  assert.deepEqual(r.terrain, [true, false], 'difficult ground slows a walker, not a flyer');
+  assert.deepEqual(r.ghost, [true, 40]);
+  assert.deepEqual(r.fall, [0, ['prone'], 1]);
+  assert.equal(r.hover, 20); assert.deepEqual(r.flySpell, [60, true, 60]); assert.equal(r.heldAloft, 60);
+  assert.deepEqual(r.spellEnds, [0, 1]); assert.equal(r.zeroHp, 0);
+  assert.deepEqual(r.low, [0, ['stunned']], 'a short fall does no damage and does not knock it prone');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });
