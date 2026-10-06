@@ -1258,7 +1258,7 @@ function resetShroud() {
 let objectCache = { version: -1, loops: [] };
 function objectLoops() {
   if (objectCache.version === state.wallsVersion) return objectCache.loops;
-  objectCache = { version: state.wallsVersion, loops: WallObjects.loops(state.walls.filter((w) => w.type !== 'fence'), 9 * GRID) };
+  objectCache = { version: state.wallsVersion, loops: WallObjects.loops(state.walls.filter((w) => w.type !== 'fence'), 9 * GRID, state.rooms) };
   return objectCache.loops;
 }
 
@@ -2449,6 +2449,7 @@ async function loadMapLighting() {
   state.difficult = [];
   state.areaPins = [];
   state.difficultSquares = null;
+  state.rooms = [];
   if (!state.map.url || !state.map.img) return;
   try {
     const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
@@ -2459,6 +2460,7 @@ async function loadMapLighting() {
     const f = state.map.drawW / state.map.img.naturalWidth;
     // The module's numbered areas (pins named area-N, set on Map Test) as board squares, so the DM knows where each room is.
     state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ area: parseInt(s.name.slice(5), 10), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
+    state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({

@@ -272,7 +272,14 @@ function normalizeMapConfig(body) {
     if ([x, y, w, h].includes(null) || w <= 0 || h <= 0) continue;
     difficult.push({ x, y, w, h });
   }
+  // Rooms (rectangles in image pixels) that the object-top rule must not reveal, and secret doors kept for the DM (both written by scripts/build-walls-from-layout.mjs).
+  const rooms = [];
+  for (const r of Array.isArray(body?.rooms) ? body.rooms.slice(0, 300) : []) { const v = Array.isArray(r) ? r.map(num) : []; if (v.length === 4 && !v.includes(null)) rooms.push(v); }
+  const secrets = [];
+  for (const sc of Array.isArray(body?.secrets) ? body.secrets.slice(0, 100) : []) { const [x1, y1, x2, y2] = [num(sc?.x1), num(sc?.y1), num(sc?.x2), num(sc?.y2)]; if (![x1, y1, x2, y2].includes(null)) secrets.push({ name: String(sc?.name ?? '').slice(0, 80), x1, y1, x2, y2, type: 'wall', open: false }); }
   const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
+  if (rooms.length) config.rooms = rooms;
+  if (secrets.length) config.secrets = secrets;
   if (difficult.length) config.difficult = difficult;
   if (lights.length) config.lights = lights;
   // How bright the place is before any light source: daylight (bright), a lit room or dusk (dim), or darkness.
@@ -343,6 +350,13 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.light && !config.light) config.light = old.light;
       if (old.ambience && !config.ambience) config.ambience = old.ambience;
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
+    } catch { /* no earlier config */ }
+  }
+  if (!config.rooms || !config.secrets) {       // Map Test does not send these: keep what the wall builder saved
+    try {
+      const old = JSON.parse(await readFile(file, 'utf8'));
+      if (Array.isArray(old.rooms) && !config.rooms) config.rooms = old.rooms;
+      if (Array.isArray(old.secrets) && !config.secrets) config.secrets = old.secrets;
     } catch { /* no earlier config */ }
   }
   await writeFile(file, JSON.stringify(config, null, 2));

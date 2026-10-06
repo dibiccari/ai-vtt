@@ -186,7 +186,7 @@
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
     moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
-    hover: null, drag: null, polys: [], spaceDown: false
+    hover: null, drag: null, rooms: [], polys: [], spaceDown: false
   };
   const cell = () => S.W / S.squares;
   S.onlyUvtt = store.get('vtt.maptest.onlyUvtt', true) !== false;
@@ -356,7 +356,7 @@
   function revealObjectTops(radius) {
     if (!S.polys.length) return;
     const k = S.walls.length + ':' + (S.walls[0] ? S.walls[0].x1 + ',' + S.walls[0].y1 : '') + ':' + cell();
-    if (objectCache.key !== k) objectCache = { key: k, loops: WallObjects.loops(S.walls, 9 * cell()) };
+    if (objectCache.key !== k) objectCache = { key: k, loops: WallObjects.loops(S.walls, 9 * cell(), S.rooms) };
     for (const loop of objectCache.loops) {
       const points = WallObjects.samples(loop, Math.max(6, cell() / 3));
       // Each token reveals only the part of the top that is inside its own vision (the same soft edge as the rest of the map).
@@ -842,6 +842,7 @@
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
+        S.rooms = remote && Array.isArray(remote.rooms) ? remote.rooms.filter((r) => Array.isArray(r) && r.length === 4 && r.every(isFinite)) : [];
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         parkAtStart();
