@@ -1087,6 +1087,40 @@ function endConcentrationEffects(caster) {
     if (seenByParty(o)) addChat('system', `↳ ${o.name} loses ${ended.join(', ')} (${caster.name} stopped concentrating)`);
   }
 }
+// What counts as an effect (not one of the 15 official conditions): every effect in effect-data.json, any spell or state the DM names freely, and the internal "dashing".
+const OFFICIAL_CONDITIONS = new Set(['blinded', 'charmed', 'deafened', 'exhaustion', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious']);
+const isEffectName = (name) => !OFFICIAL_CONDITIONS.has(name);
+// At the end of combat the effects that only last a fight go: a known effect lasting under 10 minutes (bless, sanctuary, haste, rage...), surprised, disengaged, dashing, and any other
+// effect that only has a round timer. Effects of 10 minutes or more (shield of faith, mage armor, hex...), concentration itself, effects on the game clock and the 15 conditions stay,
+// as the rulebook gives them their own duration.
+function endsWithCombat(c) {
+  if (!isEffectName(c.name) || c.name === 'concentrating') return false;
+  if (Number.isFinite(c.untilMin) && !(EFFECT_DEFS[c.name] && !(EFFECT_DEFS[c.name].minutes >= 10))) return false;
+  const def = EFFECT_DEFS[c.name];
+  if (def) return !(def.minutes >= 10);
+  return c.rounds > 0 || c.name === 'dashing';
+}
+// A short rest (an hour) ends the effects of an hour or less and everything without a duration; a long rest ends every effect. Conditions are left alone.
+function endsWithRest(c, kind) {
+  if (!isEffectName(c.name)) return false;
+  if (kind === 'long') return true;
+  const def = EFFECT_DEFS[c.name];
+  if (c.name === 'concentrating') return true;
+  if (def) return !(def.minutes > 60);
+  return !(Number.isFinite(c.untilMin) && minutesLeft(c) > 60);
+}
+function removeEffects(test, why) {
+  let any = false;
+  for (const t of state.tokens) {
+    const gone = tokenConditions(t).filter(test);
+    if (!gone.length) continue;
+    t.conditions = tokenConditions(t).filter((c) => !gone.includes(c));
+    if (seenByParty(t) && !t.dead) addChat('system', `↳ ${t.name} is no longer ${gone.map((c) => c.name).join(', ')} (${why})`);
+    any = true;
+  }
+  return any;
+}
+
 // Effects with an end on the game clock run out when the clock passes it (after a DM reply, a rest or the time action).
 function expireTimedConditions() {
   if (!Number.isFinite(state.clockTotal)) return false;
@@ -2988,6 +3022,7 @@ function endCombat() {
   state.combat = { active: false, round: 0, order: [] };
   for (const t of state.tokens) { t.initiative = null; t.spent = null; t.delayed = false; }
   addChat('system', '⚔ Combat ends');
+  removeEffects(endsWithCombat, 'the fight is over');
   syncAmbience();
   commitBoard();
   renderCombat();
@@ -3198,6 +3233,7 @@ function restTokens(kind) {
     t.conditions = tokenConditions(t).filter((c) => !(c.rounds > 0) && c.name !== 'concentrating' && !(kind === 'long' && !t.dead && c.name === 'unconscious'));
     if (kind === 'long' && !t.dead) { t.deathSaves = null; t.stable = false; }
   }
+  removeEffects((c) => endsWithRest(c, kind), kind === 'long' ? 'a long rest' : 'a short rest');           // effects on everyone, creatures included
   revealFog();
   commitBoard();
 }

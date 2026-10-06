@@ -460,6 +460,43 @@ test('timed effects: known durations, the game clock, concentration, and the val
   assert.deepEqual(r.after8h, ['frightened'], 'mage armor runs out after 8 hours; a round-timed condition is not touched by the clock');
 });
 
+test('effects end with combat and rests (short-lived effects at the end of a fight, all of them at a long rest), conditions stay', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const pcs = vtt.state.tokens.filter((t) => t.isPC), caster = pcs[0];
+    const target = pcs[1] || vtt.state.tokens.find((t) => t !== pcs[0]) || (vtt.state.tokens.push(makeToken({ id: 'tok-extra2', name: 'Extra', color: '#ffffff', col: 5, row: 5 })), vtt.state.tokens[vtt.state.tokens.length - 1]);
+    target.isPC = true;
+    const names = () => tokenConditions(target).map((c) => c.name).sort();
+    const out = {};
+    vtt.state.clockTotal = 2000;
+    const fill = () => {
+      target.conditions = [];
+      for (const n of ['bless', 'shield of faith', 'mage armor']) setCondition(target, n, 0, { source: caster.id });
+      setCondition(caster, 'concentrating', 0, {});
+      setCondition(target, 'surprised', 0, {});
+      setCondition(target, 'moonbeam', 5, {});          // a spell the table does not know, with only a round timer
+      setCondition(target, 'moonlit', 0, { minutes: 120 });
+      setCondition(target, 'poisoned', 0, {});          // one of the 15 conditions
+    };
+    fill();
+    vtt.state.combat = { active: true, round: 3, order: [] };
+    endCombat();
+    out.afterCombat = names();
+    out.concentrationStays = tokenConditions(caster).some((c) => c.name === 'concentrating');
+    restTokens('short');
+    out.afterShortRest = names();
+    out.concentrationAfterShort = tokenConditions(caster).some((c) => c.name === 'concentrating');
+    restTokens('long');
+    out.afterLongRest = names();
+    return out;
+  })()`);
+  assert.deepEqual(r.afterCombat, ['mage armor', 'moonlit', 'poisoned', 'shield of faith'], 'bless, surprised and the round-timed spell end with the fight; the long ones and the condition stay');
+  assert.equal(r.concentrationStays, true);
+  assert.deepEqual(r.afterShortRest, ['mage armor', 'moonlit', 'poisoned'], 'a short rest ends what lasts an hour or less (shield of faith) and concentration');
+  assert.equal(r.concentrationAfterShort, false);
+  assert.deepEqual(r.afterLongRest, ['poisoned'], 'a long rest ends every effect but leaves the condition');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });
