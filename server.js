@@ -1178,7 +1178,7 @@ async function expandTokenUpdates(updates, adventureMonsters = []) {
       const walk = srd ? parseInt(srd.speed?.walk, 10) : NaN;
       out.push({
         type: 'addToken', ...base, name: u.name || srd?.name || 'Creature', col: u.col, row: u.row, color: u.color, hidden: u.hidden, kind: u.kind,
-        monster: fromSrd ? fromSrd.index : '', image: srd ? await monsterImage(srd) : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
+        monster: fromSrd ? fromSrd.index : '', image: srd ? (srd.image || await monsterImage(srd)) : '', maxHp: srd ? srd.hit_points : Math.max(0, Number(u.value) || 0), ac: srd ? (srd.armor_class?.[0]?.value ?? 10) : Math.max(0, Number(u.ac) || 0),
         speed: Number.isFinite(walk) ? walk : 30, dexMod: srd ? Math.floor((srd.dexterity - 10) / 2) : 0
       });
     }

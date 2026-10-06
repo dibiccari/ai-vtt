@@ -18,7 +18,8 @@
         "walk": "30 ft."
       },
       "dexterity": 14,
-      "attacks": "Multiattack: two melee attacks. Shortsword +4 to hit, reach 5 ft., 5 (1d6+2) piercing. Skills Intimidation +2. CR 1/2."
+      "attacks": "Multiattack: two melee attacks. Shortsword +4 to hit, reach 5 ft., 5 (1d6+2) piercing. Skills Intimidation +2. CR 1/2.",
+      "image": "/tokens/male-soldier-145c0.png"
     },
     {
       "index": "sildar-hallwinter",
@@ -37,7 +38,8 @@
         "walk": "30 ft."
       },
       "dexterity": 10,
-      "attacks": "Multiattack: two melee attacks. Longsword +3 to hit, 5 (1d8+1) slashing. Heavy Crossbow +2 to hit, range 100/400 ft., 5 (1d10) piercing. Reaction Parry: +1d6 to AC against one melee hit while wielding a melee weapon. CR 1."
+      "attacks": "Multiattack: two melee attacks. Longsword +3 to hit, 5 (1d8+1) slashing. Heavy Crossbow +2 to hit, range 100/400 ft., 5 (1d10) piercing. Reaction Parry: +1d6 to AC against one melee hit while wielding a melee weapon. CR 1.",
+      "image": "/tokens/veteran-in-plate-armor-ab3f7.png"
     },
     {
       "index": "evil-mage",
@@ -56,7 +58,8 @@
         "walk": "30 ft."
       },
       "dexterity": 14,
-      "attacks": "Quarterstaff +1 to hit, 3 (1d8-1) bludgeoning. 4th-level spellcaster (Int, save DC 13, +5 to hit): cantrips light, mage hand, shocking grasp; 1st (4 slots) charm person, magic missile; 2nd (3 slots) hold person, misty step. CR 1. Used for Iarno Albrek (Glasstaff)."
+      "attacks": "Quarterstaff +1 to hit, 3 (1d8-1) bludgeoning. 4th-level spellcaster (Int, save DC 13, +5 to hit): cantrips light, mage hand, shocking grasp; 1st (4 slots) charm person, magic missile; 2nd (3 slots) hold person, misty step. CR 1. Used for Iarno Albrek (Glasstaff).",
+      "image": "/tokens/elder-wizened-mage-fd96b.png"
     },
     {
       "index": "mormesk-the-wraith",
@@ -75,7 +78,8 @@
         "walk": "0 ft., fly 60 ft."
       },
       "dexterity": 16,
-      "attacks": "Life Drain +5 to hit, reach 5 ft., 16 (3d8+3) necrotic and DC 13 Con save or hit point maximum drops by the damage until a long rest. Resists acid, cold, fire, lightning, thunder, and nonmagical non-silvered weapons; immune necrotic, poison. Incorporeal Movement. Sunlight Sensitivity. CR 3."
+      "attacks": "Life Drain +5 to hit, reach 5 ft., 16 (3d8+3) necrotic and DC 13 Con save or hit point maximum drops by the damage until a long rest. Resists acid, cold, fire, lightning, thunder, and nonmagical non-silvered weapons; immune necrotic, poison. Incorporeal Movement. Sunlight Sensitivity. CR 3.",
+      "image": "/tokens/wraith-a0f9c.png"
     },
     {
       "index": "nezznar-the-black-spider",
@@ -94,7 +98,8 @@
         "walk": "30 ft."
       },
       "dexterity": 13,
-      "attacks": "Spider Staff +1 to hit, 2 (1d6-1) bludgeoning plus 3 (1d6) poison. Innate: dancing lights at will; darkness and faerie fire (DC 12) 1/day each. 4th-level wizard (Int, DC 13, +5): mage hand, ray of frost, shocking grasp; mage armor, magic missile, shield; invisibility, suggestion. Darkvision 120 ft., Fey Ancestry, Sunlight Sensitivity. CR 2."
+      "attacks": "Spider Staff +1 to hit, 2 (1d6-1) bludgeoning plus 3 (1d6) poison. Innate: dancing lights at will; darkness and faerie fire (DC 12) 1/day each. 4th-level wizard (Int, DC 13, +5): mage hand, ray of frost, shocking grasp; mage armor, magic missile, shield; invisibility, suggestion. Darkvision 120 ft., Fey Ancestry, Sunlight Sensitivity. CR 2.",
+      "image": "/tokens/drow-archmage-b360f.png"
     },
     {
       "index": "flameskull",
@@ -113,7 +118,8 @@
         "walk": "0 ft., fly 40 ft."
       },
       "dexterity": 17,
-      "attacks": "See the module statistics in Appendix B / Monster Descriptions (fire bolt, fireball, rejuvenation)."
+      "attacks": "See the module statistics in Appendix B / Monster Descriptions (fire bolt, fireball, rejuvenation).",
+      "image": "/tokens/demilich-3edf0.png"
     },
     {
       "index": "nothic",
@@ -132,7 +138,8 @@
         "walk": "30 ft."
       },
       "dexterity": 16,
-      "attacks": "Multiattack: two claw attacks. Rotting Gaze (weird insight). See the module statistics for details."
+      "attacks": "Multiattack: two claw attacks. Rotting Gaze (weird insight). See the module statistics for details.",
+      "image": "/tokens/eyeless-undead-a7e8d.png"
     },
     {
       "index": "spectator",
@@ -151,7 +158,8 @@
         "walk": "0 ft., fly 30 ft."
       },
       "dexterity": 14,
-      "attacks": "Bite +1 to hit, 2 (1d4-1) piercing. Eye Rays (two per turn, DC 13). Spell Reflection reaction. Darkvision 120 ft. CR 3."
+      "attacks": "Bite +1 to hit, 2 (1d4-1) piercing. Eye Rays (two per turn, DC 13). Spell Reflection reaction. Darkvision 120 ft. CR 3.",
+      "image": "/tokens/beholder-5764a.png"
     },
     {
       "index": "twig-blight",
@@ -170,7 +178,8 @@
         "walk": "20 ft."
       },
       "dexterity": 13,
-      "attacks": "See the module statistics (Claws). CR 1/8."
+      "attacks": "See the module statistics (Claws). CR 1/8.",
+      "image": "/tokens/treant-987d3.png"
     }
   ]
 }
