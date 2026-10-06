@@ -38,8 +38,9 @@
   #pinCard input { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
   #pinCard .pc-row { display:flex; gap:6px; }
   #pinCard .pc-row button { padding:5px 10px; font-size:12px; }
-  .stage-bar { position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5; }
-  .stage-bar > button { padding:6px 14px; border-radius:8px; }
+  .stage-bar { position:absolute; left:12px; right:60px; top:12px; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; z-index:5; }
+  main:has(#variantSwitch:not([hidden])) .stage-bar { right:190px; }   /* leave room for the Day/Night switch */
+  .stage-bar > button { padding:6px 14px; border-radius:8px; white-space:nowrap; }
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
   .variant-switch { position:absolute; right:12px; top:12px; z-index:5; display:flex; gap:0; }
   .variant-switch[hidden] { display:none; }
@@ -47,7 +48,7 @@
   .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
   .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
   .variant-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
-  .banner { position:absolute; left:12px; top:56px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:70%; }
+  .banner { position:absolute; left:12px; bottom:12px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:calc(100% - 84px); }
 </style>
 </head>
 <body>
