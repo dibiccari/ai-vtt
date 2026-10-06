@@ -1,11 +1,12 @@
 // Small closed shapes made of wall segments (a tent, a boulder, a crate, a tree trunk) are things you see the top of, not rooms you
 // stand in: line of sight stops at their edge, but the top should show when its edge is in view. Shared by the tabletop and Map Test.
-// WallObjects.loops(walls, maxSize): the closed loops (arrays of {x,y}) at most maxSize across, from segments {x1,y1,x2,y2,type}.
+// WallObjects.loops(walls, maxSize, rooms): the closed loops (arrays of {x,y}) at most maxSize across, from segments {x1,y1,x2,y2,type}.
+// rooms (optional): rectangles [x0,y0,x1,y1] in the same units that are real rooms (the map config's `rooms`): a loop that fills one is a room, not an object, so its inside stays hidden.
 // WallObjects.samples(loop, step): points a hair outside the loop's edges and corners; if any is visible the loop's top is.
 (function (root) {
   'use strict';
 
-  function loops(walls, maxSize) {
+  function loops(walls, maxSize, rooms) {
     var key = function (x, y) { return Math.round(x * 2) + ',' + Math.round(y * 2); };
     var verts = {};
     var segs = walls.filter(function (w) { return w.type !== 'door'; });
@@ -37,7 +38,9 @@
       if (!closed || pts.length < 3) return;
       var xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
       var size = Math.max(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
-      if (size <= maxSize) out.push(pts.map(function (q) { return { x: q.x, y: q.y }; }));
+      var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      var isRoom = (rooms || []).some(function (r) { var rw = r[2] - r[0], rh = r[3] - r[1]; return x0 >= r[0] - rw * 0.15 && x1 <= r[2] + rw * 0.15 && y0 >= r[1] - rh * 0.15 && y1 <= r[3] + rh * 0.15 && (x1 - x0) >= rw * 0.7 && (y1 - y0) >= rh * 0.7; });
+      if (size <= maxSize && !isRoom) out.push(pts.map(function (q) { return { x: q.x, y: q.y }; }));
     });
     return out;
   }

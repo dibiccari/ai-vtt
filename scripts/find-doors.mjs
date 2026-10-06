@@ -1,13 +1,14 @@
 // Finds the doors drawn on a WotC-style picture: white rectangles about 0.65 x 0.27 of a square (or turned a quarter), lying in a wall.
+// The picture and grid come from the layout (inkPicture or picture, cell, origin).
 // Usage: node scripts/find-doors.mjs data/map-layouts/<name>.json   (rewrites the "detectedDoors" list of the layout; each door: centre and length in grid-cell units)
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readPicture } from '../lib/bmpread.js';
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+import { loadLayoutPicture } from '../lib/gridprint.js';
 const file = path.resolve(process.argv[2]);
 const layout = JSON.parse(await readFile(file, 'utf8'));
-const m = await readPicture(path.join(root, layout.inkPicture || path.join('public', 'uploads', layout.picture)));
-const C = layout.cell, [ox, oy] = layout.origin || [0, 0];
+if (!layout.cell) { console.error('the layout has no "cell": run node scripts/find-grid.mjs ' + process.argv[2] + ' first'); process.exit(1); }
+const m = await loadLayoutPicture(layout);
+const C = layout.cell, [ox, oy] = layout.origin || [0, 0];     // the grid comes from the layout (scripts/find-grid.mjs), nothing is hard-coded here
 const W = m.w, H = m.h, N = W * H;
 const mask = new Uint8Array(N);
 for (let i = 0; i < N; i++) { const r = m.rgb[i * 3], g = m.rgb[i * 3 + 1], b = m.rgb[i * 3 + 2]; if (m.lum[i] > 215 && Math.max(r, g, b) - Math.min(r, g, b) < 28) mask[i] = 1; }
