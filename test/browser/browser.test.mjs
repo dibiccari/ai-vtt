@@ -225,7 +225,7 @@ test('the DM\'s board updates: applyMapUpdates adds, moves, hides, reveals and r
   assert.deepEqual(r.cond, ['prone:2']); assert.equal(r.removed, true);
 });
 
-test('combat: surprised first combatant is skipped at once; Dash doubles a DM move; bodies do not block or get picked', opts, async () => {
+test('combat: a surprised first combatant is skipped at once; bodies do not block movement', opts, async () => {
   await page.eval(setup);
   const r = await page.eval(`(async () => {
     const s = vtt.state; s.fogEnabled = false;
