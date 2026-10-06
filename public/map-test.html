@@ -63,20 +63,6 @@
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
       <input type="number" id="squares" min="5" max="400" step="1" value="50">
     </label>
-    <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
-    <label class="field"><span>Group (versions of one place)</span>
-      <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
-    </label>
-    <label class="field"><span>Light level of this place</span>
-      <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
-    </label>
-    <label class="field"><span>Ambient sound</span>
-      <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
-    </label>
-    <label class="field"><span>This version is called</span>
-      <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
-    </label>
-    <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
     <div id="startList" class="hint"></div>
     <div class="row">
       <select id="copyTarget" aria-label="Copy pins to this map"></select>
@@ -105,6 +91,24 @@
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
+  </div>
+
+  <div class="group">
+    <h2>Place settings</h2>
+    <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
+    <label class="field"><span>Group (versions of one place)</span>
+      <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
+    </label>
+    <label class="field"><span>Light level of this place</span>
+      <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
+    </label>
+    <label class="field"><span>Ambient sound</span>
+      <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
+    </label>
+    <label class="field"><span>This version is called</span>
+      <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
+    </label>
+    <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
   </div>
 
   <div class="group">
