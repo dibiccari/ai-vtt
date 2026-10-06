@@ -290,13 +290,19 @@ app.get('/api/map-config', asyncRoute(async (req, res) => {
 // Which maps have saved config, and where it came from (source is 'dd2vtt' for maps set up from a Universal VTT file).
 app.get('/api/map-configs', asyncRoute(async (_req, res) => {
   const out = [];
+  // Battle and camp maps (in any campaign's list) need a start pin; town and regional maps do not.
+  const needsPin = new Set();
+  for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!dirent.isDirectory()) continue;
+    try { for (const m of await mapsForCampaign(dirent.name)) if (m.kind === 'battle' || m.kind === 'camp') needsPin.add(m.url.split('/').pop()); } catch { /* unreadable campaign */ }
+  }
   for (const f of await readdir(MAP_CONFIG_DIR)) {
     if (!f.endsWith('.json')) continue;
     try {
       const c = JSON.parse(await readFile(path.join(MAP_CONFIG_DIR, f), 'utf8'));
       const start = (Array.isArray(c.starts) ? c.starts : []).find((s) => s && s.name === 'start');
       out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0, group: c.group || null, variant: c.variant || null,
-        squares: Number(c.squares) || 0, light: c.light || 'bright', ambience: c.ambience || '', startPin: start ? { x: start.x, y: start.y } : null, pins: Array.isArray(c.starts) ? c.starts.length : 0 });
+        squares: Number(c.squares) || 0, light: c.light || 'bright', ambience: c.ambience || '', startPin: start ? { x: start.x, y: start.y } : null, needsStart: needsPin.has(f.slice(0, -5)), missingStart: needsPin.has(f.slice(0, -5)) && !start, pins: Array.isArray(c.starts) ? c.starts.length : 0 });
     } catch { /* skip unreadable config */ }
   }
   res.json({ configs: out });

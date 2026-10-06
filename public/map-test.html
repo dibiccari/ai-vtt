@@ -179,7 +179,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
+    squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
     moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
@@ -257,6 +257,8 @@
   // Browser storage keeps tokens and view settings; walls and calibration also go to the server (data/maps/).
   function save() {
     if (!S.url) return;
+    if (S.starts.some((p) => p.name === 'start')) S.missingStart.delete(mapName()); else S.missingStart.add(mapName());
+    refreshMapLabels();
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
@@ -792,6 +794,7 @@
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         parkAtStart();
+        refreshMapLabels();
         syncControls();
         resetFog();
         fitView();
@@ -813,6 +816,16 @@
     if (S.tokens.length) S.tokens[0] = at; else S.tokens.push(at);
   }
 
+  // A battle or camp map with no start pin gets a warning mark in the list; it goes away once a pin is named "start".
+  function mapLabel(url) {
+    const name = url.split('/').pop();
+    const has = url === S.url ? S.starts.some((p) => p.name === 'start') : !S.missingStart.has(name);
+    return (S.needsStart.has(name) && !has ? '⚠ ' : '') + name;
+  }
+  function refreshMapLabels() {
+    for (const opt of $('#mapSelect').options) opt.textContent = mapLabel(opt.value);
+  }
+
   async function loadMapList(initial = false) {
     const select = $('#mapSelect');
     let maps = [];
@@ -825,6 +838,12 @@
       return;
     }
     select.innerHTML = '';
+    try {
+      const res = await fetch('/api/map-configs');
+      const configs = (await res.json()).configs;
+      S.needsStart = new Set(configs.filter((c) => c.needsStart).map((c) => c.map));            // battle and camp maps: they need a start pin
+      S.missingStart = new Set(configs.filter((c) => c.missingStart).map((c) => c.map));
+    } catch { S.needsStart = new Set(); S.missingStart = new Set(); }
     if (!maps.length) {
       $('#banner').textContent = 'No maps found. Upload one on the Tabletop page first.';
       return;
@@ -854,7 +873,7 @@
     for (const url of shown) {
       const opt = document.createElement('option');
       opt.value = url;
-      opt.textContent = url.split('/').pop();
+      opt.textContent = mapLabel(url);
       select.appendChild(opt);
     }
     const last = store.get('vtt.maptest.lastMap', null);
