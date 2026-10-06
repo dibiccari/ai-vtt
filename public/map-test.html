@@ -41,7 +41,9 @@
   .stage-bar { position:absolute; left:12px; top:12px; display:flex; gap:10px; align-items:center; z-index:5; }
   .stage-bar > button { padding:6px 14px; border-radius:8px; }
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
-  .variant-switch { display:flex; gap:0; }
+  .variant-switch { position:absolute; right:12px; top:12px; z-index:5; display:flex; gap:0; }
+  .variant-switch[hidden] { display:none; }
+  #fitBtn { position:absolute; right:12px; bottom:12px; z-index:5; width:36px; height:36px; padding:0; border-radius:6px; font-size:16px; font-weight:700; background:rgba(17,21,28,.9); }
   .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
   .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
   .variant-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
@@ -138,10 +140,10 @@
 
 <main id="stage">
   <canvas id="cv"></canvas>
+  <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
+  <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
   <div class="stage-bar" id="stageBar">
-    <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
-    <button id="fitBtn" title="Fit the whole map in view">Fit view</button>
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to add a party token, drag a token to move it, right-click a token to remove it">Token</button>
     <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
