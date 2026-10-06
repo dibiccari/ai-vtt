@@ -2454,6 +2454,7 @@ async function loadMapLighting() {
   state.lights = [];
   state.difficult = [];
   state.areaPins = [];
+  state.places = [];
   state.difficultSquares = null;
   state.rooms = [];
   if (!state.map.url || !state.map.img) return;
@@ -2465,6 +2466,8 @@ async function loadMapLighting() {
     state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;
     // The module's numbered areas (pins named area-N, set on Map Test) as board squares, so the DM knows where each room is.
+    // the other named pins of the map (not the start, not the numbered areas): places the DM can narrate and put creatures at, with the note written on the pin
+    state.places = (Array.isArray(config.starts) ? config.starts : []).filter((s) => s.name !== 'start' && !/^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ name: s.name, note: String(s.desc || '').slice(0, 300), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
     state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ area: parseInt(s.name.slice(5), 10), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
     state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
@@ -3300,6 +3303,7 @@ async function sendTurn(spokenText, opts) {
       notes: state.pendingNotes.splice(0, 8),
       lighting: lightingForAi(),
       areas: state.areaPins.slice(0, 40),
+      places: state.places.slice(0, 30),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];

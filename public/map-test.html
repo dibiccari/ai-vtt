@@ -111,7 +111,7 @@
 
   <div class="group">
     <h2>Pins</h2>
-    <p class="hint">Use the Pins tool: click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
+    <p class="hint">Use the Pins tool. The green ring and circle is where the party starts (drag it, or set its circle size on its card); the blue pins are places the DM can narrate and send the party to. Click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
     <div id="startList" class="hint"></div>
     <div id="areaBox" hidden>
       <p class="hint">Module areas: drag a number onto the map to drop its pin (a ✓ means it is placed; drag it again to move it, or right-click the pin to remove it). The AI reads these to know where each area is.</p>
@@ -601,8 +601,13 @@
       ctx.stroke();
       if (s === S.selected) { ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3 * px; ctx.beginPath(); ctx.arc(s.x, s.y, 13 * px, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2 * px; }
       ctx.fillStyle = '#fff';
-      ctx.strokeText(s.name, s.x + 13 * px, s.y);
-      ctx.fillText(s.name, s.x + 13 * px, s.y);
+      if (s.name === 'start') {                                          // the start is its own kind of pin: a green ring in its circle, no label
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.beginPath(); ctx.arc(s.x, s.y, 3 * px, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(63, 210, 127, 1)'; ctx.lineWidth = 3 * px; ctx.beginPath(); ctx.arc(s.x, s.y, 11 * px, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.strokeText(s.name, s.x + 13 * px, s.y);
+        ctx.fillText(s.name, s.x + 13 * px, s.y);
+      }
     }
     ctx.restore();
   }
