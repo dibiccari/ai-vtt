@@ -8,14 +8,14 @@
   var SFX = ['door', 'creak', 'thunder', 'bell', 'roar', 'howl', 'clash', 'magic', 'explosion', 'splash'];
   // Sounds the user rated "Wrong" on the Sound Test page stay switched off in the game (silence is better than a wrong sound) until they are retuned.
   // The ones rated "Good" (scenes forest, wind, rain; mood eerie; effects thunder, clash) are kept as they are.
-  var RETIRED = { scene: ['tavern', 'town', 'fire', 'cave', 'dungeon'], mood: ['tense', 'triumph'], sfx: ['door', 'creak', 'magic'] };
+  var RETIRED = { scene: ['tavern', 'town', 'fire', 'cave', 'dungeon'], mood: ['triumph'], sfx: ['door', 'creak', 'magic'] };
   var allowRetired = false;      // the Sound Test page turns this on so every sound can still be played and judged
   // A retired sound comes back as soon as a recording for it exists in public/audio.
   var isRetired = function (kind, name) { return !allowRetired && RETIRED[kind].indexOf(name) >= 0 && !files[kind + ':' + name]; };
   // Recordings differ a lot in loudness, so each has a gain that brings it to a similar level (measured from the files in public/audio).
   var FILE_GAIN = {
     'scene:night': 1.4, 'scene:tavern': 3.5, 'scene:town': 4.5, 'scene:fire': 1.7, 'scene:cave': 0.34, 'scene:dungeon': 1.8,
-    'mood:tense': 0.23, 'mood:triumph': 0.56, 'sfx:door': 1.1, 'sfx:magic': 0.73, 'sfx:owl': 6, 'sfx:howl': 1.9
+    'mood:triumph': 0.56, 'sfx:door': 1.1, 'sfx:magic': 0.73, 'sfx:owl': 6, 'sfx:howl': 1.9
   };
   var fileGain = function (key) { return FILE_GAIN[key] || 1; };
   // Scenes whose recording is a bed that gets extra one-shot recordings now and then: [sound, least ms, most ms between plays].
@@ -299,6 +299,27 @@
     return [{ stop: function () { dead = true; timers.forEach(clearTimeout); stop(); } }, { stop: far.stop }];
   }
 
+  // Tense: a deep cluster of five low tones, a few cycles apart, around 65 Hz (their beating is the throb, about 1.66 times a second), a tritone above
+  // it, a few dark upper tones, a low rumble and a band of dull noise, all swelling slowly. Measured against a recording of a tense mood and matched on
+  // its energy by band, its partials and its throb (see public/audio/mood-tense.reference.ogg to compare).
+  function tense(bus) {
+    var out = [];
+    var level = gain(0.55); level.connect(bus);
+    var swell = gain(0.85); swell.connect(level);
+    out.push(lfo(0.08, 0.1, swell.gain));
+    var low = filter('lowpass', 900, 0.7); low.connect(swell);
+    function tone(f, type, lv, dest) { var o = ctx.createOscillator(), g = gain(lv); o.type = type; o.frequency.value = f; o.connect(g); g.connect(dest); o.start(); out.push(o); }
+    [61.9, 63.56, 65.22, 66.88, 68.54].forEach(function (f) { tone(f, 'sine', 0.055, swell); tone(f * 2, 'sine', 0.009, swell); tone(f, 'sawtooth', 0.011, low); });
+    tone(93.0, 'sine', 0.02, swell); tone(92.2, 'sine', 0.013, swell);
+    tone(32.6, 'sine', 0.03, swell); tone(34.1, 'sine', 0.03, swell); tone(46.4, 'sine', 0.014, swell);
+    [[132.6, 0.03], [155.3, 0.03], [191.9, 0.02], [220.5, 0.024]].forEach(function (p) { tone(p[0], 'sine', p[1], swell); });
+    var rumble = noise(true), rf = filter('lowpass', 110), rg = gain(0.07);
+    rumble.connect(rf); rf.connect(rg); rg.connect(swell); rumble.start(); out.push(rumble);
+    var dull = noise(false), hp = filter('highpass', 250), l1 = filter('lowpass', 600), l2 = filter('lowpass', 600), dg = gain(0.28);
+    dull.connect(hp); hp.connect(l1); l1.connect(l2); l2.connect(dg); dg.connect(swell); dull.start(); out.push(dull);
+    return out;
+  }
+
   var BUILD = {
     none: function () { return []; },
     wind: function (b) { return wind(b, 1); },
@@ -315,7 +336,7 @@
   /* ---------------- moods ---------------- */
   var MOOD = {
     calm: function () { return []; },
-    tense: function (b) { return drone(b, 62, 0.07); },
+    tense: tense,
     combat: function (b) {
       var out = drone(b, 58, 0.05);
       var beat = 0;
