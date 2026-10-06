@@ -1,5 +1,5 @@
 {
- "note": "Effects (not conditions): states and spell effects. rounds = combat rounds it lasts, minutes = game-clock minutes it lasts (either or both; 0 = no limit of that kind). concentration true = it ends when its caster stops concentrating. endsOn = what the DM must watch for and end it with removeCondition.",
+ "note": "Effects (not conditions): states and spell effects. rounds = combat rounds it lasts, minutes = game-clock minutes it lasts (either or both; 0 = no limit of that kind). concentration true = it ends when its caster stops concentrating. endsOn = what the DM must watch for and end it with removeCondition. trigger = what the table enforces by itself: harms (its holder harms another creature), idle-round (a round with no attack and no damage taken), target-down (the creature carrying it drops to 0 hit points); dm = only the DM can see it end.",
  "effects": {
   "concentrating": {
    "label": "Concentrating",
@@ -43,7 +43,8 @@
    "rounds": 10,
    "minutes": 1,
    "concentration": false,
-   "endsOn": "the warded creature makes an attack or casts a spell that harms another creature"
+   "endsOn": "the warded creature makes an attack or casts a spell that harms another creature",
+   "trigger": "harms"
   },
   "bless": {
    "label": "Bless",
@@ -87,7 +88,8 @@
    "rounds": 0,
    "minutes": 480,
    "concentration": false,
-   "endsOn": "the creature puts on armor"
+   "endsOn": "the creature puts on armor",
+   "trigger": "dm"
   },
   "haste": {
    "label": "Haste",
@@ -120,7 +122,8 @@
    "rounds": 10,
    "minutes": 1,
    "concentration": true,
-   "endsOn": "the creature succeeds on a Wisdom saving throw at the end of one of its turns"
+   "endsOn": "the creature succeeds on a Wisdom saving throw at the end of one of its turns",
+   "trigger": "dm"
   },
   "hex": {
    "label": "Hex",
@@ -131,7 +134,8 @@
    "rounds": 0,
    "minutes": 60,
    "concentration": true,
-   "endsOn": ""
+   "endsOn": "the cursed creature drops to 0 hit points (the curse can move to a new target)",
+   "trigger": "target-down"
   },
   "hunter's mark": {
    "label": "Hunter's mark",
@@ -142,7 +146,8 @@
    "rounds": 0,
    "minutes": 60,
    "concentration": true,
-   "endsOn": "the marked creature drops to 0 hit points (the mark can move to a new target)"
+   "endsOn": "the marked creature drops to 0 hit points (the mark can move to a new target)",
+   "trigger": "target-down"
   },
   "rage": {
    "label": "Rage",
@@ -153,7 +158,8 @@
    "rounds": 10,
    "minutes": 1,
    "concentration": false,
-   "endsOn": "a whole round passes in which the raging creature neither attacks a hostile creature nor takes damage"
+   "endsOn": "a whole round passes in which the raging creature neither attacks a hostile creature nor takes damage",
+   "trigger": "idle-round"
   },
   "fly": {
    "label": "Fly",
@@ -175,7 +181,8 @@
    "rounds": 10,
    "minutes": 1,
    "concentration": true,
-   "endsOn": "the 1d4 is used on an ability check"
+   "endsOn": "the 1d4 is used on an ability check",
+   "trigger": "dm"
   },
   "longstrider": {
    "label": "Longstrider",

@@ -684,6 +684,90 @@ test('flying: fly speed, elevation, terrain and fences ignored, walls still bloc
   assert.deepEqual(r.low, [0, ['stunned']], 'a short fall does no damage and does not knock it prone');
 });
 
+test('end triggers: sanctuary ends when its holder harms another creature, rage when a round passes idle, hunter\'s mark and hex when the target drops', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.fogEnabled = false; s.pendingNotes = [];
+    const hero = s.tokens[0];
+    const mk = (id, name, col) => Object.assign(makeToken({ id, name, color: '#0a0', isPC: false, col, row: 12 }), { hp: 20, maxHp: 20, ac: 12, dexMod: 0 });
+    const a = mk('ga', 'Ant', 11), b = mk('gb', 'Bat', 12);
+    s.tokens.push(a, b);
+    const names = (t) => tokenConditions(t).map((c) => c.name).sort();
+    const dmg = (id, n) => ({ type: 'damageToken', tokenId: id, value: n });
+    const out = {};
+    s.combat = { active: true, round: 1, order: [hero.id, a.id, b.id] };
+    for (const t of s.tokens) t.initiative = t === hero ? 20 : t === a ? 10 : 5;
+    sortCombat(); s.activeIndex = s.tokens.indexOf(hero); beginTurn(hero);
+    // sanctuary: damage dealt TO the holder by someone else's turn does nothing; damage the holder deals ends it
+    setCondition(hero, 'sanctuary', 0, {});
+    s.activeIndex = s.tokens.indexOf(a);
+    await vtt.applyMapUpdates([dmg(hero.id, 1)]);
+    out.sanctuaryHit = names(hero);
+    s.activeIndex = s.tokens.indexOf(hero);
+    await vtt.applyMapUpdates([dmg(hero.id, 0)]);
+    await vtt.applyMapUpdates([dmg(a.id, 3)]);
+    out.sanctuaryAfterAttack = names(hero); out.notes1 = s.pendingNotes.slice(); s.pendingNotes = [];
+    // a roll line that shows a miss also counts as an attack
+    setCondition(hero, 'sanctuary', 0, {});
+    vtt.noteRollLines(['Perception check: d20 (12)']);
+    out.sanctuaryAfterCheck = names(hero);
+    vtt.noteRollLines([hero.name.split(' ')[0] + ' attack: d20 (3) + 5 = 8 vs AC 12, miss']);
+    out.sanctuaryAfterMiss = names(hero); s.pendingNotes = [];
+    // rage: an idle turn ends it, an attack or damage keeps it
+    hero.attackedSince = false; hero.hurtSince = false; setCondition(hero, 'rage', 0, {});
+    nextCombatTurn(); out.rageIdle = names(hero); out.rageNote = s.pendingNotes.join(' | '); s.pendingNotes = [];
+    // back to the hero's turn
+    const toHero = () => { for (let i = 0; i < 6 && activeToken() !== hero; i++) nextCombatTurn(); };
+    toHero(); setCondition(hero, 'rage', 0, {});
+    await vtt.applyMapUpdates([dmg(a.id, 2)]); nextCombatTurn(); out.rageAttacked = names(hero);
+    toHero(); out.flagsReset = [hero.attackedSince, hero.hurtSince];
+    nextCombatTurn(); toHero();
+    setCondition(hero, 'rage', 0, {}); vtt.changeHp(hero, -1); nextCombatTurn(); out.rageHurt = names(hero);
+    toHero(); setCondition(hero, 'rage', 0, {}); vtt.changeHp(hero, 99); out.hp0 = [characterFor(hero).hp, names(hero)]; vtt.changeHp(hero, -(characterFor(hero).hp)); out.rageAtZero = names(hero);
+    vtt.changeHp(hero, 5); hero.conditions = [];
+    // hunter's mark / hex end when the carrier drops to 0, the DM is told it can move
+    s.pendingNotes = [];
+    setCondition(b, "hunter's mark", 0, { source: hero.id }); setCondition(a, 'hex', 0, { source: hero.id }); setCondition(a, 'poisoned', 0, {});
+    out.marksBefore = [names(b), names(a)];
+    vtt.changeHp(b, -5); out.markHurt = names(b);
+    vtt.changeHp(b, -99); out.markDown = names(b); out.markNote = s.pendingNotes.join(' | ');
+    vtt.changeHp(a, -99); out.hexDown = names(a);
+    out.chat = s.chat.filter((m) => m.role === 'system').slice(-6).map((m) => m.content);
+    return out;
+  })()`);
+  assert.deepEqual(r.sanctuaryHit, ['sanctuary'], 'being hit by someone else does not end sanctuary');
+  assert.deepEqual(r.sanctuaryAfterAttack, [], 'dealing damage as the active combatant ends it');
+  assert.match(r.notes1.join(' '), /ended sanctuary on .*Do not remove it again/);
+  assert.deepEqual(r.sanctuaryAfterCheck, ['sanctuary'], 'a skill check is not an attack');
+  assert.deepEqual(r.sanctuaryAfterMiss, [], 'an attack that missed (seen in the roll lines) ends it too');
+  assert.deepEqual(r.rageIdle, [], 'rage ends at the end of a turn with no attack and no damage');
+  assert.match(r.rageNote, /rage/);
+  assert.deepEqual(r.rageAttacked, ['rage'], 'damage dealt keeps the rage going');
+  assert.deepEqual(r.flagsReset, [false, false]);
+  assert.deepEqual(r.rageHurt, ['rage'], 'damage taken keeps the rage going');
+  assert.deepEqual(r.rageAtZero, ['unconscious'],  'dropping to 0 hit points ends rage');
+  assert.deepEqual(r.marksBefore, [["hunter's mark"], ['hex', 'poisoned']]);
+  assert.deepEqual(r.markHurt, ["hunter's mark"]);
+  assert.deepEqual(r.markDown, [], 'the mark ends when its target drops to 0');
+  assert.match(r.markNote, /hunter's mark on .*bonus action/);
+  assert.deepEqual(r.hexDown, ['poisoned'], 'hex ends too, other conditions stay');
+});
+
+test('the in-game clock shows in the top bar and follows a change made elsewhere (the Party tab, another browser) without a reload', opts, async () => {
+  await page.goto(`${server.base}/index.html?nosave=1&live=1`);
+  await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 4 && Number.isFinite(window.vtt.state.clockTotal) && document.querySelector("#gameClock").textContent.length > 3');
+  const before = await page.eval(`({ total: vtt.state.clockTotal, text: document.querySelector('#gameClock').textContent })`);
+  assert.match(before.text, /^Day \d+, \d\d:\d\d (night|dawn|morning|midday|afternoon|evening)$/);
+  await page.eval(`(() => { const t = vtt.state.tokens.find((x) => x.isPC); vtt.setCondition(t, 'moonlit', 0, { minutes: 30 }); return true; })()`);
+  const res = await server.post('/api/party/clock', { minutes: 45 });
+  assert.equal(res.status, 200);
+  await page.waitFor(`vtt.state.clockTotal === ${before.total + 45}`, 8000);
+  const after = await page.eval(`({ text: document.querySelector('#gameClock').textContent, left: vtt.tokenConditions(vtt.state.tokens.find((x) => x.isPC)).map((c) => c.name) })`);
+  assert.notEqual(after.text, before.text, 'the readout moved');
+  assert.ok(!after.left.includes('moonlit'), 'a timed effect that ran out against the new time was removed');
+  assert.equal((await page.eval('typeof vtt.refreshClock')), 'function');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });

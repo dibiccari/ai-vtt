@@ -335,6 +335,7 @@
     <div class="map-controls">
     <div class="move-info" id="moveInfo"></div>
     <div class="elsewhere" id="elsewhere" hidden></div>
+    <span class="move-info" id="gameClock" title="In-game time (moves with combat rounds, rests and the DM's time passing)"></span>
     <span class="spacer"></span>
     <label class="move-rule" id="mapPickBox" hidden title="Move the whole table to another place in this campaign. The AI does this by itself when the party travels.">
       <span>Map</span>
@@ -1100,7 +1101,45 @@ function checkFall(t) {
 // Effects (not conditions) with how long they last: loaded from /effect-data.json; the game clock (minutes since Day 1, 00:00) comes with every DM reply and from /api/party.
 let EFFECT_DEFS = {};
 async function loadEffectDefs() { try { EFFECT_DEFS = (await (await fetch('/effect-data.json')).json()).effects || {}; } catch { EFFECT_DEFS = {}; } }
-async function refreshClock() { try { const j = await (await fetch('/api/party')).json(); if (j && j.clock && Number.isFinite(j.clock.minutes)) { state.clockTotal = j.clock.minutes; expireTimedConditions(); } } catch { /* no clock: timed effects only count rounds */ } }
+// The clock readout in the top bar ("Day 1, 08:00 morning"); the same time-of-day words as lib/rules-track.js.
+function renderGameClock() {
+  const el = $('#gameClock');
+  if (!el) return;
+  if (!Number.isFinite(state.clockTotal)) { el.textContent = ''; return; }
+  const m = Math.max(0, Math.round(state.clockTotal)), h = Math.floor((m % 1440) / 60);
+  const part = h < 5 ? 'night' : h < 8 ? 'dawn' : h < 12 ? 'morning' : h < 14 ? 'midday' : h < 18 ? 'afternoon' : h < 21 ? 'evening' : 'night';
+  el.textContent = `Day ${Math.floor(m / 1440) + 1}, ${String(h).padStart(2, '0')}:${String(m % 60).padStart(2, '0')} ${part}`;
+}
+function setClockTotal(m) { state.clockTotal = m; renderGameClock(); }
+async function refreshClock() { try { const j = await (await fetch('/api/party')).json(); if (j && j.clock && Number.isFinite(j.clock.minutes)) { setClockTotal(j.clock.minutes); expireTimedConditions(); } } catch { /* no clock: timed effects only count rounds */ } }
+// Live clock: the server announces every change to the party, clock or characters (a rest on the Party tab, another browser). Not in spectator mode (watch.js reloads there); with ?nosave=1 only when ?live=1.
+function connectLive() {
+  if (window.WATCH === true || typeof EventSource === 'undefined' || !state.campaignId || state.campaignId === 'default') return;
+  if (/[?&]nosave=1/.test(location.search) && !/[?&]live=1/.test(location.search)) return;
+  let timer = null, pending = false, source = null, tries = 0;
+  const run = async () => {
+    timer = null;
+    if (state.busy) { timer = setTimeout(run, 800); return; }
+    const party = pending; pending = false;
+    await refreshClock();
+    if (party && !state.busy) await loadCharacters();
+  };
+  const open = () => {
+    source = new EventSource(`/api/campaigns/${encodeURIComponent(state.campaignId)}/live`);
+    source.addEventListener('hello', () => { tries = 0; });
+    source.addEventListener('change', (e) => {
+      let d = {}; try { d = JSON.parse(e.data); } catch { /* ignore */ }
+      if (d.scope !== 'party' && d.scope !== 'chat') return;           // game saves and the like are our own writes
+      if (d.scope === 'party') pending = true;
+      if (!timer) timer = setTimeout(run, 300);
+    });
+    source.onerror = () => {                                           // reconnect politely: back off up to 30 s, then catch up on what was missed
+      source.close(); tries += 1;
+      setTimeout(() => { open(); pending = true; if (!timer) timer = setTimeout(run, 300); }, Math.min(30000, 2000 * tries));
+    };
+  };
+  open();
+}
 const minutesLeft = (c) => (Number.isFinite(c.untilMin) && Number.isFinite(state.clockTotal) ? Math.max(0, c.untilMin - state.clockTotal) : null);
 function leftText(c) {
   const parts = [];
@@ -1153,6 +1192,47 @@ function endConcentrationEffects(caster) {
     if (seenByParty(o)) addChat('system', `↳ ${o.name} loses ${ended.join(', ')} (${caster.name} stopped concentrating)`);
   }
 }
+// END TRIGGERS (effect-data.json "trigger"): what the table can see it enforces by the book; the rest stays with the DM.
+//   harms: ends when its holder is the actor of a damaging update on another creature (sanctuary). The actor is the active combatant; outside a fight there is no
+//          reliable actor, so nothing is enforced then and the DM is told to end it. An attack that misses leaves no update: the DM still ends it for those.
+//   idle-round: rage ends at the end of its holder's turn if, since their last turn, they neither dealt damage to another creature, took damage, nor had a roll line in the
+//          DM's reply that starts with their name and talks about an attack (so a miss counts); it also ends when they drop to 0 hit points.
+//   target-down: hunter's mark and hex end when the creature carrying them drops to 0 hit points (the caster may move them to a new creature as a bonus action).
+function triggerOf(c) { const d = EFFECT_DEFS[c.name]; return d && d.trigger ? d.trigger : ''; }
+function endEffectByTable(t, key, why, advice) {
+  if (!clearCondition(t, key)) return false;
+  if (seenByParty(t)) addChat('system', `↳ ${t.name} is no longer ${key} (${why})`);
+  state.pendingNotes.push(`The table ended ${key} on ${t.name}: ${why}. Do not remove it again.${advice ? ' ' + advice : ''}`);
+  return true;
+}
+function endEffectsWithTrigger(t, trigger, why, advice) {
+  let any = false;
+  for (const c of [...tokenConditions(t)]) if (triggerOf(c) === trigger && endEffectByTable(t, c.name, why, advice)) any = true;
+  return any;
+}
+// A creature made an attack or harmed another one (the table saw a damaging update, or the DM's roll lines show an attack that missed).
+function noteAttackBy(actor, target) {
+  if (!actor || (target && actor === target)) return;
+  actor.attackedSince = true;
+  endEffectsWithTrigger(actor, 'harms', 'it attacked or harmed another creature');
+}
+function noteRollLines(lines) {
+  const actor = state.combat.active ? activeToken() : null;
+  if (!actor) return;
+  const first = String(actor.name || '').split(' ')[0].toLowerCase();
+  if (!first) return;
+  for (const raw of lines) {
+    const line = String(raw).toLowerCase();
+    if ((line.startsWith(first) || line.startsWith(String(actor.name).toLowerCase())) && /\b(attack|hits?|misses?|strikes?|slash|stab|shoot|fires?|smite|swing|swings)\b/.test(line)) { noteAttackBy(actor, null); break; }
+  }
+}
+// The end of a combatant's turn: rage needs an attack or damage since their last turn; then the flags start over.
+function endOfTurnTriggers(t) {
+  if (!t) return;
+  if (!t.attackedSince && !t.hurtSince) endEffectsWithTrigger(t, 'idle-round', 'a whole round passed with no attack and no damage taken');
+  t.attackedSince = false; t.hurtSince = false;
+}
+
 // The game clock moves with the story: every combat round is 6 seconds, so ten rounds make a minute and an effect that lasts a minute or ten runs out when the book says (the DM and rests add
 // their own time). The seconds left over are kept with the board; whole minutes are added locally and sent to the server's clock.
 function advanceGameClock(minutes, seconds) {
@@ -1160,7 +1240,7 @@ function advanceGameClock(minutes, seconds) {
   let m = Math.max(0, Math.round(Number(minutes) || 0));
   while (state.clockSeconds >= 60) { state.clockSeconds -= 60; m += 1; }
   if (!m) return;
-  if (Number.isFinite(state.clockTotal)) state.clockTotal += m;
+  if (Number.isFinite(state.clockTotal)) setClockTotal(state.clockTotal + m);
   fetch('/api/party/clock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minutes: m }) }).catch(() => {});
   expireTimedConditions();
 }
@@ -2929,7 +3009,7 @@ function changeHp(t, delta) {
     c.hp = after;
     jsonPost('/api/characters', c).catch((err) => toast(`Could not save ${c.name}'s HP: ${err.message}`, 'error'));
   } else t.hp = after;
-  if (delta < 0 && before > 0) concentrationCheck(t, Math.abs(Math.round(delta)), after);
+  if (delta < 0 && before > 0) { t.hurtSince = true; concentrationCheck(t, Math.abs(Math.round(delta)), after); }
   if (before === 0 && delta < 0 && t.isPC && !t.dead && hpOf(t) === 0) {
     // Damage to a character already at 0 is a failed death save (a stable one starts dying again).
     t.stable = false; clearCondition(t, 'stable'); if (!t.deathSaves) t.deathSaves = { success: 0, fail: 0 };
@@ -2937,6 +3017,8 @@ function changeHp(t, delta) {
     setDeathSave(t, 'fail', t.deathSaves.fail + 1);
   }
   if (after === 0 && before > 0) {
+    endEffectsWithTrigger(t, 'idle-round', 'it dropped to 0 hit points');
+    endEffectsWithTrigger(t, 'target-down', 'it dropped to 0 hit points', 'Whoever cast it may move it to another creature as a bonus action if the spell allows it (ask or narrate it).');
     if (t.isPC) {
       setCondition(t, 'unconscious', 0); t.deathSaves = { success: 0, fail: 0 }; t.stable = false; addChat('system', `↳ ${t.name} falls unconscious and is dying`);
       if (-Math.round(delta) - before >= max) { addChat('system', `↳ Massive damage: ${t.name} is killed outright`); setDeathSave(t, 'fail', 3); }      // 5e: damage left over after 0 that equals the hit point maximum
@@ -3023,6 +3105,7 @@ function nextCombatTurn() {
   if (leaving && hasCondition(leaving, 'surprised')) clearCondition(leaving, 'surprised');       // surprise ends when its first turn ends
   if (leaving && hasCondition(leaving, 'dashing')) clearCondition(leaving, 'dashing');
   if (leaving && tokenConditions(leaving).some((c) => c.name === 'lethargic' && c.armed)) clearCondition(leaving, 'lethargic');       // lethargy lasts until after its next turn         // a Dash lasts for the turn it was taken
+  endOfTurnTriggers(leaving);
   // Defeated creatures are skipped; creatures the party cannot see are skipped too (the AI plays their turns in the narration); so are delayed ones.
   const pick = CombatOrder.nextActor(order.map((t) => ({ id: t.id, dead: t.dead, unseen: !seenByParty(t), delayed: t.delayed })), leaving ? leaving.id : '');
   const chosen = pick ? order.find((t) => t.id === pick.id) : null;
@@ -3444,10 +3527,11 @@ async function sendTurn(spokenText, opts) {
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
     for (const line of Array.isArray(data.rolls) ? data.rolls : []) addChat('system', '🎲 ' + line);     // every roll first, then the story
+    noteRollLines(Array.isArray(data.rolls) ? data.rolls : []);
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
     // Characters first: the server already changed hit points, Hit Dice and features, and the board updates below must start from those numbers.
     if (Array.isArray(data.partyChanged) && data.partyChanged.length) await loadCharacters();
-    if (data.clock && Number.isFinite(data.clock.minutes)) state.clockTotal = data.clock.minutes;
+    if (data.clock && Number.isFinite(data.clock.minutes)) setClockTotal(data.clock.minutes);
     await applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
     expireTimedConditions();
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
@@ -4137,6 +4221,7 @@ async function applyMapUpdates(updates) {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         const amount = Math.abs(Math.round(Number(u.value)));
         if (!t || !(amount > 0)) break;
+        if (u.type === 'damageToken' && state.combat.active) noteAttackBy(activeToken(), t);       // the active combatant dealt it (see END TRIGGERS)
         const r = changeHp(t, u.type === 'damageToken' ? -amount : amount);
         if (r && seenByParty(t) && !t.isPC) addChat('system', `↳ ${t.name} ${u.type === 'damageToken' ? 'takes' : 'recovers'} ${amount}`);
         break;
@@ -4405,6 +4490,7 @@ async function init() {
   await loadEffectDefs();
   if (window.ConditionRings) ConditionRings.load().then(() => requestRender()).catch(() => {});
   await refreshClock();
+  connectLive();
   if (!state.tokens.length) createDefaultTokens();
   await setMap(board?.mapUrl || null);
   if (state.zoomToParty) focusStart();
@@ -4427,7 +4513,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn };
+window.vtt = { fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
 
 init().catch((err) => {
   console.error(err);
