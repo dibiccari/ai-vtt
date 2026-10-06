@@ -51,7 +51,9 @@ const setup = `(() => {
   const s = vtt.state;
   s.combat = { active: false, round: 0, order: [] };
   s.gmOverride = false; s.difficult = []; s.difficultSquares = null; s.dmView = false;
-  s.tokens = s.tokens.filter(t => t.isPC).slice(0, 1);
+  if (s.tokens.some((t) => !t)) { window.__hole = (window.__hole || 0) + 1; s.tokens = s.tokens.filter(Boolean); throw new Error("a test left an undefined token in the list (the one before this)"); }
+  if (window.__keepTokens) { s.tokens = window.__keepTokens; window.__keepTokens = null; }      // a test that swapped the tokens (the flying one) gives them back
+  { const pcs = s.tokens.filter(t => t && t.isPC); s.tokens = [pcs.find(t => characterFor(t)) || pcs[0]].filter(Boolean); }      // the party member that has a character sheet
   const hero = s.tokens[0]; hero.col = 10; hero.row = 10; hero.speed = 30; hero.movementRemaining = 30; hero.conditions = []; delete hero.where;
   s.activeIndex = 0; s.walls = []; s.wallsVersion++; s.fogEnabled = false;
   return hero.name;
@@ -527,7 +529,7 @@ test('sizes: a large creature covers 2x2 squares: its whole body must fit betwee
     out.spot = spot;
     out.spotFits = !(spot.col <= 15 && 15 <= spot.col + 1 && spot.row <= 11 && 11 <= spot.row + 1);
     out.edgeSpot = vtt.freeSquareNear(cols() - 1, 3, 3);
-    s.tokens = [s.tokens[1]]; s.walls = []; s.wallsVersion++;
+    s.tokens = s.tokens.slice(1, 2); s.walls = []; s.wallsVersion++;
     return out;
   })()`);
   assert.equal(r.footprint, 2); assert.deepEqual(r.centre, [550, 550], 'the centre of a 2x2 body at (10,10) is the corner shared by its four squares');
@@ -641,7 +643,7 @@ test('flying: fly speed, elevation, terrain and fences ignored, walls still bloc
   const r = await page.eval(`(async () => {
     const s = vtt.state; s.pendingNotes.length = 0; s.combat = { active: true, round: 1, order: [] }; s.moveRule = 'circle';
     const bat = Object.assign(makeToken({ id: 'bat', name: 'Griffon', color: '#a00', isPC: false, col: 10, row: 10, speed: 30, flySpeed: 80, size: 'large' }), { hp: 59, maxHp: 59, ac: 12 });
-    s.tokens = [bat]; bat.order = 0; s.combat.order = ['bat'];
+    window.__keepTokens = s.tokens; s.tokens = [bat]; bat.order = 0; s.combat.order = ['bat'];
     const out = { ground: vtt.effectiveSpeed(bat), flyingOnGround: vtt.isFlying(bat) };
     bat.elevation = 30; out.air = [vtt.effectiveSpeed(bat), vtt.isFlying(bat)];
     bat.movementRemaining = 80; const has = (c, r) => vtt.reachable(bat).has(c + ',' + r);
@@ -671,7 +673,7 @@ test('flying: fly speed, elevation, terrain and fences ignored, walls still bloc
     // no fall damage under 10 ft
     const imp = Object.assign(makeToken({ id: 'imp', name: 'Imp', color: '#a0a', isPC: false, col: 2, row: 2, flySpeed: 40 }), { hp: 5, maxHp: 5 }); s.tokens.push(imp);
     imp.elevation = 5; vtt.setCondition(imp, 'stunned', 0); out.low = [imp.elevation, imp.conditions.map(c => c.name)];
-    s.combat = { active: false, round: 0, order: [] }; s.tokens = [s.tokens.find(t => t.isPC)]; s.walls = []; s.wallsVersion++;
+    s.combat = { active: false, round: 0, order: [] }; s.tokens = s.tokens.filter(t => t.isPC).slice(0, 1); s.walls = []; s.wallsVersion++;
     return out;
   })()`);
   assert.equal(r.ground, 30); assert.equal(r.flyingOnGround, false, 'a creature on the ground walks'); assert.deepEqual(r.air, [80, true]);
@@ -688,7 +690,8 @@ test('end triggers: sanctuary ends when its holder harms another creature, rage 
   await page.eval(setup);
   const r = await page.eval(`(async () => {
     const s = vtt.state; s.fogEnabled = false; s.pendingNotes = [];
-    const hero = s.tokens[0];
+    const hero = s.tokens[0]; if (!characterFor(hero)) hero.characterId = s.characters[0].id;      // an earlier test may have swapped the party token
+    { const c = characterFor(hero); c.hp = c.maxHp; hero.deathSaves = null; hero.stable = false; hero.dead = false; hero.conditions = []; }      // and left the character hurt
     const mk = (id, name, col) => Object.assign(makeToken({ id, name, color: '#0a0', isPC: false, col, row: 12 }), { hp: 20, maxHp: 20, ac: 12, dexMod: 0 });
     const a = mk('ga', 'Ant', 11), b = mk('gb', 'Bat', 12);
     s.tokens.push(a, b);
