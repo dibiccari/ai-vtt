@@ -15,8 +15,11 @@
   // Recordings differ a lot in loudness, so each has a gain that brings it to a similar level (measured from the files in public/audio).
   var FILE_GAIN = {
     'scene:night': 1.4, 'scene:tavern': 3.5, 'scene:town': 4.5, 'scene:fire': 1.7, 'scene:cave': 0.34, 'scene:dungeon': 1.8,
-    'mood:triumph': 0.56, 'sfx:door': 1.1, 'sfx:magic': 0.73, 'sfx:owl': 6, 'sfx:howl': 1.9
+    'mood:triumph': 0.56, 'sfx:door': 1.1, 'sfx:magic': 0.73, 'sfx:owl': 6, 'sfx:howl': 1.9,
+    'sfx:bell': 0.7, 'sfx:roar': 0.62, 'sfx:explosion': 0.9, 'sfx:splash': 0.6, 'sfx:creak': 2.0
   };
+  // A recorded effect that rings on for a long time is faded out after this many seconds (a church bell rings for half a minute).
+  var FILE_MAX = { 'sfx:bell': 9, 'sfx:creak': 6 };
   var fileGain = function (key) { return FILE_GAIN[key] || 1; };
   // Scenes whose recording is a bed that gets extra one-shot recordings now and then: [sound, least ms, most ms between plays].
   var EXTRAS = { night: [['owl', 8000, 20000], ['howl', 30000, 80000]] };
@@ -496,7 +499,9 @@
     },
     sfx: function (name) {
       if (!enabled || isRetired('sfx', name) || !ensure() || ctx.state === 'suspended') return;
-      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = fileGain('sfx:' + name); s.connect(g); g.connect(sfxOut); s.start(); }).catch(function () { /* skipped */ }); return; }
+      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = fileGain('sfx:' + name); s.connect(g); g.connect(sfxOut); s.start();
+        var max = FILE_MAX['sfx:' + name];
+        if (max && buf.duration > max) { var t = ctx.currentTime; g.gain.setValueAtTime(g.gain.value, t + max - 1.5); g.gain.linearRampToValueAtTime(0.0001, t + max); s.stop(t + max + 0.05); } }).catch(function () { /* skipped */ }); return; }
       if (EFFECTS[name]) EFFECTS[name]();
     },
     // Stop: a scene fades out, a mood returns to calm, and for sound effects everything still ringing is cut at once (the Sound Test page's Stop buttons).
@@ -505,6 +510,21 @@
       if (kind === 'mood') { api.setMood('calm'); return; }
       epoch++;
       if (ctx && sfxOut) { var old = sfxOut; try { old.disconnect(); } catch (e) { /* already gone */ } sfxOut = ctx.createGain(); sfxOut.connect(master); }
+    },
+    // Record what the app is playing for `ms` milliseconds: resolves with { sr, data } (mono samples), or null without sound. Used to measure the sounds (a self-test).
+    record: function (ms) {
+      return new Promise(function (resolve) {
+        if (!ensure()) { resolve(null); return; }
+        var proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
+        proc.onaudioprocess = function (e) { chunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+        master.connect(proc); proc.connect(ctx.destination);
+        setTimeout(function () {
+          try { master.disconnect(proc); proc.disconnect(); } catch (e) { /* done */ }
+          var n = chunks.reduce(function (s, c) { return s + c.length; }, 0), data = new Float32Array(n), at = 0;
+          chunks.forEach(function (c) { data.set(c, at); at += c.length; });
+          resolve({ sr: ctx.sampleRate, data: data });
+        }, ms);
+      });
     },
     // True when a recording in public/audio replaces this sound.
     hasFile: function (kind, name) { return Boolean(files[kind + ':' + name]); },

@@ -1,6 +1,6 @@
 # Where the recordings in this folder come from
 
-All of these are free to use. Eleven are CC0 (public domain); one (a reference file, not played) needs credit (marked). Downloaded October 2026. Freesound recordings are the site's
+All of these are free to use. Sixteen are CC0 (public domain); one (a reference file, not played) needs credit (marked). Downloaded October 2026. Freesound recordings are the site's
 preview-quality MP3s. The names are the file names in this folder.
 
 | File | What it is | Author | Licence | Source |
@@ -17,5 +17,10 @@ preview-quality MP3s. The names are the file names in this folder.
 | mood-triumph.m4a | Victory fanfare (converted to AAC) | cynicmusic | CC0 | https://opengameart.org/content/victory-fanfare-short |
 | sfx-door.wav | Creaky door (RPG Sound Pack, world/door.wav) | artisticdude | CC0 | https://opengameart.org/content/rpg-sound-pack |
 | sfx-magic.wav | Magic spell (RPG Sound Pack, battle/magic1.wav) | artisticdude | CC0 | https://opengameart.org/content/rpg-sound-pack |
+| sfx-bell.mp3 | Church bell, one strike (D3, rings about 28 s; the app fades it after 9 s) | bassimat | CC0 | https://freesound.org/people/bassimat/sounds/857912/ |
+| sfx-roar.mp3 | Growl and roar | Jofae | CC0 | https://freesound.org/people/Jofae/sounds/366837/ |
+| sfx-explosion.mp3 | Explosion | qubodup | CC0 | https://freesound.org/people/qubodup/sounds/442958/ |
+| sfx-splash.mp3 | Big water splash | qubodup | CC0 | https://freesound.org/people/qubodup/sounds/442773/ |
+| sfx-creak.mp3 | Creaking door (the app fades it after 6 s) | loudernoises | CC0 | https://freesound.org/people/loudernoises/sounds/333929/ |
 
 Loudness: the recordings differ a lot, so `FILE_GAIN` in public/ambience.js sets a gain for each one. Change it there if one is too loud or too quiet.
