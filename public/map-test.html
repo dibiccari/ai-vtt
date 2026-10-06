@@ -816,11 +816,11 @@
     if (S.tokens.length) S.tokens[0] = at; else S.tokens.push(at);
   }
 
-  // A battle or camp map with no start pin gets a warning mark in the list; it goes away once a pin is named "start".
+  // A battle or camp map with no start pin gets an exclamation mark in the list; it goes away once a pin is named "start".
   function mapLabel(url) {
     const name = url.split('/').pop();
     const has = url === S.url ? S.starts.some((p) => p.name === 'start') : !S.missingStart.has(name);
-    return (S.needsStart.has(name) && !has ? '⚠ ' : '') + name;
+    return (S.needsStart.has(name) && !has ? '❗ ' : '') + name;
   }
   function refreshMapLabels() {
     for (const opt of $('#mapSelect').options) opt.textContent = mapLabel(opt.value);
