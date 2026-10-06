@@ -3054,7 +3054,8 @@
     {
       "name": "start",
       "x": 1995,
-      "y": 1295
+      "y": 1295,
+      "radius": 2
     },
     {
       "name": "south-passage",
@@ -3111,8 +3112,8 @@
     },
     {
       "name": "area-10",
-      "x": 225,
-      "y": 900,
+      "x": 244,
+      "y": 898,
       "desc": "Common Room"
     },
     {
