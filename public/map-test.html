@@ -72,8 +72,8 @@
 
   <div class="group">
     <h2>Fog and sight</h2>
-    <label class="check"><input type="checkbox" id="fog"> Fog of war</label>
-    <label class="check"><input type="checkbox" id="dm"> DM view (see through fog)</label>
+    <label class="check"><input type="checkbox" id="fog" checked> Fog of war</label>
+    <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
@@ -182,7 +182,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], lightZones: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
-    moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
   };
