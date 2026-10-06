@@ -132,7 +132,7 @@
     var play = document.createElement('button'); play.textContent = '▶ ' + (LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1)); play.dataset.name = name;
     play.addEventListener('click', function () { Ambience.unlock(); Ambience.resume(); onPlay(name); group.querySelectorAll('.row > button').forEach(function (b) { if (kind !== 'sfx') b.setAttribute('aria-pressed', String(b === play)); }); });
     var meant = document.createElement('div'); meant.className = 'meant';
-    meant.textContent = 'Meant to sound like: ' + MEANT[kind][name] + (Ambience.hasFile(kind, name) ? '  [your recording]' : '  [synthesised]');
+    meant.textContent = 'Meant to sound like: ' + MEANT[kind][name] + (Ambience.hasFile(kind, name) ? '  [your recording]' : '  [synthesised]') + (Ambience.isRetired(kind, name) ? '  [switched off in the game until it is retuned]' : (fb.rating === 'good' ? '  [kept: rated Good]' : ''));
     var note = document.createElement('input'); note.type = 'text'; note.placeholder = 'What do you hear? What should it be?'; note.value = fb.note || ''; note.maxLength = 500;
     note.addEventListener('input', function () { feedback[key] = { rating: (feedback[key] || {}).rating || '', note: note.value }; queueSave(); });
     meant.appendChild(note);
@@ -154,6 +154,7 @@
   async function init() {
     await loadFeedback();
     await Ambience.ready;
+    Ambience.allowRetired(true);                 // here every sound can be played, including the ones switched off in the game
     Ambience.scenes.forEach(function (n) { if (n !== 'none') row($('#scenes'), 'scene', n, function (x) { Ambience.setScene(x); say('Scene: ' + LABELS[x]); }); });
     Ambience.moods.forEach(function (n) { if (n !== 'calm') row($('#moods'), 'mood', n, function (x) { Ambience.setMood(x); say('Mood: ' + LABELS[x]); }); });
     Ambience.sfxNames.forEach(function (n) { row($('#sfx'), 'sfx', n, function (x) { Ambience.sfx(x); say('Sound effect: ' + x); }); });

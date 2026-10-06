@@ -82,6 +82,10 @@
       <select id="copyTarget" aria-label="Copy pins to this map"></select>
       <button id="copyPinsBtn" title="Copy this map's pins onto another map (for example the night version of the same place). Pins with the same name are replaced; the other map's walls are untouched.">Copy pins</button>
     </div>
+    <label class="field"><span>Light zone level (for the Light tool)</span>
+      <select id="zoneLevel"><option value="dark">Dark</option><option value="dim">Dim</option><option value="bright">Bright</option></select>
+    </label>
+    <p class="hint">Light: choose the Light tool above the map and drag a rectangle (it takes the level above); right-click inside one to remove it.</p>
     <p class="hint">Terrain: choose the Terrain tool above the map and drag a rectangle over difficult ground (right-click inside one to remove it).</p>
     <p class="hint">Use the Pins tool: click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
   </div>
@@ -139,6 +143,7 @@
     <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: drag a rectangle over rubble, mud, shallow water or thick undergrowth (it snaps to the grid). Moving into those squares costs double. Right-click inside a rectangle to remove it">Terrain</button>
+    <button class="tool" data-tool="light" aria-pressed="false" title="Light zones: drag a rectangle with its own light level (a dark cave mouth in a bright map, a lit room in a dark one); it snaps to the grid. Right-click inside one to remove it. Map Test only shows the zones; the tabletop uses them for fog and sight">Light</button>
     <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
   </div>
   <div class="banner" id="banner">Loading maps...</div>
@@ -168,7 +173,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
+    squares: 50, walls: [], starts: [], difficult: [], lightZones: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null,
     moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: false, dm: false, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, polys: [], spaceDown: false
@@ -210,7 +215,8 @@
     return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
   }
 
-  const blockingWalls = (walls) => walls.filter((w) => !(w.type === 'door' && w.open));
+  const blockingWalls = (walls) => walls.filter((w) => !(w.type === 'door' && w.open));       // stops movement
+  const sightWalls = (walls) => blockingWalls(walls).filter((w) => w.type !== 'fence');       // stops sight: a fence or a window does not
 
   // Cast rays at every wall endpoint (+/- epsilon) plus a uniform fan; `walls` must already exclude open doors.
   function visibilityPolygon(ox, oy, walls, W, H) {
@@ -248,7 +254,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, lightZones: S.lightZones, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -282,7 +288,7 @@
 
   function cleanWalls(list) {
     return (Array.isArray(list) ? list : []).filter(validWall).map((w) => ({
-      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open)
+      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open)
     }));
   }
 
@@ -305,7 +311,7 @@
     vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
     vctx.fillRect(0, 0, S.W, S.H);
     const radius = (S.visionFt / FT_PER_SQUARE) * cell();
-    const walls = blockingWalls(S.walls);
+    const walls = sightWalls(S.walls);
     S.polys = [];
     S.polyOwners = [];
     for (const t of S.tokens) {
@@ -442,6 +448,7 @@
 
     if (S.showWalls) drawWalls(px);
     drawMoveRange(px);
+    drawLightZones(px);
     drawTerrain(px);
     drawStarts(px);
     drawTokens(px);
@@ -520,6 +527,28 @@
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
       for (const [k, ft] of cost) { const [c, r] = k.split(',').map(Number); ctx.fillText(String(Math.round(ft)), (c + 0.5) * g, (r + 0.5) * g); }
+    }
+    ctx.restore();
+  }
+
+  // Light zones: dark ones are shaded black, dim ones grey-blue, bright ones pale yellow, each with its level written in the corner.
+  const ZONE_COLOR = { dark: 'rgba(0, 0, 20, 0.55)', dim: 'rgba(90, 110, 160, 0.30)', bright: 'rgba(255, 240, 160, 0.25)' };
+  function drawLightZones(px) {
+    const list = S.drag && S.drag.kind === 'light' && S.drag.rect ? S.lightZones.concat([S.drag.rect]) : S.lightZones;
+    if (!list.length) return;
+    ctx.save();
+    for (const z of list) {
+      ctx.fillStyle = ZONE_COLOR[z.level] || ZONE_COLOR.dim;
+      ctx.fillRect(z.x, z.y, z.w, z.h);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.lineWidth = 1.5 * px;
+      ctx.setLineDash([6 * px, 5 * px]);
+      ctx.strokeRect(z.x, z.y, z.w, z.h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.font = (12 * px) + 'px "Segoe UI", sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillText(z.level + ' light', z.x + 6 * px, z.y + 5 * px);
     }
     ctx.restore();
   }
@@ -690,7 +719,7 @@
     for (const w of S.walls) {
       const door = w.type === 'door';
       ctx.lineWidth = (door ? 5 : 4) * px;
-      ctx.strokeStyle = door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : 'rgba(240, 192, 72, 0.95)') : 'rgba(255, 90, 90, 0.95)';
+      ctx.strokeStyle = door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
       ctx.setLineDash(door && w.open ? [10 * px, 8 * px] : []);
       ctx.beginPath();
       ctx.moveTo(w.x1, w.y1);
@@ -761,6 +790,7 @@
         S.walls = cleanWalls(saved && saved.walls);
         S.starts = [];
         S.difficult = [];
+        S.lightZones = [];
         S.tokens = (saved && Array.isArray(saved.tokens) ? saved.tokens : [])
           .filter((t) => t && isFinite(t.x) && isFinite(t.y))
           .map((t) => ({ x: clamp(t.x, 0, S.W), y: clamp(t.y, 0, S.H) }));
@@ -778,6 +808,7 @@
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
+        S.lightZones = remote && Array.isArray(remote.lightZones) ? remote.lightZones.filter((z) => z && [z.x, z.y, z.w, z.h].every(isFinite) && z.w > 0 && z.h > 0 && ['dark', 'dim', 'bright'].includes(z.level)) : [];
         S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
         // A map with no test token yet starts one at its start pin, so the line-of-sight check begins where the party would.
         const startPin = S.starts.find((p) => p.name === 'start');
@@ -952,6 +983,13 @@
 
     if (e.button === 2) {
       if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
+      if (S.tool === 'light') {
+        for (let i = S.lightZones.length - 1; i >= 0; i--) {
+          const z = S.lightZones[i];
+          if (p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h) { S.lightZones.splice(i, 1); save(); requestRender(); break; }
+        }
+        return;
+      }
       if (S.tool === 'terrain') {
         for (let i = S.difficult.length - 1; i >= 0; i--) {
           const d = S.difficult[i];
@@ -994,6 +1032,9 @@
     } else if (S.tool === 'terrain') {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       S.drag = { kind: 'terrain', x0: p.x, y0: p.y, rect: null };
+    } else if (S.tool === 'light') {
+      if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
+      S.drag = { kind: 'light', x0: p.x, y0: p.y, rect: null };
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);
       if (w) { w.open = !w.open; wallsChanged(); }
@@ -1007,6 +1048,12 @@
     if (S.drag && S.drag.kind === 'pan') {
       S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
       S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
+    } else if (S.drag && S.drag.kind === 'light') {
+      const g = S.W / S.squares;
+      const sx = (v) => Math.round(clamp(v, 0, S.W) / g) * g, sy = (v) => Math.round(clamp(v, 0, S.H) / g) * g;
+      const x1 = Math.min(sx(S.drag.x0), sx(p.x)), x2 = Math.max(sx(S.drag.x0), sx(p.x));
+      const y1 = Math.min(sy(S.drag.y0), sy(p.y)), y2 = Math.max(sy(S.drag.y0), sy(p.y));
+      S.drag.rect = { x: Math.round(x1), y: Math.round(y1), w: Math.round(x2 - x1), h: Math.round(y2 - y1), level: $('#zoneLevel').value };
     } else if (S.drag && S.drag.kind === 'terrain') {
       // Snap to the grid so every shaded square is a whole square.
       const g = S.W / S.squares;
@@ -1034,6 +1081,7 @@
     if (kind === 'token') save();
     if (kind === 'start') { save(); renderStartList(); }
     if (kind === 'terrain' && drag.rect && drag.rect.w > 0 && drag.rect.h > 0) { S.difficult.push(drag.rect); save(); }
+    if (kind === 'light' && drag.rect && drag.rect.w > 0 && drag.rect.h > 0) { S.lightZones.push(drag.rect); save(); }
     setTool(S.tool);
   }
   cv.addEventListener('pointerup', endDrag);
@@ -1239,7 +1287,7 @@
       { x1: 600, y1: 300, x2: 600, y2: 400 }, { x1: 600, y1: 450, x2: 600, y2: 600 }
     ];
     const door = { x1: 600, y1: 400, x2: 600, y2: 450, type: 'door', open: false };
-    const poly = (ox, oy, walls) => visibilityPolygon(ox, oy, blockingWalls(walls), W, H);
+    const poly = (ox, oy, walls) => visibilityPolygon(ox, oy, sightWalls(walls), W, H);
 
     let p = poly(450, 450, [...room, door]);
     check('Sees the whole room it stands in', inside(p, 350, 350) && inside(p, 550, 550));

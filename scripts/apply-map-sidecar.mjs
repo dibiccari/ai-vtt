@@ -10,6 +10,10 @@ if (!sidecar || !picture) { console.error('usage: node scripts/apply-map-sidecar
 const file = path.join(root, 'data', 'maps', `${picture}.json`);
 const config = JSON.parse(await readFile(file, 'utf8'));
 const extra = JSON.parse(await readFile(path.resolve(sidecar), 'utf8'));
+// Walls the dd2vtt format cannot carry (fences and windows) are added to the imported walls.
+const extraWalls = extra.extraWalls || [];
+delete extra.extraWalls;
 Object.assign(config, extra);
+if (extraWalls.length) config.walls = (config.walls || []).filter((w) => w.type !== 'fence').concat(extraWalls);
 await writeFile(file, JSON.stringify(config, null, 2));
 console.log(`${picture}: ${(config.walls || []).length} walls, ${(config.starts || []).length} pins, ${(config.difficult || []).length} difficult-terrain rectangles`);

@@ -480,6 +480,7 @@ const state = {
   mapMemory: {},              // per map: the creatures and party positions left there, restored when the party returns
   fogBeforeOverland: null,
   combat: { active: false, round: 0, order: [] },
+  zones: [],                          // light zones of the current map ({x, y, w, h, level}, board pixels): an area with its own light level
   difficult: [],                      // difficult-terrain rectangles of the current map, in board pixels
   difficultSquares: null,             // the squares inside them (built when first needed)
   permadeath: false,                  // the campaign's Death setting (Campaigns > Settings); off = no permanent character death
@@ -750,12 +751,13 @@ function pointSegmentDistance(px, py, w) {
   return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
 }
 
-const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open));
+const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open));       // stops movement
+const sightWalls = () => blockingWalls().filter((w) => w.type !== 'fence');                   // stops sight (a fence or a window stops movement only)
 
 // Visibility polygon: cast rays at every wall endpoint (±epsilon) plus a uniform fan.
 function visibilityPolygon(ox, oy) {
   const W = state.map.width, H = state.map.height;
-  const segments = blockingWalls().concat([
+  const segments = sightWalls().concat([
     { x1: 0, y1: 0, x2: W, y2: 0 },
     { x1: W, y1: 0, x2: W, y2: H },
     { x1: W, y1: H, x2: 0, y2: H },
@@ -1262,7 +1264,7 @@ function resetShroud() {
 let objectCache = { version: -1, loops: [] };
 function objectLoops() {
   if (objectCache.version === state.wallsVersion) return objectCache.loops;
-  objectCache = { version: state.wallsVersion, loops: WallObjects.loops(state.walls, 9 * GRID) };
+  objectCache = { version: state.wallsVersion, loops: WallObjects.loops(state.walls.filter((w) => w.type !== 'fence'), 9 * GRID) };
   return objectCache.loops;
 }
 
@@ -1274,7 +1276,7 @@ function revealObjectTops() {
     const seers = state.sight.filter((s) => points.some((p) => visibleFrom(s, p.x, p.y)));
     if (!seers.length) continue;
     // In the dark (or for the blind) only the part of the top that is lit, or within reach, shows; otherwise the whole top does.
-    const partial = ambientNow() === 'dark' || seers.some((s) => s.feel);
+    const partial = anyDark() || seers.some((s) => s.feel);
     if (partial) {
       const W = state.map.width, H = state.map.height;
       for (const s of seers) {
@@ -1311,7 +1313,7 @@ function revealFog() {
   vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
   vctx.fillRect(0, 0, W, H);
   state.sight = [];
-  const dark = ambientNow() === 'dark';
+  const dark = anyDark();
   let needCanvases = dark;
   const members = [];
   for (const t of state.tokens) {
@@ -1538,7 +1540,7 @@ async function serverWalls() {
     state.wallsInPicture = config.source === 'dd2vtt';        // the picture already shows its own walls: only doors are marked on top
     const f = state.map.drawW / state.map.img.naturalWidth;
     return config.walls.map((w) => ({
-      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open)
+      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open)
     }));
   } catch {
     return [];
@@ -2345,8 +2347,12 @@ function lightPoly(L) {
 }
 
 // 0 dark, 1 dim, 2 bright at a board point.
+// Light zones: a rectangle with its own light level (a dark cave mouth in a bright map, a lit room in a dark one).
+const zoneLevel = (x, y) => { let level = ''; for (const z of state.zones) if (x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) level = z.level; return level; };
+const ambientAt = (x, y) => zoneLevel(x, y) || ambientNow();
+const anyDark = () => ambientNow() === 'dark' || state.zones.some((z) => z.level === 'dark');
 function lightLevelAt(x, y) {
-  const amb = ambientNow();
+  const amb = ambientAt(x, y);
   if (amb !== 'dark') return amb === 'bright' ? 2 : 1;
   let best = 0;
   for (const L of allLights()) {
@@ -2363,7 +2369,7 @@ function visibleFrom(s, x, y) {
   if (!pointInPolygon(x, y, s.poly)) return false;
   const d = Math.hypot(x - s.cx, y - s.cy);
   if (s.feel) return d <= s.feel;                      // blinded or unconscious: only their own square
-  if (ambientNow() !== 'dark') return true;
+  if (!anyDark()) return true;
   return d <= s.dv || lightLevelAt(x, y) > 0;
 }
 
@@ -2387,6 +2393,18 @@ const plainTransform = (ctx) => ctx.setTransform(1, 0, 0, 1, 0, 0);
 // Where the light sources reach (in the dark): each light fills its sight polygon out to its dim radius, bright in the middle.
 function buildLitMask() {
   scaled(lmctx);
+  // The lit areas before any light source: everything in a bright or dim map except its dark zones; only the bright or dim zones in a dark one.
+  const W = state.map.width, H = state.map.height;
+  lmctx.globalCompositeOperation = 'source-over';
+  if (ambientNow() !== 'dark') {
+    lmctx.fillStyle = '#fff';
+    lmctx.fillRect(0, 0, W, H);
+    lmctx.globalCompositeOperation = 'destination-out';
+    for (const z of state.zones) if (z.level === 'dark') lmctx.fillRect(z.x, z.y, z.w, z.h);
+  } else {
+    lmctx.fillStyle = '#fff';
+    for (const z of state.zones) if (z.level !== 'dark') lmctx.fillRect(z.x, z.y, z.w, z.h);
+  }
   lmctx.globalCompositeOperation = 'lighter';
   for (const L of allLights()) {
     const poly = lightPoly(L);
@@ -2420,7 +2438,7 @@ function drawSightShape(s, shape) {
   for (let i = 1; i < poly.length; i++) stctx.lineTo(poly[i].x, poly[i].y);
   stctx.closePath();
   stctx.fill();
-  const dark = ambientNow() === 'dark';
+  const dark = anyDark();
   if (!s.feel && !dark) return;
   if (!s.feel) { plainTransform(mtctx); mtctx.drawImage(litMask, 0, 0); scaled(mtctx); }
   const reach = s.feel || s.dv;
@@ -2443,6 +2461,7 @@ async function loadMapLighting() {
   state.lights = [];
   state.difficult = [];
   state.difficultSquares = null;
+  state.zones = [];
   if (!state.map.url || !state.map.img) return;
   try {
     const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
@@ -2451,6 +2470,7 @@ async function loadMapLighting() {
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
     state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;
+    state.zones = (Array.isArray(config.lightZones) ? config.lightZones : []).filter((z) => ['dark', 'dim', 'bright'].includes(z.level)).map((z) => ({ x: z.x * f, y: z.y * f, w: z.w * f, h: z.h * f, level: z.level }));
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
@@ -2546,6 +2566,7 @@ function syncAmbienceUi() {
 
 const lightingForAi = () => ({
   ambient: ambientNow(),
+  ...(state.zones.length ? { zones: state.zones.slice(0, 20).map((z) => ({ level: z.level, fromCol: Math.floor(z.x / GRID), fromRow: Math.floor(z.y / GRID), toCol: Math.ceil((z.x + z.w) / GRID) - 1, toRow: Math.ceil((z.y + z.h) / GRID) - 1 })) } : {}),
   mapLights: state.lights.slice(0, 40).map((l) => ({ id: l.id, name: l.name, col: Math.floor(l.x / GRID), row: Math.floor(l.y / GRID), brightFt: Math.round(l.bright / GRID * FT_PER_SQUARE), dimFt: Math.round(l.dim / GRID * FT_PER_SQUARE), on: !(state.lightsOff[state.map.url || ''] || []).includes(l.id) }))
 });
 

@@ -5,9 +5,10 @@
 //       node scripts/apply-map-sidecar.mjs public/scenarios/terrain-test.config.json terrain-test.png
 // What is on it: trees (the trunks block sight and movement), two boulders (block both), a creek you can wade (difficult terrain), a field
 // of rubble with a ruined wall (difficult terrain, the wall blocks sight), a thicket of undergrowth (difficult terrain, does not block sight),
-// a small house with a door (walls block sight until the door is opened) and a flickering campfire.
+// a small house with two doors (walls block sight until a door is opened), a window (stops movement, not sight) and a dark interior lit by a lantern,
+// a flickering campfire, and a fenced paddock (a fence stops movement, not sight).
 
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Level, ngon, rectPts, shade, mix, clamp, fbm, vnoise, hash } from '../lib/mapkit.js';
@@ -26,6 +27,9 @@ const RUBBLE = { x: 6, y: 19, w: 5, h: 4 };                  // squares
 const THICKET = { x: 20, y: 5, w: 6, h: 4 };
 const HOUSE = { x: 28, y: 1.2, w: 5, h: 3.6, door: [30.2, 31.8], back: [2.2, 3.4] };       // squares; the front door is in the south wall (between these two x values), a back door in the east wall (between these two y values)
 const FIRE = { x: 7, y: 12.5 };
+const WINDOW = [2.2, 3.2];                                                    // squares: the window in the house's west wall (between these two y values)
+const PADDOCK = { x1: 30, y1: 17, x2: 35.5, y2: 20.5, gate: [32, 33] };         // squares: a fenced field with a gate gap in the south side
+const extraWalls = [];                                                         // walls that the dd2vtt format cannot carry: fences and windows, in image pixels
 const TREES = [[5, 4], [9, 7], [14, 5], [22, 3], [27, 8], [35, 6], [36, 10], [3, 24], [12, 26], [19, 22], [26, 26], [33, 22], [37, 26], [17, 9]];
 const BOULDERS = [{ x: 28, y: 21, rx: 1.1, ry: 0.85 }, { x: 11, y: 10.5, rx: 0.7, ry: 0.55 }];
 const inRect = (gx, gy, r, pad = 0) => gx >= r.x - pad && gx <= r.x + r.w + pad && gy >= r.y - pad && gy <= r.y + r.h + pad;
@@ -112,9 +116,17 @@ for (const b of BOULDERS) {
   // walls: thick timber and stone, with a gap for the door
   const T = 7, wallCol = [92, 72, 54];
   const run = (ax, ay, bx, by) => { p.capsule(ax, ay, bx, by, T, wallCol); p.capsule(ax, ay - 2, bx, by - 2, T * 0.45, [128, 104, 80], 0.8); level.wall([{ x: ax, y: ay }, { x: bx, y: by }]); };
-  run(x0, y0, x1, y0); run(x0, y0, x0, y1);
+  run(x0, y0, x1, y0);
+  run(x0, y0, x0, sq(WINDOW[0])); run(x0, sq(WINDOW[1]), x0, y1);                          // west wall, with a window
+  // the window: glass between the two wall pieces; it stops movement but not sight
+  p.capsule(x0, sq(WINDOW[0]), x0, sq(WINDOW[1]), T * 0.9, [52, 40, 30]);
+  p.capsule(x0, sq(WINDOW[0]), x0, sq(WINDOW[1]), T * 0.55, [150, 205, 235], 0.9);
+  p.capsule(x0 - 3, (sq(WINDOW[0]) + sq(WINDOW[1])) / 2, x0 + 3, (sq(WINDOW[0]) + sq(WINDOW[1])) / 2, 1, [52, 40, 30]);
+  extraWalls.push({ x1: x0, y1: sq(WINDOW[0]), x2: x0, y2: sq(WINDOW[1]), type: 'fence', open: false });
   run(x1, y0, x1, sq(HOUSE.back[0])); run(x1, sq(HOUSE.back[1]), x1, y1);                 // east wall, with a gap for the back door
   run(x0, y1, sq(HOUSE.door[0]), y1); run(sq(HOUSE.door[1]), y1, x1, y1);                 // south wall, with a gap for the front door
+  level.light({ x: HOUSE.x + 2.2, y: HOUSE.y + 1.8, range: 5, intensity: 1, color: 'ffffc070', name: 'lantern' });          // a steady lantern: the house is dark without it
+  p.disc(sq(HOUSE.x + 2.2), sq(HOUSE.y + 1.8), 6, [255, 214, 120], 0.85);
   // doors (shown closed: a house starts shut, so it is dark to sight until a door is opened)
   const drawDoor = (ax, ay, bx, by) => {
     const len = Math.hypot(bx - ax, by - ay), nx = (by - ay) / len, ny = -(bx - ax) / len;
@@ -155,6 +167,24 @@ for (const b of BOULDERS) {
   level.light({ x: FIRE.x, y: FIRE.y, range: 9, intensity: 1, color: 'ffff9a3c', name: 'campfire', flicker: true });
 }
 
+/* ---------------- a fenced paddock (a fence stops movement, not sight) ---------------- */
+{
+  const fenceRun = (ax, ay, bx, by) => {
+    const len = Math.hypot(bx - ax, by - ay), steps = Math.max(1, Math.round(len / PPG));
+    p.capsule(ax, ay + 4, bx, by + 4, 2, [20, 40, 18], 0.35);                              // shadow
+    p.capsule(ax, ay - 2, bx, by - 2, 2.5, [150, 108, 66]);                                // top rail
+    p.capsule(ax, ay + 3, bx, by + 3, 2.5, [136, 96, 58]);                                 // lower rail
+    for (let i = 0; i <= steps; i++) { const x = ax + (bx - ax) * (i / steps), y = ay + (by - ay) * (i / steps); p.disc(x, y, 5, [96, 66, 38]); p.disc(x - 1, y - 1, 2.5, [150, 112, 70]); }
+    extraWalls.push({ x1: Math.round(ax), y1: Math.round(ay), x2: Math.round(bx), y2: Math.round(by), type: 'fence', open: false });
+  };
+  const P = PADDOCK;
+  fenceRun(sq(P.x1), sq(P.y1), sq(P.x2), sq(P.y1));
+  fenceRun(sq(P.x1), sq(P.y1), sq(P.x1), sq(P.y2));
+  fenceRun(sq(P.x2), sq(P.y1), sq(P.x2), sq(P.y2));
+  fenceRun(sq(P.x1), sq(P.y2), sq(P.gate[0]), sq(P.y2));
+  fenceRun(sq(P.gate[1]), sq(P.y2), sq(P.x2), sq(P.y2));
+}
+
 /* ---------------- trees (trunks block sight and movement; the leaves do not) ---------------- */
 for (const [tx, ty] of TREES) {
   const cx = sq(tx), cy = sq(ty), r = sq(1.15);
@@ -181,9 +211,18 @@ for (let i = 0; i < COLS; i++) {
 }
 difficult.push({ x: RUBBLE.x * PPG, y: RUBBLE.y * PPG, w: RUBBLE.w * PPG, h: RUBBLE.h * PPG });
 difficult.push({ x: THICKET.x * PPG, y: THICKET.y * PPG, w: THICKET.w * PPG, h: THICKET.h * PPG });
-const starts = [{ name: 'start', x: 278, y: 479 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
+let starts = [{ name: 'start', x: 278, y: 479 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
+let lightZonesExtra = [];
+// Pins and terrain you have edited in Map Test win over these defaults when the map is drawn again.
+try {
+  const old = JSON.parse(await readFile(path.join(root, 'data', 'maps', 'terrain-test.png.json'), 'utf8'));
+  if (Array.isArray(old.starts) && old.starts.length) starts = old.starts;
+  if (Array.isArray(old.difficult) && old.difficult.length) { difficult.length = 0; difficult.push(...old.difficult); }
+  if (Array.isArray(old.lightZones)) lightZonesExtra = old.lightZones.filter((z) => !(z.level === 'dark' && z.x === Math.round(sq(HOUSE.x))));
+} catch { /* first time: the defaults */ }
+const lightZones = [{ x: Math.round(sq(HOUSE.x)), y: Math.round(sq(HOUSE.y)), w: Math.round(sq(HOUSE.w)), h: Math.round(sq(HOUSE.h)), level: 'dark' }, ...lightZonesExtra];
 
 await level.write(path.join(root, 'public', 'scenarios', 'terrain-test.dd2vtt'), { ambient: 'ffffffff' });
-await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult, lights: level.lights.map((l) => ({ x: l.x * PPG, y: l.y * PPG, range: l.range, intensity: l.intensity, color: l.color, name: l.name, flicker: true })) }, null, 2));
+await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult, lightZones, extraWalls, lights: level.lights.map((l) => ({ x: l.x * PPG, y: l.y * PPG, range: l.range, intensity: l.intensity, color: l.color, name: l.name, ...(l.flicker ? { flicker: true } : {}) })) }, null, 2));
 await level.writePng(path.join(root, 'public', 'scenarios', '.preview-terrain.png'));
 console.log(`terrain-test.dd2vtt: ${COLS}x${ROWS} squares, ${level.walls.length} sight lines, ${difficult.length} difficult-terrain rectangles`);

@@ -6,6 +6,11 @@
   var SCENES = ['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'];
   var MOODS = ['calm', 'tense', 'combat', 'eerie', 'triumph'];
   var SFX = ['door', 'creak', 'thunder', 'bell', 'roar', 'howl', 'clash', 'magic', 'explosion', 'splash'];
+  // Sounds the user rated "Wrong" on the Sound Test page stay switched off in the game (silence is better than a wrong sound) until they are retuned.
+  // The ones rated "Good" (scenes forest, wind, rain; mood eerie; effects thunder, clash) are kept as they are.
+  var RETIRED = { scene: ['tavern', 'town', 'fire', 'cave', 'dungeon'], mood: ['tense', 'triumph'], sfx: ['door', 'creak', 'magic'] };
+  var allowRetired = false;      // the Sound Test page turns this on so every sound can still be played and judged
+  var isRetired = function (kind, name) { return !allowRetired && RETIRED[kind].indexOf(name) >= 0; };
 
   var analyser = null;
   var ctx = null, master = null, sceneBus = null, moodBus = null, noiseBuf = null, brownBuf = null;
@@ -354,26 +359,28 @@
 
   /* ---------------- public API ---------------- */
   var api = {
-    scenes: SCENES, moods: MOODS, sfxNames: SFX,
+    scenes: SCENES, moods: MOODS, sfxNames: SFX, retired: RETIRED,
+    isRetired: function (kind, name) { return RETIRED[kind].indexOf(name) >= 0; },
+    allowRetired: function (on) { allowRetired = Boolean(on); },
     // Browsers only allow sound after a click or key press; call this from one.
     unlock: function () { if (ensure() && ctx.state === 'suspended') ctx.resume(); },
     setEnabled: function (on) { enabled = Boolean(on); applyGain(); if (enabled) api.unlock(); },
     setVolume: function (v) { volume = Math.min(1, Math.max(0, Number(v) || 0)); applyGain(); },
     duck: function (on) { ducked = Boolean(on); applyGain(); },
     setScene: function (kind) {
-      kind = SCENES.indexOf(kind) >= 0 ? kind : 'none';
+      kind = SCENES.indexOf(kind) >= 0 && !isRetired('scene', kind) ? kind : 'none';
       scene.wanted = kind;
       if (!ensure() || ctx.state === 'suspended' || scene.kind === kind) return;
       crossfade(sceneBus, scene, files['scene:' + kind] ? fileLayer(files['scene:' + kind], true) : BUILD[kind], 2500, kind);
     },
     setMood: function (kind) {
-      kind = MOODS.indexOf(kind) >= 0 ? kind : 'calm';
+      kind = MOODS.indexOf(kind) >= 0 && !isRetired('mood', kind) ? kind : 'calm';
       mood.wanted = kind;
       if (!ensure() || ctx.state === 'suspended' || mood.kind === kind) return;
       crossfade(moodBus, mood, files['mood:' + kind] ? fileLayer(files['mood:' + kind], kind !== 'triumph') : MOOD[kind], kind === 'triumph' ? 200 : 1800, kind);
     },
     sfx: function (name) {
-      if (!enabled || !ensure() || ctx.state === 'suspended') return;
+      if (!enabled || isRetired('sfx', name) || !ensure() || ctx.state === 'suspended') return;
       if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(); s.buffer = buf; s.connect(master); s.start(); }).catch(function () { /* skipped */ }); return; }
       if (EFFECTS[name]) EFFECTS[name]();
     },
