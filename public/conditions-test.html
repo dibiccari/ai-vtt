@@ -8,10 +8,10 @@
   :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; color-scheme: dark; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
-  .page { max-width:1040px; margin:0 auto; padding:20px; }
+  .page { max-width:1140px; margin:0 auto; padding:20px; }
   h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
   p.lead { color:var(--muted); margin:0 0 16px; font-size:13px; }
-  .layout { display:grid; grid-template-columns:minmax(0,560px) minmax(0,1fr); gap:20px; align-items:start; }
+  .layout { display:grid; grid-template-columns:minmax(0,640px) minmax(0,1fr); gap:20px; align-items:start; }
   .stage { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
   canvas { width:100%; height:auto; display:block; border-radius:8px; background:#05070a; }
   .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
@@ -40,11 +40,12 @@
   <h1>Character <span>conditions</span></h1>
   <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. The effects box shows what the table does with the same conditions: speed, how far it sees (the room goes dark when sight shrinks), whether it can act, and who gets advantage or disadvantage.</p>
   <div class="layout">
-    <div class="stage"><canvas id="cv" width="680" height="680" aria-label="A five by five room with a token in the centre"></canvas></div>
+    <div class="stage"><canvas id="cv" width="880" height="880" aria-label="A seven by seven room with a token in the centre"></canvas></div>
     <div class="panel">
       <h2>Token</h2>
       <div class="row">
         <select id="pick" aria-label="Token picture"></select>
+        <select id="roomSize" aria-label="Room size"><option value="5">Room 5 x 5</option><option value="7" selected>Room 7 x 7</option><option value="9">Room 9 x 9</option></select>
         <button id="clear">Clear all</button>
         <button id="some">Try a mix</button>
       </div>
@@ -62,7 +63,8 @@
 (function () {
   'use strict';
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  var SQUARE = 100, MARGIN = 90, ROOM = SQUARE * 5;             // a 5 x 5 room, 100 px a square, with a margin so rings never clip
+  var SQUARE = 100, MARGIN = 90, N = 7, ROOM = SQUARE * N;      // an N x N room (7 x 7 to start), 100 px a square, with a margin so rings never clip
+  function setRoom(n) { N = n; ROOM = SQUARE * N; cv.width = ROOM + 2 * MARGIN; cv.height = ROOM + 2 * MARGIN; cv.setAttribute('aria-label', 'A ' + N + ' by ' + N + ' room with a token in the centre'); }
   // [picture, label, size in squares across]: the 5e sizes: Tiny takes half a square across (four fit in one), Small and Medium one, Large 2 x 2, Huge 3 x 3, Gargantuan 4 x 4 or more
   var TOKENS = [
     ['determined-warrior-9af2f.png', 'Medium: Warrior (1 square)', 1], ['dwarf-paladin-2-6bb90.png', 'Medium: Dwarf paladin (1 square)', 1], ['rogue-dungeon-delver-9a55e.png', 'Medium: Rogue (1 square)', 1],
@@ -78,13 +80,13 @@
     ctx.fillStyle = '#0b0e14'; ctx.fillRect(0, 0, cv.width, cv.height);
     var x0 = MARGIN, y0 = MARGIN;
     // stone floor: soft tiles with a little variation, then the 5 ft grid
-    for (var r = 0; r < 5; r++) for (var c = 0; c < 5; c++) {
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) {
       var v = 168 + ((c * 37 + r * 53) % 5) * 5;
       ctx.fillStyle = 'rgb(' + v + ',' + (v - 4) + ',' + (v - 12) + ')';
       ctx.fillRect(x0 + c * SQUARE, y0 + r * SQUARE, SQUARE, SQUARE);
     }
     ctx.strokeStyle = 'rgba(40, 36, 30, 0.45)'; ctx.lineWidth = 1;
-    for (var i = 0; i <= 5; i++) {
+    for (var i = 0; i <= N; i++) {
       ctx.beginPath(); ctx.moveTo(x0 + i * SQUARE + 0.5, y0); ctx.lineTo(x0 + i * SQUARE + 0.5, y0 + ROOM); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x0, y0 + i * SQUARE + 0.5); ctx.lineTo(x0 + ROOM, y0 + i * SQUARE + 0.5); ctx.stroke();
     }
@@ -160,6 +162,8 @@
   TOKENS.forEach(function (t, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = t[1]; pick.appendChild(o); });
   function loadToken() { var t = TOKENS[Number(pick.value)]; size = t[2]; imgReady = false; img = new Image(); img.onload = function () { imgReady = true; render(); }; img.onerror = render; img.src = '/tokens/' + t[0]; }
   pick.addEventListener('change', loadToken);
+  document.getElementById('roomSize').addEventListener('change', function (e) { setRoom(Number(e.target.value)); render(); });
+  setRoom(7);
   loadToken();
   render();
 })();
