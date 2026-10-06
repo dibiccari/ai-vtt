@@ -21,6 +21,8 @@
   // A recorded effect that rings on for a long time is faded out after this many seconds (a church bell rings for half a minute).
   var FILE_MAX = { 'sfx:bell': 9, 'sfx:creak': 6 };
   var fileGain = function (key) { return FILE_GAIN[key] || 1; };
+  // Recorded effects are levelled by their own loudest point (so any take chosen on the Sound Test page comes out at a similar level).
+  var peakGain = function (buf) { var d = buf.getChannelData(0), p = 0, i; for (i = 0; i < d.length; i += 2) { var v = Math.abs(d[i]); if (v > p) p = v; } return Math.min(4, 0.6 / Math.max(p, 0.05)); };
   // Scenes whose recording is a bed that gets extra one-shot recordings now and then: [sound, least ms, most ms between plays].
   var EXTRAS = { night: [['owl', 8000, 20000], ['howl', 30000, 80000]] };
 
@@ -499,7 +501,7 @@
     },
     sfx: function (name) {
       if (!enabled || isRetired('sfx', name) || !ensure() || ctx.state === 'suspended') return;
-      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = fileGain('sfx:' + name); s.connect(g); g.connect(sfxOut); s.start();
+      if (files['sfx:' + name]) { loadBuffer(files['sfx:' + name]).then(function (buf) { var s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; g.gain.value = peakGain(buf); s.connect(g); g.connect(sfxOut); s.start();
         var max = FILE_MAX['sfx:' + name];
         if (max && buf.duration > max) { var t = ctx.currentTime; g.gain.setValueAtTime(g.gain.value, t + max - 1.5); g.gain.linearRampToValueAtTime(0.0001, t + max); s.stop(t + max + 0.05); } }).catch(function () { /* skipped */ }); return; }
       if (EFFECTS[name]) EFFECTS[name]();
@@ -511,6 +513,18 @@
       epoch++;
       if (ctx && sfxOut) { var old = sfxOut; try { old.disconnect(); } catch (e) { /* already gone */ } sfxOut = ctx.createGain(); sfxOut.connect(master); }
     },
+    // Play any recording once (the Sound Test page's takes), levelled by its peak and faded out after `maxSeconds` if it rings on.
+    playClip: function (url, maxSeconds) {
+      if (!ensure()) return;
+      api.unlock();
+      loadBuffer(url).then(function (buf) {
+        var s = ctx.createBufferSource(), g = ctx.createGain(), t = ctx.currentTime;
+        s.buffer = buf; g.gain.value = peakGain(buf); s.connect(g); g.connect(sfxOut); s.start(t);
+        if (maxSeconds && buf.duration > maxSeconds) { g.gain.setValueAtTime(g.gain.value, t + maxSeconds - 1.5); g.gain.linearRampToValueAtTime(0.0001, t + maxSeconds); s.stop(t + maxSeconds + 0.05); }
+      }).catch(function () { /* unreadable: skipped */ });
+    },
+    // Re-read the list of recordings (after a take was chosen), forgetting what was decoded so the new file is heard.
+    refresh: function () { buffers = {}; return loadFiles(true); },
     // Record what the app is playing for `ms` milliseconds: resolves with { sr, data } (mono samples), or null without sound. Used to measure the sounds (a self-test).
     record: function (ms) {
       return new Promise(function (resolve) {
@@ -538,11 +552,16 @@
     state: function () { return { enabled: enabled, volume: volume, scene: scene.kind, mood: mood.kind, running: Boolean(ctx && ctx.state === 'running') }; }
   };
   // Which recordings exist (the server lists public/audio). Pages can wait on Ambience.ready before showing which sounds are recordings.
-  api.ready = typeof fetch === 'function' ? fetch('/api/audio-files').then(function (r) { return r.json(); }).then(function (data) {
-    (data.files || []).forEach(function (f) {
-      var m = /^(scene|mood|sfx)-([a-z0-9-]+)\.(mp3|ogg|wav|m4a|webm|flac)$/i.exec(f);
-      if (m) files[m[1].toLowerCase() + ':' + m[2].toLowerCase()] = '/audio/' + encodeURIComponent(f);
-    });
-  }).catch(function () { /* no list: everything stays synthesised */ }) : Promise.resolve();
+  function loadFiles(bust) {
+    if (typeof fetch !== 'function') return Promise.resolve();
+    return fetch('/api/audio-files').then(function (r) { return r.json(); }).then(function (data) {
+      var stamp = bust ? '?v=' + Date.now() : '';
+      (data.files || []).forEach(function (f) {
+        var m = /^(scene|mood|sfx)-([a-z0-9-]+)\.(mp3|ogg|wav|m4a|webm|flac)$/i.exec(f);
+        if (m) files[m[1].toLowerCase() + ':' + m[2].toLowerCase()] = '/audio/' + encodeURIComponent(f) + stamp;
+      });
+    }).catch(function () { /* no list: everything stays synthesised */ });
+  }
+  api.ready = loadFiles(false);
   root.Ambience = api;
 })(typeof window !== 'undefined' ? window : globalThis);

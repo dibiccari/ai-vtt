@@ -452,6 +452,31 @@ app.get('/api/audio-files', asyncRoute(async (_req, res) => {
   try { res.json({ files: (await readdir(path.join(PUBLIC_DIR, 'audio'))).filter((f) => /\.(mp3|ogg|wav|m4a|webm|flac)$/i.test(f)).sort() }); } catch { res.json({ files: [] }); }
 }));
 
+// ---------------------------------------------------------------- sound takes: several recordings per effect to choose from by ear (Sound Test page)
+// public/audio/candidates/<effect>-<name>.mp3 with a manifest.json [{effect, file, title, url}]; choosing one copies it to public/audio/sfx-<effect>.mp3.
+const CANDIDATE_DIR = path.join(PUBLIC_DIR, 'audio', 'candidates');
+const SOUND_CHOICES_FILE = path.join(__dirname, 'data', 'sound-choices.json');
+const readJson = async (file, fallback) => { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } };
+app.get('/api/sound-candidates', asyncRoute(async (_req, res) => {
+  const manifest = await readJson(path.join(CANDIDATE_DIR, 'manifest.json'), []);
+  const have = new Set((await readdir(CANDIDATE_DIR).catch(() => [])));
+  const byEffect = {};
+  for (const c of manifest) if (have.has(c.file)) (byEffect[c.effect] ||= []).push({ file: c.file, title: c.title, url: c.url });
+  res.json({ candidates: byEffect, chosen: await readJson(SOUND_CHOICES_FILE, {}) });
+}));
+app.post('/api/sound-choice', localOnly, asyncRoute(async (req, res) => {
+  const effect = String(req.body?.effect ?? '').replace(/[^a-z0-9-]/g, '');
+  const file = path.basename(String(req.body?.file ?? ''));
+  const manifest = await readJson(path.join(CANDIDATE_DIR, 'manifest.json'), []);
+  if (!manifest.some((c) => c.effect === effect && c.file === file)) return res.status(400).json({ error: 'That is not a candidate for this sound.' });
+  for (const f of await readdir(path.join(PUBLIC_DIR, 'audio'))) if (new RegExp(`^sfx-${effect}\\.(mp3|ogg|wav|m4a|webm|flac)$`, 'i').test(f)) await unlink(path.join(PUBLIC_DIR, 'audio', f));
+  await copyFile(path.join(CANDIDATE_DIR, file), path.join(PUBLIC_DIR, 'audio', `sfx-${effect}.mp3`));
+  const chosen = await readJson(SOUND_CHOICES_FILE, {});
+  chosen[effect] = file;
+  await writeFile(SOUND_CHOICES_FILE, JSON.stringify(chosen, null, 2));
+  res.json({ ok: true, effect, file });
+}));
+
 // ---------------------------------------------------------------- sound review notes (from the Sound Test page)
 const SOUND_FEEDBACK_FILE = path.join(__dirname, 'data', 'sound-feedback.json');
 app.get('/api/sound-feedback', asyncRoute(async (_req, res) => {

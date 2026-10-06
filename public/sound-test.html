@@ -23,6 +23,11 @@
   .meter i { display:block; height:100%; width:0; background:var(--ok); transition:width .08s; }
   .status { color:var(--muted); font-size:13px; }
   canvas#spec { width:100%; height:120px; background:#05070a; border-radius:8px; border:1px solid var(--border); margin-top:10px; display:block; }
+  .takes { grid-column:1 / -1; background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:6px; }
+  .takes-head { color:var(--muted); font-size:12px; }
+  .take { display:flex; gap:10px; align-items:center; }
+  .take .ttl { flex:1; color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .take button { padding:4px 10px; font-size:12px; }
   .row .ctl { display:flex; gap:6px; align-items:center; }
   .row .ctl .play { flex:1; text-align:left; }
   .row .ctl .stop { padding:6px 9px; }
@@ -123,6 +128,8 @@
     }, 600);
   }
 
+  var CAND = {}, CHOSEN = {};      // recordings to choose from for each effect, and the one chosen last
+
   function row(group, kind, name, onPlay) {
     var key = kind + ':' + name;
     var fb = feedback[key] || { rating: '', note: '' };
@@ -152,13 +159,43 @@
       ref.addEventListener('click', function () { if (au.paused) { Ambience.stop('scene'); Ambience.setMood('calm'); au.play(); ref.textContent = '■ stop the recording'; } else { au.pause(); ref.textContent = '▶ the recording it copies'; } });
       meant.appendChild(ref);
     }
+    var takes = null;
+    if (kind === 'sfx' && CAND[name] && CAND[name].length) {
+      takes = document.createElement('div'); takes.className = 'takes';
+      var head = document.createElement('div'); head.className = 'takes-head';
+      head.textContent = 'Takes to choose from (' + CAND[name].length + '): press ▶ to listen, then "Use this one" for the one that sounds right.';
+      takes.appendChild(head);
+      var useButtons = [];
+      CAND[name].forEach(function (c, i) {
+        var line = document.createElement('div'); line.className = 'take';
+        var pl = document.createElement('button'); pl.textContent = '▶ ' + (i + 1); pl.title = 'Listen to take ' + (i + 1);
+        pl.addEventListener('click', function () {
+          Ambience.unlock(); Ambience.stop('scene'); Ambience.stop('mood'); Ambience.stop('sfx');
+          Ambience.playClip('/audio/candidates/' + encodeURIComponent(c.file), name === 'bell' ? 9 : 7); say('Take ' + (i + 1) + ' of ' + name);
+        });
+        var ttl = document.createElement('span'); ttl.className = 'ttl'; ttl.textContent = c.title; ttl.title = c.title + ' · ' + c.url;
+        var use = document.createElement('button'); use.className = 'use';
+        var mark = function () { var on = CHOSEN[name] === c.file; use.textContent = on ? '✓ in use' : 'Use this one'; use.disabled = on; };
+        mark(); useButtons.push(mark);
+        use.addEventListener('click', async function () {
+          try {
+            var res = await fetch('/api/sound-choice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ effect: name, file: c.file }) });
+            if (!res.ok) throw new Error((await res.json().catch(function () { return {}; })).error || 'HTTP ' + res.status);
+            CHOSEN[name] = c.file; await Ambience.refresh(); useButtons.forEach(function (m) { m(); }); say('Now using take ' + (i + 1) + ' for ' + name);
+          } catch (e) { say('Could not choose it: ' + e.message); }
+        });
+        line.append(pl, ttl, use); takes.appendChild(line);
+      });
+    }
     r.append(ctl, meant);
+    if (takes) r.appendChild(takes);
     group.appendChild(r);
   }
 
   async function init() {
     await loadFeedback();
     await Ambience.ready;
+    try { var cd = await (await fetch('/api/sound-candidates')).json(); CAND = cd.candidates || {}; CHOSEN = cd.chosen || {}; } catch (e) { /* no takes */ }
     Ambience.allowRetired(true);                 // here every sound can be played, including the ones switched off in the game
     Ambience.scenes.forEach(function (n) { if (n !== 'none') row($('#scenes'), 'scene', n, function (x) { Ambience.setScene(x); say('Scene: ' + LABELS[x]); }); });
     Ambience.moods.forEach(function (n) { if (n !== 'calm') row($('#moods'), 'mood', n, function (x) { Ambience.setMood(x); say('Mood: ' + LABELS[x]); }); });

@@ -116,6 +116,8 @@ Everything is tracked except four things: **`.env`** (the only file with secrets
 - `GET /api/tts/status`, `POST /api/tts`, `POST /api/tts/voices`: OpenAI text-to-speech (`gpt-4o-mini-tts`). Clips are cached on disk. Named NPCs use the active campaign's `voices.json`; others get a voice by style tag.
 - `GET/POST /api/settings`, `POST /api/settings/test`: **local-only** (loopback + Host/Origin checks). Never returns full keys. The server listens on `127.0.0.1` by default (`HOST` env to change).
 
+- Sound takes: public/audio/candidates/ holds CC0 candidate clips (manifest.json, credited in public/audio/CREDITS.md) for bell, clash, creak, explosion, magic, roar, splash. The Sound Test page plays each take and "Use this one" copies it to public/audio/sfx-<effect>.mp3 (POST /api/sound-choice, local-only; choice recorded in data/sound-choices.json). Not yet listened to by the assistant.
+
 ## Voices
 
 Two engines, switchable any time (Settings page, chat-tab dropdown, voice-test checkbox; stored in `localStorage` key `vtt.voiceEngine`): **ChatGPT voices (OpenAI)** and **Microsoft/browser voices** (Web Speech API). Claude has no voice output. The DM labels each line with a voice tag (narrator, gruff, sly, noble, elderly, child, monstrous, ethereal, feminine, masculine, beast for a medium animal, smallbeast for small ones (high-pitched: mice, birds), largebeast for large ones (low-pitched: bears, horses), undead for ghosts and the dead; these were added Oct 2026 and have not been listened to). The mic is muted while the DM speaks (stream track disabled, recognizer stopped, 1.2 s grace) to stop it transcribing the narration. The speed parameter is ignored by `gpt-4o-mini-tts`, hence the browser-side effects in `voice-fx.js`.
