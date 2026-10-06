@@ -44,7 +44,8 @@
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
   .variant-switch { position:absolute; right:12px; top:12px; z-index:5; display:flex; gap:0; }
   .variant-switch[hidden] { display:none; }
-  #fitBtn { position:absolute; right:12px; bottom:12px; z-index:5; width:36px; height:36px; padding:0; border-radius:6px; font-size:16px; font-weight:700; background:rgba(17,21,28,.9); }
+  .zoom-controls { position:absolute; right:12px; bottom:12px; z-index:5; display:flex; flex-direction:column; gap:6px; }
+  .zoom-controls button { width:36px; height:36px; padding:0; border-radius:6px; font-size:16px; font-weight:700; background:rgba(17,21,28,.9); }
   .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
   .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
   .variant-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
@@ -147,7 +148,11 @@
 <main id="stage">
   <canvas id="cv"></canvas>
   <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
-  <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
+  <div class="zoom-controls">
+    <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
+    <button id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
+  </div>
   <div class="stage-bar" id="stageBar">
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
@@ -1277,6 +1282,18 @@
 
   $('#resetFogBtn').addEventListener('click', resetFog);
   $('#fitBtn').addEventListener('click', fitView);
+  // zoom buttons: one step about the middle of the map pane, like the tabletop's + and − (the mouse wheel still zooms about the pointer)
+  const zoomStep = (factor) => {
+    if (!S.img) return;
+    const rect = cv.getBoundingClientRect(), mx = rect.width / 2, my = rect.height / 2;
+    const wx = (mx - S.view.ox) / S.view.scale, wy = (my - S.view.oy) / S.view.scale;
+    S.view.scale = clamp(S.view.scale * factor, 0.02, 12);
+    S.view.ox = mx - wx * S.view.scale;
+    S.view.oy = my - wy * S.view.scale;
+    requestRender();
+  };
+  $('#zoomInBtn').addEventListener('click', () => zoomStep(1.25));
+  $('#zoomOutBtn').addEventListener('click', () => zoomStep(0.8));
 
   /* ---------------- Universal VTT (.dd2vtt) import ---------------- */
   const uvttToWalls = Uvtt.toWalls;
