@@ -141,3 +141,13 @@ test('hit dice cannot heal past the exhaustion-halved maximum', () => {
   const out = R.spendHitDice(fighter({ hp: 20, track: { exhaustion: 4 } }), 1, { roll: () => 10 });
   assert.equal(out.character.hp, 25);
 });
+
+test('a feature the DM added before the level gave it is not duplicated when the class seeds it', () => {
+  const lvl1 = fighter({ level: 1, sheet: { ClassLevel: 'Fighter 1' } });
+  const added = R.changeResource(lvl1, 'Action Surge', 1, { max: 1, recharge: 'short' }).character;
+  assert.equal(R.resourcesOf(added).filter((r) => r.name === 'Action Surge').length, 1, 'one entry at level 1 (the DM-added one)');
+  const lvl2 = { ...added, level: 2, sheet: { ...added.sheet, ClassLevel: 'Fighter 2' } };
+  const list = R.resourcesOf(lvl2).filter((r) => r.name === 'Action Surge');
+  assert.equal(list.length, 1, 'still one entry after the class gives it');
+  assert.equal(list[0].auto, true); assert.equal(list[0].used, 1, 'what was spent stays spent');
+});

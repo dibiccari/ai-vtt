@@ -15,20 +15,27 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt('--max-calls', 8));
+const MAX_CALLS = Number(opt('--max-calls', 10));
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
 const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-sonnet-5-5': [2, 10], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };   // $ per million tokens (input, output); cache reads cost 5% of input, cache writes 125%
 
 // Markers: invented names put on hidden tokens. If either shows up in what the players are told, the DM leaked a secret.
 const MARK_CREATURE = 'Vorpalquux';
 const MARK_TRAP = 'Zibblewort';
+const MARK_NOISY = 'Quibblethorp';          // a hidden group that makes noise: the party may get a hint of sound, never the name
+const MARK_SILENT = 'Snorfelbat';           // a hidden creature that makes no sound: no hint at all
 
+// Every step is one paid call. The first four reproduce what the real tabletop does around a fight: the DM starts combat, the TABLE rolls initiative and hands the turn
+// back ("[Table] Initiative has been rolled..."), and only then does a player attack. (The first version skipped that hand-over and sent tokens with no initiative while the
+// combat block said Thorin had 25, so the DM saw a board that contradicted itself; its attack step failed for that reason or one like it.)
 const STEPS = [
-  { id: 'look', say: '[Thorin] I sit at the bar, order an ale and look around the room. What do I see?', expect: 'a valid reply, no secrets' },
-  { id: 'insight', say: '[Lyra] I want to know whether the barkeep is hiding something. Make an Insight check for me.', expect: 'dice taken from the tray, in order' },
-  { id: 'secrets', say: '[Vex] Is anyone hiding in this room, or is there a trap on the floor? Tell me only what I can already see.', expect: 'hidden tokens not mentioned' },
-  { id: 'brawl', say: '[Thorin] I shove the nearest drunk and start a brawl. Roll initiative and start combat.', expect: 'startCombat sent, new creatures carry hit points and AC' },
-  { id: 'attack', say: '[Thorin] It is my turn. Drunk Bram is right next to me: I attack him with my longsword and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
+  { id: 'brawl', say: '[Thorin] I shove the nearest drunk and start a brawl. Start combat.', expect: 'startCombat sent, new creatures carry hit points and AC, no initiative rolled by the DM' },
+  { id: 'handoff', say: 'TABLE', expect: 'the DM gives the status and options for the active player and waits (no rolls, no turns played for the player)' },
+  { id: 'attack', say: '[Thorin] I attack Drunk Bram, who is right next to me, with my longsword, and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
+  { id: 'effects', say: '[Seraphine] It is my turn. I cast Bless on Thorin and Vex, concentrating on it, and Sanctuary on Lyra as my bonus action. Just apply them.', expect: 'known effects sent by name only (table gives the duration), caster id as source for the concentration effect, concentrating on the caster' },
+  { id: 'warded', say: '[Lyra] It is my turn. I am warded by Sanctuary. I attack Drunk Bram with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
+  { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
+  { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
 
@@ -105,6 +112,45 @@ try {
     mk({ id: 'npc-hidden', name: MARK_CREATURE + ' the Unseen', col: c0 + 5, row: r0 - 4, color: '#333', isPC: false, hidden: true, visibleToParty: false, hp: 20, maxHp: 20, ac: 13, dexMod: 2 }),
     mk({ id: 'trap-hidden', name: MARK_TRAP + ' snare', col: c0 + 3, row: r0 - 2, color: '#a00', isPC: false, hidden: true, kind: 'trap', visibleToParty: false })
   );
+  const T = { active: 'pc-thorin', clock0: 0 };
+  const upd = (j) => j.mapUpdates || [];
+  const clockNow = async () => (await srv.get('/api/party')).json.clock.minutes;
+  const byId = (id) => tokens.find((t) => t.id === id);
+  const condOf = (u) => String(u.condition || '').toLowerCase().trim();
+  // What the tabletop does when a fight starts: the table (not the DM) rolls initiative, so every token gets its number and the combat block lists them in order.
+  const startPretendCombat = () => {
+    const members = tokens.filter((t) => t.kind !== 'trap' && !t.hidden);
+    const fixed = { 'pc-thorin': 25, 'pc-lyra': 15, 'pc-vex': 12, 'pc-seraphine': 8 };
+    let low = 10;
+    for (const t of members) t.initiative = fixed[t.id] ?? Math.max(1, low--);
+    members.sort((a, b) => b.initiative - a.initiative);
+    combat = { active: true, round: 1, currentTokenId: 'pc-thorin', order: members.map((t) => ({ tokenId: t.id, initiative: t.initiative })) };
+  };
+  const tableHandoff = () => '[Table] Initiative has been rolled by the table: ' + combat.order.map((o) => byId(o.tokenId).name + ' ' + o.initiative).join(', ') + ". It is Thorin's turn. Say who goes first, give the status and the options for Thorin, and wait; do not roll anything.";
+  const setActive = (id) => { T.active = id; if (combat.active) combat.currentTokenId = id; };
+  const hooks = {
+    before: {
+      effects: async () => setActive('pc-seraphine'),
+      warded: async () => setActive('pc-lyra'),
+      time: async () => {                                              // a 10 minute concentration effect is running on Thorin, put on by Vex: it must survive the end of the fight
+        T.clock0 = await clockNow();
+        if (byId('npc-bram')) Object.assign(byId('npc-bram'), { hp: 0, dead: true });
+        byId('pc-thorin').conditions.push({ name: 'shield of faith', rounds: 0, untilMin: T.clock0 + 10, minutesLeft: 10, source: 'pc-vex', concentration: true });
+        byId('pc-vex').conditions.push({ name: 'concentrating', rounds: 0 });
+        setActive('pc-thorin');
+      },
+      senses: async () => {
+        combat = { active: false };
+        T.active = 'pc-vex';
+        const c = byId('pc-vex'), r = c.row;
+        tokens.push(
+          mk({ id: 'npc-guard', name: 'Guard at the bar', col: c.col - 3, row: r - 2, color: '#889', isPC: false, hp: 11, maxHp: 11, ac: 16, dexMod: 1, passivePerception: 30 }),
+          mk({ id: 'npc-choir', name: MARK_NOISY + ' and friends', col: c.col + 6, row: r - 8, color: '#555', isPC: false, hidden: true, visibleToParty: false, hp: 20, maxHp: 20, ac: 11, dexMod: 0, passivePerception: 10, dmNote: 'Behind the back door, singing a loud, rowdy drinking song together.' }),
+          mk({ id: 'npc-sleeper', name: MARK_SILENT, col: c.col + 5, row: r - 7, color: '#444', isPC: false, hidden: true, visibleToParty: false, hp: 5, maxHp: 5, ac: 10, dexMod: 0, passivePerception: 10, dmNote: 'Curled up asleep in a barrel behind the back door. Makes no sound at all.' })
+        );
+      }
+    }
+  };
   const knownIds = () => new Set([...tokens.map((t) => t.id), ...chars.map((c) => c.id)]);
   let combat = { active: false };
   const history = [];
@@ -117,9 +163,12 @@ try {
     const before = calls.length;
     const t0 = Date.now();
     let res;
+    if (step.id === 'handoff' && !combat.active) { warn('handoff: the DM did not start combat in the brawl step; the table starts it now'); startPretendCombat(); }
+    const said = step.say === 'TABLE' ? tableHandoff() : step.say;
     try {
+      if (hooks.before[step.id]) await hooks.before[step.id]();
       res = await Promise.race([
-        srv.post('/api/chat', { message: step.say, history: history.slice(-8), activeTokenId: tokens[0].id, tokens, characters: chars, walls: [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
+        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS + 5000))
       ]);
     } catch (err) { fail(`${step.id}: no reply (${err.message})`); continue; }
@@ -143,7 +192,6 @@ try {
     if (tray && Array.isArray(j.rolls)) {
       const verdict = checkDice(j.rolls, tray, used);
       check(verdict.bad.length === 0, `${step.id}: reported dice match the supplied tray (${verdict.ok} verified, ${verdict.unknown} lines with no checkable natural roll)`, verdict.bad.join(' | ').slice(0, 200));
-      if (step.id === 'insight') check(j.rolls.length > 0, 'insight: the DM reported at least one roll');
       if (step.id === 'attack') {
         check(j.rolls.length > 0, 'attack: the DM reported at least one roll', diagnose(j, raw));
       }
@@ -151,7 +199,7 @@ try {
 
     // 3. secrets
     const told = [j.narrative, ...(j.rolls || []), ...(j.voiceLines || []).map((l) => `${l.speaker} ${l.text}`)].join('\n').toLowerCase();
-    for (const [id, mark] of [['npc-hidden', MARK_CREATURE], ['trap-hidden', MARK_TRAP]]) {
+    for (const [id, mark] of [['npc-hidden', MARK_CREATURE], ['trap-hidden', MARK_TRAP], ['npc-choir', MARK_NOISY], ['npc-sleeper', MARK_SILENT]]) {
       const revealing = revealed.has(id);
       check(revealing || !told.includes(mark.toLowerCase()), `${step.id}: hidden token marker "${mark}" not mentioned`);
     }
@@ -173,9 +221,47 @@ try {
       const bad = (j.mapUpdates || []).filter((u) => u.type === 'addToken' && !(u.maxHp > 0 && u.ac > 0));
       check(bad.length === 0, 'brawl: every creature the DM added carries hit points and AC', bad.map((u) => u.name).join(', '));
     }
+    if (step.id === 'brawl') check(!(j.rolls || []).some((r) => /initiative/i.test(r)), 'brawl: the DM did not roll initiative itself (the table does)');
+    if (step.id === 'handoff') {
+      check((j.rolls || []).length === 0, 'handoff: the DM rolled nothing', (j.rolls || []).join(' | ').slice(0, 160));
+      check(!upd(j).some((u) => ['damageToken', 'endTurn', 'moveToken'].includes(u.type)), 'handoff: the DM played no turn for the player', upd(j).map((u) => u.type).join(','));
+      check(/thorin/i.test(j.narrative), 'handoff: the DM addresses the active player');
+    }
     if (step.id === 'attack') {
-      const hurt = (j.mapUpdates || []).some((u) => ['damageToken', 'setHp'].includes(u.type));
+      check((j.rolls || []).some((r) => /d20/i.test(r)), 'attack: a d20 attack roll was reported', diagnose(j, raw));
+      const hurt = upd(j).some((u) => ['damageToken', 'setHp'].includes(u.type));
       if (!hurt) warn('attack: no damage update came back (the DM may have narrated a miss)');
+    }
+    if (step.id === 'effects') {
+      const adds = upd(j).filter((u) => u.type === 'addCondition');
+      const find = (tok, name) => adds.find((u) => u.tokenId === tok && condOf(u) === name);
+      check(!!find('pc-thorin', 'bless') && !!find('pc-vex', 'bless'), 'effects: bless put on Thorin and Vex', adds.map((u) => u.tokenId + ':' + condOf(u)).join(', '));
+      const b = find('pc-thorin', 'bless'), sa = find('pc-lyra', 'sanctuary'), conc = find('pc-seraphine', 'concentrating');
+      check(!!b && b.rounds === 0 && !b.minutes, 'effects: bless sent by name only (rounds 0, no minutes: the table gives the duration)', b ? "rounds " + b.rounds + ", minutes " + b.minutes : 'missing');
+      check(!!b && b.source === 'pc-seraphine', 'effects: the concentration effect carries the caster\'s token id', b ? 'source ' + JSON.stringify(b.source) : 'missing');
+      check(!!conc, 'effects: Seraphine is marked concentrating');
+      check(!!sa && sa.rounds === 0 && !sa.minutes, 'effects: sanctuary sent by name only on Lyra', sa ? "rounds " + sa.rounds + ", minutes " + sa.minutes : 'missing');
+    }
+    if (step.id === 'warded') {
+      const hit = upd(j).some((u) => u.type === 'damageToken'), removed = upd(j).some((u) => u.type === 'removeCondition' && /sanctuary/.test(condOf(u)));
+      check((j.rolls || []).some((r) => /d20/i.test(r)), 'warded: the attack was rolled', diagnose(j, raw));
+      check(!(hit && removed), 'warded: after a hit that deals damage the DM leaves ending sanctuary to the table');
+      if (!hit && !removed) warn('warded: no damage and sanctuary not removed (a miss also ends sanctuary: the DM should have removed it)');
+      if (hit) { const l = byId('pc-lyra'); l.conditions = l.conditions.filter((c) => c.name !== 'sanctuary'); }   // the table ends it
+    }
+    if (step.id === 'time') {
+      // The server applies the time action itself (it is not in mapUpdates), so the clock tells what the DM sent.
+      const after = await clockNow(), mins = after - T.clock0;
+      check(mins >= 3 && mins <= 20, `time: the DM advanced the clock with the time action (${mins} min for about five minutes of story)`);
+      const wrong = upd(j).filter((u) => u.type === 'removeCondition' && ['pc-thorin', 'pc-vex'].includes(u.tokenId) && /shield of faith|concentrating/.test(condOf(u)));
+      check(wrong.length === 0, 'time: the DM did not remove the 10 minute effect that is still running (a finished fight ends nothing)', wrong.map((u) => u.tokenId + ':' + condOf(u)).join(', '));
+    }
+    if (step.id === 'senses') {
+      const stealth = (j.rolls || []).find((r) => /stealth/i.test(r));
+      check(!!stealth, 'senses: the DM rolled Vex\'s Stealth', (j.rolls || []).join(' | ').slice(0, 160));
+      check(/\b(sing|song|voices?|chant|noise|sound|hear|heard|music|bellow|rowdy|chorus|muffled)\b/i.test(j.narrative + ' ' + (j.voiceLines || []).map((l) => l.text).join(' ')), 'senses: a hint of the noise behind the door came through');
+      if (/\b(asleep|snor|sleeping|barrel)/i.test(told)) warn('senses: something about the silent creature was hinted (no sound, so no hint should come)');
+      if (!/\b(notice|spot|saw|sees|see you|eye|glance|turn|catch|caught|look|watch)/i.test(j.narrative)) warn('senses: the narrative does not say the guard noticed Vex (his passive Perception is 30, above any possible roll)');
     }
     if (step.id === 'journal') {
       check((j.journalAdded || []).length >= 1, `journal: ${j.journalAdded?.length || 0} entries added`);
@@ -191,12 +277,12 @@ try {
       else if (u.type === 'moveToken') { const t = tokens.find((x) => x.id === u.tokenId); if (t) { t.col = u.col; t.row = u.row; } }
       else if (u.type === 'revealToken') { const t = tokens.find((x) => x.id === u.tokenId); if (t) { t.hidden = false; t.visibleToParty = true; } }
       else if (u.type === 'damageToken') { const t = tokens.find((x) => x.id === u.tokenId); if (t && t.hp !== undefined) t.hp = Math.max(0, t.hp - (u.value || 0)); }
-      else if (u.type === 'startCombat') {
-        const members = tokens.filter((t) => t.kind !== 'trap' && !t.hidden);
-        combat = { active: true, round: 1, currentTokenId: members[0].id, order: members.map((t, i) => ({ tokenId: t.id, initiative: i === 0 ? 25 : 1 + Math.floor(Math.random() * 20) })) };   // Thorin (first) goes first
-      } else if (u.type === 'endCombat') combat = { active: false };
+      else if (u.type === 'addCondition') { const t = byId(u.tokenId); if (t && condOf(u)) t.conditions.push({ name: condOf(u), rounds: u.rounds || 0, ...(u.source ? { source: u.source } : {}) }); }
+      else if (u.type === 'removeCondition') { const t = byId(u.tokenId); if (t) t.conditions = t.conditions.filter((c) => c.name !== condOf(u)); }
+      else if (u.type === 'startCombat') startPretendCombat();
+      else if (u.type === 'endCombat') combat = { active: false };
     }
-    history.push({ role: 'user', content: step.say }, { role: 'assistant', content: j.narrative });
+    history.push({ role: 'user', content: said }, { role: 'assistant', content: j.narrative });
   }
 
   // ---- usage and cost ----
