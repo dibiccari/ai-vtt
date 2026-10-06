@@ -436,6 +436,7 @@
 <script src="/scenes.js"></script>
 <script src="/wallobjects.js"></script>
 <script src="/combat-order.js"></script>
+<script src="/condition-rings.js"></script>
 <script src="/flicker.js"></script>
 <script src="/ambience.js"></script>
 <script>
@@ -1809,6 +1810,7 @@ function drawTokens(pcs, now) {
     const glyph = t.kind === 'trap' ? '⚠' : isSummon(t) ? (SUMMONS[t.summon.kind] || {}).glyph || '✦' : initials(t.name);
     ctx.save();
     if (ghost || t.dead) ctx.globalAlpha = t.dead ? 0.4 : 0.45;
+    else if (window.ConditionRings) ctx.globalAlpha = ConditionRings.tokenAlpha(tokenConditions(t).map((c) => c.name));
     ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     ctx.shadowBlur = dragging ? 18 : 8;
     ctx.shadowOffsetY = dragging ? 6 : 2;
@@ -1853,9 +1855,19 @@ function drawTokens(pcs, now) {
       ctx.fillText(glyph, x, y + 1);
     }
 
+    // Conditions are rings round the token (the 15 official ones, each with its colour and line style; the name is written along the ring when the token is big enough on screen), effects are pills
+    // beside it (concentrating, spells such as bless). The hit-point bar and the name tag move out by the width of the rings.
+    if (!ghost && !t.dead) ctx.globalAlpha = 1;                      // an invisible token is faint, its rings and bars are not
+    const condNames = tokenConditions(t).map((c) => c.name);
+    let ringReach = 0;
+    if (condNames.length && window.ConditionRings) {
+      const named = state.view.scale * radius >= 24;
+      ringReach = ConditionRings.draw(ctx, x, y, radius + 4, condNames, 0.75, { labels: named });
+      ConditionRings.drawEffects(ctx, x, y, radius + 4 + ringReach, condNames, 0.62, { labels: state.view.scale * radius >= 18 });
+    }
     const hpMax = maxHpOf(t), hpNow = hpOf(t);
     if (hpMax > 0) {
-      const bw = GRID * 0.8, bh = 5, bx = x - bw / 2, by = y + radius + 4;
+      const bw = GRID * 0.8, bh = 5, bx = x - bw / 2, by = y + radius + 4 + ringReach;
       const pct = clamp(hpNow / hpMax, 0, 1);
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
@@ -1870,40 +1882,13 @@ function drawTokens(pcs, now) {
       ctx.moveTo(x + radius * 0.7, y - radius * 0.7); ctx.lineTo(x - radius * 0.7, y + radius * 0.7);
       ctx.stroke();
     }
-    const conds = tokenConditions(t);
-    if (conds.length) {
-      // Condition badges sit along the top of the token: two letters each, colour by condition.
-      const cr = Math.max(7, GRID * 0.14);
-      conds.slice(0, 4).forEach((c, i) => {
-        const [abbr, color] = conditionBadge(c.name);
-        const bx = x - radius + cr + i * (cr * 2 + 2), by = y - radius - cr - 1;
-        ctx.beginPath();
-        ctx.arc(bx, by, cr, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.75)';
-        ctx.stroke();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `800 ${Math.round(cr * 0.95)}px Inter, "Segoe UI", system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(abbr, bx, by + 0.5);
-      });
-      if (conds.length > 4) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `800 ${Math.round(cr)}px Inter, "Segoe UI", system-ui, sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.fillText(`+${conds.length - 4}`, x - radius + 4 * (cr * 2 + 2), y - radius - cr - 1);
-      }
-    }
     if (state.view.scale > 0.45 || isActive) {
       ctx.font = `700 ${Math.round(GRID * 0.22)}px Inter, "Segoe UI", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const label = ghost ? `${t.name} (${t.hidden ? (t.kind === 'trap' ? 'hidden trap' : 'hidden') : 'out of sight'})` : t.name;
       const tw = ctx.measureText(label).width + 10;
-      const ly = y - radius - 11;
+      const ly = y - radius - 11 - ringReach;
       ctx.fillStyle = 'rgba(7, 9, 13, 0.85)';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(x - tw / 2, ly - 8, tw, 16, 8); else ctx.rect(x - tw / 2, ly - 8, tw, 16);
@@ -3114,7 +3099,10 @@ function combatRow(t) {
     bar.appendChild(fill);
     const text = document.createElement('span');
     text.className = 'cb-hptext';
-    text.textContent = `${hp}/${max}`;
+    // The players see an enemy's health as the bar only; the numbers show for the party and in DM view (Test Lab).
+    const hideNumbers = !t.isPC && !state.dmView;
+    text.textContent = hideNumbers ? '' : `${hp}/${max}`;
+    if (hideNumbers) { text.style.minWidth = '0'; bar.title = pct > 0.75 ? 'Unhurt or lightly wounded' : pct > 0.5 ? 'Wounded' : pct > 0.25 ? 'Bloodied' : 'Near death'; }
     line1.append(bar, text);
   }
   const ac = acOf(t);
@@ -4299,6 +4287,7 @@ async function init() {
   scrollChat();
   await loadCharacters();
   await loadEffectDefs();
+  if (window.ConditionRings) ConditionRings.load().then(() => requestRender()).catch(() => {});
   await refreshClock();
   if (!state.tokens.length) createDefaultTokens();
   await setMap(board?.mapUrl || null);

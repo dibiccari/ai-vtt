@@ -59,14 +59,14 @@
   // Draw the effects of `names` as pills (icon and name) stacked to the right of the token and its rings. `outer` is the radius the rings reach (token radius + what draw() returned).
   function drawEffects(ctx, x, y, outer, names, px, opts) {
     px = px || 1;
-    var list = (names || []).filter(function (n) { return EFFECTS[n]; });
+    var list = (names || []).filter(function (n) { return !RINGS[n]; });
     if (!list.length) return 0;
     var labels = !opts || opts.labels !== false;
     var h = 15 * px, gap = 4 * px, total = list.length * h * 2 + (list.length - 1) * gap;
     var top = y - total / 2 + h, left = x + outer + 8 * px;
     ctx.save();
     list.forEach(function (n, i) {
-      var d = EFFECTS[n], cy = top + i * (h * 2 + gap), cx = left + h;
+      var d = EFFECTS[n] || [n, '#4f9dff', '\u2726'], cy = top + i * (h * 2 + gap), cx = left + h;
       ctx.font = '700 ' + Math.round(h * 1.05) + 'px "Segoe UI", system-ui, sans-serif';
       var textW = labels ? ctx.measureText(d[0]).width : 0, pillW = h * 2 + (labels ? textW + h * 0.9 : 0);
       ctx.fillStyle = 'rgba(12, 16, 24, 0.92)';

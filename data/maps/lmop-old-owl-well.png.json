@@ -398,30 +398,31 @@
     {
       "name": "start",
       "x": 1645,
-      "y": 315
+      "y": 315,
+      "radius": 2
     },
     {
       "name": "tower-ruin",
-      "x": 84,
-      "y": 189,
+      "x": 968,
+      "y": 504,
       "desc": "The broken stump of the tower: twelve zombies lurk inside its crumbled shell; they shamble out when the tower or tent is approached."
     },
     {
       "name": "kost-tent",
-      "x": 84,
-      "y": 273,
+      "x": 699,
+      "y": 1158,
       "desc": "The colourful tent in the middle of the courtyard: Hamun Kost, an evil Red Wizard, camps here with his treasure chest."
     },
     {
       "name": "old-well",
-      "x": 84,
-      "y": 357,
+      "x": 981,
+      "y": 976,
       "desc": "The old well in the courtyard, still giving clean fresh water."
     },
     {
       "name": "wall-gaps",
-      "x": 84,
-      "y": 441,
+      "x": 563,
+      "y": 855,
       "desc": "The ruined walls are rubble mounds: the party can enter the courtyard from any direction."
     }
   ],
