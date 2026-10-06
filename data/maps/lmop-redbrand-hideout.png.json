@@ -3058,14 +3058,8 @@
     },
     {
       "name": "south-passage",
-      "x": 735,
-      "y": 1715
-    },
-    {
-      "name": "area-1",
-      "x": 1692,
-      "y": 1346,
-      "desc": "Cellar"
+      "x": 604,
+      "y": 1680
     },
     {
       "name": "area-2",
