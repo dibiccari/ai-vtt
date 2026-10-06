@@ -1,0 +1,192 @@
+{
+ "note": "Effects (not conditions): states and spell effects. rounds = combat rounds it lasts, minutes = game-clock minutes it lasts (either or both; 0 = no limit of that kind). concentration true = it ends when its caster stops concentrating. endsOn = what the DM must watch for and end it with removeCondition.",
+ "effects": {
+  "concentrating": {
+   "label": "Concentrating",
+   "color": "#4f9dff",
+   "icon": "◎",
+   "rule": "Holding a spell: a hit forces a Constitution save (DC 10 or half the damage).",
+   "ends": "A failed save, being incapacitated or killed, casting another concentration spell, or ending it.",
+   "rounds": 0,
+   "minutes": 0,
+   "concentration": false,
+   "endsOn": ""
+  },
+  "surprised": {
+   "label": "Surprised",
+   "color": "#c9a0ff",
+   "icon": "❗",
+   "rule": "Can't move, act or react on its first turn.",
+   "ends": "The end of its first turn.",
+   "rounds": 0,
+   "minutes": 0,
+   "concentration": false,
+   "endsOn": "the table clears it when that turn ends"
+  },
+  "disengaged": {
+   "label": "Disengaged",
+   "color": "#6fd0e8",
+   "icon": "⇢",
+   "rule": "Its movement this turn does not provoke opportunity attacks.",
+   "ends": "The end of its turn.",
+   "rounds": 1,
+   "minutes": 0,
+   "concentration": false,
+   "endsOn": ""
+  },
+  "sanctuary": {
+   "label": "Sanctuary",
+   "color": "#ffe28a",
+   "icon": "✦",
+   "rule": "Anyone who targets it with an attack or a harmful spell makes a Wisdom save first; on a failure they pick another target or lose the attack or spell. Area effects ignore it.",
+   "ends": "It attacks, or casts a spell that harms another creature; or 1 minute passes.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": false,
+   "endsOn": "the warded creature makes an attack or casts a spell that harms another creature"
+  },
+  "bless": {
+   "label": "Bless",
+   "color": "#f5d76e",
+   "icon": "✚",
+   "rule": "Adds 1d4 to attack rolls and saving throws (up to three creatures).",
+   "ends": "Concentration ends or 1 minute passes.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": true,
+   "endsOn": ""
+  },
+  "bane": {
+   "label": "Bane",
+   "color": "#a05a5a",
+   "icon": "✖",
+   "rule": "Subtracts 1d4 from attack rolls and saving throws (up to three creatures).",
+   "ends": "Concentration ends or 1 minute passes.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": true,
+   "endsOn": ""
+  },
+  "shield of faith": {
+   "label": "Shield of faith",
+   "color": "#7cc4ff",
+   "icon": "⛨",
+   "rule": "+2 to Armor Class.",
+   "ends": "Concentration ends or 10 minutes pass.",
+   "rounds": 0,
+   "minutes": 10,
+   "concentration": true,
+   "endsOn": ""
+  },
+  "mage armor": {
+   "label": "Mage armor",
+   "color": "#8fa8ff",
+   "icon": "❈",
+   "rule": "Armor Class 13 + Dexterity modifier while unarmored.",
+   "ends": "8 hours pass, or it dons armor.",
+   "rounds": 0,
+   "minutes": 480,
+   "concentration": false,
+   "endsOn": "the creature puts on armor"
+  },
+  "haste": {
+   "label": "Haste",
+   "color": "#ff9f43",
+   "icon": "»",
+   "rule": "Double speed, +2 AC, advantage on Dexterity saves, one extra limited action.",
+   "ends": "Concentration ends (then it is lethargic for a turn) or 1 minute passes.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": true,
+   "endsOn": ""
+  },
+  "slow": {
+   "label": "Slow",
+   "color": "#7a8aa6",
+   "icon": "«",
+   "rule": "Half speed, -2 AC and Dexterity saves, no reactions, one action or bonus action only.",
+   "ends": "It succeeds on a Wisdom save at the end of a turn, concentration ends or 1 minute passes.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": true,
+   "endsOn": "the creature succeeds on a Wisdom saving throw at the end of one of its turns"
+  },
+  "hex": {
+   "label": "Hex",
+   "color": "#9b59b6",
+   "icon": "☠",
+   "rule": "Takes extra 1d6 necrotic damage from the caster's attacks; disadvantage on one chosen ability's checks.",
+   "ends": "Concentration ends or the time runs out (1 to 24 hours).",
+   "rounds": 0,
+   "minutes": 60,
+   "concentration": true,
+   "endsOn": ""
+  },
+  "hunter's mark": {
+   "label": "Hunter's mark",
+   "color": "#c0392b",
+   "icon": "⌖",
+   "rule": "Takes extra 1d6 damage from the ranger's weapon attacks; the ranger tracks it easily.",
+   "ends": "Concentration ends or the time runs out (1 to 24 hours).",
+   "rounds": 0,
+   "minutes": 60,
+   "concentration": true,
+   "endsOn": "the marked creature drops to 0 hit points (the mark can move to a new target)"
+  },
+  "rage": {
+   "label": "Rage",
+   "color": "#e74c3c",
+   "icon": "⚔",
+   "rule": "Advantage on Strength checks and saves, bonus damage, resistance to bludgeoning, piercing and slashing; cannot cast spells or concentrate.",
+   "ends": "Its turn passes with no attack made or damage taken, it falls unconscious, or 1 minute passes.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": false,
+   "endsOn": "a whole round passes in which the raging creature neither attacks a hostile creature nor takes damage"
+  },
+  "fly": {
+   "label": "Fly",
+   "color": "#9ad7ff",
+   "icon": "✈",
+   "rule": "A flying speed of 60 ft (the table does not track height yet).",
+   "ends": "Concentration ends (it falls unless it can stop itself) or 10 minutes pass.",
+   "rounds": 0,
+   "minutes": 10,
+   "concentration": true,
+   "endsOn": ""
+  },
+  "guidance": {
+   "label": "Guidance",
+   "color": "#d9f0a3",
+   "icon": "☝",
+   "rule": "Adds 1d4 to one ability check.",
+   "ends": "Concentration ends, 1 minute passes, or the bonus is used.",
+   "rounds": 10,
+   "minutes": 1,
+   "concentration": true,
+   "endsOn": "the 1d4 is used on an ability check"
+  },
+  "longstrider": {
+   "label": "Longstrider",
+   "color": "#b5e48c",
+   "icon": "↦",
+   "rule": "Speed increases by 10 ft.",
+   "ends": "1 hour passes.",
+   "rounds": 0,
+   "minutes": 60,
+   "concentration": false,
+   "endsOn": ""
+  },
+  "aid": {
+   "label": "Aid",
+   "color": "#f4a6c8",
+   "icon": "♥",
+   "rule": "Hit point maximum and current hit points rise by 5 (more at higher levels).",
+   "ends": "8 hours pass.",
+   "rounds": 0,
+   "minutes": 480,
+   "concentration": false,
+   "endsOn": ""
+  }
+ }
+}

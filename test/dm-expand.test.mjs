@@ -115,3 +115,9 @@ test('expandSheetEdits output is understood by applyUpdate', () => {
   assert.deepEqual(out.rejected, []);
   assert.equal(out.character.sheet['Stealth '], '+7');
 });
+
+test('addCondition passes the minutes (value) and the caster (name) through to the table', async () => {
+  const out = await expandTokenUpdates([T('addCondition', { name: 'pc-caster', condition: 'bless', rounds: 0, value: 1 })]);
+  assert.equal(out[0].type, 'addCondition');
+  assert.equal(out[0].condition, 'bless'); assert.equal(out[0].minutes, 1); assert.equal(out[0].source, 'pc-caster');
+});

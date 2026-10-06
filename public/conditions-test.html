@@ -72,6 +72,7 @@
 </div>
 <script src="/condition-rings.js"></script>
 <script>
+ConditionRings.load().then(function () {
 (function () {
   'use strict';
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -167,7 +168,7 @@
     if (isEff) { mark = document.createElement('span'); mark.className = 'badge'; mark.style.borderColor = d[1]; mark.style.color = d[1]; mark.textContent = d[2]; }
     else { mark = document.createElement('span'); mark.className = 'swatch'; mark.style.borderColor = d[1]; mark.style.borderStyle = d[2] === 'double' ? 'double' : d[2]; mark.style.borderWidth = d[2] === 'double' ? '4px' : '3px'; mark.style.height = d[2] === 'double' ? '14px' : '12px'; }
     l.append(cb, mark, document.createTextNode(d[0]));
-    l.addEventListener('mouseenter', function () { help.innerHTML = isEff ? '<b>' + d[0] + ' (effect).</b> ' + d[3] + ' <br><i>Ends:</i> ' + d[4] : '<b>' + d[0] + ' (condition).</b> ' + d[3]; });
+    l.addEventListener('mouseenter', function () { help.innerHTML = isEff ? '<b>' + d[0] + ' (effect).</b> ' + d[3] + ' <br><i>Lasts:</i> ' + ConditionRings.lasts(name) + '. <i>Ends:</i> ' + d[4] : '<b>' + d[0] + ' (condition).</b> ' + d[3]; });
     cb.addEventListener('change', function () { on[name] = cb.checked; render(); });
     document.getElementById(isEff ? 'effs' : 'conds').appendChild(l);
     cbs[name] = cb;
@@ -188,6 +189,7 @@
   loadToken();
   render();
 })();
+}).catch(function (e) { document.querySelector(".page").insertAdjacentHTML("beforeend", "<p style=\"color:#ff8f8f\">Could not load the effect data: " + e.message + "</p>"); });
 </script>
 </body>
 </html>

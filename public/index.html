@@ -1036,16 +1036,35 @@ function effectiveSpeed(t) {
   if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised'].some((n) => hasCondition(t, n))) return 0;
   return hasCondition(t, 'prone') ? Math.floor((t.speed || 0) / 2) : t.speed;
 }
-const conditionLabel = (c) => c.name + (c.rounds > 0 ? ` (${c.rounds} round${c.rounds === 1 ? '' : 's'})` : '');
+// Effects (not conditions) with how long they last: loaded from /effect-data.json; the game clock (minutes since Day 1, 00:00) comes with every DM reply and from /api/party.
+let EFFECT_DEFS = {};
+async function loadEffectDefs() { try { EFFECT_DEFS = (await (await fetch('/effect-data.json')).json()).effects || {}; } catch { EFFECT_DEFS = {}; } }
+async function refreshClock() { try { const j = await (await fetch('/api/party')).json(); if (j && j.clock && Number.isFinite(j.clock.minutes)) { state.clockTotal = j.clock.minutes; expireTimedConditions(); } } catch { /* no clock: timed effects only count rounds */ } }
+const minutesLeft = (c) => (Number.isFinite(c.untilMin) && Number.isFinite(state.clockTotal) ? Math.max(0, c.untilMin - state.clockTotal) : null);
+function leftText(c) {
+  const parts = [];
+  if (c.rounds > 0) parts.push(`${c.rounds} round${c.rounds === 1 ? '' : 's'}`);
+  const m = minutesLeft(c);
+  if (m !== null) parts.push(m >= 120 ? `${Math.round(m / 60)} hours` : m >= 60 ? `${Math.round(m / 6) / 10} hour` : `${m} min`);
+  return parts.length ? ` (${parts.join(' / ')} left)` : '';
+}
+const conditionLabel = (c) => c.name + leftText(c);
 // A blinded or unconscious character feels only their own square (1 ft); see revealFog().
 
-function setCondition(t, name, rounds) {
+function setCondition(t, name, rounds, opts = {}) {
   const key = conditionKey(name);
   if (!t || !key) return false;
   if (!Array.isArray(t.conditions)) t.conditions = [];
-  const left = Number.isFinite(rounds) && rounds > 0 ? Math.min(Math.round(rounds), 999) : 0;
+  let left = Number.isFinite(rounds) && rounds > 0 ? Math.min(Math.round(rounds), 999) : 0;
+  let minutes = Number.isFinite(Number(opts.minutes)) && Number(opts.minutes) > 0 ? Math.min(Math.round(Number(opts.minutes)), 60 * 24 * 30) : 0;
+  const def = EFFECT_DEFS[key];
+  if (def && !left && !minutes) { left = def.rounds || 0; minutes = def.minutes || 0; }          // a known effect: its own duration
+  const entry = { name: key, rounds: left };
+  if (minutes && Number.isFinite(state.clockTotal)) entry.untilMin = state.clockTotal + minutes;
+  const source = String(opts.source || '').trim();
+  if (def && def.concentration) { entry.concentration = true; if (source) entry.source = source; }
   const have = t.conditions.find((c) => c.name === key);
-  if (have) have.rounds = left; else t.conditions.push({ name: key, rounds: left });
+  if (have) { for (const k of ['untilMin', 'source', 'concentration']) delete have[k]; Object.assign(have, entry); } else t.conditions.push(entry);
   if (t === activeToken() && Number.isFinite(t.movementRemaining) && !t.conditions.some((c) => c.name === 'dashing')) t.movementRemaining = Math.min(t.movementRemaining, effectiveSpeed(t));
   return true;
 }
@@ -1055,7 +1074,32 @@ function clearCondition(t, name) {
   if (!t || !Array.isArray(t.conditions)) return false;
   const before = t.conditions.length;
   t.conditions = t.conditions.filter((c) => c.name !== key);
+  if (key === 'concentrating') endConcentrationEffects(t);
   return t.conditions.length !== before;
+}
+// When a caster stops concentrating, every effect that depends on it (put on with the caster's token id as its source) ends too.
+function endConcentrationEffects(caster) {
+  for (const o of state.tokens) {
+    const keep = tokenConditions(o).filter((c) => !(c.concentration && c.source === caster.id));
+    if (keep.length === tokenConditions(o).length) continue;
+    const ended = tokenConditions(o).filter((c) => c.concentration && c.source === caster.id).map((c) => c.name);
+    o.conditions = keep;
+    if (seenByParty(o)) addChat('system', `↳ ${o.name} loses ${ended.join(', ')} (${caster.name} stopped concentrating)`);
+  }
+}
+// Effects with an end on the game clock run out when the clock passes it (after a DM reply, a rest or the time action).
+function expireTimedConditions() {
+  if (!Number.isFinite(state.clockTotal)) return false;
+  let changed = false;
+  for (const t of state.tokens) {
+    const gone = tokenConditions(t).filter((c) => Number.isFinite(c.untilMin) && c.untilMin <= state.clockTotal);
+    if (!gone.length) continue;
+    t.conditions = tokenConditions(t).filter((c) => !gone.includes(c));
+    for (const c of gone) { if (seenByParty(t)) addChat('system', `↳ ${t.name} is no longer ${c.name} (time ran out)`); if (c.name === 'concentrating') endConcentrationEffects(t); }
+    changed = true;
+  }
+  if (changed) { revealFog(); commitBoard(); renderCombat(); }
+  return changed;
 }
 
 // At the start of a new round every timed condition loses a round; the ones that run out are removed.
@@ -1236,7 +1280,7 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
+  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds, ...(Number.isFinite(c.untilMin) ? { untilMin: c.untilMin, minutesLeft: minutesLeft(c) } : {}), ...(c.source ? { source: c.source } : {}), ...(c.concentration ? { concentration: true } : {}) })),
     summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
@@ -3311,7 +3355,9 @@ async function sendTurn(spokenText, opts) {
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
     // Characters first: the server already changed hit points, Hit Dice and features, and the board updates below must start from those numbers.
     if (Array.isArray(data.partyChanged) && data.partyChanged.length) await loadCharacters();
+    if (data.clock && Number.isFinite(data.clock.minutes)) state.clockTotal = data.clock.minutes;
     await applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
+    expireTimedConditions();
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
     if (Array.isArray(data.partyNotes) && data.partyNotes.length) addChat('system', '🎒 ' + data.partyNotes.join('; '));
     if (Array.isArray(data.journalAdded) && data.journalAdded.length) addChat('system', '📓 Journal: ' + data.journalAdded.map((e) => e.title).join(', '));
@@ -3957,8 +4003,8 @@ async function applyMapUpdates(updates) {
         const rounds = Number(u.rounds);
         const ds = /^death ?saves?:? ?(success|fail)/i.exec(String(u.condition || ''));
         if (ds && t && t.isPC && hpOf(t) === 0 && !t.stable) { setDeathSave(t, ds[1].toLowerCase() === 'fail' ? 'fail' : 'success', (t.deathSaves ? t.deathSaves[ds[1].toLowerCase() === 'fail' ? 'fail' : 'success'] : 0) + (rounds > 0 ? Math.round(rounds) : 1)); break; }
-        if (!t || !setCondition(t, u.condition, rounds)) break;
-        if (seenByParty(t)) addChat('system', `↳ ${t.name} is ${conditionKey(u.condition)}${rounds > 0 ? ` (${rounds} round${rounds === 1 ? '' : 's'})` : ''}`);
+        if (!t || !setCondition(t, u.condition, rounds, { minutes: u.minutes, source: u.source })) break;
+        if (seenByParty(t)) addChat('system', `↳ ${t.name} is ${conditionKey(u.condition)}${leftText(t.conditions.find((c) => c.name === conditionKey(u.condition)) || {})}`);
         // Surprise is decided right after startCombat: if the combatant whose turn it already is turns out to be surprised, that turn is lost at once.
         if (conditionKey(u.condition) === 'surprised' && state.combat.active && activeToken() === t) { t.spent = { a: true, b: true, r: true }; nextCombatTurn(); }
         break;
@@ -4236,6 +4282,8 @@ async function init() {
   renderChat();
   scrollChat();
   await loadCharacters();
+  await loadEffectDefs();
+  await refreshClock();
   if (!state.tokens.length) createDefaultTokens();
   await setMap(board?.mapUrl || null);
   if (state.zoomToParty) focusStart();

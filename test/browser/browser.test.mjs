@@ -432,6 +432,34 @@ test('death saves: damage at 0 is a failed save, the DM records saves, three fai
   assert.deepEqual(r.massive, [3, false, true]); assert.deepEqual(r.massivePerma, [true]);
 });
 
+test('timed effects: known durations, the game clock, concentration, and the values survive a reload', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const pcs = vtt.state.tokens.filter((t) => t.isPC), caster = pcs[0], target = pcs[1] || vtt.state.tokens.find((t) => t !== pcs[0]) || (vtt.state.tokens.push(makeToken({ id: 'tok-extra', name: 'Extra', color: '#ffffff', col: 4, row: 4 })), vtt.state.tokens[vtt.state.tokens.length - 1]), out = {};
+    vtt.state.clockTotal = 1000;
+    setCondition(caster, 'concentrating', 0, {});
+    setCondition(target, 'bless', 0, { source: caster.id });
+    setCondition(target, 'mage armor', 0, {});
+    setCondition(target, 'frightened', 3, {});
+    out.pcs = pcs.length; out.set = tokenConditions(target).map((c) => [c.name, c.rounds, c.untilMin || 0, !!c.concentration]);
+    out.saved = JSON.parse(JSON.stringify(vtt.state.tokens.map((t) => serializeToken(t)).find((t) => t.id === target.id).conditions));
+    vtt.state.clockTotal = 1002; expireTimedConditions();
+    out.after2min = tokenConditions(target).map((c) => c.name);
+    setCondition(target, 'haste', 0, { source: caster.id });
+    clearCondition(caster, 'concentrating');
+    out.afterConcentration = tokenConditions(target).map((c) => c.name);
+    vtt.state.clockTotal = 1000 + 500; expireTimedConditions();
+    out.after8h = tokenConditions(target).map((c) => c.name);
+    return out;
+  })()`);
+  assert.deepEqual(r.set, [['bless', 10, 1001, true], ['mage armor', 0, 1480, false], ['frightened', 3, 0, false]]);
+  assert.deepEqual(r.saved.map((c) => c.name), ['bless', 'mage armor', 'frightened']);
+  assert.equal(r.saved[0].untilMin, 1001); assert.equal(r.saved[0].source !== undefined, true); assert.equal(r.saved[1].untilMin, 1480);
+  assert.deepEqual(r.after2min, ['mage armor', 'frightened']);
+  assert.deepEqual(r.afterConcentration, ['mage armor', 'frightened'], 'haste goes when its caster stops concentrating');
+  assert.deepEqual(r.after8h, ['frightened'], 'mage armor runs out after 8 hours; a round-timed condition is not touched by the clock');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });

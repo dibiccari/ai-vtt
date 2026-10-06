@@ -22,24 +22,34 @@
     exhaustion:    ['Exhaustion',    '#a07850', 'solid',  'Growing penalties by level; a long rest removes one level.']
   };
 
-  // Effects are not conditions: states and spell effects (concentrating, surprised, a spell like sanctuary). They are drawn as small badges above the token, not as rings.
-  // name: [label, colour, icon, short rule, what ends it]
-  var EFFECTS = {
-    concentrating: ['Concentrating', '#4f9dff', '\u25CE',     'Holding a spell: a hit forces a Constitution save (DC 10 or half the damage).', 'A failed save, being incapacitated or killed, casting another concentration spell, or ending it.'],
-    surprised:     ['Surprised',     '#c9a0ff', '\u2757',     "Can't move, act or react on its first turn.", 'The end of its first turn.'],
-    disengaged:    ['Disengaged',    '#6fd0e8', '\u21E2',     'Its movement this turn does not provoke opportunity attacks.', 'The end of its turn.'],
-    sanctuary:     ['Sanctuary',     '#ffe28a', '\u2726',     'Anyone who targets it with an attack or a harmful spell makes a Wisdom save first; on a failure they pick another target or lose the attack or spell. Area effects ignore it.', 'It attacks, or casts a spell that harms another creature; or 1 minute passes.'],
-    bless:         ['Bless',         '#f5d76e', '\u271A',     'Adds 1d4 to attack rolls and saving throws (up to three creatures).', 'Concentration ends or 1 minute passes.'],
-    bane:          ['Bane',          '#a05a5a', '\u2716',     'Subtracts 1d4 from attack rolls and saving throws (up to three creatures).', 'Concentration ends or 1 minute passes.'],
-    'shield of faith': ['Shield of faith', '#7cc4ff', '\u26E8', '+2 to Armor Class.', 'Concentration ends or 10 minutes pass.'],
-    'mage armor':  ['Mage armor',    '#8fa8ff', '\u2748',     'Armor Class 13 + Dexterity modifier while unarmored.', '8 hours pass, or it dons armor.'],
-    haste:         ['Haste',         '#ff9f43', '\u00BB',     'Double speed, +2 AC, advantage on Dexterity saves, one extra limited action.', 'Concentration ends (then it is lethargic for a turn) or 1 minute passes.'],
-    slow:          ['Slow',          '#7a8aa6', '\u00AB',     'Half speed, -2 AC and Dexterity saves, no reactions, one action or bonus action only.', 'It succeeds on a Wisdom save at the end of a turn, concentration ends or 1 minute passes.'],
-    hex:           ['Hex',           '#9b59b6', '\u2620',     'Takes extra 1d6 necrotic damage from the caster\'s attacks; disadvantage on one chosen ability\'s checks.', 'Concentration ends or the time runs out (1 to 24 hours).'],
-    'hunter\'s mark': ['Hunter\'s mark', '#c0392b', '\u2316', 'Takes extra 1d6 damage from the ranger\'s weapon attacks; the ranger tracks it easily.', 'Concentration ends or the time runs out.'],
-    rage:          ['Rage',          '#e74c3c', '\u2694',     'Advantage on Strength checks and saves, bonus damage, resistance to bludgeoning, piercing and slashing; cannot cast spells or concentrate.', 'Its turn passes with no attack made or damage taken, it falls unconscious, or 1 minute passes.']
-  };
-  var EFFECT_ORDER = Object.keys(EFFECTS);
+  // Effects are not conditions: states and spell effects (concentrating, surprised, a spell like sanctuary). They are drawn as pills beside the token, not as rings.
+  // The data lives in /effect-data.json (shared with the DM prompt and the tabletop); call ConditionRings.load() once before drawing effects.
+  // name: [label, colour, icon, short rule, what ends it, rounds, minutes, concentration, endsOn]
+  var EFFECTS = {};
+  var EFFECT_ORDER = [];
+  var loading = null;
+  function load() {
+    if (!loading) loading = fetch('/effect-data.json').then(function (r) { return r.json(); }).then(function (j) {
+      Object.keys(j.effects || {}).forEach(function (name) {
+        var e = j.effects[name];
+        EFFECTS[name] = [e.label, e.color, e.icon, e.rule, e.ends, e.rounds || 0, e.minutes || 0, !!e.concentration, e.endsOn || ''];
+      });
+      EFFECT_ORDER.length = 0;
+      Object.keys(EFFECTS).forEach(function (n) { EFFECT_ORDER.push(n); });
+      return EFFECTS;
+    });
+    return loading;
+  }
+  // how long an effect lasts, in words
+  function lasts(name) {
+    var d = EFFECTS[name];
+    if (!d) return '';
+    var parts = [];
+    if (d[5]) parts.push(d[5] + ' round' + (d[5] === 1 ? '' : 's'));
+    if (d[6]) parts.push(d[6] >= 60 && d[6] % 60 === 0 ? d[6] / 60 + ' hour' + (d[6] === 60 ? '' : 's') : d[6] + ' minute' + (d[6] === 1 ? '' : 's'));
+    var txt = parts.length ? parts.join(' / ') : 'until it is ended';
+    return txt + (d[7] ? ', needs concentration' : '');
+  }
 
   function info(name) { return RINGS[name] || [String(name), '#4f9dff', 'solid', '']; }
   function effectInfo(name) { return EFFECTS[name] || null; }
@@ -188,10 +198,10 @@
     if (has('charmed')) out.lines.push("Can't attack the one who charmed it.");
     if (has('deafened')) out.lines.push('Fails anything that needs hearing.');
     if (has('exhaustion')) out.lines.push('Exhaustion: penalties grow by level (see the Party page).');
-    (names || []).forEach(function (n) { if (EFFECTS[n]) out.lines.push(EFFECTS[n][0] + ': ' + EFFECTS[n][3]); });
+    (names || []).forEach(function (n) { if (EFFECTS[n]) out.lines.push(EFFECTS[n][0] + ': ' + EFFECTS[n][3] + ' (lasts ' + lasts(n) + ').'); });
     if (has('invisible')) out.lines.push('Not seen by the other side without magic or special senses.');
     return out;
   }
 
-  root.ConditionRings = { RINGS: RINGS, EFFECTS: EFFECTS, EFFECT_ORDER: EFFECT_ORDER, info: info, effectInfo: effectInfo, isEffect: isEffect, isCondition: isCondition, draw: draw, drawEffects: drawEffects, tokenAlpha: tokenAlpha, effects: effects };
+  root.ConditionRings = { RINGS: RINGS, EFFECTS: EFFECTS, EFFECT_ORDER: EFFECT_ORDER, load: load, lasts: lasts, info: info, effectInfo: effectInfo, isEffect: isEffect, isCondition: isCondition, draw: draw, drawEffects: drawEffects, tokenAlpha: tokenAlpha, effects: effects };
 })(window);
