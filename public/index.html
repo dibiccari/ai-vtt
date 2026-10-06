@@ -435,6 +435,7 @@
 <script src="/uvtt.js"></script>
 <script src="/scenes.js"></script>
 <script src="/wallobjects.js"></script>
+<script src="/combat-order.js"></script>
 <script src="/flicker.js"></script>
 <script src="/ambience.js"></script>
 <script>
@@ -488,6 +489,7 @@ const state = {
   autoTurns: 0,                       // creature turns the table has started in a row without a player acting (capped)
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
   wallsInPicture: false,
+  dmPad: '',                         // the DM's private scratchpad for this campaign (saved in the board, never shown to players; DM view only)
   pendingNotes: [],                  // things the table noticed for the DM to resolve (opportunity attacks, concentration), told with the next message
   templates: [],                     // spell areas drawn on the map
   pendingCorrections: [],            // moves the table adjusted; told to the DM with the next message
@@ -1233,7 +1235,7 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
+  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
     summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
@@ -2299,6 +2301,7 @@ function saveBoard() {
     visitedMaps: state.visitedMaps,
     fogBeforeOverland: state.fogBeforeOverland,
     combat: state.combat,
+    dmPad: state.dmPad,
     lightsOff: state.lightsOff,
     ambientOverride: state.ambientOverride
   });
@@ -2848,32 +2851,51 @@ function nextCombatTurn() {
   if (waiting.length) { toast(`Waiting for initiative: ${waiting.join(', ')}`); return; }
   const leaving = activeToken();
   if (leaving && hasCondition(leaving, 'surprised')) clearCondition(leaving, 'surprised');       // surprise ends when its first turn ends
-  const idx = order.indexOf(activeToken());
-  let wrapped = false, chosen = null;
-  for (let n = 1; n <= order.length; n++) {
-    if (idx + n >= order.length) wrapped = true;
-    const t = order[(idx + n + order.length) % order.length];
-    // Defeated creatures are skipped; creatures the party cannot see are skipped too (the AI plays their turns in the narration).
-    if (t.dead || !seenByParty(t)) continue;
-    chosen = t;
-    break;
-  }
+  // Defeated creatures are skipped; creatures the party cannot see are skipped too (the AI plays their turns in the narration); so are delayed ones.
+  const pick = CombatOrder.nextActor(order.map((t) => ({ id: t.id, dead: t.dead, unseen: !seenByParty(t), delayed: t.delayed })), leaving ? leaving.id : '');
+  const chosen = pick ? order.find((t) => t.id === pick.id) : null;
+  const wrapped = Boolean(pick && pick.wrapped);
   if (!chosen) return;
   if (wrapped) {
     state.combat.round += 1;
+    for (const t of order) if (t.delayed && t !== chosen) { t.delayed = false; if (seenByParty(t)) addChat('system', `↳ ${t.name} waited out the round and acts in their usual place`); }
     addChat('system', `⏱ Round ${state.combat.round}`);
     if (tickConditions()) revealFog();
   }
+  chosen.delayed = false;
   state.activeIndex = state.tokens.indexOf(chosen);
   beginTurn(chosen);
   commitBoard();
   renderCombat();
 }
 
+// Delay (2014 DMG optional rule): the active combatant gives up their place and acts later, after any other combatant's turn.
+// While delayed they are skipped; resuming puts them right after whoever is acting now (their initiative becomes that point).
+function delayTurn(t) {
+  if (!state.combat.active || !t || t.delayed || activeToken() !== t) return false;
+  t.delayed = true;
+  if (seenByParty(t)) addChat('system', `⏸ ${t.name} delays their turn`);
+  nextCombatTurn();
+  return true;
+}
+function resumeTurn(t) {
+  if (!state.combat.active || !t || !t.delayed) return false;
+  const cur = activeToken();
+  const items = combatTokens().map((x) => ({ id: x.id, initiative: x.initiative, delayed: x.delayed }));
+  const value = cur && cur !== t ? CombatOrder.resumeInitiative(items, cur.id, t.id) : null;
+  t.delayed = false;
+  if (value !== null) t.initiative = value;
+  sortCombat();
+  if (seenByParty(t)) addChat('system', `▶ ${t.name} stops delaying and will act after ${cur && cur !== t ? cur.name + "'s turn" : 'now'}`);
+  if (!cur || cur === t) { state.activeIndex = state.tokens.indexOf(t); beginTurn(t); }
+  commitBoard();
+  return true;
+}
+
 function endCombat() {
   if (!state.combat.active) return;
   state.combat = { active: false, round: 0, order: [] };
-  for (const t of state.tokens) { t.initiative = null; t.spent = null; }
+  for (const t of state.tokens) { t.initiative = null; t.spent = null; t.delayed = false; }
   addChat('system', '⚔ Combat ends');
   syncAmbience();
   commitBoard();
@@ -2945,7 +2967,7 @@ function combatRow(t) {
   init.className = 'cb-init';
   init.placeholder = '?';
   init.title = 'Initiative';
-  init.value = Number.isFinite(t.initiative) ? t.initiative : '';
+  init.value = Number.isFinite(t.initiative) ? Math.round(t.initiative * 10) / 10 : '';
   init.addEventListener('change', () => { t.initiative = init.value === '' ? null : Number(init.value); sortCombat(); commitBoard(); renderCombat(); });
   const name = document.createElement('button');
   name.className = 'cb-name';
@@ -2955,6 +2977,8 @@ function combatRow(t) {
   // Initiative numbers of creatures are the DM's business: the players see the order, not the numbers.
   if (!t.isPC && !state.dmView) { const hidden = document.createElement('span'); hidden.className = 'cb-init cb-init-hidden'; hidden.textContent = '•'; hidden.title = 'Creature initiative is hidden; the order is what counts'; line1.append(hidden, name); }
   else line1.append(init, name);
+  if (t.delayed) { const dl = document.createElement('span'); dl.className = 'cb-ready'; dl.textContent = '⏸'; dl.title = "Delaying: acts after another combatant's turn"; line1.appendChild(dl); }
+  if (t.dmNote && state.dmView) { const dn = document.createElement('span'); dn.className = 'cb-ready cb-dmnote'; dn.textContent = '🗒'; dn.title = 'DM note: ' + t.dmNote; line1.appendChild(dn); }
   if (t.readied) { const rd = document.createElement('span'); rd.className = 'cb-ready'; rd.textContent = '⏳'; rd.title = 'Readied: ' + t.readied; line1.appendChild(rd); }
   if (t.monster) {
     const link = document.createElement('a');
@@ -3070,6 +3094,7 @@ function renderCombat() {
   // initiative. Once it is running the buttons above let a person step in.
   // Creatures and conjured things (a Spiritual Weapon, Mage Hand) are put on the map by the DM, not from here.
   box.appendChild(head);
+  if (state.dmView && state.dmPad) { const pad = document.createElement('div'); pad.className = 'cb-note cb-dmpad'; pad.textContent = '🗒 DM notes: ' + state.dmPad; box.appendChild(pad); }
   if (state.combat.active) {
     const rows = combatTokens().filter(canSee);
     for (const t of rows) box.appendChild(combatRow(t));
@@ -3119,7 +3144,7 @@ async function rollForMe() {
 }
 const combatForAi = () => ({
   active: state.combat.active, round: state.combat.round, currentTokenId: activeToken() ? activeToken().id : '',
-  order: combatTokens().map((t) => ({ tokenId: t.id, initiative: Number.isFinite(t.initiative) ? t.initiative : null }))
+  order: combatTokens().map((t) => ({ tokenId: t.id, initiative: Number.isFinite(t.initiative) ? t.initiative : null, delayed: Boolean(t.delayed) }))
 });
 
 /* =====================================================================
@@ -3233,6 +3258,7 @@ async function sendTurn(spokenText, opts) {
       mapName: state.map.url ? prettyMapName(state.map.url) : 'blank grid',
       inputMode: isVoice ? 'voice' : 'text',
       combat: combatForAi(),
+      dmPad: state.dmPad,
       corrections: state.pendingCorrections.splice(0, 8),
       notes: state.pendingNotes.splice(0, 8),
       lighting: lightingForAi(),
@@ -3705,6 +3731,23 @@ async function applyMapUpdates(updates) {
         if (t.readied && seenByParty(t)) addChat('system', `⏳ ${t.name} readies: ${t.readied}`);
         break;
       }
+      case 'delayToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (t && !delayTurn(t)) state.pendingNotes.push(`${t.name} cannot delay now: only the combatant whose turn it is can delay.`);
+        break;
+      }
+      case 'resumeToken': {
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (t) resumeTurn(t);
+        break;
+      }
+      case 'dmNote': {
+        // DM-only notes: never printed in the chat; the tabletop shows them only with DM view on.
+        const text = String(u.text || '').trim();
+        if (u.tokenId === 'dm') state.dmPad = text.slice(0, 1500);
+        else { const t = state.tokens.find((x) => x.id === u.tokenId); if (t) t.dmNote = text.slice(0, 300); }
+        break;
+      }
       case 'template':
         addTemplate(u);
         break;
@@ -3976,6 +4019,7 @@ function bindUi() {
     state.dmView = e.target.checked;
     store.set('vtt.dmView', state.dmView);
     renderTurnBar();
+    renderCombat();
     requestRender();
   });
   // Sidebar tabs: the table (chat and combat), the campaign journal and the party. The last two are the Journal and Party pages shown here.
@@ -4090,6 +4134,7 @@ async function init() {
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
     state.visitedMaps = Array.isArray(board.visitedMaps) ? board.visitedMaps.filter((u) => typeof u === 'string') : [];
     state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
+    state.dmPad = typeof board.dmPad === 'string' ? board.dmPad.slice(0, 1500) : '';
     state.lightsOff = board.lightsOff && typeof board.lightsOff === 'object' ? board.lightsOff : {};
     state.ambientOverride = ['bright', 'dim', 'dark'].includes(board.ambientOverride) ? board.ambientOverride : '';
     state.combat = board.combat && board.combat.active && Array.isArray(board.combat.order) ? { active: true, round: Math.max(1, Number(board.combat.round) || 1), order: board.combat.order.map(String) } : { active: false, round: 0, order: [] };
@@ -4124,7 +4169,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn };
+window.vtt = { state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn };
 
 init().catch((err) => {
   console.error(err);
