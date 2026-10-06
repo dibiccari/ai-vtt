@@ -1,0 +1,16 @@
+{
+  "note": "Token art chosen by eye for creatures the name matcher got wrong (SRD monster index -> file in public/tokens). The adventure's own creatures carry an `image` in data/campaigns/<id>/monsters.json.",
+  "bugbear": "goblin-king-f00b8.png",
+  "grick": "abberation-lashing-tongue-51255.png",
+  "doppelganger": "abberant-touched-human-ab510.png",
+  "ochre-jelly": "decaying-ooze-262af.png",
+  "stirge": "bat-1-7af4d.png",
+  "commoner": "angry-peasant-813ff.png",
+  "giant-rat": "rat-05a85.png",
+  "wolf": "wolf-baring-fangs-64501.png",
+  "bandit": "roguish-man-5b1cc.png",
+  "thug": "roguish-man-5b1cc.png",
+  "mastiff": "shepherd-s-hound-9e80e.png",
+  "imp": "fiend-horned-b8b9d.png",
+  "skeleton": "skeleton-knight-59522.png"
+}
