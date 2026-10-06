@@ -1077,8 +1077,8 @@
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       // Click a pin to select it (and drag it to move it); click empty ground to add a new pin and name it on the spot.
       const grab = startAt(p);
-      if (tokenAt(p) >= 0 && (!grab || grab.name === 'start')) {         // the player token has no card: dragging it moves it, and over the start pin it carries the pin
-        S.drag = grab ? { kind: 'start', spot: grab } : { kind: 'token', index: tokenAt(p) };
+      if (tokenAt(p) >= 0 && (!grab || grab.name === 'start')) {         // the player token has no card: dragging it moves only the token; hold Shift over the start pin to move the pin (the token goes with it)
+        S.drag = grab && e.shiftKey ? { kind: 'start', spot: grab } : { kind: 'token', index: tokenAt(p) };
         return;
       }
       if (grab) {
