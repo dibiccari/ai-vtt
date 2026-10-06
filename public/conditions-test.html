@@ -40,7 +40,7 @@
   <h1>Character <span>conditions</span></h1>
   <p class="lead">Tick a condition to put a ring around the token. Each condition has its own colour and line style, and several rings stack outward. An invisible token is drawn faint. The effects box shows what the table does with the same conditions: speed, how far it sees (the room goes dark when sight shrinks), whether it can act, and who gets advantage or disadvantage.</p>
   <div class="layout">
-    <div class="stage"><canvas id="cv" width="1680" height="1680" aria-label="A fifteen by fifteen room with a token in the centre"></canvas></div>
+    <div class="stage"><canvas id="cv" width="1080" height="1080" aria-label="A nine by nine room with a token in the centre"></canvas></div>
     <div class="panel">
       <h2>Token</h2>
       <div class="row">
@@ -62,7 +62,7 @@
 (function () {
   'use strict';
   var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  var SQUARE = 100, MARGIN = 90, N = 15, ROOM = SQUARE * N;     // a fixed 15 x 15 room, 100 px a square, with a margin so rings never clip
+  var SQUARE = 100, MARGIN = 90, N = 9, ROOM = SQUARE * N;      // a fixed 9 x 9 room, 100 px a square, with a margin so rings never clip
   function setRoom(n) { N = n; ROOM = SQUARE * N; cv.width = ROOM + 2 * MARGIN; cv.height = ROOM + 2 * MARGIN; cv.setAttribute('aria-label', 'A ' + N + ' by ' + N + ' room with a token in the centre'); }
   // [picture, label, size in squares across]: the 5e sizes: Tiny takes half a square across (four fit in one), Small and Medium one, Large 2 x 2, Huge 3 x 3, Gargantuan 4 x 4 or more (there is no upper limit; a kraken or a dragon is often drawn 6 x 6 or bigger)
   var TOKENS = [
@@ -104,7 +104,7 @@
     if (imgReady) { ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r - 2, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2); ctx.restore(); }
     ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-    ConditionRings.draw(ctx, cx, cy, r, names, 3 * (size < 1 ? 0.8 : 1));          // the 15-square canvas is shown smaller, so lines are drawn thicker to stay readable
+    ConditionRings.draw(ctx, cx, cy, r, names, 2.1 * (size < 1 ? 0.8 : 1));          // the canvas is shown smaller than it is drawn, so lines are drawn thicker to stay readable
   }
 
   function render() {
@@ -164,7 +164,7 @@
   TOKENS.forEach(function (t, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = t[1]; pick.appendChild(o); });
   function loadToken() { var t = TOKENS[Number(pick.value)]; size = t[2]; imgReady = false; img = new Image(); img.onload = function () { imgReady = true; render(); }; img.onerror = render; img.src = '/tokens/' + t[0]; }
   pick.addEventListener('change', loadToken);
-  setRoom(15);
+  setRoom(9);
   loadToken();
   render();
 })();
