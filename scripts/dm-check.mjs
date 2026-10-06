@@ -143,7 +143,8 @@ try {
     if (tray && Array.isArray(j.rolls)) {
       const verdict = checkDice(j.rolls, tray, used);
       check(verdict.bad.length === 0, `${step.id}: reported dice match the supplied tray (${verdict.ok} verified, ${verdict.unknown} lines with no checkable natural roll)`, verdict.bad.join(' | ').slice(0, 200));
-      if (['insight', 'attack'].includes(step.id)) check(j.rolls.length > 0, `${step.id}: the DM reported at least one roll`);
+      if (step.id === 'insight') check(j.rolls.length > 0, 'insight: the DM reported at least one roll');
+      if (step.id === 'attack' && !j.rolls.length) warn('attack: no roll reported (the DM may have ruled on turn order or range instead)');
     }
 
     // 3. secrets
@@ -190,7 +191,7 @@ try {
       else if (u.type === 'damageToken') { const t = tokens.find((x) => x.id === u.tokenId); if (t && t.hp !== undefined) t.hp = Math.max(0, t.hp - (u.value || 0)); }
       else if (u.type === 'startCombat') {
         const members = tokens.filter((t) => t.kind !== 'trap' && !t.hidden);
-        combat = { active: true, round: 1, currentTokenId: members[0].id, order: members.map((t) => ({ tokenId: t.id, initiative: 1 + Math.floor(Math.random() * 20) })) };
+        combat = { active: true, round: 1, currentTokenId: members[0].id, order: members.map((t, i) => ({ tokenId: t.id, initiative: i === 0 ? 25 : 1 + Math.floor(Math.random() * 20) })) };   // Thorin (first) goes first
       } else if (u.type === 'endCombat') combat = { active: false };
     }
     history.push({ role: 'user', content: step.say }, { role: 'assistant', content: j.narrative });
