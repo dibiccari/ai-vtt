@@ -265,7 +265,8 @@ function normalizeMapConfig(body) {
     const name = String(s?.name ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
     const [x, y] = [num(s?.x), num(s?.y)];
     const desc = String(s?.desc ?? '').replace(/\s+/g, ' ').trim().slice(0, 140);
-    if (name && x !== null && y !== null && !starts.some((o) => o.name === name)) starts.push({ name, x, y, ...(desc ? { desc } : {}) });
+    const radius = Math.max(0, Math.min(12, Math.round((Number(s?.radius) || 0) * 2) / 2));          // squares: the arrival area around the pin
+    if (name && x !== null && y !== null && !starts.some((o) => o.name === name)) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}) });
   }
   // Light sources from a .dd2vtt file (image pixels; range in squares). Kept for the lighting work.
   const lights = [];

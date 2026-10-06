@@ -580,6 +580,15 @@
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
       if (seen === null || (seen === 'unseen' && !editing)) continue;
       ctx.globalAlpha = seen === 'in sight' ? 1 : 0.5;
+      if (s.radius > 0) {                                                  // an arrival area: a soft circle around the pin
+        const isStart = s.name === 'start';
+        ctx.save();
+        ctx.fillStyle = isStart ? 'rgba(63, 210, 127, 0.16)' : 'rgba(79, 157, 255, 0.13)';
+        ctx.strokeStyle = isStart ? 'rgba(63, 210, 127, 0.85)' : 'rgba(79, 157, 255, 0.8)';
+        ctx.lineWidth = 2 * px; ctx.setLineDash([8 * px, 6 * px]);
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.radius * cell(), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
       ctx.fillStyle = s.name === 'start' ? 'rgba(63, 210, 127, 0.95)' : 'rgba(79, 157, 255, 0.95)';
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2 * px;
@@ -664,7 +673,7 @@
         (clash.length ? '\nThese will be replaced there: ' + clash.join(', ') + '.' : '') +
         (resized ? '\nThat map is a different size, so positions will be scaled to fit.' : '');
       if (!confirm(msg)) return;
-      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.desc ? { desc: x.desc } : {}) }));
+      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.radius ? { radius: x.radius } : {}), ...(x.desc ? { desc: x.desc } : {}) }));
       const merged = existing.filter((e) => !copied.some((c) => c.name === e.name)).concat(copied);
       const body = {
         squares: cfg.squares > 0 ? cfg.squares : Math.max(5, Math.round(img.naturalWidth / 50)),
@@ -856,7 +865,8 @@
         S.variant = remote && remote.variant ? remote.variant : '';
         S.rooms = remote && Array.isArray(remote.rooms) ? remote.rooms.filter((r) => Array.isArray(r) && r.length === 4 && r.every(isFinite)) : [];
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
-        S.starts = remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [];
+        S.starts = (remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [])
+          .map((s) => ({ ...s, radius: Number.isFinite(s.radius) ? s.radius : (s.name === 'start' ? 2 : 0) }));       // the party arrives anywhere inside the start circle (2 squares unless set)
         parkAtStart();
         refreshMapLabels();
         loadAreas();
@@ -877,7 +887,8 @@
   function parkAtStart() {
     const startPin = S.starts.find((p) => p.name === 'start');
     if (!startPin) return;
-    const at = { x: clamp(startPin.x, 0, S.W), y: clamp(startPin.y, 0, S.H) };
+    const d = (startPin.radius || 0) * cell() * 0.55;                       // inside the start circle, away from the centre dot
+    const at = { x: clamp(startPin.x + d * Math.cos(0.6), 0, S.W), y: clamp(startPin.y + d * Math.sin(0.6), 0, S.H) };
     if (S.tokens.length) S.tokens[0] = at; else S.tokens.push(at);
   }
 
@@ -1194,6 +1205,7 @@
   pinCard.hidden = true;
   pinCard.innerHTML = '<label>Name <input type="text" id="pcName" maxlength="40" spellcheck="false"></label>' +
     '<label>Note for the DM <input type="text" id="pcNote" maxlength="140" spellcheck="false" placeholder="e.g. the cellar door at the back"></label>' +
+    '<label id="pcRadiusRow">Arrival circle (squares) <input type="number" id="pcRadius" min="0" max="12" step="0.5"></label>' +
     '<div class="pc-row"><button id="pcStart">Make start</button><button id="pcRemove" class="danger">Remove</button><button id="pcDone">Done</button></div>';
   $('#stage').appendChild(pinCard);
 
@@ -1211,6 +1223,8 @@
       $('#pcName').value = pin.name;
       $('#pcNote').value = pin.desc || '';
       $('#pcStart').hidden = pin.name === 'start';
+      $('#pcRadius').value = pin.radius || 0;
+      $('#pcRadiusRow').hidden = isAreaPin(pin);
     }
     positionPinCard();
     renderStartList();
@@ -1233,6 +1247,12 @@
   }
   $('#pcName').addEventListener('change', renamePin);
   $('#pcName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { renamePin(); e.target.blur(); } if (e.key === 'Escape') { $('#pcName').value = S.selected ? S.selected.name : ''; e.target.blur(); } });
+  $('#pcRadius').addEventListener('input', () => {
+    if (!S.selected) return;
+    S.selected.radius = Math.max(0, Math.min(12, Number($('#pcRadius').value) || 0));
+    if (S.selected.name === 'start') { parkAtStart(); revealFog(); }
+    save(); requestRender();
+  });
   $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $('#pcNote').value.slice(0, 140); save(); renderStartList(); } });
   $('#pcStart').addEventListener('click', () => {
     const pin = S.selected;
