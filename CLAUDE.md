@@ -43,7 +43,7 @@ data/maps/<image>.json Per-map walls, doors and grid calibration (image-pixel co
 data/srd/              SRD 5.1 JSON (monsters, spells, magic items, equipment, conditions) from the 5e-bits database, with NOTICE.md (CC-BY-4.0 attribution to Wizards of the Coast). Tracked.
 data/campaigns/<id>/    One folder per campaign: *.md text the DM is given, voices.json (named NPC voices), campaign.json, plus save.json (the journal) and data/campaigns/active.json. (Old: data/campaign/, moved automatically.)
 data/campaign/         (legacy) Campaign text (*.txt/*.md) given to the DM + voices.json.
-public/uploads/        Map images (the purchased lmop-* dd2vtt maps and the older Phandelver images).   public/tokens/  Token art (73 numbered PNGs + ~1,130 named ones, with manifest.json).
+public/uploads/        Map images (the purchased lmop-* dd2vtt maps, the generated camp, dungeon, tavern and terrain maps, and the Phandalin, Sword Coast and Kings Road town and regional pictures; the older Phandelver battle-map images were removed Oct 2026).   public/tokens/  Token art (73 numbered PNGs + ~1,130 named ones, with manifest.json).
 data/tts-cache/        Cached generated voice clips. GIT-IGNORED (the only data folder that is).
 ```
 
