@@ -278,6 +278,16 @@
     if (r.exhaustionEffects.length) { var t = el('span', 'exh', r.exhaustionEffects.join(' · ')); ex.appendChild(t); }
     box.appendChild(ex);
 
+    var sup = el('div', 'row');
+    sup.appendChild(document.createTextNode('No food ' + r.noFood + ' d · no water ' + r.noWater + ' d '));
+    [['food', r.noFood], ['water', r.noWater]].forEach(function (p) {
+      var b = el('button', 'small', p[0] === 'food' ? 'Ate' : 'Drank'); b.title = 'Reset the days without ' + p[0] + ' (a long rest only lowers exhaustion for a fed and watered character)';
+      b.addEventListener('click', function () { track('/api/party/supplies', { characterId: c.id, kind: p[0], days: 0 }); });
+      var d = el('button', 'small', '+1 d'); d.addEventListener('click', function () { track('/api/party/supplies', { characterId: c.id, kind: p[0], days: p[1] + 1 }); });
+      sup.append(b, d);
+    });
+    box.appendChild(sup);
+
     r.resources.forEach(function (res) {
       var line = el('div', 'row');
       line.appendChild(el('span', '', res.name + ' (' + res.recharge + ' rest) '));
@@ -322,8 +332,8 @@
     else { var dot = el('div', 'dot'); dot.style.background = c.color; head.appendChild(dot); }
     var who = el('div');
     who.appendChild(el('h3', '', c.name));
-    who.appendChild(el('div', 'meta', c.class + ' ' + c.level + ' · HP ' + c.hp + '/' + c.maxHp));
-    var bar = el('div', 'bar'); var fill = el('i'); fill.style.width = Math.max(0, Math.min(100, c.maxHp ? c.hp / c.maxHp * 100 : 0)) + '%'; bar.appendChild(fill); who.appendChild(bar);
+    who.appendChild(el('div', 'meta', c.class + ' ' + c.level + ' · HP ' + c.hp + '/' + c.effective.maxHp + (c.effective.maxHp !== c.maxHp ? ' (exhaustion halves ' + c.maxHp + ')' : '')));
+    var bar = el('div', 'bar'); var fill = el('i'); fill.style.width = Math.max(0, Math.min(100, c.effective.maxHp ? c.hp / c.effective.maxHp * 100 : 0)) + '%'; bar.appendChild(fill); who.appendChild(bar);
     head.appendChild(who);
     card.appendChild(head);
 

@@ -1165,7 +1165,7 @@ function createDefaultTokens() {
     const [col, row] = START_SQUARES[i];
     const c = pcs[i];
     state.tokens.push(c
-      ? makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col, row, speed: c.speed, image: c.image || '' })
+      ? makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col, row, speed: c.effSpeed ?? c.speed, image: c.image || '' })
       : makeToken({ id: `tok-hero-${i + 1}`, name: DEFAULT_TOKENS[i].name, color: DEFAULT_TOKENS[i].color, col, row }));
   }
   state.activeIndex = 0;
@@ -1180,9 +1180,10 @@ function syncTokensWithCharacters() {
     t.name = c.name;
     t.color = c.color;
     t.image = c.image || '';
-    if (t.speed !== c.speed) {
-      t.speed = c.speed;
-      t.movementRemaining = Math.min(t.movementRemaining, c.speed);
+    const sp = c.effSpeed ?? c.speed;   // exhaustion slows a character
+    if (t.speed !== sp) {
+      t.speed = sp;
+      t.movementRemaining = Math.min(t.movementRemaining, sp);
     }
   }
   // Characters made on the Character Sheets page get a token the first time the tabletop sees them.
@@ -1190,7 +1191,7 @@ function syncTokensWithCharacters() {
     if (state.tokens.some((t) => t.characterId === c.id)) continue;
     const [col, row] = START_SQUARES[state.tokens.filter((t) => t.isPC).length % START_SQUARES.length];
     const spot = freeSquareNear(clamp(col, 0, cols() - 1), clamp(row, 0, rows() - 1));
-    state.tokens.push(makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.speed, image: c.image || '' }));
+    state.tokens.push(makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' }));
   }
   const idx = state.tokens.findIndex((t) => t.id === activeId);
   state.activeIndex = idx >= 0 ? idx : clamp(state.activeIndex, 0, Math.max(0, state.tokens.length - 1));
@@ -2638,7 +2639,7 @@ function deleteScene(name) {
    COMBAT TRACKER: initiative, rounds, hit points, death saves, action economy
    ===================================================================== */
 const hpOf = (t) => { const c = characterFor(t); return c ? c.hp : (Number.isFinite(t.hp) ? t.hp : null); };
-const maxHpOf = (t) => { const c = characterFor(t); return c ? c.maxHp : (Number.isFinite(t.maxHp) && t.maxHp > 0 ? t.maxHp : null); };
+const maxHpOf = (t) => { const c = characterFor(t); return c ? (c.effMaxHp ?? c.maxHp) : (Number.isFinite(t.maxHp) && t.maxHp > 0 ? t.maxHp : null); };
 const acOf = (t) => { const c = characterFor(t); return c ? c.ac : (Number.isFinite(t.ac) && t.ac > 0 ? t.ac : null); };
 const dexModOf = (t) => { const c = characterFor(t); return c ? Math.floor(((c.abilities && c.abilities.dex) || 10) / 2) - 5 : (Number.isFinite(t.dexMod) ? t.dexMod : 0); };
 const combatTokens = () => state.combat.order.map((id) => state.tokens.find((t) => t.id === id)).filter((t) => t && !isElsewhere(t));
@@ -3277,10 +3278,11 @@ async function sendTurn(spokenText, opts) {
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
     for (const line of Array.isArray(data.rolls) ? data.rolls : []) addChat('system', '🎲 ' + line);     // every roll first, then the story
     const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
+    // Characters first: the server already changed hit points, Hit Dice and features, and the board updates below must start from those numbers.
+    if (Array.isArray(data.partyChanged) && data.partyChanged.length) await loadCharacters();
     await applyMapUpdates(Array.isArray(data.mapUpdates) ? data.mapUpdates : []);
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
     if (Array.isArray(data.partyNotes) && data.partyNotes.length) addChat('system', '🎒 ' + data.partyNotes.join('; '));
-    if (Array.isArray(data.partyChanged) && data.partyChanged.length) await loadCharacters();
     if (Array.isArray(data.journalAdded) && data.journalAdded.length) addChat('system', '📓 Journal: ' + data.journalAdded.map((e) => e.title).join(', '));
     if (lines.length) voice.speak(lines, msgEl);
     ok = true;
@@ -3991,7 +3993,7 @@ function placeCharacterToken(c, center = true) {
     const mid = screenToWorld(wrap.clientWidth / 2, wrap.clientHeight / 2);
     const cell = worldToCell(mid.x, mid.y);
     const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
-    t = makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.speed, image: c.image || '' });
+    t = makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' });
     state.tokens.push(t);
     revealFog();
   }
