@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import '../public/combat-order.js';
-const { nextActor, resumeInitiative } = globalThis.CombatOrder;
+const { nextActor, resumeInitiative, placeAfter } = globalThis.CombatOrder;
 
 const mk = (id, initiative, extra = {}) => ({ id, initiative, ...extra });
 
@@ -48,4 +48,16 @@ test('resumed value sorts right after the active combatant', () => {
 
 test('resumeInitiative needs a number on the active combatant', () => {
   assert.equal(resumeInitiative([mk('a', null), mk('b', 5)], 'a', 'b'), null);
+});
+
+test('a tie with the next combatant keeps the active number and placeAfter settles the order', () => {
+  const o = [mk('a', 12), mk('b', 12), mk('c', 3, { delayed: true })];
+  assert.equal(resumeInitiative(o, 'a', 'c'), 12);
+  assert.deepEqual(placeAfter(['a', 'b', 'c'], 'c', 'a'), ['a', 'c', 'b']);
+});
+
+test('placeAfter leaves the list alone for unknown ids and moves backwards too', () => {
+  assert.deepEqual(placeAfter(['a', 'b'], 'x', 'a'), ['a', 'b']);
+  assert.deepEqual(placeAfter(['a', 'b', 'c'], 'a', 'c'), ['b', 'c', 'a']);
+  assert.deepEqual(placeAfter(['a', 'b'], 'a', 'a'), ['a', 'b']);
 });

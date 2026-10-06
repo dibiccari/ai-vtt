@@ -1235,7 +1235,7 @@ function endTurn() {
 }
 
 function serializeToken(t) {
-  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
+  return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds })),
     summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
 }
 
@@ -2666,13 +2666,22 @@ function provokedBy(mover, fromCol, fromRow, toCol, toRow) {
   return state.tokens.filter((o) => o !== mover && o.kind !== 'trap' && !isSummon(o) && o.isPC !== mover.isPC && !isElsewhere(o)
     && (o.isPC || seenByParty(o)) && canReact(o) && adjacentSq(o.col, o.row, fromCol, fromRow) && !adjacentSq(o.col, o.row, toCol, toRow));
 }
+// Foes that were next to the mover's old square and are not next to the new one but cannot make the attack, with the reason (the DM is told the facts).
+function cannotReactTo(mover, fromCol, fromRow, toCol, toRow) {
+  if (!state.combat.active || hasCondition(mover, 'disengaged') || isElsewhere(mover)) return [];
+  return state.tokens.filter((o) => o !== mover && o.kind !== 'trap' && !isSummon(o) && o.isPC !== mover.isPC && !isElsewhere(o)
+    && (o.isPC || seenByParty(o)) && !canReact(o) && adjacentSq(o.col, o.row, fromCol, fromRow) && !adjacentSq(o.col, o.row, toCol, toRow))
+    .map((o) => ({ name: o.name, why: o.dead || hpOf(o) === 0 ? 'down' : o.spent && o.spent.r ? 'has already used its reaction this round' : (NO_REACTION.find((n) => hasCondition(o, n)) || 'cannot react') }));
+}
 function noteOpportunityAttacks(mover, fromCol, fromRow) {
   const hit = provokedBy(mover, fromCol, fromRow, mover.col, mover.row);
+  const blocked = cannotReactTo(mover, fromCol, fromRow, mover.col, mover.row);
+  if (blocked.length) state.pendingNotes.push(`${mover.name} left the reach of ${blocked.map((b) => b.name + ' (' + b.why + ')').join(', ')}: no opportunity attack from them.`);
   if (!hit.length) return;
   const names = hit.map((o) => o.name).join(', ');
   if (mover.isPC) {
     addChat('system', `⚔ ${mover.name} left the reach of ${names} without Disengaging: ${hit.length > 1 ? 'they' : 'it'} can make an opportunity attack (a reaction).`);
-    state.pendingNotes.push(`${mover.name} moved out of the reach of ${names} without Disengaging: they may each make an opportunity attack (a reaction, one melee attack). Resolve them.`);
+    state.pendingNotes.push(`${mover.name} moved out of the reach of ${names} without Disengaging: they may each make an opportunity attack: it uses that creature's reaction (they all still have it right now), one melee attack with a weapon or an unarmed strike. Resolve each, then send token action react with that creature's tokenId. Not for forced or teleporting movement.`);
   } else {
     addChat('system', `⚔ ${hit.map((o) => o.name).join(', ')} can make an opportunity attack against ${mover.name} for leaving ${hit.length > 1 ? 'their' : 'its'} reach (a reaction).`);
   }
@@ -2803,7 +2812,9 @@ function sortCombat() {
   const cur = activeToken();
   const list = combatTokens();
   list.sort((a, b) => (Number.isFinite(b.initiative) ? b.initiative : -99) - (Number.isFinite(a.initiative) ? a.initiative : -99) || dexModOf(b) - dexModOf(a) || a.name.localeCompare(b.name));
-  state.combat.order = list.map((t) => t.id);
+  let ids = list.map((t) => t.id);
+  for (const t of list) if (t.actsAfter) ids = CombatOrder.placeAfter(ids, t.id, t.actsAfter);      // a resumed delayer acts right after the combatant it named, even on a tied number
+  state.combat.order = ids;
   if (cur) state.activeIndex = Math.max(0, state.tokens.indexOf(cur));
 }
 
@@ -2811,6 +2822,7 @@ function beginTurn(t) {
   t.movementRemaining = effectiveSpeed(t);
   for (const s of summonsOf(t)) s.movementRemaining = s.speed;
   t.spent = { a: false, b: false, r: false };
+  t.actsAfter = '';
   t.readied = '';                                              // a readied action that never triggered is lost when the next turn starts
   state.templates = [];
   if (hasCondition(t, 'surprised')) { t.spent = { a: true, b: true, r: true }; if (seenByParty(t)) addChat('system', `↳ ${t.name} is surprised and loses this turn`); }
@@ -2893,6 +2905,7 @@ function resumeTurn(t) {
   const items = combatTokens().map((x) => ({ id: x.id, initiative: x.initiative, delayed: x.delayed }));
   const value = cur && cur !== t ? CombatOrder.resumeInitiative(items, cur.id, t.id) : null;
   t.delayed = false;
+  t.actsAfter = cur && cur !== t ? cur.id : '';
   if (value !== null) t.initiative = value;
   sortCombat();
   if (seenByParty(t)) addChat('system', `▶ ${t.name} stops delaying and will act after ${cur && cur !== t ? cur.name + "'s turn" : 'now'}`);
@@ -3742,8 +3755,18 @@ async function applyMapUpdates(updates) {
       case 'readyToken': {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t) break;
+        // Readying takes the action; when the trigger happens (ready sent again with no text) the reaction is spent.
+        const had = t.readied;
         t.readied = String(u.text || '').trim().slice(0, 120);
+        if (t.readied) t.spent = { ...(t.spent || { a: false, b: false, r: false }), a: true };
+        else if (had) t.spent = { ...(t.spent || { a: false, b: false, r: false }), r: true };
         if (t.readied && seenByParty(t)) addChat('system', `⏳ ${t.name} readies: ${t.readied}`);
+        break;
+      }
+      case 'reactToken': {
+        // The DM resolved a reaction (an opportunity attack, Shield, a readied action): it is spent until that combatant's next turn starts.
+        const t = state.tokens.find((x) => x.id === u.tokenId);
+        if (t) { t.spent = { ...(t.spent || { a: false, b: false, r: false }), r: true }; if (seenByParty(t)) addChat('system', `↳ ${t.name} uses their reaction`); }
         break;
       }
       case 'delayToken': {

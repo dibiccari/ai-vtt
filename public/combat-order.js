@@ -30,11 +30,20 @@
       next = t;
       break;
     }
+    if (next && next.initiative === active.initiative) return active.initiative;   // a tie: the number cannot separate them, placeAfter() does
     var low = next && Number.isFinite(next.initiative) && next.initiative < active.initiative ? next.initiative : active.initiative - 1;
     return Math.round(((active.initiative + low) / 2) * 1000) / 1000;
   }
 
-  var api = { nextActor: nextActor, resumeInitiative: resumeInitiative };
+  // CombatOrder.placeAfter(ids, id, afterId): the id list with id moved to sit right behind afterId (unchanged when either is missing).
+  function placeAfter(ids, id, afterId) {
+    if (id === afterId || ids.indexOf(id) < 0 || ids.indexOf(afterId) < 0) return ids.slice();
+    var rest = ids.filter(function (x) { return x !== id; });
+    rest.splice(rest.indexOf(afterId) + 1, 0, id);
+    return rest;
+  }
+
+  var api = { nextActor: nextActor, resumeInitiative: resumeInitiative, placeAfter: placeAfter };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CombatOrder = api;
 })(typeof window !== 'undefined' ? window : globalThis);
