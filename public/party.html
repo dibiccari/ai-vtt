@@ -56,6 +56,13 @@
   .status { min-height:20px; margin:0 0 10px; color:var(--muted); }
   .status.err { color:var(--danger); } .status.ok { color:var(--ok); }
   .empty { color:var(--muted); padding:6px 0; }
+  .clock { display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin-bottom:12px; }
+  .clock b { color:var(--gold); }
+  .pip { display:inline-block; width:16px; height:16px; border-radius:50%; border:2px solid var(--gold); margin-right:3px; cursor:pointer; vertical-align:middle; }
+  .pip.used { background:transparent; border-color:#3a4558; } .pip:not(.used) { background:var(--gold); }
+  .lvl { background:var(--gold); color:#000; border-radius:999px; padding:1px 10px; font-size:12px; font-weight:700; }
+  .xpbar { height:6px; background:#0d1117; border-radius:3px; overflow:hidden; margin:4px 0; } .xpbar i { display:block; height:100%; background:var(--accent); }
+  .exh { color:#e0a060; font-size:12px; }
 </style>
 </head>
 <body>
@@ -63,6 +70,7 @@
   <h1>The <span>Party</span></h1>
   <p class="lead">Gear, coins, attunement and the shared stash for <b id="campName">the active campaign</b>. Magic items change the numbers below (Ring of Protection, Gauntlets of Ogre Power), and the AI Dungeon Master reads and updates all of this as you play. Hover a number to see where it comes from.</p>
   <div class="status" id="status" role="status"></div>
+  <div class="clock" id="clock"></div>
   <div class="grid" id="grid"></div>
   <datalist id="srdItems"></datalist>
 </div>
@@ -74,7 +82,7 @@
   var CONDITION_COLORS = { blinded: '#8e8e9a', charmed: '#ff7ac8', deafened: '#9a8e7a', frightened: '#b06bff', grappled: '#d98a3d', incapacitated: '#cc5555', invisible: '#6fd0e8', paralyzed: '#e0c040', petrified: '#9aa0a6', poisoned: '#4cc46a', prone: '#c08a5a', restrained: '#d9a43d', stunned: '#f0a040', unconscious: '#e05050', exhaustion: '#a07850', concentrating: '#4f9dff' };
   var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   var COINS = ['cp', 'sp', 'ep', 'gp', 'pp'];
-  var state = { campaign: '', characters: [], stash: { items: [], coins: {} }, maxAttuned: 3 };
+  var state = { clock: null, campaign: '', characters: [], stash: { items: [], coins: {} }, maxAttuned: 3 };
 
   function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
   async function api(url, options) {
@@ -236,6 +244,77 @@
     afterSave();
   }
 
+  // XP and level, Hit Dice, exhaustion and class features (data from /api/party: character.rules).
+  async function track(url, body) {
+    try { var out = await api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); setStatus((out.notes || []).join(' · '), 'ok'); await load(); }
+    catch (err) { setStatus(err.message, 'err'); }
+  }
+  function rulesBlock(c) {
+    var r = c.rules, box = el('div');
+    box.appendChild(el('h4', '', 'Experience, Hit Dice and features'));
+    var xp = el('div', 'row');
+    xp.appendChild(document.createTextNode('XP ' + r.xp + (r.nextLevelAt ? ' / ' + r.nextLevelAt + ' for level ' + (r.level + 1) : ' (maximum level)') + ' '));
+    if (r.readyToLevelUp) { var up = el('span', 'lvl', 'Ready to level up (level ' + r.levelForXp + ')'); up.title = 'Ask the Dungeon Master to level this character up'; xp.appendChild(up); }
+    var amt = el('input'); amt.type = 'number'; amt.value = '50'; amt.title = 'XP to add';
+    var add = el('button', 'small', '+ XP'); add.addEventListener('click', function () { track('/api/party/xp', { characterId: c.id, amount: Number(amt.value) }); });
+    xp.append(amt, add);
+    box.appendChild(xp);
+    if (r.nextLevelAt) { var bar = el('div', 'xpbar'); var f = el('i'); var prev = [0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000][r.level - 1] || 0; f.style.width = Math.max(0, Math.min(100, (r.xp - prev) / (r.nextLevelAt - prev) * 100)) + '%'; bar.appendChild(f); box.appendChild(bar); }
+
+    var hd = el('div', 'row');
+    hd.appendChild(document.createTextNode('Hit Dice ' + r.hitDice.left + '/' + r.hitDice.total + ' (' + r.hitDice.pools.map(function (p) { return p.left + '/' + p.total + ' d' + p.die; }).join(', ') + ') '));
+    var n = el('input'); n.type = 'number'; n.min = '1'; n.max = '20'; n.value = '1'; n.title = 'How many Hit Dice to spend (short rest)';
+    var spend = el('button', 'small', 'Spend (short rest)'); spend.title = 'Rolls the die plus Constitution with real dice and heals';
+    spend.addEventListener('click', function () { track('/api/party/hit-dice', { characterId: c.id, count: Number(n.value) }); });
+    hd.append(n, spend);
+    box.appendChild(hd);
+
+    var ex = el('div', 'row');
+    ex.appendChild(document.createTextNode('Exhaustion ' + r.exhaustion + '/6 '));
+    var minus = el('button', 'small', '−'), plus = el('button', 'small', '+');
+    minus.addEventListener('click', function () { track('/api/party/exhaustion', { characterId: c.id, delta: -1 }); });
+    plus.addEventListener('click', function () { track('/api/party/exhaustion', { characterId: c.id, delta: 1 }); });
+    ex.append(minus, plus);
+    if (r.exhaustionEffects.length) { var t = el('span', 'exh', r.exhaustionEffects.join(' · ')); ex.appendChild(t); }
+    box.appendChild(ex);
+
+    r.resources.forEach(function (res) {
+      var line = el('div', 'row');
+      line.appendChild(el('span', '', res.name + ' (' + res.recharge + ' rest) '));
+      if (res.max <= 12) {
+        for (var i = 0; i < res.max; i++) {
+          (function (i) { var p = el('span', 'pip' + (i >= res.max - res.used ? ' used' : '')); p.title = 'Click to spend or regain one use'; p.addEventListener('click', function () { track('/api/party/resource', { characterId: c.id, name: res.name, delta: i >= res.max - res.used ? -1 : 1 }); }); line.appendChild(p); })(i);
+        }
+      } else {
+        line.appendChild(document.createTextNode((res.max - res.used) + '/' + res.max + ' '));
+        var m = el('input'); m.type = 'number'; m.value = '1';
+        var s1 = el('button', 'small', 'Spend'), g1 = el('button', 'small', 'Regain');
+        s1.addEventListener('click', function () { track('/api/party/resource', { characterId: c.id, name: res.name, delta: Number(m.value) }); });
+        g1.addEventListener('click', function () { track('/api/party/resource', { characterId: c.id, name: res.name, delta: -Number(m.value) }); });
+        line.append(m, s1, g1);
+      }
+      box.appendChild(line);
+    });
+    return box;
+  }
+
+  function clockBar() {
+    var bar = $('#clock'); bar.innerHTML = '';
+    var k = state.clock;
+    if (!k) return;
+    var t = el('span'); t.appendChild(document.createTextNode('Game time ')); t.appendChild(el('b', '', k.text)); bar.appendChild(t);
+    [['+1 h', 60], ['+8 h', 480], ['+1 day', 1440]].forEach(function (p) { var b = el('button', 'small', p[0]); b.addEventListener('click', function () { track('/api/party/clock', { minutes: p[1] }); }); bar.appendChild(b); });
+    var sr = el('button', 'small', 'Short rest'), lr = el('button', 'small', 'Long rest');
+    sr.title = 'One hour passes; short-rest features return'; lr.title = 'Eight hours pass: hit points, slots, features, half the Hit Dice and one level of exhaustion. Only one per 24 hours.';
+    sr.addEventListener('click', function () { rest('short'); }); lr.addEventListener('click', function () { rest('long'); });
+    bar.append(sr, lr);
+    bar.appendChild(el('span', 'meta', k.longRestReady ? 'A long rest is possible now' : 'Next long rest in ' + Math.ceil(k.longRestIn / 60) + ' h'));
+  }
+  async function rest(kind) {
+    try { var out = await api('/api/party/rest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: kind }) }); setStatus((out.notes || []).join(' · '), out.blocked ? 'err' : 'ok'); await load(); }
+    catch (err) { setStatus(err.message, 'err'); }
+  }
+
   function characterCard(c) {
     var card = el('div', 'card');
     var head = el('div', 'head');
@@ -263,6 +342,8 @@
       abil.appendChild(stat(e.abilities[a], a, changed ? 'Base ' + c.abilities[a] + ', set by ' + e.breakdown.abilities[a] : 'Base ' + c.abilities[a], changed));
     });
     card.appendChild(abil);
+
+    card.appendChild(rulesBlock(c));
 
     var conds = conditionsFor(c);
     if (conds.length) {
@@ -333,6 +414,7 @@
   function render() {
     var grid = $('#grid');
     grid.innerHTML = '';
+    clockBar();
     if (!state.characters.length) { grid.appendChild(el('div', 'empty', 'No characters yet. Create them on the Character Sheets page.')); }
     state.characters.forEach(function (c) { grid.appendChild(characterCard(c)); });
     grid.appendChild(stashCard());
@@ -343,6 +425,7 @@
     state.campaign = data.campaign;
     state.characters = data.characters;
     state.stash = data.stash;
+    state.clock = data.clock;
     state.maxAttuned = data.maxAttuned;
     $('#campName').textContent = data.campaign;
     render();

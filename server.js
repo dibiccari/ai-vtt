@@ -15,6 +15,8 @@ import { rollExpr, diceTray } from './lib/dice.js';
 import { writeTavernParty } from './lib/tavern-party.js';
 import { readSettings, writeSettings, settingsForPrompt } from './lib/settings.js';
 import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, normalizeInventory, normalizeCoins, computeEffective, syncSheet, readStash, writeStash, processPartyUpdates } from './lib/party.js';
+import { normalizeTrack, trackView, hitDice, describeClock, readClock, writeClock, restOnClock, splitXp, xpForCr } from './lib/rules-track.js';
+import { processTrackUpdates } from './lib/rules-apply.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -104,6 +106,7 @@ function normalizeCharacter(body) {
     ...(Object.keys(sheet).length ? { sheet } : {}),
     darkvision: int(body.darkvision, 0, 0, 120),
     ...(campaigns.length ? { campaigns } : {}),
+    ...(body.track && typeof body.track === 'object' ? { track: normalizeTrack(body.track) } : {}),
     ...(Array.isArray(body.inventory) ? { inventory: normalizeInventory(body.inventory) } : {}),
     ...(body.coins && typeof body.coins === 'object' ? { coins: normalizeCoins(body.coins) } : {}),
     ...(expertise.length ? { expertise } : {}),
@@ -415,16 +418,19 @@ app.get('/api/compendium/:kind/:index', asyncRoute(async (req, res) => {
 
 // ---------------------------------------------------------------- party API (gear, coins, attunement, stash)
 
+let rulesVersion = '2014';
 const partyView = (c, variant = false) => {
   const seeded = seedFromSheet(c);
-  return { id: seeded.id, name: seeded.name, class: seeded.class, level: seeded.level, hp: seeded.hp, maxHp: seeded.maxHp, color: seeded.color, image: seeded.image, abilities: seeded.abilities, darkvision: seeded.darkvision || 0, ac: seeded.ac, speed: seeded.speed, inventory: normalizeInventory(seeded.inventory), coins: normalizeCoins(seeded.coins), effective: computeEffective(seeded, variant) };
+  return { id: seeded.id, name: seeded.name, class: seeded.class, level: seeded.level, hp: seeded.hp, maxHp: seeded.maxHp, color: seeded.color, image: seeded.image, abilities: seeded.abilities, darkvision: seeded.darkvision || 0, ac: seeded.ac, speed: seeded.speed, inventory: normalizeInventory(seeded.inventory), coins: normalizeCoins(seeded.coins), effective: computeEffective(seeded, variant), rules: trackView(c, rulesVersion) };
 };
 
 app.get('/api/party', asyncRoute(async (_req, res) => {
   const campaign = await getActiveCampaignId();
-  const variant = (await readSettings(path.join(CAMPAIGNS_DIR, campaign))).variantEncumbrance;
+  const settings = await readSettings(path.join(CAMPAIGNS_DIR, campaign));
+  const variant = settings.variantEncumbrance;
+  rulesVersion = settings.rules === '2024' ? '2024' : '2014';
   const characters = (await listCharacters(campaign)).map((c) => partyView(c, variant));
-  res.json({ campaign, characters, stash: await readStash(path.join(CAMPAIGNS_DIR, campaign)), maxAttuned: MAX_ATTUNED });
+  res.json({ campaign, clock: describeClock(await readClock(path.join(CAMPAIGNS_DIR, campaign))), rules: rulesVersion, characters, stash: await readStash(path.join(CAMPAIGNS_DIR, campaign)), maxAttuned: MAX_ATTUNED });
 }));
 
 // Replace one character's gear (the party page saves the whole list). Extra attunements beyond three are dropped and reported.
@@ -449,14 +455,51 @@ app.get('/api/party/srd-item', asyncRoute(async (req, res) => {
 }));
 
 // Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).
-async function restParty(kind) {
+async function restParty(kind, { noFood = false } = {}) {
+  const campaign = await getActiveCampaignId();
+  const dir = path.join(CAMPAIGNS_DIR, campaign);
+  const timing = restOnClock(await readClock(dir), kind);          // time passes; a second long rest within 24 hours gives nothing
+  if (!timing.ok) return { kind, rested: [], blocked: true, notes: [timing.note] };
   const rested = [];
-  for (const c of await listCharacters(await getActiveCampaignId())) {
+  for (const c of await listCharacters(campaign)) {
     const { character, note } = restCharacter(c, kind);
+    if (noFood && kind === 'long' && c.track) character.track = { ...character.track, exhaustion: normalizeTrack(c.track).exhaustion };   // no food and water: no exhaustion recovery
     if (note) { await saveCharacter(normalizeCharacter(character)); rested.push(c.id); }
   }
-  return { kind, rested };
+  await writeClock(dir, timing.clock);
+  return { kind, rested, blocked: false, notes: [timing.note, kind === 'long' ? 'Long rest: hit points, spell slots and class features restored, half the Hit Dice regained, exhaustion down one level' : 'Short rest: short-rest features restored (spend Hit Dice to heal)'], clock: describeClock(timing.clock) };
 }
+
+// Rules tracking (lib/rules-track.js): game clock, Hit Dice, exhaustion, class resources, XP. The DM uses the same code through token actions.
+async function trackStore(campaign) {
+  const dir = path.join(CAMPAIGNS_DIR, campaign);
+  return {
+    list: () => listCharacters(campaign),
+    save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; },
+    readClock: () => readClock(dir), writeClock: (c) => writeClock(dir, c),
+    sheetEdit: (updates) => processCharacterUpdates(updates, { list: () => listCharacters(campaign), save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; } })
+  };
+}
+async function runTrack(update) {
+  const campaign = await getActiveCampaignId();
+  const settings = await readSettings(path.join(CAMPAIGNS_DIR, campaign));
+  return processTrackUpdates([{ type: 'track', ...update }], await trackStore(campaign), settings.rules === '2024' ? '2024' : '2014');
+}
+const trackRoute = (build) => asyncRoute(async (req, res) => {
+  const out = await runTrack(build(req.body || {}));
+  if (out.problems.length && !out.notes.length) return res.status(400).json({ error: out.problems.join(' ') });
+  res.json(out);
+});
+app.post('/api/party/hit-dice', trackRoute((b) => ({ op: 'hitdice', target: b.characterId, count: b.count, die: b.die })));
+app.post('/api/party/exhaustion', trackRoute((b) => ({ op: 'exhaustion', target: b.characterId, delta: b.delta })));
+app.post('/api/party/resource', trackRoute((b) => ({ op: 'resource', target: b.characterId, name: b.name, delta: b.delta, max: b.max, recharge: b.recharge })));
+app.post('/api/party/xp', trackRoute((b) => ({ op: 'xp', target: b.characterId || 'party', amount: b.amount, split: b.split })));
+app.post('/api/party/clock', trackRoute((b) => (b.set ? { op: 'setTime', ...b.set } : { op: 'time', minutes: b.minutes })));
+// XP for defeated monsters: { monsters: ['1/4', {cr:'1', count:2}], partySize? } -> { total, each }
+app.post('/api/party/xp-split', asyncRoute(async (req, res) => {
+  const size = Number(req.body?.partySize) || (await listCharacters(await getActiveCampaignId())).length;
+  res.json(splitXp(req.body?.monsters, size));
+}));
 
 app.post('/api/party/rest', asyncRoute(async (req, res) => {
   const kind = req.body?.kind === 'long' ? 'long' : 'short';
@@ -1092,7 +1135,7 @@ Respect each token's remaining movement (movementRemaining, in feet) and the wal
 The rolls list: every die roll that decides something goes in rolls, one short line each, in the order they happened, so the table can show them in the chat before your narration. That includes attack rolls, damage, saving throws, ability checks and skill checks, initiative, death saving throws, and the numbers the players tell you they rolled (mark those "(player rolled)"). Format: who, what, the die with its value, the modifier, the total, and what it was against and the result, for example "Goblin 1 attack: d20 (14) + 4 = 18 vs AC 16, hit", "Edric damage: 1d8 (6) + 5 = 11", "Shadowheart Wisdom save: d20 (7) + 4 = 11 vs DC 13, fail", "Edric initiative (player rolled): 15 + 2 = 17". Use an empty list when nothing was rolled. Do not repeat the dice math in the narrative; describe what happened.
 
 Return mechanical changes in mapUpdates:
-- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "damage" or "heal": change a creature's or character's hit points by value (tokenId). action "initiative": set a token's initiative to value (tokenId). action "startCombat" or "endCombat": begin or finish combat on the table's combat tracker. action "mood": change the background mood of the table's music (condition one of calm, tense, eerie or triumph; combat starts by itself with the combat tracker): use tense when something is wrong, eerie for a stretch of the story in a haunted or uncanny place, triumph once for a victory, and calm to return to normal. action "sfx": play a sound effect once (condition one of door, creak, thunder, bell, roar, howl, clash, magic, explosion, splash), for a dramatic moment. Use both sparingly. action "summon": a character conjures something it controls: tokenId is a new unique id, condition is mage-hand or spiritual-weapon, name is the token id of the character who cast it, and col and row are where it appears (next to the caster is fine). The table moves it on its caster's turn within the spell's range and removes it when it expires, so do not move it yourself. action "light": a token lights or puts out a light it carries (tokenId, condition one of torch, lantern, candle, light, or none to put it out), or one of the map's own light sources is lit or put out (tokenId is the light's id from the lighting block, value 1 for lit, 0 for out). action "rest": the party finishes a rest, value 1 for a short rest or 2 for a long rest (a long rest restores every character's hit points and spell slots and clears lasting effects: send it only once the rest has actually been completed, not if it was interrupted). When the party makes camp, change the map to the campsite (camp-day, or camp-night after dark) if the maps list has one. For action "add", monster is the SRD index of the creature (lowercase with hyphens, for example "goblin" or "adult-red-dragon"): the table then fills in its hit points, Armor Class and speed from the SRD stat block, so leave value and ac as 0. For a creature that is not in the SRD (an adventure's named villain, a custom monster) leave monster as "" and give its hit points in value and its Armor Class in ac. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
+- token: change a token on the board. Every token update has all its fields: set the ones the action does not use to "", 0 or false (and kind to "creature"). action "move": move an existing token (tokenId, col, row). action "add": place an NPC or monster (tokenId as a new unique id, name, col, row, color as #rrggbb, hidden, kind). Set hidden to true for anything the players must not see yet: a creature that is hiding, invisible or lying in ambush, and every trap or hazard that has not been discovered. Use kind "trap" for a trap or hazard. action "remove": remove a token (tokenId), e.g. a defeated monster. action "reveal": make a hidden token visible (tokenId) once it is found, triggered, or acts, for example a trap that goes off or a hiding creature that attacks. action "hide": hide a token again (tokenId), for example a creature that turns invisible or slips into hiding. action "damage" or "heal": change a creature's or character's hit points by value (tokenId). action "initiative": set a token's initiative to value (tokenId). action "startCombat" or "endCombat": begin or finish combat on the table's combat tracker. action "mood": change the background mood of the table's music (condition one of calm, tense, eerie or triumph; combat starts by itself with the combat tracker): use tense when something is wrong, eerie for a stretch of the story in a haunted or uncanny place, triumph once for a victory, and calm to return to normal. action "sfx": play a sound effect once (condition one of door, creak, thunder, bell, roar, howl, clash, magic, explosion, splash), for a dramatic moment. Use both sparingly. action "summon": a character conjures something it controls: tokenId is a new unique id, condition is mage-hand or spiritual-weapon, name is the token id of the character who cast it, and col and row are where it appears (next to the caster is fine). The table moves it on its caster's turn within the spell's range and removes it when it expires, so do not move it yourself. action "light": a token lights or puts out a light it carries (tokenId, condition one of torch, lantern, candle, light, or none to put it out), or one of the map's own light sources is lit or put out (tokenId is the light's id from the lighting block, value 1 for lit, 0 for out). action "rest": the party finishes a rest, value 1 for a short rest or 2 for a long rest (a long rest restores every character's hit points, spell slots and class features, regains Hit Dice and lowers exhaustion, and clears lasting effects; set condition to nofood if the party had no food and water, so exhaustion is not lowered; send it only once the rest has actually been completed, not if it was interrupted; the table moves its clock on by one hour or eight and refuses a second long rest inside 24 hours). Rules tracking actions: "time" advances the game clock by value minutes (travel, a scene, waiting); "xp" awards value experience points (tokenId a characterId, or "party" to split value equally among the party; condition "each" gives value to every member); "exhaust" adds value levels of exhaustion to tokenId (negative removes); "hitdice" spends value Hit Dice for tokenId on a short rest (the table rolls them and heals; ac picks the die size such as 8, or 0 for the largest); "resource" spends value uses of a class feature named in name for tokenId (negative regains; for a feature not yet listed give its maximum in ac and condition short or long for when it recharges). When the party makes camp, change the map to the campsite (camp-day, or camp-night after dark) if the maps list has one. For action "add", monster is the SRD index of the creature (lowercase with hyphens, for example "goblin" or "adult-red-dragon"): the table then fills in its hit points, Armor Class and speed from the SRD stat block, so leave value and ac as 0. For a creature that is not in the SRD (an adventure's named villain, a custom monster) leave monster as "" and give its hit points in value and its Armor Class in ac. action "addCondition" or "removeCondition": put a condition or lasting effect on a token, or take it off (tokenId, condition, rounds). Use the 5e condition names in lowercase (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious, exhaustion), or concentrating, or a short name for a spell effect such as bless. rounds is how many rounds it lasts (0 means until you remove it; it is ignored for removeCondition). Each token in the board state lists its conditions: apply their rules when you adjudicate, and keep them in step with the story. On the table a blinded or unconscious character sees only their own square, and an invisible creature is not shown to the party. Add a condition when something imposes it, remove it when it ends, and do not announce conditions on tokens the party cannot see.
 - changeMap: move the whole table to another place (mapId from the maps list in the board state, arrive: one of that map's arrivalSpots (arrivalNotes says what some of them are), or "default", and a short reason). The party's tokens are moved to the arrival spot, and the creatures of the scene you are leaving are put away until you return. Put changeMap first in the list, then add the creatures of the new scene with addToken (hidden ones with hidden true).
 - updateCharacter: change a player character's sheet. Always send characterId, a short reason, and edits, a list of { field, value }. field is one of: classLevel (the whole text, for example "Fighter 4" or "Fighter 3 / Rogue 1"), xpGain (experience points to add), maxHp, hp, tempHp, ac, speed, str, dex, con, int, wis, cha (numbers, as text), or an official sheet field name such as Equipment, "Features and Traits", ProficienciesLang, AttacksSpellcasting, CP, SP, EP, GP, PP, HDTotal, HD, XP, Inspiration. A skill is set with field "skill <name>" (for example "skill Stealth") and value none, proficient or expertise. Saving throw proficiency uses field "save <ability>" (for example "save dex") and value proficient or none. A spell is added with field "spell add <level>" and removed with "spell remove <level>", the value being the spell name (level 0 for cantrips). The total spell slots of a level use field "slots <level>" and the number as value. You cannot change a character's name. The sheet works out modifiers, proficiency bonus and passive Perception for you, so do not send those.
 - setHp: set a player character's current HP (characterId, hp).
@@ -1117,7 +1160,9 @@ Dice: you cannot generate random numbers yourself, so the board state carries a 
 
 Lighting: the lighting block of the board state gives the place's ambient light (bright, dim or dark) and the map's light sources (id, name, position, bright and dim radius in feet, whether it is on); tokens may carry a light (lightKind). The table shows each player only what their character can see: in bright or dim light, anything in line of sight; in darkness, only what a light source lights (bright light out to the bright radius, dim light out to the dim radius) or what their darkvision reaches (darkvision turns darkness into dim light, out to its range; a character with no darkvision sees nothing in the dark beyond a light). Your narration must match: when a fire goes out or a torch is doused, send a light update, and describe what the characters can and cannot see. Creatures in unlit darkness are not visible to characters without darkvision. A character carrying a light can be seen from afar in the dark.
 
-Resting follows the official 5th Edition rules. A short rest is at least an hour: characters may spend Hit Dice to heal (each die rolled plus the Constitution modifier; apply it with heal updates), and some class features come back. A long rest is at least eight hours (no more than two hours of light activity): characters regain all their hit points and spell slots, regain spent Hit Dice up to half their total (at least one), and have their exhaustion reduced by one level; a character can benefit from only one long rest in 24 hours and must start it with at least 1 hit point. Two short rests per adventuring day is a pacing guideline, not a rule. When a rest is completed without interruption, send token action rest (value 1 short, 2 long): for a long rest the table restores hit points and spell slots, and you handle Hit Dice, exhaustion, class features and anything else in your narration and with updates. An interrupted rest gets no benefit. Food and water: a character needs about a pound of food and a gallon of water a day, and going without can cause exhaustion, so ask about supplies on a long journey. Track rations as ordinary gear items.
+Resting follows the official 5th Edition rules. A short rest is at least an hour: characters may spend Hit Dice to heal (each die rolled plus the Constitution modifier; apply it with heal updates), and some class features come back. A long rest is at least eight hours (no more than two hours of light activity): characters regain all their hit points and spell slots, regain spent Hit Dice up to half their total (at least one), and have their exhaustion reduced by one level; a character can benefit from only one long rest in 24 hours and must start it with at least 1 hit point. Two short rests per adventuring day is a pacing guideline, not a rule. When a rest is completed without interruption, send token action rest (value 1 short, 2 long): for a long rest the table restores hit points, spell slots and class features, regains Hit Dice and lowers exhaustion (see Rules tracking), and you narrate it. An interrupted rest gets no benefit. Food and water: a character needs about a pound of food and a gallon of water a day, and going without can cause exhaustion, so ask about supplies on a long journey. Track rations as ordinary gear items.
+
+Rules tracking: the party block of the board state has the game clock (in-game day and time of day), and per character XP (xp, nextLevelAt, readyToLevelUp), Hit Dice left (hitDice), exhaustion level with its effects, and the limited-use class features left (classResources, with when each recharges). The table keeps these numbers, so use them and do not invent your own. Keep the clock moving: send action time for travel, exploring a place, a conversation or any stretch of story longer than a few minutes (a short rest and a long rest move it by themselves), and describe the light and weather to match the time of day. Award XP at the end of an encounter or a milestone with action xp (monster XP by challenge rating: 1/8 25, 1/4 50, 1/2 100, 1 200, 2 450, 3 700, 4 1,100, 5 1,800; split equally among the party, including characters who did not fight if they were present). When the table shows a character readyToLevelUp, tell the table at a calm moment and begin the level-up conversation (ask their choices first, then updateCharacter classLevel). A short rest: ask who spends Hit Dice and send action hitdice for each (the table rolls the real dice and applies the heal; do not roll or heal for it yourself). Spend class features with action resource when they are used (Second Wind, Action Surge, Rage, Channel Divinity, Bardic Inspiration, Wild Shape, Lay on Hands points...) and refuse an action whose feature is used up. Exhaustion (official 2014 levels: 1 disadvantage on ability checks, 2 speed halved, 3 disadvantage on attacks and saves, 4 hit point maximum halved, 5 speed 0, 6 death; 2024: each level is -2 to d20 tests and -5 ft speed): add it with action exhaust for a forced march, going without food or water, extreme cold or heat and the like, and apply the listed effects to every roll.
 
 Gear: every player character carries an inventory (items with a quantity, a weight in pounds, whether the item needs attunement, whether they are attuned, and effects), coins (cp, sp, ep, gp, pp), and the party also has a shared stash. The party block of the board state lists them, with each character's effective stats: the sheet's numbers plus what attuned and worn items change. Use the effective AC, saving-throw bonus, speed and ability scores for your rolls and rulings. Keep gear up to date as play happens with gear updates. Every gear update has all its fields: set the ones the action does not use to "", 0, false or "none". action "add": target is a characterId or "stash", name, qty, weight (pounds, from the 5e rules), requiresAttunement for magic items that need it, and optionally one effect: effectKind "ac" (a bonus to Armor Class), "save" (a bonus to all saving throws), "speed" (feet) or "abilityMin" (the ability is raised to at least effectValue, with effectAbility str, dex, con, int, wis or cha, for example Gauntlets of Ogre Power), with effectValue its size; effectKind "none" for plain gear. action "remove": target, name, qty. action "move": target is where it comes from, to is where it goes (each a characterId or "stash"), name, qty. action "attune" or "unattune": target is the characterId, name is the item. action "coins": target, and the change in each coin (positive to gain, negative to spend, 0 for none). A character can be attuned to at most three items, and attuning takes a short rest of focus, so do not attune an item in the middle of a fight. Mention it when someone is carrying too much.
 
@@ -1189,7 +1234,12 @@ async function expandTokenUpdates(updates, adventureMonsters = []) {
     else if (u.action === 'mood') out.push({ type: 'setMood', mood: String(u.condition ?? '').toLowerCase() });
     else if (u.action === 'sfx') out.push({ type: 'playSound', sound: String(u.condition ?? '').toLowerCase() });
     else if (u.action === 'summon') out.push({ type: 'summonToken', tokenId: u.tokenId, kind: String(u.condition ?? '').toLowerCase(), ownerId: u.name, col: u.col, row: u.row });
-    else if (u.action === 'rest') out.push({ type: 'restParty', kind: Number(u.value) === 2 ? 'long' : 'short' });
+    else if (u.action === 'rest') out.push({ type: 'restParty', kind: Number(u.value) === 2 ? 'long' : 'short', noFood: u.condition === 'nofood' });
+    else if (u.action === 'time') out.push({ type: 'track', op: 'time', minutes: u.value });
+    else if (u.action === 'xp') out.push({ type: 'track', op: 'xp', target: u.tokenId, amount: u.value, split: u.condition !== 'each' });
+    else if (u.action === 'exhaust') out.push({ type: 'track', op: 'exhaustion', target: u.tokenId, delta: u.value });
+    else if (u.action === 'hitdice') out.push({ type: 'track', op: 'hitdice', target: u.tokenId, count: u.value, die: u.ac });
+    else if (u.action === 'resource') out.push({ type: 'track', op: 'resource', target: u.tokenId, name: u.name, delta: u.value, max: u.ac, recharge: u.condition === 'short' ? 'short' : 'long' });
     else if (u.action === 'startCombat') out.push({ type: 'startCombat' });
     else if (u.action === 'endCombat') out.push({ type: 'endCombat' });
     else if (u.action === 'endTurn') out.push({ type: 'endTurn', ...base });
@@ -1242,7 +1292,7 @@ const DM_SCHEMA = {
       type: 'array',
       items: {
         anyOf: [
-          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'endTurn', 'away', 'here', 'ready', 'template', 'rest', 'light', 'summon', 'mood', 'sfx'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
+          upd(['token'], { action: { type: 'string', enum: ['move', 'add', 'remove', 'reveal', 'hide', 'addCondition', 'removeCondition', 'damage', 'heal', 'initiative', 'startCombat', 'endCombat', 'endTurn', 'away', 'here', 'ready', 'template', 'rest', 'light', 'summon', 'mood', 'sfx', 'time', 'xp', 'exhaust', 'hitdice', 'resource'] }, tokenId: STR, name: STR, col: INT, row: INT, color: STR, hidden: { type: 'boolean' }, kind: { type: 'string', enum: ['creature', 'trap'] }, condition: STR, rounds: INT, monster: STR, value: INT, ac: INT }),
           upd(['setHp'], { characterId: STR, hp: INT }),
           upd(['changeMap'], { mapId: STR, arrive: STR, reason: STR }),
           upd(['gear'], { action: { type: 'string', enum: ['add', 'remove', 'move', 'attune', 'unattune', 'coins'] }, target: STR, to: STR, name: STR, qty: INT, weight: INT, requiresAttunement: { type: 'boolean' }, effectKind: { type: 'string', enum: ['none', ...EFFECT_KINDS] }, effectValue: INT, effectAbility: STR, cp: INT, sp: INT, ep: INT, gp: INT, pp: INT }),
@@ -1350,14 +1400,17 @@ function buildHistory(history, message, state, inputMode, dmMap) {
 // What the DM is told about the party's gear: per character the items, coins and effective stats, and the shared stash.
 async function partyForPrompt(campaign) {
   const brief = (i) => ({ name: i.name, qty: i.qty, weight: i.weight, requiresAttunement: i.requiresAttunement, attuned: i.attuned, equipped: i.equipped, effects: i.effects });
-  const variant = (await readSettings(path.join(CAMPAIGNS_DIR, campaign))).variantEncumbrance;
+  const settings = await readSettings(path.join(CAMPAIGNS_DIR, campaign));
+  const variant = settings.variantEncumbrance;
+  const ruleSet = settings.rules === '2024' ? '2024' : '2014';
   const characters = (await listCharacters(campaign)).map((c) => {
     const s = seedFromSheet(c);
     const eff = computeEffective(s, variant);
-    return { id: s.id, name: s.name, inventory: normalizeInventory(s.inventory).map(brief), coins: normalizeCoins(s.coins), effective: { ac: eff.ac, speed: eff.speed, saveBonus: eff.saveBonus, abilities: eff.abilities, attuned: eff.attuned, weight: eff.weight } };
+    const rules = trackView(c, ruleSet);
+    return { id: s.id, name: s.name, xp: rules.xp, level: rules.level, nextLevelAt: rules.nextLevelAt, readyToLevelUp: rules.readyToLevelUp, hitDice: rules.hitDice.pools.map((p) => `d${p.die}: ${p.left}/${p.total}`).join(', '), exhaustion: rules.exhaustion, exhaustionEffects: rules.exhaustionEffects, classResources: rules.resources.map((r) => ({ name: r.name, left: r.max - r.used, max: r.max, recharge: r.recharge })), inventory: normalizeInventory(s.inventory).map(brief), coins: normalizeCoins(s.coins), effective: { ac: eff.ac, speed: eff.speed, saveBonus: eff.saveBonus, abilities: eff.abilities, attuned: eff.attuned, weight: eff.weight } };
   });
   const stash = await readStash(path.join(CAMPAIGNS_DIR, campaign));
-  return { characters, stash: { items: stash.items.map(brief), coins: stash.coins } };
+  return { clock: describeClock(await readClock(path.join(CAMPAIGNS_DIR, campaign))), characters, stash: { items: stash.items.map(brief), coins: stash.coins } };
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
@@ -1443,14 +1496,16 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       if (out.error) mapProblems.push(out.error); else travel.push(out.update);
     }
     // A map change comes first, so the creatures that follow are placed on the new map.
-    const boardUpdates = [...travel.slice(0, 1), ...allUpdates.filter((u) => u && u.type !== 'updateCharacter' && u.type !== 'changeMap' && u.type !== 'journal' && u.type !== 'gear')];
+    const boardUpdates = [...travel.slice(0, 1), ...allUpdates.filter((u) => u && u.type !== 'updateCharacter' && u.type !== 'changeMap' && u.type !== 'journal' && u.type !== 'gear' && u.type !== 'track')];
     const restedIds = [];
     const restNotes = [];
     for (const u of allUpdates.filter((x) => x && x.type === 'restParty')) {
-      const out = await restParty(u.kind);
+      const out = await restParty(u.kind, { noFood: u.noFood });
       restedIds.push(...out.rested);
-      restNotes.push(u.kind === 'long' ? 'Long rest: hit points and spell slots restored' : 'Short rest');
+      restNotes.push(...out.notes);
+      if (out.blocked) u.blocked = true;           // a refused long rest must not clear conditions on the table either
     }
+    const boardFinal = boardUpdates.filter((x) => !(x.type === 'restParty' && x.blocked));
     const partyResult = await processPartyUpdates(gearToPartyUpdates(allUpdates), {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; },
@@ -1463,16 +1518,18 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
+    const trackResult = await processTrackUpdates(allUpdates.filter((u) => u && u.type === 'track'), await trackStore(activeCampaign), (await readSettings(path.join(CAMPAIGNS_DIR, activeCampaign))).rules === '2024' ? '2024' : '2014')
+      .catch((err) => { console.warn('Rules update failed:', err.message); return { notes: [], problems: ['The DM tried to change a tracked rule, but it could not be saved.'], changed: [], characterUpdates: [] }; });
     res.json({
       rolls,
       narrative,
       voiceLines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
-      mapUpdates: boardUpdates,
-      characterUpdates: sheetResults.results,
-      partyNotes: [...partyResult.notes, ...restNotes],
-      partyChanged: [...new Set([...partyResult.changed, ...restedIds])],
+      mapUpdates: boardFinal,
+      characterUpdates: [...sheetResults.results, ...trackResult.characterUpdates],
+      partyNotes: [...partyResult.notes, ...restNotes, ...trackResult.notes],
+      partyChanged: [...new Set([...partyResult.changed, ...restedIds, ...trackResult.changed])],
       journalAdded: journalAdded.map((e) => ({ category: e.category, title: e.title })),
-      characterProblems: [...mapProblems, ...sheetResults.problems, ...partyResult.problems]
+      characterProblems: [...mapProblems, ...sheetResults.problems, ...partyResult.problems, ...trackResult.problems]
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
