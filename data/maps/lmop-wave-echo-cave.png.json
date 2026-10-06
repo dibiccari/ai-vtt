@@ -797,14 +797,14 @@
     },
     {
       "name": "area-2",
-      "x": 1125,
-      "y": 3825,
+      "x": 1234,
+      "y": 4067,
       "desc": "Mine Tunnels"
     },
     {
       "name": "area-3",
-      "x": 2250,
-      "y": 4995,
+      "x": 2500,
+      "y": 5184,
       "desc": "Old Entrance"
     },
     {
@@ -833,8 +833,8 @@
     },
     {
       "name": "area-8",
-      "x": 4050,
-      "y": 4455,
+      "x": 3776,
+      "y": 4674,
       "desc": "Fungi Cavern"
     },
     {
@@ -863,8 +863,8 @@
     },
     {
       "name": "area-13",
-      "x": 3960,
-      "y": 3330,
+      "x": 4149,
+      "y": 3448,
       "desc": "Starry Cavern"
     },
     {
@@ -875,20 +875,20 @@
     },
     {
       "name": "area-15",
-      "x": 4455,
-      "y": 2655,
+      "x": 4470,
+      "y": 2806,
       "desc": "Forge of Spells"
     },
     {
       "name": "area-16",
-      "x": 4050,
-      "y": 810,
+      "x": 3904,
+      "y": 1085,
       "desc": "Booming Cavern"
     },
     {
       "name": "area-17",
-      "x": 2160,
-      "y": 720,
+      "x": 2337,
+      "y": 565,
       "desc": "Old Streambed"
     },
     {
@@ -910,6 +910,8 @@
       "desc": "Priests' Quarters"
     }
   ],
+  "light": "dark",
+  "ambience": "cave",
   "source": "dd2vtt",
   "lights": [
     {
@@ -1466,7 +1468,5 @@
       "color": "ff80beff"
     }
   ],
-  "ambient": "ff8a95a9",
-  "light": "dark",
-  "ambience": "cave"
+  "ambient": "ff8a95a9"
 }

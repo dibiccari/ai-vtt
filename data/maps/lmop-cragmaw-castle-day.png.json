@@ -5313,14 +5313,14 @@
     },
     {
       "name": "area-1",
-      "x": 817,
-      "y": 1377,
+      "x": 955,
+      "y": 1413,
       "desc": "Castle Entrance"
     },
     {
       "name": "area-2",
-      "x": 1050,
-      "y": 1377,
+      "x": 1245,
+      "y": 1376,
       "desc": "Trapped Hall"
     },
     {
@@ -5367,14 +5367,14 @@
     },
     {
       "name": "area-10",
-      "x": 1727,
-      "y": 1843,
+      "x": 1516,
+      "y": 1886,
       "desc": "Postern Gate"
     },
     {
       "name": "area-11",
-      "x": 2100,
-      "y": 863,
+      "x": 1998,
+      "y": 1057,
       "desc": "Ruined Tower"
     },
     {
@@ -5396,6 +5396,7 @@
       "desc": "King's Quarters"
     }
   ],
+  "light": "bright",
   "source": "dd2vtt",
   "group": "cragmaw-castle",
   "variant": "day",
@@ -5471,6 +5472,5 @@
       "color": "ffffad58"
     }
   ],
-  "ambient": "ffffffff",
-  "light": "bright"
+  "ambient": "ffffffff"
 }
