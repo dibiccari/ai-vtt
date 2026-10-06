@@ -82,7 +82,7 @@ test('syncSheet writes the inventory and coins onto the sheet', () => {
 test('long rest restores hit points and spell slots; short rest changes nothing', () => {
   const c = hero({ sheet: { HPCurrent: '5', 'SlotsTotal 19': '4', 'SlotsRemaining 19': '1', 'SlotsTotal 20': '2', 'SlotsRemaining 20': '0' } });
   const short = restCharacter(c, 'short');
-  assert.equal(short.character.hp, 5); assert.equal(short.note, '');
+  assert.equal(short.character.hp, 5); assert.match(short.note, /Hero finishes a short rest/);
   const long = restCharacter(c, 'long');
   assert.equal(long.character.hp, 20); assert.equal(long.character.sheet.HPCurrent, '20');
   assert.equal(long.character.sheet['SlotsRemaining 19'], '4'); assert.equal(long.character.sheet['SlotsRemaining 20'], '2');
