@@ -94,3 +94,50 @@ test('clock, rest durations and the 24 hour limit', () => {
   assert.equal(s.clock.lastLongRestStart, 8 * 60);
   assert.equal(R.describeClock(R.setClock(clock, { day: 3, hour: 22, minute: 5 })).text, 'Day 3, 22:05 (night)');
 });
+
+test('exhaustion changes the numbers', () => {
+  assert.deepEqual(R.exhaustionNumbers(0, 30, 40), { level: 0, speed: 30, maxHp: 40, disadvantage: { checks: false, attacks: false, saves: false }, d20Penalty: 0, labels: [] });
+  assert.equal(R.exhaustionNumbers(1, 30, 40).speed, 30);
+  assert.equal(R.exhaustionNumbers(1, 30, 40).disadvantage.checks, true);
+  assert.equal(R.exhaustionNumbers(2, 30, 40).speed, 15);
+  assert.equal(R.exhaustionNumbers(3, 30, 40).disadvantage.attacks, true);
+  assert.equal(R.exhaustionNumbers(4, 30, 41).maxHp, 20);
+  assert.equal(R.exhaustionNumbers(5, 30, 40).speed, 0);
+  assert.equal(R.exhaustionNumbers(2, 30, 40, '2024').speed, 20);
+  assert.equal(R.exhaustionNumbers(2, 30, 40, '2024').maxHp, 40);
+  assert.equal(R.exhaustionNumbers(2, 30, 40, '2024').d20Penalty, 4);
+});
+test('computeEffective applies exhaustion without touching stored values', async () => {
+  const { computeEffective } = await import('../lib/party.js');
+  const c = { ...fighter({ speed: 30, maxHp: 50 }), track: { exhaustion: 4 } };
+  const e = computeEffective(c);
+  assert.equal(e.speed, 15);
+  assert.equal(e.maxHp, 25);
+  assert.equal(c.maxHp, 50);
+  assert.equal(e.breakdown.speed.at(-1).label, 'Exhaustion 4');
+  assert.equal(computeEffective(fighter()).maxHp, 50);
+});
+test('reaching exhaustion 4 caps current hit points', () => {
+  const out = R.changeExhaustion(fighter({ hp: 50, track: { exhaustion: 3 } }), 1);
+  assert.equal(out.character.hp, 25);
+});
+test('food and water: starvation and long rest recovery', () => {
+  const c = fighter();                                   // Con 14: 3 + 2 = 5 days
+  assert.equal(R.daysWithoutFood(c), 5);
+  let out = R.setSupplies(c, 'food', 5);
+  assert.equal(out.character.track.exhaustion, 0);
+  out = R.setSupplies(out.character, 'food', 7);
+  assert.equal(out.character.track.exhaustion, 2);
+  out = R.setSupplies(out.character, 'food', 7);
+  assert.equal(out.character.track.exhaustion, 2);       // no double counting
+  const hungry = { ...c, track: { exhaustion: 2, noFood: 1 } };
+  assert.equal(R.restTrack(hungry, 'long').exhaustion, 2);
+  const thirsty = { ...c, track: { exhaustion: 2, noWater: 1 } };
+  assert.equal(R.restTrack(thirsty, 'long').exhaustion, 2);
+  const fed = { ...c, track: { exhaustion: 2 } };
+  assert.equal(R.restTrack(fed, 'long').exhaustion, 1);
+});
+test('hit dice cannot heal past the exhaustion-halved maximum', () => {
+  const out = R.spendHitDice(fighter({ hp: 20, track: { exhaustion: 4 } }), 1, { roll: () => 10 });
+  assert.equal(out.character.hp, 25);
+});
