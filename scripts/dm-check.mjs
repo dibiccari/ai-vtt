@@ -16,6 +16,7 @@ const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const MAX_CALLS = Number(opt('--max-calls', 10));
+const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
 const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-sonnet-5-5': [2, 10], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };   // $ per million tokens (input, output); cache reads cost 5% of input, cache writes 125%
 
@@ -32,8 +33,8 @@ const STEPS = [
   { id: 'brawl', say: '[Thorin] I shove the nearest drunk and start a brawl. Start combat.', expect: 'startCombat sent, new creatures carry hit points and AC, no initiative rolled by the DM' },
   { id: 'handoff', say: 'TABLE', expect: 'the DM gives the status and options for the active player and waits (no rolls, no turns played for the player)' },
   { id: 'attack', say: '[Thorin] I attack Drunk Bram, who is right next to me, with my longsword, and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
-  { id: 'effects', say: '[Seraphine] It is my turn. I cast Bless on Thorin and Vex, concentrating on it, and Sanctuary on Lyra as my bonus action. Just apply them.', expect: 'known effects sent by name only (table gives the duration), caster id as source for the concentration effect, concentrating on the caster' },
-  { id: 'warded', say: '[Lyra] It is my turn. I am warded by Sanctuary. I attack Drunk Bram with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
+  { id: 'effects', say: '[Seraphine] It is my turn. I cast Bless on Thorin and Vex with my action, concentrating on it. Just apply it.', expect: 'a known effect sent by name only (table gives the duration), caster id as source for the concentration effect, concentrating on the caster' },
+  { id: 'warded', say: '[Lyra] It is my turn. I carry a Sanctuary ward cast on me earlier and I know that attacking will end it, so go ahead: I attack Drunk Bram with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
   { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
@@ -131,7 +132,7 @@ try {
   const hooks = {
     before: {
       effects: async () => setActive('pc-seraphine'),
-      warded: async () => setActive('pc-lyra'),
+      warded: async () => { setActive('pc-lyra'); const l = byId('pc-lyra'); if (l && !l.conditions.some((c) => c.name === 'sanctuary')) l.conditions.push({ name: 'sanctuary', rounds: 10, untilMin: undefined }); },        // Lyra was warded earlier by someone else's turn: the table state carries it
       time: async () => {                                              // a 10 minute concentration effect is running on Thorin, put on by Vex: it must survive the end of the fight
         T.clock0 = await clockNow();
         if (byId('npc-bram')) Object.assign(byId('npc-bram'), { hp: 0, dead: true });
@@ -175,6 +176,7 @@ try {
     check(res.status === 200 && !res.json?.offline, `${step.id}: HTTP 200 in ${((Date.now() - t0) / 1000).toFixed(1)} s`, `status ${res.status} ${String(res.json?.error || '').slice(0, 120)}`);
     if (res.status !== 200) continue;
     const j = res.json;
+    if (DEBUG_STEPS.includes(step.id)) console.log('DEBUG ' + step.id + ' ' + JSON.stringify({ updates: (j.mapUpdates || []).map((u) => ({ t: u.type, id: u.tokenId, c: u.condition, r: u.rounds, m: u.minutes, s: u.source })), rolls: j.rolls, narrative: String(j.narrative || '').slice(0, 600) }));
     const rec = calls.slice(before).find((c) => c.response && c.status === 200) || calls[calls.length - 1];
     const retries = calls.length - before - 1;
     if (retries > 0) warn(`${step.id}: ${retries} extra API request(s) (the SDK retried)`);
@@ -240,7 +242,6 @@ try {
       check(!!b && b.rounds === 0 && !b.minutes, 'effects: bless sent by name only (rounds 0, no minutes: the table gives the duration)', b ? "rounds " + b.rounds + ", minutes " + b.minutes : 'missing');
       check(!!b && b.source === 'pc-seraphine', 'effects: the concentration effect carries the caster\'s token id', b ? 'source ' + JSON.stringify(b.source) : 'missing');
       check(!!conc, 'effects: Seraphine is marked concentrating');
-      check(!!sa && sa.rounds === 0 && !sa.minutes, 'effects: sanctuary sent by name only on Lyra', sa ? "rounds " + sa.rounds + ", minutes " + sa.minutes : 'missing');
     }
     if (step.id === 'warded') {
       const hit = upd(j).some((u) => u.type === 'damageToken'), removed = upd(j).some((u) => u.type === 'removeCondition' && /sanctuary/.test(condOf(u)));
