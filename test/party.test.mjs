@@ -154,3 +154,15 @@ test('the stash never keeps attunement', async () => {
     assert.equal(s.items[0].attuned, false); assert.equal(s.coins.gp, 3);
   });
 });
+
+test('hand-edited records: partial coins and items without a quantity do not produce NaN', async () => {
+  const c = hero({ coins: { gp: 5 }, inventory: [{ name: 'Rope' }, { name: 'Torch', qty: 'many', weight: 'x' }] });
+  await withStore([c], async (store, list) => {
+    const r = await processPartyUpdates([{ type: 'adjustCoins', target: 'hero', sp: 10, gp: -2 }, { type: 'addItem', target: 'hero', name: 'Rope', qty: 2 }, { type: 'adjustCoins', target: 'hero', cp: -1 }], store);
+    assert.equal(list[0].coins.gp, 3); assert.equal(list[0].coins.sp, 10); assert.equal(list[0].coins.cp, 0);
+    assert.equal(list[0].inventory.find((i) => i.name === 'Rope').qty, 3);
+    assert.ok(list[0].inventory.every((i) => Number.isFinite(i.qty) && Number.isFinite(i.weight)));
+    assert.equal(r.problems.length, 1, 'only the cp that would go below zero is refused');
+    assert.ok(Object.values(list[0].coins).every(Number.isFinite));
+  });
+});
