@@ -225,78 +225,6 @@ test('the DM\'s board updates: applyMapUpdates adds, moves, hides, reveals and r
   assert.deepEqual(r.cond, ['prone:2']); assert.equal(r.removed, true);
 });
 
-test('combat extras together: hidden initiative, surprise, ready, delay (tie), reactions, opportunity attacks, templates and DM notes', opts, async () => {
-  await page.eval(setup);
-  const r = await page.eval(`(async () => {
-    const s = vtt.state; s.fogEnabled = false; s.dmView = false; s.pendingNotes.length = 0;
-    const hero = s.tokens[0];
-    const ally = Object.assign(makeToken({ id: 'ally', name: 'Ally', color: '#0a0', isPC: true, col: 6, row: 12 }), { dexMod: 0 }); s.tokens.push(ally);
-    hero.col = 10; hero.row = 12;
-    const mk = (id, name, col, extra = {}) => Object.assign(makeToken({ id, name, color: '#a00', isPC: false, col, row: 12 }), { hp: 10, maxHp: 10, ac: 12, dexMod: 0 }, extra);
-    s.tokens.push(mk('ga', 'Goblin A', 11), mk('gb', 'Goblin B', 12), mk('gc', 'Goblin C', 14));
-    vtt.startCombat();
-    const init = { [hero.id]: 20, ga: 12, gb: 12, [ally.id]: 9, gc: 3 };
-    for (const t of s.tokens) if (init[t.id] !== undefined) t.initiative = init[t.id];
-    sortCombat(); s.activeIndex = s.tokens.indexOf(hero); beginTurn(hero);
-    const names = () => s.combat.order.map(id => s.tokens.find(t => t.id === id).name);
-    const out = { start: names() };
-    // hidden initiative: creature rows show a dot, not the number
-    renderCombat();
-    out.dots = document.querySelectorAll('#combatPanel .cb-init-hidden').length;
-    // DM notes: a note is saved, never printed in chat, shown only in DM view
-    await vtt.applyMapUpdates([{ type: 'dmNote', tokenId: 'gb', text: 'flees at half HP' }, { type: 'dmNote', tokenId: 'dm', text: 'ambush at round 3' }]);
-    out.chatLeak = JSON.stringify(s.chat || []).includes('flees'); out.panelOff = document.querySelector('#combatPanel').innerText.includes('flees') || document.querySelector('#combatPanel').innerText.includes('ambush');
-    out.saved = serializeToken(s.tokens.find(t => t.id === 'gb')).dmNote;
-    // ready: the action is used now, the reaction when it triggers
-    await vtt.applyMapUpdates([{ type: 'readyToken', tokenId: hero.id, text: 'shoot the first goblin through the door' }]);
-    out.readyA = hero.spent.a; out.readyR = hero.spent.r;
-    await vtt.applyMapUpdates([{ type: 'readyToken', tokenId: hero.id, text: '' }]);
-    out.triggerR = hero.spent.r; out.readiedAfter = hero.readied;
-    // delay: the hero delays; Goblin A is up; hero resumes tied with Goblin B and still acts right after Goblin A
-    await vtt.applyMapUpdates([{ type: 'delayToken', tokenId: hero.id }]);
-    out.afterDelay = [s.tokens[s.activeIndex].name, names().join(',')];
-    out.delayedChip = [...document.querySelectorAll('#combatPanel .cb-ready')].some(e => e.textContent === '⏸');
-    await vtt.applyMapUpdates([{ type: 'resumeToken', tokenId: hero.id }]);
-    out.afterResume = names();
-    nextCombatTurn(); out.nextIsHero = s.tokens[s.activeIndex].name; out.heroSpentReset = JSON.stringify(hero.spent);
-    // a spell area on the hero's turn is cleared by the next turn
-    await vtt.applyMapUpdates([{ type: 'template', tokenId: hero.id, shape: 'sphere', size: 20, col: 12, row: 12 }]);
-    out.templates = s.templates.length;
-    // opportunity attacks: Goblin A is next to the hero; it can attack unless its reaction is spent
-    const ga = s.tokens.find(t => t.id === 'ga');
-    s.pendingNotes.length = 0; hero.col = 8;
-    noteOpportunityAttacks(hero, 10, 12);
-    out.oaFree = s.pendingNotes.join(' | ');
-    s.pendingNotes.length = 0; await vtt.applyMapUpdates([{ type: 'reactToken', tokenId: 'ga' }]);
-    out.gaSpent = ga.spent.r;
-    noteOpportunityAttacks(hero, 10, 12);
-    out.oaSpent = s.pendingNotes.join(' | ');
-    s.pendingNotes.length = 0; hero.conditions = []; setCondition(hero, 'disengaged', 1); hero.col = 8; noteOpportunityAttacks(hero, 10, 12);
-    out.oaDisengaged = s.pendingNotes.length;
-    // the reaction is back at the start of Goblin A's own turn
-    beginTurn(ga); out.gaBack = ga.spent.r;
-    // template cleared by beginTurn
-    out.templatesAfter = s.templates.length;
-    // DM view shows the notes
-    s.dmView = true; renderCombat(); out.panelOn = document.querySelector('#combatPanel').innerText.includes('ambush') && !!document.querySelector('.cb-dmnote');
-    // hidden / unseen rules still hold
-    const gc = s.tokens.find(t => t.id === 'gc'); gc.hidden = true; out.hiddenSeen = vtt.seenByParty(gc); gc.hidden = false;
-    out.shot = true;
-    return out;
-  })()`);
-  assert.deepEqual(r.start.slice(0, 1), ['Edric'].slice(0, 1).map(() => r.start[0]));
-  assert.ok(r.dots >= 3, 'creature initiative is a dot: ' + r.dots);
-  assert.equal(r.chatLeak, false); assert.equal(r.panelOff, false, 'notes are not shown without DM view'); assert.equal(r.saved, 'flees at half HP');
-  assert.equal(r.readyA, true); assert.equal(r.readyR, false); assert.equal(r.triggerR, true); assert.equal(r.readiedAfter, '');
-  assert.equal(r.afterDelay[0], 'Goblin A'); assert.equal(r.delayedChip, true);
-  const o = r.afterResume; assert.equal(o[o.indexOf('Goblin A') + 1], r.start[0], 'the resumed delayer acts right after Goblin A even though Goblin B ties with it: ' + o);
-  assert.equal(r.nextIsHero, r.start[0]); assert.equal(r.heroSpentReset, '{"a":false,"b":false,"r":false}');
-  assert.equal(r.templates, 1); assert.equal(r.templatesAfter, 0);
-  assert.match(r.oaFree, /opportunity attack/); assert.equal(r.gaSpent, true);
-  assert.match(r.oaSpent, /Goblin A \(has already used its reaction this round\)/); assert.equal(r.oaDisengaged, 0);
-  assert.equal(r.gaBack, false); assert.equal(r.panelOn, true); assert.equal(r.hiddenSeen, false);
-  await page.eval(`window.vtt.state.dmView = true; document.querySelector('#combatPanel').scrollIntoView()`);
-
 test('light: ambient levels, a lamp\'s bright and dim rings, walls stop light, a carried torch', opts, async () => {
   await page.eval(setup);
   const r = await page.eval(`(() => {
@@ -386,6 +314,79 @@ test('difficult terrain: entering a difficult square costs double movement in a 
   assert.equal(r.open5, true, 'open ground costs 5 ft per square'); assert.equal(r.diff5, false, 'a difficult square needs 10 ft');
   assert.equal(r.diff10, true); assert.equal(r.second15, false, 'two difficult squares need 20 ft'); assert.equal(r.second20, true);
   assert.equal(r.freeRoamIgnoresBudget, true, 'outside a fight there is no movement budget');
+});
+
+test('combat extras together: hidden initiative, surprise, ready, delay (tie), reactions, opportunity attacks, templates and DM notes', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.fogEnabled = false; s.dmView = false; s.pendingNotes.length = 0;
+    const hero = s.tokens[0];
+    const ally = Object.assign(makeToken({ id: 'ally', name: 'Ally', color: '#0a0', isPC: true, col: 6, row: 12 }), { dexMod: 0 }); s.tokens.push(ally);
+    hero.col = 10; hero.row = 12;
+    const mk = (id, name, col, extra = {}) => Object.assign(makeToken({ id, name, color: '#a00', isPC: false, col, row: 12 }), { hp: 10, maxHp: 10, ac: 12, dexMod: 0 }, extra);
+    s.tokens.push(mk('ga', 'Goblin A', 11), mk('gb', 'Goblin B', 12), mk('gc', 'Goblin C', 14));
+    vtt.startCombat();
+    const init = { [hero.id]: 20, ga: 12, gb: 12, [ally.id]: 9, gc: 3 };
+    for (const t of s.tokens) if (init[t.id] !== undefined) t.initiative = init[t.id];
+    sortCombat(); s.activeIndex = s.tokens.indexOf(hero); beginTurn(hero);
+    const names = () => s.combat.order.map(id => s.tokens.find(t => t.id === id).name);
+    const out = { start: names() };
+    // hidden initiative: creature rows show a dot, not the number
+    renderCombat();
+    out.dots = document.querySelectorAll('#combatPanel .cb-init-hidden').length;
+    // DM notes: a note is saved, never printed in chat, shown only in DM view
+    await vtt.applyMapUpdates([{ type: 'dmNote', tokenId: 'gb', text: 'flees at half HP' }, { type: 'dmNote', tokenId: 'dm', text: 'ambush at round 3' }]);
+    out.chatLeak = JSON.stringify(s.chat || []).includes('flees'); out.panelOff = document.querySelector('#combatPanel').innerText.includes('flees') || document.querySelector('#combatPanel').innerText.includes('ambush');
+    out.saved = serializeToken(s.tokens.find(t => t.id === 'gb')).dmNote;
+    // ready: the action is used now, the reaction when it triggers
+    await vtt.applyMapUpdates([{ type: 'readyToken', tokenId: hero.id, text: 'shoot the first goblin through the door' }]);
+    out.readyA = hero.spent.a; out.readyR = hero.spent.r;
+    await vtt.applyMapUpdates([{ type: 'readyToken', tokenId: hero.id, text: '' }]);
+    out.triggerR = hero.spent.r; out.readiedAfter = hero.readied;
+    // delay: the hero delays; Goblin A is up; hero resumes tied with Goblin B and still acts right after Goblin A
+    await vtt.applyMapUpdates([{ type: 'delayToken', tokenId: hero.id }]);
+    out.afterDelay = [s.tokens[s.activeIndex].name, names().join(',')];
+    out.delayedChip = [...document.querySelectorAll('#combatPanel .cb-ready')].some(e => e.textContent === '⏸');
+    await vtt.applyMapUpdates([{ type: 'resumeToken', tokenId: hero.id }]);
+    out.afterResume = names();
+    nextCombatTurn(); out.nextIsHero = s.tokens[s.activeIndex].name; out.heroSpentReset = JSON.stringify(hero.spent);
+    // a spell area on the hero's turn is cleared by the next turn
+    await vtt.applyMapUpdates([{ type: 'template', tokenId: hero.id, shape: 'sphere', size: 20, col: 12, row: 12 }]);
+    out.templates = s.templates.length;
+    // opportunity attacks: Goblin A is next to the hero; it can attack unless its reaction is spent
+    const ga = s.tokens.find(t => t.id === 'ga');
+    s.pendingNotes.length = 0; hero.col = 8;
+    noteOpportunityAttacks(hero, 10, 12);
+    out.oaFree = s.pendingNotes.join(' | ');
+    s.pendingNotes.length = 0; await vtt.applyMapUpdates([{ type: 'reactToken', tokenId: 'ga' }]);
+    out.gaSpent = ga.spent.r;
+    noteOpportunityAttacks(hero, 10, 12);
+    out.oaSpent = s.pendingNotes.join(' | ');
+    s.pendingNotes.length = 0; hero.conditions = []; setCondition(hero, 'disengaged', 1); hero.col = 8; noteOpportunityAttacks(hero, 10, 12);
+    out.oaDisengaged = s.pendingNotes.length;
+    // the reaction is back at the start of Goblin A's own turn
+    beginTurn(ga); out.gaBack = ga.spent.r;
+    // template cleared by beginTurn
+    out.templatesAfter = s.templates.length;
+    // DM view shows the notes
+    s.dmView = true; renderCombat(); out.panelOn = document.querySelector('#combatPanel').innerText.includes('ambush') && !!document.querySelector('.cb-dmnote');
+    // hidden / unseen rules still hold
+    const gc = s.tokens.find(t => t.id === 'gc'); gc.hidden = true; out.hiddenSeen = vtt.seenByParty(gc); gc.hidden = false;
+    out.shot = true;
+    return out;
+  })()`);
+  assert.deepEqual(r.start.slice(0, 1), ['Edric'].slice(0, 1).map(() => r.start[0]));
+  assert.ok(r.dots >= 3, 'creature initiative is a dot: ' + r.dots);
+  assert.equal(r.chatLeak, false); assert.equal(r.panelOff, false, 'notes are not shown without DM view'); assert.equal(r.saved, 'flees at half HP');
+  assert.equal(r.readyA, true); assert.equal(r.readyR, false); assert.equal(r.triggerR, true); assert.equal(r.readiedAfter, '');
+  assert.equal(r.afterDelay[0], 'Goblin A'); assert.equal(r.delayedChip, true);
+  const o = r.afterResume; assert.equal(o[o.indexOf('Goblin A') + 1], r.start[0], 'the resumed delayer acts right after Goblin A even though Goblin B ties with it: ' + o);
+  assert.equal(r.nextIsHero, r.start[0]); assert.equal(r.heroSpentReset, '{"a":false,"b":false,"r":false}');
+  assert.equal(r.templates, 1); assert.equal(r.templatesAfter, 0);
+  assert.match(r.oaFree, /opportunity attack/); assert.equal(r.gaSpent, true);
+  assert.match(r.oaSpent, /Goblin A \(has already used its reaction this round\)/); assert.equal(r.oaDisengaged, 0);
+  assert.equal(r.gaBack, false); assert.equal(r.panelOn, true); assert.equal(r.hiddenSeen, false);
+  await page.eval(`window.vtt.state.dmView = true; document.querySelector('#combatPanel').scrollIntoView()`);
 });
 
 test('no page errors were logged during the whole run', opts, () => {
