@@ -194,7 +194,7 @@ test('combat: hit points: a creature at 0 is defeated, a player character at 0 f
     vtt.changeHp(gob, 5); out.revived = gob.dead; out.reviveHp = gob.hp;
     vtt.changeHp(gob, 99); out.cap = gob.hp;
     const hero = s.tokens[0], c = characterFor(hero), max = c.maxHp;
-    vtt.changeHp(hero, -999); out.pcHp = c.hp; out.pcCond = hero.conditions.map(x => x.name); out.saves = hero.deathSaves;
+    vtt.changeHp(hero, -c.hp); out.pcHp = c.hp; out.pcCond = hero.conditions.map(x => x.name); out.saves = hero.deathSaves;
     vtt.changeHp(hero, 3); out.pcUp = c.hp; out.pcCondAfter = hero.conditions.map(x => x.name); out.savesAfter = hero.deathSaves;
     vtt.changeHp(hero, max); out.max = max; out.pcFull = c.hp;
     return out;
@@ -244,6 +244,28 @@ test('combat: a surprised first combatant is skipped at once; bodies do not bloc
   })()`);
   assert.equal(r.active, 'b', 'the surprised combatant at the top of the order loses its turn at once');
   assert.equal(r.reachBody, true, 'a defeated creature does not block movement');
+});
+
+test('death saves: damage at 0 is a failed save, the DM records saves, three failures do not kill when permadeath is off, massive damage', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.permadeath = false;
+    const pc = s.tokens[0]; const c = s.characters.find(x => x.id === pc.characterId); c.hp = c.maxHp;
+    const out = {};
+    vtt.changeHp(pc, -c.maxHp);                                  // exactly to 0: dying, no massive damage
+    out.dying = [pc.deathSaves.success, pc.deathSaves.fail, !!pc.dead];
+    vtt.changeHp(pc, -1); out.hurtDown = pc.deathSaves.fail;     // damage while down = one failed save
+    await vtt.applyMapUpdates([{ type: 'addCondition', tokenId: pc.id, condition: 'death save success', rounds: 1 }]); out.success = pc.deathSaves.success;
+    await vtt.applyMapUpdates([{ type: 'addCondition', tokenId: pc.id, condition: 'death save fail', rounds: 2 }]); out.afterThree = [pc.deathSaves.fail, pc.stable, !!pc.dead];
+    vtt.changeHp(pc, 3); out.healed = [vtt.state.characters.find(x => x.id === pc.characterId).hp, pc.deathSaves, pc.stable];
+    vtt.changeHp(pc, -(c.hp + c.maxHp)); out.massive = [pc.deathSaves.fail, !!pc.dead, pc.stable];
+    s.permadeath = true; vtt.changeHp(pc, 1); vtt.changeHp(pc, -(c.hp + c.maxHp)); out.massivePerma = [pc.dead];
+    return out;
+  })()`);
+  assert.deepEqual(r.dying, [0, 0, false]); assert.equal(r.hurtDown, 1); assert.equal(r.success, 1);
+  assert.deepEqual(r.afterThree, [3, true, false], 'three failures with permadeath off: out of the fight, not dead');
+  assert.equal(r.healed[0], 3); assert.equal(r.healed[1], null); assert.equal(r.healed[2], false);
+  assert.deepEqual(r.massive, [3, false, true]); assert.deepEqual(r.massivePerma, [true]);
 });
 
 test('no page errors were logged during the whole run', opts, () => {

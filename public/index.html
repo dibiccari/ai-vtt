@@ -2789,8 +2789,17 @@ function changeHp(t, delta) {
     jsonPost('/api/characters', c).catch((err) => toast(`Could not save ${c.name}'s HP: ${err.message}`, 'error'));
   } else t.hp = after;
   if (delta < 0 && before > 0) concentrationCheck(t, Math.abs(Math.round(delta)), after);
+  if (before === 0 && delta < 0 && t.isPC && !t.dead && hpOf(t) === 0) {
+    // Damage to a character already at 0 is a failed death save (a stable one starts dying again).
+    t.stable = false; clearCondition(t, 'stable'); if (!t.deathSaves) t.deathSaves = { success: 0, fail: 0 };
+    addChat('system', `↳ ${t.name} is hurt while down: a failed death save`);
+    setDeathSave(t, 'fail', t.deathSaves.fail + 1);
+  }
   if (after === 0 && before > 0) {
-    if (t.isPC) { setCondition(t, 'unconscious', 0); t.deathSaves = { success: 0, fail: 0 }; t.stable = false; addChat('system', `↳ ${t.name} falls unconscious and is dying`); }
+    if (t.isPC) {
+      setCondition(t, 'unconscious', 0); t.deathSaves = { success: 0, fail: 0 }; t.stable = false; addChat('system', `↳ ${t.name} falls unconscious and is dying`);
+      if (-Math.round(delta) - before >= max) { addChat('system', `↳ Massive damage: ${t.name} is killed outright`); setDeathSave(t, 'fail', 3); }      // 5e: damage left over after 0 that equals the hit point maximum
+    }
     else { t.dead = true; if (seenByParty(t)) addChat('system', `↳ ${t.name} is defeated`); }
   } else if (after > 0 && before === 0) {
     if (t.isPC) { clearCondition(t, 'unconscious'); t.deathSaves = null; t.stable = false; }
@@ -2817,11 +2826,22 @@ function beginTurn(t) {
   if (seenByParty(t)) toast(`${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`, 'ok');
 }
 
+// Death save pips: from the combat panel or from the DM (condition "death save success" / "death save fail", rounds = how many).
+function setDeathSave(t, key, v) {
+  if (!t.deathSaves) t.deathSaves = { success: 0, fail: 0 };
+  t.deathSaves[key] = clamp(v, 0, 3);
+  if (t.deathSaves.success >= 3 && !t.stable) { t.stable = true; addChat('system', `↳ ${t.name} is stable`); }
+  if (t.deathSaves.fail >= 3 && !t.stable && !t.dead) {
+    if (state.permadeath) { t.dead = true; addChat('system', `↳ ${t.name} has died`); }
+    else { t.stable = true; addChat('system', `↳ ${t.name} is out of the fight (no permanent death at this table: the DM will play out a setback)`); }
+  }
+}
+
 function startCombat() {
   if (state.combat.active) return;
   const members = state.tokens.filter((t) => t.kind !== 'trap' && !t.dead && !isSummon(t) && !isElsewhere(t));
   if (!members.length) { toast('Put some tokens on the map first'); return; }
-  state.combat = { active: true, round: 1, order: members.map((t) => t.id) };
+  state.combat = { active: true, round: 1, order: members.map((t) => t.id), fresh: true };      // fresh: nobody has had a turn yet, so the DM's own initiative numbers may still reorder who is first
   const rolled = [];
   for (const t of members) {
     // Creatures are always rolled here. The players are too when the DM rolls for them; at a table where they roll their own, they give theirs.
@@ -2851,6 +2871,7 @@ function nextCombatTurn() {
   if (!order.length) return;
   const waiting = order.filter((t) => t.isPC && !Number.isFinite(t.initiative)).map((t) => t.name);
   if (waiting.length) { toast(`Waiting for initiative: ${waiting.join(', ')}`); return; }
+  state.combat.fresh = false;
   const leaving = activeToken();
   if (leaving && hasCondition(leaving, 'surprised')) clearCondition(leaving, 'surprised');       // surprise ends when its first turn ends
   if (leaving && hasCondition(leaving, 'dashing')) clearCondition(leaving, 'dashing');         // a Dash lasts for the turn it was taken
@@ -3054,15 +3075,7 @@ function combatRow(t) {
       const line3 = document.createElement('div');
       line3.className = 'cb-line';
       const lab = document.createElement('span'); lab.className = 'cb-ac'; lab.textContent = 'Death saves';
-      const set = (key, v) => {
-        t.deathSaves[key] = clamp(v, 0, 3);
-        if (t.deathSaves.success >= 3) { t.stable = true; addChat('system', `↳ ${t.name} is stable`); }
-        if (t.deathSaves.fail >= 3) {
-          if (state.permadeath) { t.dead = true; addChat('system', `↳ ${t.name} has died`); }
-          else { t.stable = true; addChat('system', `↳ ${t.name} is out of the fight (no permanent death at this table: the DM will play out a setback)`); }
-        }
-        commitBoard(); renderCombat();
-      };
+      const set = (key, v) => { setDeathSave(t, key, v); commitBoard(); renderCombat(); };
       line3.append(lab, pips(t.deathSaves.success, 'ok', (v) => set('success', v)), pips(t.deathSaves.fail, 'fail', (v) => set('fail', v)));
       row.appendChild(line3);
     }
@@ -3251,6 +3264,7 @@ async function sendTurn(spokenText, opts) {
     .map(({ role, content: c }) => ({ role, content: c }));
 
   if (!auto) { addChat('user', content); input.value = ''; }
+  const combatWasOn = state.combat.active;
   setBusy(true);
   let ok = false;
   try {
@@ -3289,6 +3303,13 @@ async function sendTurn(spokenText, opts) {
     toast(err.message, 'error');
   } finally {
     setBusy(false);
+  }
+  if (ok && !combatWasOn && state.combat.active && !state.busy && activeToken() && activeToken().isPC && state.autoTurns < 12) {
+    // The fight just began and a player character is first: the DM could not know the order while writing, so hand it over now.
+    state.autoTurns += 1;
+    const order = combatTokens().map((t) => `${t.name} ${Number.isFinite(t.initiative) ? t.initiative : '?'}`).join(', ');
+    sendTurn(`Initiative has been rolled by the table: ${order}. It is ${activeToken().name}'s turn. Say who goes first, give the status and the options for ${activeToken().name}, and wait; do not roll anything.`, { typed: true, auto: true, as: { name: 'Table' } });
+    return;
   }
   if (ok) {
     // A move the table refused or shortened: tell the DM now, so it can fix what it just narrated before anyone acts on it.
@@ -3904,6 +3925,8 @@ async function applyMapUpdates(updates) {
       case 'addCondition': {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         const rounds = Number(u.rounds);
+        const ds = /^death ?saves?:? ?(success|fail)/i.exec(String(u.condition || ''));
+        if (ds && t && t.isPC && hpOf(t) === 0 && !t.stable) { setDeathSave(t, ds[1].toLowerCase() === 'fail' ? 'fail' : 'success', (t.deathSaves ? t.deathSaves[ds[1].toLowerCase() === 'fail' ? 'fail' : 'success'] : 0) + (rounds > 0 ? Math.round(rounds) : 1)); break; }
         if (!t || !setCondition(t, u.condition, rounds)) break;
         if (seenByParty(t)) addChat('system', `↳ ${t.name} is ${conditionKey(u.condition)}${rounds > 0 ? ` (${rounds} round${rounds === 1 ? '' : 's'})` : ''}`);
         // Surprise is decided right after startCombat: if the combatant whose turn it already is turns out to be surprised, that turn is lost at once.
@@ -3928,7 +3951,12 @@ async function applyMapUpdates(updates) {
         const t = state.tokens.find((x) => x.id === u.tokenId);
         if (!t || !Number.isFinite(Number(u.value))) break;
         t.initiative = Math.round(Number(u.value));
-        if (state.combat.active) { if (!state.combat.order.includes(t.id)) joinCombat(t); sortCombat(); }
+        if (state.combat.active) {
+          if (!state.combat.order.includes(t.id)) joinCombat(t);
+          sortCombat();
+          // Before the first turn has been taken the active combatant is simply the top of the order, whoever set the numbers.
+          if (state.combat.fresh) { const first = combatTokens()[0]; if (first && first !== activeToken()) { state.activeIndex = state.tokens.indexOf(first); beginTurn(first); } }
+        }
         break;
       }
       case 'restParty':
