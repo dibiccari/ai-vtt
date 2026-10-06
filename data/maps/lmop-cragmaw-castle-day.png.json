@@ -5310,6 +5310,90 @@
       "name": "postern-gate",
       "x": 1785,
       "y": 2065
+    },
+    {
+      "name": "area-1",
+      "x": 817,
+      "y": 1377,
+      "desc": "Castle Entrance"
+    },
+    {
+      "name": "area-2",
+      "x": 1050,
+      "y": 1377,
+      "desc": "Trapped Hall"
+    },
+    {
+      "name": "area-3",
+      "x": 1027,
+      "y": 1225,
+      "desc": "Archer Post"
+    },
+    {
+      "name": "area-4",
+      "x": 1050,
+      "y": 1727,
+      "desc": "Ruined Barracks"
+    },
+    {
+      "name": "area-5",
+      "x": 1213,
+      "y": 933,
+      "desc": "Storeroom"
+    },
+    {
+      "name": "area-6",
+      "x": 968,
+      "y": 1003,
+      "desc": "Hobgoblin Barracks"
+    },
+    {
+      "name": "area-7",
+      "x": 1517,
+      "y": 1517,
+      "desc": "Banquet Hall"
+    },
+    {
+      "name": "area-8",
+      "x": 1610,
+      "y": 1260,
+      "desc": "Dark Hall"
+    },
+    {
+      "name": "area-9",
+      "x": 1610,
+      "y": 887,
+      "desc": "Goblin Shrine"
+    },
+    {
+      "name": "area-10",
+      "x": 1727,
+      "y": 1843,
+      "desc": "Postern Gate"
+    },
+    {
+      "name": "area-11",
+      "x": 2100,
+      "y": 863,
+      "desc": "Ruined Tower"
+    },
+    {
+      "name": "area-12",
+      "x": 2217,
+      "y": 1447,
+      "desc": "Guard Barracks"
+    },
+    {
+      "name": "area-13",
+      "x": 2123,
+      "y": 1820,
+      "desc": "Owlbear Tower"
+    },
+    {
+      "name": "area-14",
+      "x": 2450,
+      "y": 1027,
+      "desc": "King's Quarters"
     }
   ],
   "source": "dd2vtt",

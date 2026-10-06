@@ -2008,8 +2008,8 @@
     },
     {
       "name": "area-10",
-      "x": 3300,
-      "y": 900,
+      "x": 3078,
+      "y": 862,
       "desc": "Town Square"
     },
     {
@@ -2029,6 +2029,11 @@
       "x": 3780,
       "y": 2220,
       "desc": "Dragon Cultists"
+    },
+    {
+      "name": "statue",
+      "x": 3368,
+      "y": 850
     }
   ],
   "light": "bright",

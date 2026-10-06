@@ -1549,45 +1549,44 @@
     },
     {
       "name": "area-2",
-      "x": 960,
-      "y": 1200,
+      "x": 1074,
+      "y": 1187,
       "desc": "Goblin Blind"
     },
     {
       "name": "area-3",
-      "x": 1140,
-      "y": 840,
+      "x": 1113,
+      "y": 799,
       "desc": "Kennel"
     },
     {
       "name": "area-4",
-      "x": 750,
-      "y": 390,
+      "x": 842,
+      "y": 431,
       "desc": "Steep Passage"
     },
     {
       "name": "area-5",
-      "x": 1148,
-      "y": 352,
+      "x": 1181,
+      "y": 206,
       "desc": "Overpass"
     },
     {
       "name": "area-6",
-      "x": 330,
-      "y": 420,
+      "x": 189,
+      "y": 365,
       "desc": "Goblin Den"
-    },
-    {
-      "name": "area-7",
-      "x": 1590,
-      "y": 450,
-      "desc": "Twin Pools Cave"
     },
     {
       "name": "area-8",
       "x": 1695,
       "y": 975,
       "desc": "Klarg's Cave"
+    },
+    {
+      "name": "area-7",
+      "x": 1648,
+      "y": 445
     }
   ],
   "light": "dim",

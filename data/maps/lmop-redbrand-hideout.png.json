@@ -3063,8 +3063,8 @@
     },
     {
       "name": "area-1",
-      "x": 1755,
-      "y": 1350,
+      "x": 1692,
+      "y": 1346,
       "desc": "Cellar"
     },
     {
@@ -3132,6 +3132,11 @@
       "x": 495,
       "y": 480,
       "desc": "Glasstaff's Quarters"
+    },
+    {
+      "name": "secret",
+      "x": 626,
+      "y": 409
     }
   ],
   "light": "dark",
