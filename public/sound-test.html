@@ -26,15 +26,10 @@
   .row .ctl { display:flex; gap:6px; align-items:center; }
   .row .ctl .play { flex:1; text-align:left; }
   .row .ctl .stop { padding:6px 9px; }
-  .row { display:grid; grid-template-columns:220px 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid #1c2330; }
+  .row { display:grid; grid-template-columns:220px 1fr; gap:10px; align-items:center; padding:8px 0; border-top:1px solid #1c2330; }
   .row:first-child { border-top:0; }
   .row .meant { color:var(--muted); font-size:12.5px; }
   .row .meant input { width:100%; margin-top:4px; }
-  .rate { display:flex; gap:4px; }
-  .rate button { padding:4px 10px; font-size:12px; }
-  .rate button[data-r="good"][aria-pressed="true"] { background:var(--ok); border-color:var(--ok); }
-  .rate button[data-r="close"][aria-pressed="true"] { background:var(--warn); border-color:var(--warn); }
-  .rate button[data-r="wrong"][aria-pressed="true"] { background:var(--bad); border-color:var(--bad); color:#fff; }
   .hint { color:var(--muted); font-size:12px; margin:6px 0 0; }
   .saved { color:var(--ok); font-size:12px; margin-left:8px; }
   @media (max-width:700px) { .row { grid-template-columns:1fr; } }
@@ -43,7 +38,7 @@
 <body>
 <div class="page">
   <h1>Sound <span>Test</span></h1>
-  <p class="lead">Listen to every ambient scene, mood and sound effect, and tell me which ones sound like what they say. The sounds are made in your browser. For each one, press play, then mark it Good, Close or Wrong and type what you hear or what it should sound like. Your notes are saved on this computer and I read them to fix the sounds.</p>
+  <p class="lead">Listen to every ambient scene, mood and sound effect, and tell me which ones sound like what they say. Many are real recordings (see public/audio/CREDITS.md); the rest are made in your browser. For each one, press play (and stop to cut it off), and type what you hear or what it should sound like. Your notes are saved on this computer and I read them to fix the sounds.</p>
 
   <div class="card">
     <div class="bar">
@@ -147,22 +142,11 @@
     stop.addEventListener('click', function () { Ambience.stop(kind); group.querySelectorAll('.row .ctl > .play').forEach(function (b) { if (kind !== 'sfx') b.setAttribute('aria-pressed', 'false'); }); say('Stopped'); });
     var ctl = document.createElement('div'); ctl.className = 'ctl'; ctl.append(play, stop);
     var meant = document.createElement('div'); meant.className = 'meant';
-    meant.textContent = 'Meant to sound like: ' + MEANT[kind][name] + (Ambience.hasFile(kind, name) ? '  [your recording]' : '  [synthesised]') + (Ambience.isRetired(kind, name) ? '  [switched off in the game until it is retuned]' : (fb.rating === 'good' ? '  [kept: rated Good]' : ''));
+    meant.textContent = 'Meant to sound like: ' + MEANT[kind][name] + (Ambience.hasFile(kind, name) ? '  [your recording]' : '  [synthesised]') + (Ambience.isRetired(kind, name) ? '  [switched off in the game until it is retuned]' : '');
     var note = document.createElement('input'); note.type = 'text'; note.placeholder = 'What do you hear? What should it be?'; note.value = fb.note || ''; note.maxLength = 500;
     note.addEventListener('input', function () { feedback[key] = { rating: (feedback[key] || {}).rating || '', note: note.value }; queueSave(); });
     meant.appendChild(note);
-    var rate = document.createElement('div'); rate.className = 'rate';
-    [['good', 'Good'], ['close', 'Close'], ['wrong', 'Wrong']].forEach(function (p) {
-      var b = document.createElement('button'); b.textContent = p[1]; b.dataset.r = p[0]; b.setAttribute('aria-pressed', String(fb.rating === p[0]));
-      b.addEventListener('click', function () {
-        var now = (feedback[key] || {}).rating === p[0] ? '' : p[0];
-        feedback[key] = { rating: now, note: note.value };
-        rate.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.r === now)); });
-        queueSave();
-      });
-      rate.appendChild(b);
-    });
-    r.append(ctl, meant, rate);
+    r.append(ctl, meant);
     group.appendChild(r);
   }
 
