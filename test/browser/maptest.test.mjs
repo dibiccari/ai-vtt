@@ -127,17 +127,17 @@ test('tiles: a regional map shows hexagons, a battle map squares, and one Show t
     await page.goto(`${server.base}/map-test.html?map=${url}`);
     await page.waitFor('document.querySelector("#mapKind") && document.querySelector("#banner").textContent.includes("px")');
     return page.eval(`(async () => { const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const S = window.mapTest.state, box = document.querySelector('#showGrid');
-      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRowBefore: !document.querySelector('#hexRow').hidden, order: [...document.querySelectorAll('#showTilesRow, #hexRow, #vision')].map((e) => e.id || 'vision'), showRow: !document.querySelector('#showTilesRow').hidden, squaresRow: !document.querySelector('#squares').closest('label').hidden, label: document.querySelector('#showTilesText').textContent, showing: box.checked };
+      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRowBefore: !document.querySelector('#hexRow').hidden, order: [...document.querySelectorAll('#showTilesRow, #hexRow, #vision')].map((e) => e.id || 'vision'), showRow: !document.querySelector('#showTilesRow').hidden, squaresRow: !document.querySelector('#squares').closest('label').hidden, label: document.querySelector('#showTilesText').textContent, scale: document.querySelector('#scaleNote').textContent, kindAfterSelect: !!document.querySelector('#mapSelect').nextElementSibling.querySelector('#mapKind'), showing: box.checked };
       const count = () => { const cv = document.querySelector('canvas'), x = cv.getContext('2d'), d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) n += d[i] + d[i + 1] + d[i + 2]; return n; };       // the picture's total brightness: lines drawn over it change it
       box.checked = true; box.dispatchEvent(new Event('change')); await wait(300); out.on = count(); out.hexRow = !document.querySelector('#hexRow').hidden;
       box.checked = false; box.dispatchEvent(new Event('change')); await wait(300); out.off = count();
       return out; })()`);
   };
   const hex = await shot('/uploads/dnd-sword-coast-ours.png');
-  assert.equal(hex.tiles, 'hex'); assert.equal(hex.select, 'regional', 'the label says it is a regional map'); assert.equal(hex.squaresRow, false, 'no squares control on a hexagon map'); assert.match(hex.label, /hexagons/); assert.equal(hex.hexRowBefore, false, 'the hexagon width is hidden while the tiles are hidden'); assert.equal(hex.hexRow, true, 'and shows once Show hexagons is ticked'); assert.deepEqual(hex.order, ['vision', 'showTilesRow', 'hexRow'], 'Show tiles comes last in the section, the width right under it');
+  assert.equal(hex.tiles, 'hex'); assert.equal(hex.select, 'regional', 'the label says it is a regional map'); assert.equal(hex.squaresRow, false, 'no squares control on a hexagon map'); assert.match(hex.label, /hexagons/); assert.match(hex.scale, /One hexagon = 5 miles/); assert.equal(hex.kindAfterSelect, true, 'the type of map sits right below the Map picker'); assert.equal(hex.hexRowBefore, false, 'the hexagon width is hidden while the tiles are hidden'); assert.equal(hex.hexRow, true, 'and shows once Show hexagons is ticked'); assert.deepEqual(hex.order, ['vision', 'showTilesRow', 'hexRow'], 'Show tiles comes last in the section, the width right under it');
   assert.notEqual(hex.on, hex.off, 'ticking Show tiles draws the hexagons');
   const sq = await shot('/uploads/vtt-terrain-test.png');
-  assert.equal(sq.tiles, 'square'); assert.equal(sq.select, 'battle'); assert.equal(sq.hexRow, false, 'no hexagon slider on a battle map'); assert.equal(sq.squaresRow, true); assert.match(sq.label, /squares/); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
+  assert.equal(sq.tiles, 'square'); assert.equal(sq.select, 'battle'); assert.equal(sq.hexRow, false, 'no hexagon slider on a battle map'); assert.equal(sq.squaresRow, true); assert.match(sq.label, /squares/); assert.match(sq.scale, /One square = 5 ft\. This map is \d+ x \d+ squares/); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
 });
 
 test('the map list shows places, Day | Night appears only when there is a night look, Terrain | Eraser are one pair', opts, async () => {
@@ -157,6 +157,20 @@ test('the map list shows places, Day | Night appears only when there is a night 
   await page.waitFor('document.querySelector("#timeSwitch button[data-time=night]").getAttribute("aria-pressed") === "true"', 8000);
   const crypt = await look('/uploads/vtt-crypt-repaint-v2.png');
   assert.deepEqual(crypt.day, [['Day', true, 'true'], ['Night', false, 'false']], 'a map with no night look has no Night button');
+});
+
+test('Fit to width sits under Fit to height and makes the map as wide as the view', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#fitWidthBtn") && document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, stage = document.querySelector('#stage').getBoundingClientRect();
+    const fit = document.querySelector('#fitBtn').getBoundingClientRect(), wid = document.querySelector('#fitWidthBtn').getBoundingClientRect();
+    document.querySelector('#fitBtn').click(); await new Promise((r) => setTimeout(r, 100)); const h = S.view.scale;
+    document.querySelector('#fitWidthBtn').click(); await new Promise((r) => setTimeout(r, 100));
+    return { below: wid.top > fit.top, sameColumn: Math.abs(wid.left - fit.left) < 2, wide: S.W * S.view.scale / stage.width, heightScale: h, widthScale: S.view.scale, top: S.view.oy };
+  })()`);
+  assert.ok(r.below && r.sameColumn, 'the button is under the fit-to-height button');
+  assert.ok(r.wide > 0.95 && r.wide <= 1.0, 'the map is as wide as the view: ' + r.wide); assert.ok(r.widthScale >= r.heightScale, 'it is at least as large as the whole-map fit'); assert.equal(r.top, 12);
 });
 
 test('no page errors in Map Test', opts, () => { assert.deepEqual(page.problems, []); });

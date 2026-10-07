@@ -1032,6 +1032,18 @@ test('hold the Space bar to talk: it works on the page, on a button and in an em
   if ('select' in r) assert.equal(r.select, false, 'a drop-down keeps its own Space');
 });
 
+test('the tabletop has Fit to width under Fit to height', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const wrapW = document.querySelector('#fitBtn').closest('.zoom-controls') && true;
+    const fit = document.querySelector('#fitBtn').getBoundingClientRect(), wid = document.querySelector('#fitWidthBtn').getBoundingClientRect();
+    document.querySelector('#fitWidthBtn').click(); await new Promise((r) => setTimeout(r, 100));
+    const s = vtt.state, w = document.querySelector('canvas').clientWidth;
+    return { wrapW, below: wid.top > fit.top, same: Math.abs(wid.left - fit.left) < 2, wide: s.map.width * s.view.scale / w, top: s.view.oy };
+  })()`);
+  assert.ok(r.wrapW && r.below && r.same, 'the new button is under the fit button'); assert.ok(r.wide > 0.9 && r.wide <= 1.02, 'the map is about as wide as the table: ' + r.wide); assert.equal(r.top, 12);
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });

@@ -361,7 +361,8 @@
     <div class="zoom-controls">
       <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">−</button>
-      <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
+      <button id="fitBtn" title="Fit the whole map in the view (fit to height)" aria-label="Fit map to height">⤢</button>
+      <button id="fitWidthBtn" title="Fit the map to the width of the view" aria-label="Fit map to width">↔</button>
     </div>
   </div>
   <!-- COMBAT TRACKER: beside the map, only while there is a fight -->
@@ -686,6 +687,18 @@ function fitView() {
   v.scale = clamp(Math.min(w / state.map.width, h / state.map.height) * 0.94, MIN_SCALE, MAX_SCALE);
   v.ox = (w - state.map.width * v.scale) / 2;
   v.oy = (h - state.map.height * v.scale) / 2;
+  updateHud();
+  requestRender();
+}
+
+// Fit to width: the map as wide as the table, starting at its top (drag or scroll to see the rest).
+function fitWidth() {
+  const w = wrap.clientWidth;
+  if (!w || !state.map.width) return;
+  const v = state.view;
+  v.scale = clamp((w / state.map.width) * 0.98, MIN_SCALE, MAX_SCALE);
+  v.ox = (w - state.map.width * v.scale) / 2;
+  v.oy = 12;
   updateHud();
   requestRender();
 }
@@ -4566,6 +4579,7 @@ function bindUi() {
   $('#zoomInBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 1.25));
   $('#zoomOutBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 0.8));
   $('#fitBtn').addEventListener('click', fitView);
+  $('#fitWidthBtn').addEventListener('click', fitWidth);
 
   voice.init();
   $('#sendBtn').addEventListener('click', () => sendTurn());
