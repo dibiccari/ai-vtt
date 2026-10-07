@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Sword Coast, our own map</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; --accent:#4f9dff; color-scheme: dark; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width:1500px; margin:0 auto; padding:16px 20px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  .lead { color:var(--muted); max-width:95ch; margin:0 0 10px; }
+  .bar { display:flex; gap:18px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-bottom:12px; }
+  .bar label { display:flex; gap:6px; align-items:center; font-weight:600; cursor:pointer; } .bar input[type=range] { width:130px; accent-color:var(--accent); } .bar input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; }
+  .hint { color:var(--muted); font-size:13px; }
+  .stage { position:relative; width:100%; max-width:1000px; margin:0 auto; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:#000; }
+  .stage img { width:100%; display:block; } .stage canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>The Sword Coast <span>our own map</span></h1>
+  <p class="lead">The same geography as the published regional map (read from your copy, as positions only), drawn in our own bold-ink atlas style. The picture itself has no writing and no grid; the names and the 5-mile hexagons are laid over it here with the boxes below. Hover a place to read its name.</p>
+  <div class="bar">
+    <label><input type="checkbox" id="names" checked> Show names</label>
+    <label><input type="checkbox" id="places" checked> Show place names</label>
+    <label><input type="checkbox" id="hex"> Show 5-mile hexagons</label>
+    <label>Hex size <input type="range" id="hexsize" min="60" max="160" value="95"> <b id="hexval">95</b></label>
+    <span class="hint" id="info"></span>
+  </div>
+  <div class="stage" id="stage"><img id="pic" alt="The Sword Coast"><canvas id="cv"></canvas></div>
+</div>
+<script src="/nav.js"></script>
+<script>
+(async () => {
+  const data = await (await fetch('/scenarios/compare/coast/coast-names.json')).json();
+  const pic = document.getElementById('pic'), cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  pic.src = '/scenarios/compare/coast/' + data.picture;
+  await pic.decode().catch(() => {});
+  const COLORS = { brown: '#4a3320', green: '#154a2a', teal: '#1d5560', red: '#8a1c1c' };
+  let hover = null;
+  const OFFSETS = { "Agatha's Lair": [-150, -48], Conyberry: [10, 52], Phandalin: [-30, 58], 'Wave Echo Cave': [20, 60], 'Old Owl Well': [0, 50], 'Cragmaw Hideout': [-20, 50], 'Icespire Peak': [-10, -62], 'Mount Hotenow': [0, -64] };
+  function draw() {
+    const w = cv.clientWidth, h = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const k = w / data.width;
+    if (document.getElementById('hex').checked) {
+      const hw = Number(document.getElementById('hexsize').value) * k, r = hw / Math.sqrt(3), vs = r * 1.5;       // pointy-top hexagons, flat-to-flat width hw
+      ctx.strokeStyle = 'rgba(40,30,20,0.38)'; ctx.lineWidth = 1;
+      for (let row = -1, y = 0; y < h + vs; row++, y += vs) for (let x = (row % 2 ? hw / 2 : 0) - hw; x < w + hw; x += hw) {
+        ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; ctx.lineTo(x + hw / 2 + r * Math.cos(a), y + r + r * Math.sin(a)); } ctx.closePath(); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(30,20,10,0.8)'; ctx.font = 'italic ' + Math.max(11, 15 * k * 2) + 'px Georgia, serif'; ctx.textAlign = 'left'; ctx.fillText('One hex = 5 miles', 90 * k, 120 * k);
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const halo = (text, x, y, size, color, bold, italic) => { ctx.font = (italic ? 'italic ' : '') + (bold ? '700 ' : '600 ') + size + 'px "Palatino Linotype", Palatino, Georgia, serif'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size / 4); ctx.strokeStyle = 'rgba(250,244,222,0.92)'; ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y); };
+    if (document.getElementById('names').checked) for (const l of data.labels) { ctx.save(); ctx.translate(l.x * k, l.y * k); ctx.rotate(l.rot * Math.PI / 180); halo(l.text, 0, 0, l.size * k * 0.82, COLORS[l.color] || '#222', true, l.kind !== 'road'); ctx.restore(); }
+    if (document.getElementById('places').checked) for (const p of data.places) { const size = (p.kind === 'city' ? 30 : 24) * k * 1.9, off = OFFSETS[p.name] || [0, p.kind === 'city' ? 62 : p.kind === 'peak' ? 54 : 46]; halo(p.name, p.x * k + off[0] * k, p.y * k + off[1] * k * 1.2, size, '#1a1410', p.kind === 'city', false); }
+    if (hover) { ctx.beginPath(); ctx.arc(hover.x * k, hover.y * k, 22 * k * 2, 0, 6.3); ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3; ctx.stroke(); }
+  }
+  document.querySelectorAll('.bar input').forEach((e) => e.addEventListener('input', () => { document.getElementById('hexval').textContent = document.getElementById('hexsize').value; draw(); }));
+  document.getElementById('stage').addEventListener('mousemove', (e) => {
+    const b = cv.getBoundingClientRect(), k = data.width / b.width, x = (e.clientX - b.left) * k, y = (e.clientY - b.top) * k;
+    const near = data.places.map((p) => [Math.hypot(p.x - x, p.y - y), p]).sort((a, c) => a[0] - c[0])[0];
+    hover = near && near[0] < 90 ? near[1] : null; document.getElementById('info').textContent = hover ? hover.name + ' (' + hover.kind + ')' : '';
+    draw();
+  });
+  window.addEventListener('resize', draw); draw();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+{
+  "width": 2648,
+  "height": 3625,
+  "picture": "coast-ours.png",
+  "places": [
+    {
+      "name": "Neverwinter",
+      "kind": "city",
+      "x": 577,
+      "y": 1750
+    },
+    {
+      "name": "Phandalin",
+      "kind": "town",
+      "x": 1514,
+      "y": 2820
+    },
+    {
+      "name": "Thundertree",
+      "kind": "ruins",
+      "x": 1085,
+      "y": 1690
+    },
+    {
+      "name": "Cragmaw Castle",
+      "kind": "ruins",
+      "x": 1480,
+      "y": 2210
+    },
+    {
+      "name": "Conyberry",
+      "kind": "ruins",
+      "x": 2222,
+      "y": 1926
+    },
+    {
+      "name": "Old Owl Well",
+      "kind": "ruins",
+      "x": 2330,
+      "y": 2200
+    },
+    {
+      "name": "Leilon",
+      "kind": "ruins",
+      "x": 1100,
+      "y": 3140
+    },
+    {
+      "name": "Cragmaw Hideout",
+      "kind": "point",
+      "x": 1138,
+      "y": 2590
+    },
+    {
+      "name": "Wave Echo Cave",
+      "kind": "point",
+      "x": 1800,
+      "y": 2800
+    },
+    {
+      "name": "Wyvern Tor",
+      "kind": "point",
+      "x": 2462,
+      "y": 2470
+    },
+    {
+      "name": "Agatha's Lair",
+      "kind": "point",
+      "x": 2108,
+      "y": 1895
+    },
+    {
+      "name": "Mount Hotenow",
+      "kind": "peak",
+      "x": 900,
+      "y": 1035
+    },
+    {
+      "name": "Icespire Peak",
+      "kind": "peak",
+      "x": 2093,
+      "y": 2664
+    }
+  ],
+  "labels": [
+    {
+      "text": "The Crags",
+      "x": 1450,
+      "y": 330,
+      "rot": -62,
+      "size": 120,
+      "kind": "region",
+      "color": "brown"
+    },
+    {
+      "text": "Neverwinter Wood",
+      "x": 1740,
+      "y": 1330,
+      "rot": 18,
+      "size": 150,
+      "kind": "region",
+      "color": "green"
+    },
+    {
+      "text": "Starmetal Hills",
+      "x": 2440,
+      "y": 1180,
+      "rot": 56,
+      "size": 100,
+      "kind": "region",
+      "color": "brown"
+    },
+    {
+      "text": "Sword Mountains",
+      "x": 2060,
+      "y": 2840,
+      "rot": -22,
+      "size": 115,
+      "kind": "region",
+      "color": "brown"
+    },
+    {
+      "text": "Kryptgarden Forest",
+      "x": 2240,
+      "y": 3260,
+      "rot": -52,
+      "size": 105,
+      "kind": "region",
+      "color": "green"
+    },
+    {
+      "text": "Mere of Dead Men",
+      "x": 1180,
+      "y": 3480,
+      "rot": 10,
+      "size": 105,
+      "kind": "region",
+      "color": "teal"
+    },
+    {
+      "text": "The High Road",
+      "x": 1040,
+      "y": 2400,
+      "rot": 66,
+      "size": 50,
+      "kind": "road",
+      "color": "red"
+    },
+    {
+      "text": "Triboar Trail",
+      "x": 1590,
+      "y": 2400,
+      "rot": -52,
+      "size": 50,
+      "kind": "road",
+      "color": "red"
+    }
+  ]
+}
