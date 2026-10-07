@@ -22,8 +22,9 @@
 <body>
 <div class="page">
   <h1>The Sword Coast <span>our own map</span></h1>
-  <p class="lead">The same geography as the published regional map (read from your copy, as positions only), drawn in our own bold-ink atlas style. The picture itself has no writing and no grid; the names and the 5-mile hexagons are laid over it here with the boxes below. Hover a place to read its name.</p>
+  <p class="lead">The same geography as the published regional map (read from your copy, as positions only). Our own layout, drawn in code, was repainted by ChatGPT's image editor in the bold-ink atlas style; switch to the code-drawn picture to compare. The picture itself has no writing and no grid; the names and the 5-mile hexagons are laid over it here with the boxes below. Hover a place to read its name.</p>
   <div class="bar">
+    <label>Picture <select id="which"><option value="coast-gpt.png">Painted by ChatGPT</option><option value="coast-ours.png">Drawn in code</option></select></label>
     <label><input type="checkbox" id="names" checked> Show names</label>
     <label><input type="checkbox" id="places" checked> Show place names</label>
     <label><input type="checkbox" id="hex"> Show 5-mile hexagons</label>
@@ -37,7 +38,7 @@
 (async () => {
   const data = await (await fetch('/scenarios/compare/coast/coast-names.json')).json();
   const pic = document.getElementById('pic'), cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  pic.src = '/scenarios/compare/coast/' + data.picture;
+  pic.src = '/scenarios/compare/coast/coast-gpt.png';
   await pic.decode().catch(() => {});
   const COLORS = { brown: '#4a3320', green: '#154a2a', teal: '#1d5560', red: '#8a1c1c' };
   let hover = null;
@@ -60,6 +61,7 @@
     if (document.getElementById('places').checked) for (const p of data.places) { const size = (p.kind === 'city' ? 30 : 24) * k * 1.9, off = OFFSETS[p.name] || [0, p.kind === 'city' ? 62 : p.kind === 'peak' ? 54 : 46]; halo(p.name, p.x * k + off[0] * k, p.y * k + off[1] * k * 1.2, size, '#1a1410', p.kind === 'city', false); }
     if (hover) { ctx.beginPath(); ctx.arc(hover.x * k, hover.y * k, 22 * k * 2, 0, 6.3); ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3; ctx.stroke(); }
   }
+  document.getElementById('which').addEventListener('change', (e) => { pic.src = '/scenarios/compare/coast/' + e.target.value; });
   document.querySelectorAll('.bar input').forEach((e) => e.addEventListener('input', () => { document.getElementById('hexval').textContent = document.getElementById('hexsize').value; draw(); }));
   document.getElementById('stage').addEventListener('mousemove', (e) => {
     const b = cv.getBoundingClientRect(), k = data.width / b.width, x = (e.clientX - b.left) * k, y = (e.clientY - b.top) * k;
