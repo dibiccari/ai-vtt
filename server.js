@@ -11,6 +11,7 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
+import { buildSets } from './lib/mapsets.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
@@ -383,6 +384,20 @@ app.get('/api/map-library', asyncRoute(async (_req, res) => {
     out.push({ file: f, url: '/uploads/' + f, kind, origin, tiles: c?.tiles === 'hex' ? 'hex' : 'square', setUp: Boolean(c), walls: (c?.walls || []).filter((w) => w.type !== 'door').length, doors: (c?.walls || []).filter((w) => w.type === 'door').length, lights: (c?.lights || []).length, pins: (c?.starts || []).length, hasStart: Boolean((c?.starts || []).find((s) => s.name === 'start')), difficult: (c?.difficult || []).length, mood: c?.mood || '', group: c?.group || '', variant: c?.variant || '', dmVersion: dmFiles.has(stem), campaigns: used.get(f) || [] });
   }
   res.json({ maps: out });
+}));
+
+// Map sets (docs/map-set-format.md, step 1): the current pictures and set-ups gathered into one entry per place, read-only; nothing on disk is moved.
+app.get('/api/mapsets', asyncRoute(async (_req, res) => {
+  const pictures = await pictureFiles();
+  const configs = {};
+  for (const f of pictures) { try { configs[f] = JSON.parse(await readFile(mapConfigFile(f), 'utf8')); } catch { configs[f] = null; } }
+  const listed = {};
+  for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!dirent.isDirectory()) continue;
+    try { for (const m of await mapsForCampaign(dirent.name)) { const f = m.url.split('/').pop(); listed[f] = { kind: listed[f]?.kind || m.kind, campaigns: [...(listed[f]?.campaigns || []), dirent.name] }; } } catch { /* unreadable campaign */ }
+  }
+  const dmPictures = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
+  res.json({ sets: buildSets({ pictures, configs, dmPictures, listed }) });
 }));
 
 // The numbered areas of the adventure module on a map (data/campaigns/<campaign>/areas.json: picture file -> [{n, name}]); Map Test turns them into pins.

@@ -1,0 +1,32 @@
+// Map sets, step 1: the set view built from today's files (lib/mapsets.js).
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildSets, facePlace } from '../lib/mapsets.js';
+
+test('facePlace: DM and player versions name the place and the role', () => {
+  assert.deepEqual(facePlace('dnd-dm-phandalin.jpg'), { key: 'dnd-phandalin', role: 'dm', explicit: true });
+  assert.deepEqual(facePlace('dnd-phandalin-playerversion.jpg'), { key: 'dnd-phandalin', role: 'player', explicit: true });
+  assert.deepEqual(facePlace('lmop-phandalin-dm-version.jpg'), { key: 'lmop-phandalin', role: 'dm', explicit: true });
+  assert.deepEqual(facePlace('lmop-phandalin-player-version.jpg'), { key: 'lmop-phandalin', role: 'player', explicit: true });
+  assert.deepEqual(facePlace('vtt-crypt-claude.png'), { key: 'vtt-crypt-claude', role: 'player', explicit: false });
+});
+
+test('buildSets: day and night become one set, DM pictures attach to their place, kinds and tiles follow the map', () => {
+  const pictures = ['vtt-camp-day.png', 'vtt-camp-night.png', 'lmop-phandalin-dm-version.jpg', 'lmop-phandalin-player-version.jpg', 'dnd-sword-coast-ours.png', 'vtt-crypt-claude.png', 'vtt-phandalin.png'];
+  const configs = {
+    'vtt-camp-day.png': { group: 'camp', variant: 'day', squares: 40, walls: [{ type: 'wall' }, { type: 'door' }], starts: [{ name: 'start' }, { name: 'a' }], light: 'bright' },
+    'vtt-camp-night.png': { group: 'camp', variant: 'night', squares: 40, walls: [{ type: 'wall' }], starts: [{ name: 'start' }], light: 'dark', lights: [{ x: 1 }, { x: 2 }] },
+    'dnd-sword-coast-ours.png': { tiles: 'hex', hexSize: 48, starts: [{ name: 'neverwinter' }] }, 'vtt-crypt-claude.png': { squares: 30, walls: [], starts: [] }, 'vtt-phandalin.png': { starts: [{ name: 'start' }] }
+  };
+  const listed = { 'vtt-camp-day.png': { kind: 'camp', campaigns: ['lost'] }, 'vtt-camp-night.png': { kind: 'camp', campaigns: ['lost'] }, 'lmop-phandalin-player-version.jpg': { kind: 'town', campaigns: ['lost'] } };
+  const sets = buildSets({ pictures, configs, dmPictures: new Set(['vtt-phandalin']), listed });
+  const by = Object.fromEntries(sets.map((s) => [s.id, s]));
+  assert.equal(sets.length, 5, 'seven pictures make five places: camp (2), Phandalin (2), the coast, the crypt, our Phandalin');
+  const camp = by.camp; assert.deepEqual(camp.times, ['day', 'night']); assert.equal(camp.kind, 'camp'); assert.equal(camp.tiles, 'square'); assert.equal(camp.levels[0].looks.length, 2);
+  assert.equal(camp.levels[0].looks[1].lights, 2); assert.equal(camp.levels[0].looks[1].light, 'dark', 'lights and light level belong to the look');
+  assert.equal(camp.levels[0].walls, 1, 'the walls come from the first look and doors are counted apart'); assert.equal(camp.levels[0].doors, 1); assert.deepEqual(camp.campaigns, ['lost']);
+  const town = by['lmop-phandalin']; assert.equal(town.kind, 'town'); assert.equal(town.tiles, 'none'); assert.equal(town.levels[0].looks[0].player, 'lmop-phandalin-player-version.jpg'); assert.equal(town.levels[0].looks[0].dm, 'lmop-phandalin-dm-version.jpg'); assert.equal(town.hasDm, true);
+  const coast = by['dnd-sword-coast-ours']; assert.equal(coast.kind, 'regional'); assert.equal(coast.tiles, 'hex'); assert.equal(coast.levels[0].isRevealed, true, 'regional maps are revealed by default'); assert.equal(coast.needsStart, false);
+  assert.equal(by['vtt-crypt-claude'].levels[0].isRevealed, false); assert.equal(by['vtt-crypt-claude'].needsStart, true);
+  assert.equal(by['vtt-phandalin'].hasDm, true, 'a DM picture in data/dm-maps counts'); assert.deepEqual(sets.map((s) => s.links), [[], [], [], [], []]);
+});

@@ -352,3 +352,14 @@ test('map library: every picture with its kind, tiles, counts and whether it has
   assert.equal(m('vtt-phandalin.png').dmVersion, true, 'the Phandalin DM version is saved');
   assert.ok(lib.every((x) => typeof x.walls === 'number' && Array.isArray(x.campaigns)));
 });
+
+test('map sets: the real pictures gather into places (day and night together, DM pictures attached) and the set view is read-only', async () => {
+  const sets = (await s.get('/api/mapsets')).json.sets;
+  const by = Object.fromEntries(sets.map((x) => [x.id, x]));
+  assert.ok(sets.length >= 15 && sets.length < (await s.get('/api/maps')).json.maps.length, 'fewer places than pictures');
+  assert.deepEqual(by.camp.times, ['day', 'night']); assert.equal(by.camp.levels[0].looks.length, 2);
+  assert.deepEqual(by['cragmaw-castle'].times, ['day', 'night']);
+  assert.equal(by['lmop-phandalin'].hasDm, true); assert.equal(by['dnd-sword-coast-ours'].tiles, 'hex'); assert.equal(by['dnd-sword-coast-ours'].levels[0].isRevealed, true);
+  assert.equal(by['vtt-phandalin'].kind, 'town'); assert.ok(by['vtt-phandalin'].hasDm);
+  assert.equal((await s.post('/api/mapsets', {})).status, 404, 'nothing writes to sets yet');
+});

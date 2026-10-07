@@ -37,8 +37,8 @@
 <script src="/maptools-rail.js"></script>
 <div class="content">
 <div class="page">
-  <h1>Maps <span>every picture</span></h1>
-  <p class="lead">All the maps on this server, with what each one has: its kind and tiles (squares for battle maps, hexagons for regional maps), walls, doors, lights, pins, whether it has a start spot, and whether a DM version of the picture is saved. Open any of them in Map Test, where the DM | Player switch shows each face.</p>
+  <h1>Maps <span>every place</span></h1>
+  <p class="lead">Every place on this server as one entry: a day and night pair is one place, and a DM picture sits with its player picture. For each:  its kind and tiles (squares for battle maps, hexagons for regional maps), walls, doors, lights, pins, whether it has a start spot, and whether a DM version of the picture is saved. Open any of them in Map Test, where the DM | Player switch shows each face.</p>
   <div class="bar">
     <label>Search <input type="text" id="q" placeholder="name" aria-label="Search"></label>
     <label>Kind <select id="kind" aria-label="Kind"><option value="">All</option><option value="battle">Battle</option><option value="camp">Camp</option><option value="town">Town</option><option value="regional">Regional</option></select></label>
@@ -55,42 +55,46 @@
 (() => {
   'use strict';
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  let maps = [];
+  let sets = [];
   const chip = (text, cls) => el('span', 'chip' + (cls ? ' ' + cls : ''), text);
+  const player = (set) => set.levels[0].looks[0].player;
   function render() {
     const q = document.getElementById('q').value.trim().toLowerCase(), kind = document.getElementById('kind').value, origin = document.getElementById('origin').value;
     const needsDm = document.getElementById('needsDm').checked, needsStart = document.getElementById('needsStart').checked;
-    const list = maps.filter((m) => (!q || m.file.toLowerCase().includes(q)) && (!kind || m.kind === kind) && (!origin || m.origin === origin) && (!needsDm || !m.dmVersion) && (!needsStart || ((m.kind === 'battle' || m.kind === 'camp') && !m.hasStart)));
-    document.getElementById('count').textContent = list.length + ' of ' + maps.length + ' maps';
+    const list = sets.filter((s) => (!q || (s.id + ' ' + s.name).toLowerCase().includes(q)) && (!kind || s.kind === kind) && (!origin || s.origin === origin) && (!needsDm || !s.hasDm) && (!needsStart || s.needsStart));
+    document.getElementById('count').textContent = list.length + ' of ' + sets.length + ' places';
     const root = document.getElementById('list'); root.innerHTML = '';
     if (!list.length) { root.appendChild(el('div', 'empty', 'No map matches.')); return; }
     const grid = el('div', 'grid');
-    for (const m of list) {
-      const card = el('div', 'card');
-      const img = el('img'); img.src = m.url; img.alt = m.file; img.loading = 'lazy';
+    for (const s of list) {
+      const lv = s.levels[0], card = el('div', 'card');
+      const img = el('img'); img.src = '/uploads/' + player(s); img.alt = s.name; img.loading = 'lazy';
       const body = el('div', 'body');
-      body.appendChild(el('h3', '', m.file));
+      body.appendChild(el('h3', '', s.name));
       const chips = el('div', 'chips');
-      chips.append(chip(m.kind, 'kind'), chip(m.tiles === 'hex' ? 'hexagons (5 miles)' : 'squares'), chip(m.origin), chip(m.dmVersion ? 'DM version' : 'no DM version', m.dmVersion ? 'ok' : 'warn'));
-      if (m.mood) chips.appendChild(chip(m.mood));
-      if (m.group) chips.appendChild(chip(m.group + (m.variant ? ' / ' + m.variant : '')));
-      if ((m.kind === 'battle' || m.kind === 'camp') && !m.hasStart) chips.appendChild(chip('no start spot', 'warn'));
-      if (!m.setUp) chips.appendChild(chip('not set up', 'warn'));
+      chips.append(chip(s.kind, 'kind'), chip(s.tiles === 'hex' ? 'hexagons (5 miles)' : s.tiles === 'none' ? 'no tiles' : 'squares'), chip(s.origin));
+      for (const t of s.times) if (t !== 'main') chips.appendChild(chip(t));
+      if (s.levels.length > 1) chips.appendChild(chip(s.levels.length + ' levels'));
+      chips.appendChild(chip(s.hasDm ? 'DM version' : 'no DM version', s.hasDm ? 'ok' : 'warn'));
+      if (lv.isRevealed) chips.appendChild(chip('revealed'));
+      if (s.needsStart) chips.appendChild(chip('no start spot', 'warn'));
+      if (!lv.looks[0].setUp) chips.appendChild(chip('not set up', 'warn'));
       body.appendChild(chips);
-      const bits = [m.walls ? m.walls + ' walls' : '', m.doors ? m.doors + ' doors' : '', m.lights ? m.lights + ' lights' : '', m.pins ? m.pins + ' pins' : '', m.difficult ? m.difficult + ' terrain areas' : ''].filter(Boolean);
-      body.appendChild(el('div', 'stats', (bits.join(' · ') || 'no walls, pins or lights yet') + (m.campaigns.length ? ' · used by ' + m.campaigns.join(', ') : '')));
+      const bits = [lv.walls ? lv.walls + ' walls' : '', lv.doors ? lv.doors + ' doors' : '', lv.looks.reduce((n, l) => Math.max(n, l.lights), 0) ? lv.looks.reduce((n, l) => Math.max(n, l.lights), 0) + ' lights' : '', lv.pins ? lv.pins + ' pins' : '', lv.difficult ? lv.difficult + ' terrain areas' : ''].filter(Boolean);
+      body.appendChild(el('div', 'stats', (bits.join(' · ') || 'no walls, pins or lights yet') + (s.campaigns.length ? ' · used by ' + s.campaigns.join(', ') : '')));
       const links = el('div', 'links');
-      const open = el('a', '', 'Open in Map Test'); open.href = '/map-test.html?map=' + encodeURIComponent(m.url);
-      links.appendChild(open);
-      if (m.dmVersion) { const dm = el('a', '', 'See the DM version'); dm.href = '/api/dm-map?map=' + encodeURIComponent(m.file); dm.target = '_blank'; dm.rel = 'noopener'; links.appendChild(dm); }
-      const pl = el('a', '', 'See the player picture'); pl.href = m.url; pl.target = '_blank'; pl.rel = 'noopener'; links.appendChild(pl);
+      for (const l of lv.looks) {
+        const open = el('a', '', s.times.length > 1 ? 'Open ' + l.time + ' in Map Test' : 'Open in Map Test'); open.href = '/map-test.html?map=' + encodeURIComponent('/uploads/' + l.player); links.appendChild(open);
+      }
+      const dm = lv.looks.find((l) => l.dm);
+      if (dm) { const a = el('a', '', 'See the DM version'); a.href = '/api/dm-map?map=' + encodeURIComponent(dm.dm && dm.dm.startsWith('data/dm-maps:') ? dm.player : dm.dm); a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a); }
       body.appendChild(links);
       card.append(img, body); grid.appendChild(card);
     }
     root.appendChild(grid);
   }
   for (const id of ['q', 'kind', 'origin', 'needsDm', 'needsStart']) document.getElementById(id).addEventListener('input', render);
-  fetch('/api/map-library').then((r) => r.json()).then((d) => { maps = d.maps || []; render(); }).catch((err) => { document.getElementById('list').textContent = 'Could not load the maps: ' + err.message; });
+  fetch('/api/mapsets').then((r) => r.json()).then((d) => { sets = d.sets || []; render(); }).catch((err) => { document.getElementById('list').textContent = 'Could not load the maps: ' + err.message; });
 })();
 </script>
 </body>

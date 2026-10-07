@@ -19,7 +19,10 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
   const BIG = new Set(['uploads', 'tokens', 'audio', 'scenarios', 'vendor']);
   for (const name of await readdir(path.join(ROOT, 'public'))) {
     const from = path.join(ROOT, 'public', name), to = path.join(dir, 'public', name);
-    if (BIG.has(name)) await symlink(from, to); else await cp(from, to, { recursive: true });
+    if (name === 'uploads') {                 // a real folder of links to the pictures, so a test that adds a picture (the Market) writes into the sandbox and leaves the real uploads alone
+      await mkdir(to);
+      for (const f of await readdir(from)) await symlink(path.join(from, f), path.join(to, f));
+    } else if (BIG.has(name)) await symlink(from, to); else await cp(from, to, { recursive: true });
   }
   return { dir, remove: () => rm(dir, { recursive: true, force: true }) };
 }

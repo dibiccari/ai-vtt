@@ -73,6 +73,15 @@ Day and night can follow the **game clock** that already exists: after dusk the 
 
 The first two steps are invisible to a player and are what makes the later ones cheap. Step 3 is where the game changes.
 
+## 6b. Ids, and the game state in separate files (user, Nov 2026)
+A set is **content**: it does not change while you play, it can be shared, and two campaigns can use the same set. The **game state** is what changes: fog revealed, where the tokens stand, which doors are open, which secret doors were found, which links were unlocked, which look (time) is showing. So:
+- every set, level, look, pin, door and link gets a **stable id** (set `camp`, level `camp/1`, door `camp/1/d3`, link `camp/1/l1`). Ids never change after creation, even when a name or a picture does;
+- the saved game keeps its own file per campaign and set (for example `data/campaigns/<id>/state/<set id>.json`): `{ set, version, levels: { "1": { fog: <png>, tokens: [{id, x, y}], doors: { d3: {open, locked, found} }, links: { l1: {locked} } } }, time: 'night' }`. The same set with another campaign has its own state; the set file itself is never written by play;
+- the state refers to the set by id and to the set's **version** (a number the editor bumps on every change): if a level is redrawn or a wall moved, the table sees the version differ and can keep what still makes sense (fog) and flag what may not (door ids that vanished);
+- Start over clears the state files and leaves the sets alone; sharing a set sends no one's game with it.
+
+This also fixes a problem of today: a door a player opened is saved into the map's own file when Map Test is used, and fog is a picture file keyed by the picture's name.
+
 ## 7. Decisions I would like from you
 
 1. **Folder inside, file for sharing**: a folder in the project (easy to edit and diff), one `.vttmap` file to share. OK?
@@ -81,4 +90,4 @@ The first two steps are invisible to a player and are what makes the later ones 
 4. **Fog per level**, shared by all looks, kept with the saved game: right?
 5. **Regional maps**: no start pin, no token; the party is a pin. Right?
 6. **Town maps**: free movement with a token, no tiles, revealed by default. Or no token either?
-7. **Which step first?** I would start with step 1.
+7. **Which step first?** Step 1 is built (see below). Next would be step 2, with ids and the separate state files from section 6b.
