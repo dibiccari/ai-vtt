@@ -686,6 +686,30 @@ test('flying: fly speed, elevation, terrain and fences ignored, walls still bloc
   assert.deepEqual(r.low, [0, ['stunned']], 'a short fall does no damage and does not knock it prone');
 });
 
+test('the high cliff on Terrain Test Grounds: its face stops anyone on foot, a flyer reaches the top', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state;
+    await vtt.travelTo({ mapUrl: '/uploads/vtt-terrain-test.png', mapName: 'Terrain', kind: 'battle', col: 5, row: 5 });
+    if (!s.walls.length) {       // an earlier test already left the table on this map (and cleared its walls): load them from the map config as the page does
+      const cfg = (await (await fetch('/api/map-config?map=vtt-terrain-test.png')).json()).config, f = s.map.drawW / s.map.img.naturalWidth;
+      s.walls = cfg.walls.map((w) => ({ x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open) }));
+    }
+    s.tokens = s.tokens.filter((t) => t.isPC).slice(0, 1); const hero = s.tokens[0];
+    s.fogEnabled = false; s.gmOverride = false; s.combat = { active: false, round: 0, order: [] };
+    hero.col = 11; hero.row = 27; hero.elevation = 0; hero.flySpeed = 0; s.wallsVersion++;
+    const top = '16,27';
+    const out = { fences: s.walls.filter((w) => w.type === 'fence').length, walker: vtt.reachable(hero).has(top), pin: s.places.some((p) => p.name === 'cliff-top') };
+    hero.flySpeed = 60; hero.elevation = 40; s.wallsVersion++;
+    out.flyer = vtt.reachable(hero).has(top);
+    hero.flySpeed = 0; hero.elevation = 0; s.wallsVersion++;
+    return out;
+  })()`);
+  assert.ok(r.fences >= 10, 'the cliff face is in the map as movement-only walls');
+  assert.equal(r.walker, false, 'a creature on foot cannot climb onto the mesa'); assert.equal(r.flyer, true, 'a flyer can');
+  assert.equal(r.pin, true, 'the cliff-top place is pinned');
+});
+
 test('end triggers: sanctuary ends when its holder harms another creature, rage when a round passes idle, hunter\'s mark and hex when the target drops', opts, async () => {
   await page.eval(setup);
   const r = await page.eval(`(async () => {

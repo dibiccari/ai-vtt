@@ -6,7 +6,8 @@
 // What is on it: trees (the trunks block sight and movement), two boulders (block both), a creek you can wade (difficult terrain), a field
 // of rubble with a ruined wall (difficult terrain, the wall blocks sight), a thicket of undergrowth (difficult terrain, does not block sight),
 // a small house with two doors (walls block sight until a door is opened), a window (stops movement, not sight) and a dark interior lit by a lantern,
-// a flickering campfire, and a fenced paddock (a fence stops movement, not sight).
+// a flickering campfire, a fenced paddock (a fence stops movement, not sight), and a high cliff: a mesa about 40 ft up whose face stops anyone on foot (a movement-only wall,
+// like a fence) but not a flyer, so only a flying creature can reach its top.
 
 import { writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -29,6 +30,7 @@ const HOUSE = { x: 28, y: 1.2, w: 5, h: 3.6, door: [30.2, 31.8], back: [2.2, 3.4
 const FIRE = { x: 7, y: 12.5 };
 const WINDOW = [2.2, 3.2];                                                    // squares: the window in the house's west wall (between these two y values)
 const PADDOCK = { x1: 30, y1: 17, x2: 35.5, y2: 20.5, gate: [32, 33] };         // squares: a fenced field with a gate gap in the south side
+const CLIFF = { x: 14, y: 24.5, w: 5, h: 5.5 };                                     // squares: the mesa, a cliff about 40 ft high; its face runs round the outside of this rectangle
 const extraWalls = [];                                                         // walls that the dd2vtt format cannot carry: fences and windows, in image pixels
 const TREES = [[5, 4], [9, 7], [14, 5], [22, 3], [27, 8], [35, 6], [36, 10], [3, 24], [12, 26], [19, 22], [26, 26], [33, 22], [37, 26], [17, 9]];
 const BOULDERS = [{ x: 28, y: 21, rx: 1.1, ry: 0.85 }, { x: 11, y: 10.5, rx: 0.7, ry: 0.55 }];
@@ -185,6 +187,23 @@ for (const b of BOULDERS) {
   fenceRun(sq(P.gate[1]), sq(P.y2), sq(P.x2), sq(P.y2));
 }
 
+/* ---------------- a high cliff: a mesa whose face stops walkers (a movement-only wall) but not flyers ---------------- */
+{
+  const C = CLIFF, x0 = sq(C.x), y0 = sq(C.y), x1 = sq(C.x + C.w), y1 = sq(C.y + C.h), face = sq(0.7);
+  p.rect(x0 + 10, y0 + 14, x1 - x0, y1 - y0, [16, 30, 16], 0.4);                                   // shadow it throws on the grass
+  for (let yy = y0; yy < y1; yy += 6) p.rect(x0, yy, x1 - x0, 6, shade([112, 102, 92], 0.82 + hash(Math.floor(yy / 6), 7, 5) * 0.3));   // the rock face, in strata
+  for (let xx = x0; xx < x1; xx += 7) p.rect(xx, y0, 7, y1 - y0, [60, 52, 46], 0.06 + hash(Math.floor(xx / 7), 3, 8) * 0.12);                // vertical weathering
+  p.rect(x0 + face, y0 + face, x1 - x0 - 2 * face, y1 - y0 - face, [118, 140, 82]);                  // the grassy top
+  for (let i = 0; i < 60; i++) {                                                                       // tufts and stones on the top
+    const tx = x0 + face + R() * (x1 - x0 - 2 * face), ty = y0 + face + R() * (y1 - y0 - face);
+    if (R() < 0.5) p.disc(tx, ty, 3 + R() * 4, [96 + R() * 30, 124 + R() * 30, 70], 0.55); else p.disc(tx, ty, 2 + R() * 3, [150, 146, 138], 0.8);
+  }
+  p.rect(x0 + face, y0 + face, x1 - x0 - 2 * face, 3, [190, 200, 150], 0.7);                          // the lit rim of the top
+  p.rect(x0, y0, x1 - x0, 3, [150, 140, 128], 0.9);
+  const run = (ax, ay, bx, by) => extraWalls.push({ x1: Math.round(ax), y1: Math.round(ay), x2: Math.round(bx), y2: Math.round(by), type: 'fence', open: false });
+  run(x0, y0, x1, y0); run(x0, y0, x0, y1); run(x1, y0, x1, y1); run(x0, y1, x1, y1);                  // movement-only: a creature on foot cannot cross, a flyer can
+}
+
 /* ---------------- trees (trunks block sight and movement; the leaves do not) ---------------- */
 for (const [tx, ty] of TREES) {
   const cx = sq(tx), cy = sq(ty), r = sq(1.15);
@@ -212,12 +231,14 @@ for (let i = 0; i < COLS; i++) {
 difficult.push({ x: RUBBLE.x * PPG, y: RUBBLE.y * PPG, w: RUBBLE.w * PPG, h: RUBBLE.h * PPG });
 difficult.push({ x: THICKET.x * PPG, y: THICKET.y * PPG, w: THICKET.w * PPG, h: THICKET.h * PPG });
 let starts = [{ name: 'start', x: 278, y: 479 }, { name: 'far-bank', x: 36 * PPG + 25, y: 21 * PPG + 25 }];
+const cliffTop = { name: 'cliff-top', x: Math.round(sq(CLIFF.x + CLIFF.w / 2)), y: Math.round(sq(CLIFF.y + 2.2)), desc: 'The top of a high cliff, about 40 ft up. Only a flyer can get here: the face stops anyone on foot.' };
 // Pins and terrain you have edited in Map Test win over these defaults when the map is drawn again.
 try {
   const old = JSON.parse(await readFile(path.join(root, 'data', 'maps', 'vtt-terrain-test.png.json'), 'utf8'));
   if (Array.isArray(old.starts) && old.starts.length) starts = old.starts;
   if (Array.isArray(old.difficult) && old.difficult.length) { difficult.length = 0; difficult.push(...old.difficult); }
 } catch { /* first time: the defaults */ }
+if (!starts.some((s) => s.name === 'cliff-top')) starts.push(cliffTop);
 
 await level.write(path.join(root, 'public', 'scenarios', 'terrain-test.dd2vtt'), { ambient: 'ffffffff' });
 await writeFile(path.join(root, 'public', 'scenarios', 'terrain-test.config.json'), JSON.stringify({ squares: COLS, light: 'bright', ambience: 'forest', starts, difficult, extraWalls, lights: level.lights.map((l) => ({ x: l.x * PPG, y: l.y * PPG, range: l.range, intensity: l.intensity, color: l.color, name: l.name, ...(l.flicker ? { flicker: true } : {}) })) }, null, 2));

@@ -5,8 +5,9 @@
   "starts": [
     {
       "name": "start",
-      "x": 278,
-      "y": 479
+      "x": 685,
+      "y": 603,
+      "radius": 2
     },
     {
       "name": "far-bank",
@@ -22,6 +23,12 @@
       "name": "pin-2",
       "x": 108,
       "y": 363
+    },
+    {
+      "name": "cliff-top",
+      "x": 825,
+      "y": 1335,
+      "desc": "The top of a high cliff, about 40 ft up. Only a flyer can get here: the face stops anyone on foot."
     }
   ],
   "difficult": [
@@ -324,6 +331,38 @@
       "y1": 1025,
       "x2": 1775,
       "y2": 1025,
+      "type": "fence",
+      "open": false
+    },
+    {
+      "x1": 700,
+      "y1": 1225,
+      "x2": 950,
+      "y2": 1225,
+      "type": "fence",
+      "open": false
+    },
+    {
+      "x1": 700,
+      "y1": 1225,
+      "x2": 700,
+      "y2": 1500,
+      "type": "fence",
+      "open": false
+    },
+    {
+      "x1": 950,
+      "y1": 1225,
+      "x2": 950,
+      "y2": 1500,
+      "type": "fence",
+      "open": false
+    },
+    {
+      "x1": 700,
+      "y1": 1500,
+      "x2": 950,
+      "y2": 1500,
       "type": "fence",
       "open": false
     }
