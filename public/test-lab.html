@@ -331,9 +331,7 @@
     g.font = `800 ${Math.round(sq * 0.45)}px sans-serif`;
     label('DM VERSION: SECRET', sq * 0.4, sq * 0.5, '#f0c048');
     tavernDm = cv.toDataURL('image/png');
-    if (existing) {
-      fetch('/api/dm-map?map=' + encodeURIComponent(existing.split('/').pop()), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: tavernDm }) }).catch(() => { /* the picture still shows here */ });
-    }
+    // The tavern's DM face is the same picture as the player's (user, Nov 2026): the lab shows this marked-up copy but no longer saves it for the AI DM, which already gets every creature and the hidden trap as tokens.
     return tavernDm;
   }
 
