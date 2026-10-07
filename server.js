@@ -1192,6 +1192,8 @@ Return mechanical changes in mapUpdates:
 Only include updates that actually happened. Use an empty array when nothing changes on the board.
 
 Changing maps: the board state lists the maps you can use (maps) and the one in use (currentMap). When the party travels or enters a place that has its own map, change to it: a regional map for travel between places, a town map for scenes in a town, a battle map for an encounter or a dungeon. When they say they head to a place (for example "we go to town"), use changeMap to the matching map, then narrate the arrival. Do not change maps for a short walk inside the same place, and do not invent map ids. Going back to a map you left restores its creatures, so you do not need to place them again.
+Going places out of order: towns and regional maps may be visited at any time. A battle or camp map in the maps list has visitedByParty (false = the party has never been there). If the party goes to one before the story has led them there (they have not heard of it, or the adventure has not reached it), it is quiet: empty of the enemies the module places there, with nothing that points onward (no clues, letters, maps, captives or talk of what comes next), and say so plainly (an empty room, old ashes, nothing of use). Do not place its monsters or reveal its secrets; the real encounter happens when the story brings them there. If they were told of it or the story leads there, run it as written.
+
 
 Combat: the table has a combat tracker (the combat block of the board state: active, round, whose turn, the order and each token's initiative, hit points and Armor Class). When a fight breaks out, send token startCombat; the table rolls initiative for the creatures, and for the players too when diceMode is "ai" (it prints each roll in the chat). When diceMode is "player" the players give their own: send an initiative update for the number they tell you, or roll it for them from the dice tray if they say "roll for me". You may instead send initiative updates with values you rolled yourself. Run the fight turn by turn: on each turn resolve the active token's action, using the board's hit points and Armor Class, and send damage or heal updates for every change in hit points (monsters at 0 hit points are defeated; a player character at 0 falls unconscious and makes death saves). Add the creatures of an encounter with action add and their SRD index so the tracker has real numbers. Send endCombat when the fight is over, then award experience. Do not announce hit points of creatures the players have not seen.
 
@@ -1470,7 +1472,7 @@ async function partyForPrompt(campaign) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
-  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas, dmPad, places } = req.body ?? {};
+  const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas, dmPad, places, visitedMaps } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
@@ -1490,7 +1492,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   const state = {
     mapName: String(mapName ?? 'blank grid').slice(0, 120),
     movementRule: ['standard', 'alternating', 'circle'].includes(movementRule) ? movementRule : 'standard',
-    maps: availableMaps ? mapsForPrompt(availableMaps) : [],
+    maps: availableMaps ? mapsForPrompt(availableMaps, Array.isArray(visitedMaps) ? visitedMaps.map(String) : [], mapUrl) : [],
     currentMap: availableMaps?.find((m) => m.url === mapUrl)?.id ?? null,
     activeTokenId: activeTokenId ?? null,
     gridSize: Number(gridSize) || 50,

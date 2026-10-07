@@ -59,6 +59,19 @@ test('mapsForPrompt lists arrival spots without leaking file paths', () => {
   for (const m of p) { assert.ok(m.id && m.kind && Array.isArray(m.arrivalSpots)); assert.ok(!('url' in m)); }
 });
 
+test('mapsForPrompt marks battle maps as visited or not; towns and regional maps carry no flag', () => {
+  const maps = mapsFor('lost-mine-of-phandelver', uploads);
+  const battle = maps.find((m) => m.kind === 'battle');
+  const open = maps.find((m) => m.kind === 'town' || m.kind === 'regional');
+  assert.ok(battle && open);
+  const none = mapsForPrompt(maps, [], '');
+  assert.equal(none.find((m) => m.id === battle.id).visitedByParty, false);
+  assert.ok(!('visitedByParty' in none.find((m) => m.id === open.id)));
+  assert.equal(mapsForPrompt(maps, [battle.url], '').find((m) => m.id === battle.id).visitedByParty, true);
+  assert.equal(mapsForPrompt(maps, [], battle.url).find((m) => m.id === battle.id).visitedByParty, true);
+  assert.ok(!('visitedByParty' in mapsForPrompt(maps)[0]), 'without the visited list nothing is claimed');
+});
+
 test('cleanMapList and mapsFromList', () => {
   const { list, problems } = cleanMapList([{ file: uploads[0], name: ' A ', kind: 'weird' }, { file: uploads[0], id: 'Same Id!' }, { file: uploads[0], id: 'same-id' }, { file: 'missing.png' }], uploads);
   assert.equal(list.length, 3); assert.equal(problems.length, 1);

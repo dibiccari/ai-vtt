@@ -3523,6 +3523,7 @@ async function sendTurn(spokenText, opts) {
       lighting: lightingForAi(),
       areas: state.areaPins.slice(0, 40),
       places: state.places.slice(0, 30),
+      visitedMaps: state.visitedMaps.slice(0, 60),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
