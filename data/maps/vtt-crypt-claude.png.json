@@ -1413,11 +1413,14 @@
   "starts": [
     {
       "name": "start",
-      "x": 307,
-      "y": 333,
+      "x": 182,
+      "y": 253,
       "radius": 2
     }
   ],
+  "light": "dark",
+  "ambience": "dungeon",
+  "mood": "dungeon",
   "source": "dd2vtt",
   "lights": [
     {
@@ -1556,8 +1559,5 @@
       "flicker": true
     }
   ],
-  "ambient": "ff2a2630",
-  "ambience": "dungeon",
-  "mood": "dungeon",
-  "light": "dark"
+  "ambient": "ff2a2630"
 }

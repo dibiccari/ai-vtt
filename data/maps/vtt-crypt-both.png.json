@@ -1,9 +1,5 @@
 {
   "squares": 30,
-  "light": "dark",
-  "ambience": "dungeon",
-  "mood": "dungeon",
-  "source": "dd2vtt",
   "walls": [
     {
       "x1": 155,
@@ -958,6 +954,10 @@
       "radius": 2
     }
   ],
+  "light": "dark",
+  "ambience": "dungeon",
+  "mood": "dungeon",
+  "source": "dd2vtt",
   "lights": [
     {
       "x": 429,
