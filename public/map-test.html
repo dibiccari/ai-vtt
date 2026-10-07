@@ -583,7 +583,7 @@
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
       if (seen === null || (seen === 'unseen' && !editing)) continue;
       ctx.globalAlpha = seen === 'in sight' ? 1 : 0.5;
-      if (s.radius > 0) {                                                  // an arrival area: a soft circle around the pin
+      if (s.name === 'start' && s.radius > 0) {                             // the start's arrival area: a soft circle around the pin
         const isStart = s.name === 'start';
         ctx.save();
         ctx.fillStyle = isStart ? 'rgba(63, 210, 127, 0.16)' : 'rgba(79, 157, 255, 0.13)';
@@ -1236,7 +1236,7 @@
       $('#pcNote').value = pin.desc || '';
       $('#pcStart').hidden = pin.name === 'start';
       $('#pcRadius').value = pin.radius || 0;
-      $('#pcRadiusRow').hidden = isAreaPin(pin);
+      $('#pcRadiusRow').hidden = pin.name !== 'start';       // only the start pin has an arrival circle; the other pins are descriptions
       const am = /^area-(\d+)/.exec(pin.name), area = am && AREAS.find((a) => a.n === Number(am[1])), pinGuide = PIN_GUIDES[pin.name];        // a module area pin shows its text from the adventure
       $('#pcGuide').hidden = !((area && area.text) || pinGuide);
       $('#pcGuide').open = false;
@@ -1253,7 +1253,7 @@
     const name = pinSlug($('#pcName').value);
     // pins may share a name (alternative spots, two guard posts); only "start" is unique, use Make start for that
     if (!name || (name === 'start' && S.starts.some((x) => x !== pin && x.name === 'start'))) { $('#pcName').value = pin.name; setSavedNote(name ? 'There is already a start pin: use Make start on the pin you want.' : 'A pin needs a name.'); return; }
-    if (name !== pin.name) { pin.name = name; $('#pcName').value = name; $('#pcStart').hidden = name === 'start'; save(); renderStartList(); requestRender(); }
+    if (name !== pin.name) { pin.name = name; $('#pcName').value = name; $('#pcStart').hidden = name === 'start'; $('#pcRadiusRow').hidden = name !== 'start'; save(); renderStartList(); requestRender(); }
   }
   function removePin(pin) {
     const i = S.starts.indexOf(pin);
@@ -1277,7 +1277,7 @@
     const old = S.starts.find((x) => x.name === 'start' && x !== pin);
     if (old) old.name = nextPinName();                     // the old start pin becomes an ordinary pin
     pin.name = 'start';
-    $('#pcName').value = 'start'; $('#pcStart').hidden = true;
+    $('#pcName').value = 'start'; $('#pcStart').hidden = true; $('#pcRadiusRow').hidden = false;
     parkAtStart(); revealFog();
     save(); renderStartList(); requestRender();
   });
