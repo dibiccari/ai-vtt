@@ -102,7 +102,7 @@
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
-    <label class="field" id="hexRow" hidden><span>Hexagon width in pixels (flat to flat): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
+    <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
     <p class="hint">Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again.</p>
   </div>
 
@@ -541,9 +541,10 @@
 
   // Hexagonal tiles (regional maps): pointy-top hexagons, hexSize = width flat to flat in picture pixels, one hex is 5 miles.
   function drawHexes(px) {
-    const hw = S.hexSize, r = hw / Math.sqrt(3), vs = r * 1.5;
+    // flat-top hexagons: a flat edge on the top and the bottom, a point left and right. hexSize is the distance between the two flat edges.
+    const fl = S.hexSize, r = fl / Math.sqrt(3), colW = r * 1.5;
     ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'; ctx.lineWidth = px; ctx.beginPath();
-    for (let row = -1, y = 0; y < S.H + vs; row++, y += vs) for (let x = (row % 2 ? hw / 2 : 0) - hw; x < S.W + hw; x += hw) for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3, X = x + hw / 2 + r * Math.cos(a), Y = y + r + r * Math.sin(a); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); if (i === 5) ctx.closePath(); }
+    for (let col = -1, cx = 0; cx < S.W + r * 2; col++, cx += colW) for (let cy = (col % 2 ? fl / 2 : 0) - fl; cy < S.H + fl; cy += fl) for (let i = 0; i < 6; i++) { const ang = i * Math.PI / 3, X = cx + r * Math.cos(ang), Y = cy + fl / 2 + r * Math.sin(ang); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); if (i === 5) ctx.closePath(); }
     ctx.stroke(); ctx.restore();
   }
 
@@ -1170,11 +1171,11 @@
       const px = S.W ? S.H + ' x ' + S.W + ' px (height x width)' : '';
       let game = '';
       if (S.tiles === 'square' && S.squares > 0 && S.W) { const down = Math.round(S.H / (S.W / S.squares)); game = down * 5 + ' x ' + S.squares * 5 + ' ft (' + down + ' x ' + S.squares + ' squares)'; }
-      else if (S.tiles === 'hex' && S.hexSize > 0 && S.W) { const a = S.W / S.hexSize, d = S.H / (S.hexSize * 0.866); game = Math.round(d * 5) + ' x ' + Math.round(a * 5) + ' miles (' + d.toFixed(1) + ' x ' + a.toFixed(1) + ' hexagons)'; }
+      else if (S.tiles === 'hex' && S.hexSize > 0 && S.W) { const a = S.W / (S.hexSize * 0.866), d = S.H / S.hexSize; game = Math.round(d * 5) + ' x ' + Math.round(a * 5) + ' miles (' + d.toFixed(1) + ' x ' + a.toFixed(1) + ' hexagons)'; }
       sz.textContent = px ? 'Size: ' + px + (game ? '\n' + game : '') : '';
     }
     if (S.tiles === 'square' && S.squares > 0 && S.W) { const across = S.squares, down = Math.round(S.H / (S.W / S.squares)); el.textContent = 'One square = 5 ft. This map is ' + across + ' x ' + down + ' squares (' + across * 5 + ' x ' + down * 5 + ' ft).'; }
-    else if (S.tiles === 'hex' && S.hexSize > 0 && S.W) { const across = S.W / S.hexSize, down = S.H / (S.hexSize * 0.866); el.textContent = 'One hexagon = 5 miles. This map is about ' + across.toFixed(1) + ' x ' + down.toFixed(1) + ' hexagons (about ' + Math.round(across * 5) + ' x ' + Math.round(down * 5) + ' miles).'; }
+    else if (S.tiles === 'hex' && S.hexSize > 0 && S.W) { const across = S.W / (S.hexSize * 0.866), down = S.H / S.hexSize; el.textContent = 'One hexagon = 5 miles. This map is about ' + across.toFixed(1) + ' x ' + down.toFixed(1) + ' hexagons (about ' + Math.round(across * 5) + ' x ' + Math.round(down * 5) + ' miles).'; }
     else el.textContent = S.tiles === 'none' ? 'A town map has no tiles.' : '';
   }
   function setTool(tool) {

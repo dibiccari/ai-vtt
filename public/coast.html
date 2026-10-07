@@ -28,7 +28,7 @@
     <label><input type="checkbox" id="names" checked> Show names</label>
     <label><input type="checkbox" id="places" checked> Show place names</label>
     <label><input type="checkbox" id="hex"> Show 5-mile hexagons</label>
-    <label>Hex size <input type="range" id="hexsize" min="60" max="160" value="95"> <b id="hexval">95</b></label>
+    <label>Hex size <input type="range" id="hexsize" min="60" max="200" value="124"> <b id="hexval">124</b></label>
     <span class="hint" id="info"></span>
   </div>
   <div class="stage" id="stage"><img id="pic" alt="The Sword Coast"><canvas id="cv"></canvas></div>
@@ -42,7 +42,7 @@
   await pic.decode().catch(() => {});
   const COLORS = { brown: '#4a3320', green: '#154a2a', teal: '#1d5560', red: '#8a1c1c' };
   const cfg = (await (await fetch('/api/map-config?map=dnd-sword-coast-ours.png')).json()).config || {};
-  const HEXPX = cfg.hexSize ? cfg.hexSize / (pic.naturalWidth / data.width) : 95;       // the hexagon width saved with the map, in the published picture's pixels
+  const HEXPX = cfg.hexSize ? cfg.hexSize / (pic.naturalWidth / data.width) : 124;       // the hexagon width saved with the map, in the published picture's pixels
   document.getElementById('hexsize').value = String(Math.round(HEXPX)); document.getElementById('hexval').textContent = Math.round(HEXPX);
   let hover = null;
   const OFFSETS = { "Agatha's Lair": [-150, -48], Conyberry: [10, 52], Phandalin: [-30, 58], 'Wave Echo Cave': [20, 60], 'Old Owl Well': [0, 50], 'Cragmaw Hideout': [-20, 50], 'Icespire Peak': [-10, -62], 'Mount Hotenow': [0, -64] };
@@ -51,10 +51,10 @@
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const k = w / data.width;
     if (document.getElementById('hex').checked) {
-      const hw = Number(document.getElementById('hexsize').value) * k, r = hw / Math.sqrt(3), vs = r * 1.5;       // pointy-top hexagons, flat-to-flat width hw
+      const fl = Number(document.getElementById('hexsize').value) * k, r = fl / Math.sqrt(3), colW = r * 1.5;       // flat-top hexagons: fl is flat edge to flat edge
       ctx.strokeStyle = 'rgba(40,30,20,0.38)'; ctx.lineWidth = 1;
-      for (let row = -1, y = 0; y < h + vs; row++, y += vs) for (let x = (row % 2 ? hw / 2 : 0) - hw; x < w + hw; x += hw) {
-        ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; ctx.lineTo(x + hw / 2 + r * Math.cos(a), y + r + r * Math.sin(a)); } ctx.closePath(); ctx.stroke();
+      for (let col = -1, cx = 0; cx < w + r * 2; col++, cx += colW) for (let cy = (col % 2 ? fl / 2 : 0) - fl; cy < h + fl; cy += fl) {
+        ctx.beginPath(); for (let n = 0; n < 6; n++) { const a = n * Math.PI / 3; ctx.lineTo(cx + r * Math.cos(a), cy + fl / 2 + r * Math.sin(a)); } ctx.closePath(); ctx.stroke();
       }
       ctx.fillStyle = 'rgba(30,20,10,0.8)'; ctx.font = 'italic ' + Math.max(11, 15 * k * 2) + 'px Georgia, serif'; ctx.textAlign = 'left'; ctx.fillText('One hex = 5 miles', 90 * k, 120 * k);
     }

@@ -41,7 +41,7 @@ test('buildSets: a player version beside the plain picture is one place, the pla
 test('gameSize and imageSize: squares are 5 ft, hexagons 5 miles, height x width', () => {
   assert.deepEqual(gameSize('battle', { w: 2000, h: 1500 }, 40, 0), { unit: 'ft', width: 200, height: 150, tilesAcross: 40, tilesDown: 30 });
   assert.deepEqual(gameSize('camp', { w: 1500, h: 1000 }, 30, 0), { unit: 'ft', width: 150, height: 100, tilesAcross: 30, tilesDown: 20 });
-  const r = gameSize('regional', { w: 1324, h: 1813 }, 0, 48); assert.equal(r.unit, 'miles'); assert.equal(r.width, 138); assert.ok(r.height > r.width, 'a tall map is taller than wide');
+  const r = gameSize('regional', { w: 1324, h: 1813 }, 0, 62); assert.equal(r.unit, 'miles'); assert.equal(r.width, 123); assert.equal(r.height, 146); const o = gameSize('regional', { w: 2648, h: 3625 }, 0, 124); assert.deepEqual([o.width, o.height], [r.width, r.height], 'the same hexagon at twice the pixels is the same size in miles');
   assert.equal(gameSize('town', { w: 1000, h: 800 }, 30, 0), null); assert.equal(gameSize('battle', null, 30, 0), null);
   const png = Buffer.alloc(32); png.writeUInt32BE(0x89504e47, 0); png.writeUInt32BE(1536, 16); png.writeUInt32BE(1024, 20);
   assert.deepEqual(imageSize(png), { w: 1536, h: 1024 }); assert.equal(imageSize(Buffer.from('nope')), null);

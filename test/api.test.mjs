@@ -341,8 +341,8 @@ test('map config keeps the map type (battle, camp, town, regional) and the sets 
 });
 
 test('map config keeps the tile kind: hexagons with a size for regional maps, squares (nothing saved) otherwise', async () => {
-  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 48 }));
-  let c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, 'hex'); assert.equal(c.hexSize, 48);
+  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 62 }));
+  let c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, 'hex'); assert.equal(c.hexSize, 62);
   ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 9999 }));
   assert.equal((await s.get('/api/map-config?map=vtt-hex-test.png')).json.config.hexSize, 260, 'the size is clamped');
   ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'square' }));

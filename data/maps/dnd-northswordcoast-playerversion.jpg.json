@@ -1,0 +1,8 @@
+{
+  "squares": 53,
+  "walls": [],
+  "starts": [],
+  "kind": "regional",
+  "tiles": "hex",
+  "hexSize": 134
+}

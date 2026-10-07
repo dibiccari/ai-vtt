@@ -87,8 +87,9 @@
       "desc": "The tallest peak of the Sword Mountains."
     }
   ],
-  "tiles": "hex",
-  "hexSize": 48,
   "light": "bright",
-  "ambience": "wind"
+  "ambience": "wind",
+  "kind": "regional",
+  "tiles": "hex",
+  "hexSize": 62
 }
