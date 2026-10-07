@@ -605,8 +605,9 @@
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.beginPath(); ctx.arc(s.x, s.y, 3 * px, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = 'rgba(63, 210, 127, 1)'; ctx.lineWidth = 3 * px; ctx.beginPath(); ctx.arc(s.x, s.y, 11 * px, 0, Math.PI * 2); ctx.stroke();
       } else {
-        ctx.strokeText(s.name, s.x + 13 * px, s.y);
-        ctx.fillText(s.name, s.x + 13 * px, s.y);
+        const label = s.desc ? s.name + ': ' + (s.desc.length > 48 ? s.desc.slice(0, 47) + '…' : s.desc) : s.name;       // the pin's description sits beside its name
+        ctx.strokeText(label, s.x + 13 * px, s.y);
+        ctx.fillText(label, s.x + 13 * px, s.y);
       }
     }
     ctx.restore();
@@ -1103,6 +1104,7 @@
       const grab = startAt(p);
       if (tokenAt(p) >= 0 && (!grab || grab.name === 'start')) {         // the player token has no card: dragging it moves only the token; hold Shift over the start pin to move the pin (the token goes with it)
         S.drag = grab && e.shiftKey ? { kind: 'start', spot: grab } : { kind: 'token', index: tokenAt(p) };
+        if (S.drag.kind === 'token' && S.selected) { S.selected = null; positionPinCard(); renderStartList(); requestRender(); }       // moving the token closes the pin card
         return;
       }
       if (grab) {
@@ -1224,7 +1226,8 @@
     const x = S.view.ox + S.selected.x * S.view.scale + 18, y = S.view.oy + S.selected.y * S.view.scale - 14;
     pinCard.hidden = false;
     pinCard.style.left = clamp(x, 8, Math.max(8, stage.width - 248)) + 'px';
-    pinCard.style.top = clamp(y, 56, Math.max(56, stage.height - 150)) + 'px';
+    const h = pinCard.offsetHeight || 150;                                  // never drop past the bottom of the map: the whole card stays in view
+    pinCard.style.top = clamp(y, 56, Math.max(56, stage.height - h - 8)) + 'px';
   }
   function selectPin(pin, focus) {
     S.selected = pin;
