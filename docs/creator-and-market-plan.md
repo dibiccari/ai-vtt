@@ -118,6 +118,11 @@ Multiplayer (docs/multiplayer-plan.md) is a separate track. It does not block A-
 - **Performance** of animation on big maps and slow machines: animations default off on low-end, one switch to turn all off.
 - **Scope:** this document is larger than everything built so far. A, B, C and D alone already change what the app is; stop there and play before building the rest.
 
+## 8b. What the comparisons decided (Nov 2026)
+- Regional and town pictures: ChatGPT's image model wins (the user's verdict on the Shire); our code adds the hex overlay or the place names.
+- Battle maps: the user prefers **option 3, ChatGPT's painted picture with walls, doors, objects and lights traced onto it by Claude** (public/scenarios/compare/crypt.html). So the editor's centre is a **trace-over-the-picture workflow**: paint (or upload) a picture, then lay exact walls, doors, solid objects and lights over it with a ruler-like overlay, nudge them until they sit on the picture, and test the line of sight at once. Claude's help is a "trace this picture" step that looks at ruler-marked crops of the picture and proposes the walls, which the person then corrects; ChatGPT's own wall reading is not good enough to use.
+- The repaint route (draw a layout exactly, have the image editor paint it with the layout locked) stays as a second way in for people who start from a plan; the editor needs a nudge tool for the objects that drift.
+
 ## 9. Questions for you
 1. For painted pictures, is the OpenAI key already in Settings the one to use, and is a per-image cost acceptable (I would show it before each generation)?
 2. Hex size: 5 miles per hex as you said, with 6 as an option. Should travel use the 2014 pace (slow 18 / normal 24 / fast 30 miles a day)?
