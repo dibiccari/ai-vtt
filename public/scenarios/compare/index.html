@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regional map comparison</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; color-scheme: dark; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width:1700px; margin:0 auto; padding:20px; }
+  h1 { margin:0 0 6px; font-size:22px; } h1 span { color:var(--gold); }
+  .lead { color:var(--muted); max-width:90ch; }
+  .pair { display:grid; grid-template-columns:repeat(auto-fit, minmax(520px, 1fr)); gap:16px; margin:16px 0; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  figure img { width:100%; height:auto; display:block; border-radius:8px; }
+  figcaption { margin-top:8px; color:var(--muted); font-size:13px; }
+  figcaption b { color:var(--text); }
+  pre { white-space:pre-wrap; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--muted); }
+  a { color:#4f9dff; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Regional map <span>comparison</span></h1>
+  <p class="lead">The same brief for both, a gentle farming country in the spirit of the Shire, at the same size (1536 x 1024, 3:2). Left: drawn by Claude with code (scripts/make-regional-map.mjs, no image model, exact and repeatable). Right: painted by ChatGPT's image model (gpt-image-1, medium quality, about $0.05) from the prompt below.</p>
+  <div class="pair">
+    <figure><img src="shire-claude.png" alt="Regional map drawn by Claude with code"><figcaption><b>Claude (code-drawn).</b> Strictly top-down; every river, road, field and village is a known object with a known position, so a hex grid, travel distances and place names can be laid on exactly. Flat, clean "map art"; fields and mountains look repetitive.</figcaption></figure>
+    <figure><img src="shire-chatgpt.png" alt="Regional map painted by ChatGPT"><figcaption><b>ChatGPT (image model).</b> Painterly, charming and varied; reads as a place at once. Drawn at a slight bird's-eye angle rather than flat top-down, features are not exact (the road and river are only roughly where the prompt put them), and you cannot ask for "a village at hex 12,7".</figcaption></figure>
+  </div>
+  <h2>The prompt both were given</h2>
+  <pre id="prompt"></pre>
+  <p class="lead">Asked for plain features instead of the trademarked name: the generator is more reliable with a description than with a name. The same words were my brief for the code.</p>
+</div>
+<script>fetch('shire-prompt.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt').textContent = t.trim(); });</script>
+</body>
+</html>
