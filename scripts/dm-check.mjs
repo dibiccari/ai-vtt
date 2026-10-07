@@ -113,7 +113,8 @@ if (flag('--gating')) {
     check(chars.length === 4 && !!town && !!castle, 'the party, Phandalin and Cragmaw Castle are available', chars.length + ' characters, maps: ' + maps.map((m) => m.id).join(','));
     if (failures) throw new Error('setup failed');
     const tokens = chars.map((c, i) => ({ id: 'pc-' + c.id, name: c.name, col: 10 + i, row: 10, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: 0, where: '', readied: '', image: '', hidden: false, kind: 'creature', speed: 30, movementRemaining: 30, conditions: [], summon: null, dead: false, stable: false, deathSaves: null, spent: null, initiative: null, visibleToParty: true }));
-    const say = '[Edric] We have only just arrived in Phandalin and have heard nothing about any castle. Still, I feel like exploring: let us walk out of town to the ruined Cragmaw Castle in the hills right now and look around.';
+    const arrive = flag('--gating-arrive');       // the party really goes: the DM must move the table there and find it quiet
+    const say = arrive ? '[Table] The players insist: the party travels to Cragmaw Castle right now, although the story has not led them there and they have no clues about it. Move the table there and describe what they find.' : '[Edric] We have only just arrived in Phandalin and have heard nothing about any castle. Still, I feel like exploring: let us walk out of town to the ruined Cragmaw Castle in the hills right now and look around.';
     const res = await srv.post('/api/chat', { message: say, history: [], activeTokenId: 'pc-edric', tokens, characters: chars, walls: [], gridSize: 50, mapUrl: town.url, mapName: town.name, visitedMaps: [town.url], inputMode: 'text', combat: { active: false }, diceMode: 'ai', movementRule: 'circle' });
     check(res.status === 200 && !res.json?.offline, 'gating: HTTP 200');
     const rec = calls.find((c) => c.response && c.status === 200);
@@ -121,7 +122,13 @@ if (flag('--gating')) {
     check(state.maps.find((m) => m.id === 'cragmaw-castle')?.visitedByParty === false, 'gating: the DM was told Cragmaw Castle has not been visited');
     check(!('visitedByParty' in state.maps.find((m) => m.id === 'phandalin')), 'gating: the town carries no visited flag (open any time)');
     const j = res.json, upd = j.mapUpdates || [];
-    console.log('DEBUG ' + JSON.stringify({ updates: upd.map((u) => ({ t: u.type, n: u.name })), narrative: String(j.narrative).slice(0, 700) }));
+    console.log('DEBUG ' + JSON.stringify({ updates: upd.map((u) => ({ t: u.type, n: u.name })), narrative: String(j.narrative).slice(0, arrive ? 1400 : 700) }));
+    if (arrive) {
+      const moved = upd.find((u) => u.type === 'changeMap');
+      check(!!moved && /cragmaw-castle/.test(moved.mapUrl), 'gating: the table moved to Cragmaw Castle', moved ? moved.mapUrl : 'no changeMap');
+      check(/\b(empty|abandoned|deserted|quiet|silent|still|nothing|no one|nobody|bare|stripped|cold)\b/i.test(j.narrative), 'gating: the castle is described as empty and quiet');
+      check(!/\b(clue|map|letter|note|scrap|sketch|diary|ledger|tracks? (lead|point)|captive|prisoner)\b/i.test(j.narrative), 'gating: nothing in the description leads onward', (String(j.narrative).match(/\b(clue|map|letter|note|scrap|sketch|diary|ledger|captive|prisoner)\b/i) || [''])[0]);
+    }
     check(!upd.some((u) => u.type === 'addToken' || u.type === 'startCombat'), 'gating: no creatures were added and no fight started', upd.map((u) => u.type + ':' + (u.name || '')).join(', '));
     check(!/\b(grol|klarg|hobgoblin|ogre|king)\b/i.test(j.narrative) || /\b(empty|abandoned|quiet|deserted|nothing)\b/i.test(j.narrative), 'gating: the castle is described as quiet, not as the module\'s stronghold');
   } catch (err) { fail('gating check aborted: ' + err.message); }
