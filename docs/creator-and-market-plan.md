@@ -39,7 +39,7 @@ One page with a map type chosen first. The types differ in tools but share the f
 
 **Town map** (no grid)
 - A picture plus **named places**: each is a pin with a name and a note (Shrine of Luck, the Rusty Flagon, the blacksmith). A checkbox **Show names** draws the labels on the picture for the players; the DM always sees them. Labels can be hidden one by one (a secret place) and the table keeps a DM-only copy as today.
-- Optional: the assistant reads the picture and suggests label positions to drag into place.
+- Optional: the assistant (a vision model) reads the picture and suggests label positions to drag into place.
 
 **Regional map** (hexagons)
 - A picture plus a **hex overlay** with a checkbox. The overlay is drawn by us, not by the image: controls for hex size, offset, flat or pointy orientation and the **distance per hex (5 miles by default, editable, because some modules use 6)**, so a generated picture never has to line up by itself.
@@ -61,7 +61,7 @@ All drawn on the canvas at a low frame rate and only while visible; an **animati
 ## 4. The Market
 
 Start small and honest about what it is:
-1. **Stage 1: a local library** (small). A **Library** page lists every map and character on this server as cards with a picture, type, mood and tags; one click adds a map to a campaign or a character to a party. For a **one-shot** the wizard offers "Quick game": pick a map and characters, no campaign setup.
+1. **Stage 1: a local library** (small). A **Library** page lists every map and character on this server as cards with a picture, type, mood and tags; one click adds a map to a campaign or a character to a party. A **one-shot is just a short campaign** (the tavern brawl is one): it is made with the same wizard, from a small template of one map, a few documents and a party, so there is no separate "quick game" concept. Library cards say "Add to a campaign"; a short ready-made campaign is a template like any other.
 2. **Stage 2: packs** (small to medium). A pack is one file (`.vttpack`, a zip): a manifest, the picture, the config (walls, doors, lights, pins, terrain, mood), optional DM picture and notes, plus a licence line. Import by file or by URL. This is how you share with a friend.
 3. **Stage 3: a hosted market** (large, and a different kind of project): accounts, uploads, search, ratings, moderation, takedowns, payments if paid. It needs a server that is not your computer. I would not start here. The pack format from stage 2 is what makes it possible later.
 
@@ -97,7 +97,7 @@ Why this is feasible: the AI already drives the table through a small set of fla
 
 | Step | What | Size | Why this order |
 |---|---|---|---|
-| A | **Creator shell and Library** (stage 1): nav group, a Library page of maps and characters, add to campaign, Quick game | small to medium | makes the vision visible quickly and needs no new engine |
+| A | **Creator shell and Library** (stage 1): nav group, a Library page of maps and characters, add to campaign | small to medium | makes the vision visible quickly and needs no new engine |
 | B | **Pack format** (`.vttpack`, `.vttchar`): export and import with licence checks | small to medium | sharing and one-shots; the base of any market |
 | C | **Regional maps**: hex overlay with a checkbox, 5 miles per hex, party marker and travel days, terrain painting | medium | most of the value for little drawing work; picture from the image model |
 | D | **Town maps**: named places layer with Show names, DM-only places | small | quick win after C |

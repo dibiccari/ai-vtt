@@ -21,8 +21,9 @@
   button:hover { border-color:var(--accent); }
   button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   button.tool[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
   button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
-  select, input[type=number] { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:6px; font:inherit; width:100%; }
+  select, input[type=number], label.field textarea { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:6px; font:inherit; width:100%; }
   input[type=range] { width:100%; accent-color:var(--accent); }
   label.field { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
   label.field b { color:var(--text); }
@@ -106,10 +107,31 @@
     <label class="field"><span>Ambient sound</span>
       <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
     </label>
+    <label class="field"><span>Mood theme</span>
+      <select id="moodSel"><option value="">No mood</option></select>
+    </label>
+    <p class="hint">A mood sets the light level and the ambient sound together; you can still change either one above afterwards.</p>
     <label class="field"><span>This version is called</span>
       <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
     </label>
     <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
+  </div>
+
+  <div class="group">
+    <h2>Market</h2>
+    <p class="hint">Save this map, with its walls, doors, lights, pins, terrain and mood, to the Market, where any campaign can add it. Pictures from a purchase or from Wizards of the Coast cannot be saved.</p>
+    <button id="saveMarketBtn" type="button">Save to Market…</button>
+    <div id="marketForm" hidden>
+      <label class="field"><span>Name</span><input type="text" id="mkName" maxlength="80" spellcheck="false"></label>
+      <label class="field"><span>Kind of map</span><select id="mkType"><option value="battle">Battle map (squares, walls, fog)</option><option value="camp">Camp (squares, no fog)</option><option value="town">Town (no grid)</option><option value="regional">Regional (no grid)</option></select></label>
+      <label class="field"><span>Description</span><textarea id="mkDesc" rows="3" maxlength="600" placeholder="What it is and how it plays"></textarea></label>
+      <label class="field"><span>Tags (separated by commas)</span><input type="text" id="mkTags" maxlength="120" spellcheck="false" placeholder="dungeon, cave, forest"></label>
+      <label class="field"><span>Licence</span><select id="mkLicence"></select></label>
+      <label class="field"><span>Author (optional)</span><input type="text" id="mkAuthor" maxlength="60" spellcheck="false"></label>
+      <label class="check"><input type="checkbox" id="mkRights"> I made this map or have the right to share it</label>
+      <div class="row"><button id="mkSave" type="button" class="primary">Save to Market</button><button id="mkCancel" type="button">Cancel</button></div>
+      <p class="hint" id="mkStatus"></p>
+    </div>
   </div>
 
   <div class="group">
@@ -197,7 +219,7 @@
 
   const S = {
     url: null, img: null, W: 0, H: 0,
-    squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
+    squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
     brush: 2, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
@@ -282,7 +304,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -937,6 +959,7 @@
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.lights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && l.flicker === true && isFinite(l.x) && isFinite(l.y)) : [];
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
+        S.mood = remote && typeof remote.mood === 'string' ? remote.mood : '';
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
         S.rooms = remote && Array.isArray(remote.rooms) ? remote.rooms.filter((r) => Array.isArray(r) && r.length === 4 && r.every(isFinite)) : [];
@@ -1044,6 +1067,7 @@
     fillCopyTargets();
     $('#lightLevel').value = S.light;
     $('#ambienceKind').value = S.ambience;
+    $('#moodSel').value = S.mood;
     $('#groupName').value = S.group;
     $('#variantName').value = S.variant;
     refreshVariants();
@@ -1362,6 +1386,42 @@
   };
   $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; save(); });
   $('#ambienceKind').addEventListener('change', (e) => { S.ambience = e.target.value; save(); });
+  // Moods (from the Market's list): picking one also sets the light level and the ambient sound that go with it.
+  let MOODS = [];
+  fetch('/api/market').then((r) => r.json()).then((shop) => {
+    MOODS = shop.moods || [];
+    for (const m of MOODS.filter((x) => x.id)) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.label; $('#moodSel').appendChild(o); }
+    $('#moodSel').value = S.mood;
+    for (const l of shop.licences || []) { const o = document.createElement('option'); o.value = l; o.textContent = l; $('#mkLicence').appendChild(o); }
+  }).catch(() => {});
+  $('#moodSel').addEventListener('change', (e) => {
+    S.mood = e.target.value;
+    const m = MOODS.find((x) => x.id === S.mood);
+    if (m && m.light) { S.light = m.light; $('#lightLevel').value = S.light; }
+    if (m && m.ambience) { S.ambience = m.ambience; $('#ambienceKind').value = S.ambience; }
+    save();
+  });
+  // Save to Market: the picture and its set-up become a pack any campaign can add.
+  $('#saveMarketBtn').addEventListener('click', () => {
+    const f = $('#marketForm'); f.hidden = !f.hidden;
+    if (f.hidden) return;
+    if (!$('#mkName').value) $('#mkName').value = mapName().replace(/\.[a-z0-9]+$/i, '').replace(/^(vtt|mkt)-/, '').replace(/[-_]+/g, ' ');
+    $('#mkStatus').textContent = '';
+  });
+  $('#mkCancel').addEventListener('click', () => { $('#marketForm').hidden = true; });
+  $('#mkSave').addEventListener('click', async () => {
+    const st = $('#mkStatus'); st.textContent = 'Saving…';
+    try {
+      await fetch('/api/map-config?map=' + encodeURIComponent(mapName()), { method: 'GET' });       // the page's own autosave has already run; this just makes sure the set-up exists
+      const res = await fetch('/api/market/maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        picture: mapName(), name: $('#mkName').value, type: $('#mkType').value, description: $('#mkDesc').value, tags: $('#mkTags').value, mood: S.mood,
+        licence: $('#mkLicence').value, author: $('#mkAuthor').value, rights: $('#mkRights').checked }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      st.innerHTML = ''; st.append('Saved to the Market as "' + data.pack.name + '". ');
+      const a = document.createElement('a'); a.href = '/market.html'; a.textContent = 'Open the Market'; st.appendChild(a);
+    } catch (err) { st.textContent = 'Could not save: ' + err.message; }
+  });
   $('#groupName').addEventListener('change', groupChanged);
   $('#variantName').addEventListener('change', groupChanged);
   $('#onlyUvtt').checked = S.onlyUvtt;

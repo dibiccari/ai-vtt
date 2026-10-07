@@ -280,3 +280,40 @@ test('quick starter characters: a name, race, class and level give a full sheet;
   assert.equal(again.json.character.id, 'mira-vale-2'); assert.equal(again.json.character.ac, 18);
   assert.ok((await s.get('/api/characters')).json.some((x) => x.id === 'mira-vale'));
 });
+
+test('the Market: save a map as a pack, list it, add it to a campaign, export and import it; purchased pictures and private packs stay put', async () => {
+  const shop = (await s.get('/api/market')).json;
+  assert.deepEqual(shop.types, ['battle', 'camp', 'town', 'regional']); assert.ok(shop.moods.some((m) => m.id === 'haunted') && shop.licences.length >= 4);
+  const pictures = (await s.get('/api/maps')).json.maps.map((u) => u.replace('/uploads/', ''));
+  const mine = pictures.find((f) => /^vtt-/.test(f)), bought = pictures.find((f) => /^lmop-/.test(f));
+  assert.ok(mine && bought, 'the sandbox has a generated and a purchased picture');
+  assert.equal((await s.post('/api/market/maps', { picture: bought, name: 'Stolen', rights: true })).status, 403, 'a purchased picture is never packed');
+  assert.equal((await s.post('/api/market/maps', { picture: 'nope.png', name: 'x', rights: true })).status, 404);
+  assert.equal((await s.post('/api/market/maps', { picture: mine, name: '', rights: true })).status, 400);
+  assert.equal((await s.post('/api/market/maps', { picture: mine, name: 'Test Grounds' })).status, 400, 'the rights must be confirmed');
+  const saved = await s.post('/api/market/maps', { picture: mine, name: 'Test Grounds', type: 'battle', description: 'A meadow with a creek.', tags: 'Outdoor, creek,outdoor', mood: 'night', licence: 'CC0 (public domain)', rights: true }); ok(saved);
+  assert.equal(saved.json.id, 'test-grounds'); assert.deepEqual(saved.json.pack.tags, ['outdoor', 'creek']); assert.equal(saved.json.pack.mood, 'night');
+  assert.ok(saved.json.pack.walls > 0 || saved.json.pack.squares > 0);
+  const list = (await s.get('/api/market')).json.maps; assert.equal(list.length, 1); assert.equal(list[0].name, 'Test Grounds');
+  const pic = await fetch(`${s.base}/api/market/test-grounds/picture`); assert.equal(pic.status, 200); assert.match(pic.headers.get('content-type'), /image/);
+  // add it to a campaign
+  const made = await s.post('/api/campaigns/new', { scratch: true, name: 'Market Test', party: ['edric'] }); ok(made);
+  const add = await s.post('/api/market/test-grounds/install', { campaign: 'market-test' }); ok(add);
+  assert.match(add.json.file, /^mkt-test-grounds\./);
+  const maps = (await s.get('/api/campaigns/market-test/maps')).json.maps;
+  assert.deepEqual(maps.map((m) => [m.name, m.kind]), [['Test Grounds', 'battle']]);
+  assert.equal((await s.post('/api/market/test-grounds/install', { campaign: 'market-test' })).json.already, true, 'adding it twice changes nothing');
+  assert.equal((await s.post('/api/market/test-grounds/install', { campaign: 'ghost' })).status, 404);
+  assert.ok((await s.get(`/api/map-config?map=${add.json.file}`)).json.config.squares > 0, 'its set-up came with it');
+  // export and import
+  const exp = await s.get('/api/market/test-grounds/export'); ok(exp);
+  assert.equal(exp.json.format, 'vttpack'); assert.ok(exp.json.picture.data.length > 1000); assert.equal(exp.json.name, 'Test Grounds');
+  const imp = await s.post('/api/market/import', exp.json); ok(imp);
+  assert.equal(imp.json.id, 'test-grounds-2'); assert.equal((await s.get('/api/market')).json.maps.length, 2);
+  assert.equal((await s.post('/api/market/import', { format: 'other' })).status, 400);
+  // a private pack does not leave the computer
+  const priv = await s.post('/api/market/maps', { picture: mine, name: 'Secret', licence: 'Private: only for me' }); ok(priv);
+  assert.equal((await s.get('/api/market/secret/export')).status, 403);
+  assert.equal((await s.del('/api/market/secret')).status, 200); assert.equal((await s.del('/api/market/secret')).status, 404);
+  assert.equal((await s.get('/api/market')).json.maps.length, 2);
+});

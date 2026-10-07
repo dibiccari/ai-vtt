@@ -9,7 +9,8 @@
       { href: '/characters.html', label: '📜 Character Sheets' },
       { href: '/bestiary.html', label: '🐉 Bestiary' },
       { href: '/spells.html', label: '✨ Spells' },
-      { href: '/tokens.html', label: '🧿 Tokens' }
+      { href: '/tokens.html', label: '🧿 Tokens' },
+      { href: '/market.html', label: '🛒 Market' }
     ] },
     { label: '🛠 Tools', items: [
       { href: '/map-test.html', label: '🗺 Map Test' },

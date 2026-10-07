@@ -11,6 +11,7 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
+import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
@@ -155,7 +156,8 @@ await seedCharacters();
 // ---------------------------------------------------------------- app
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+const jsonBody = express.json({ limit: '10mb' });
+app.use((req, res, next) => (req.path === '/api/market/import' ? next() : jsonBody(req, res, next)));       // a pack file carries its picture and gets its own, larger limit
 app.use(liveMiddleware(null, () => campaignIds()));
 // Map pictures were renamed in Oct 2026 (vtt- for the maps we generated, dnd- for the Wizards of the Coast ones). A saved game or browser copy may still name the
 // old file, so the old names keep working: the picture is redirected and the config and DM picture lookups use the new name.
@@ -318,6 +320,7 @@ function normalizeMapConfig(body) {
   if (['bright', 'dim', 'dark'].includes(body?.light)) config.light = body.light;
   if (['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(body?.ambience)) config.ambience = body.ambience;
   if (/^[0-9a-f]{6,8}$/i.test(String(body?.ambient ?? ''))) config.ambient = String(body.ambient).toLowerCase();
+  if (MOODS.some((m) => m.id && m.id === body?.mood)) config.mood = body.mood;            // a mood theme chosen in the map editor (lib/market.js MOODS)
   if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
   // Versions of one place (a day and a night map, a summer and a winter map) share a group and have a variant name each.
   const slug = (v, max) => String(v ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max);
@@ -405,6 +408,7 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.ambient && !config.ambient) config.ambient = old.ambient;
       if (old.light && !config.light) config.light = old.light;
       if (old.ambience && !config.ambience) config.ambience = old.ambience;
+      if (old.mood && !config.mood && req.body?.mood === undefined) config.mood = old.mood;
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
   }
@@ -417,6 +421,98 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   }
   await writeFile(file, JSON.stringify(config, null, 2));
   res.json({ ok: true, walls: config.walls.length });
+}));
+
+// ---------------------------------------------------------------- Market (maps saved as packs: data/market/<id>/pack.json + picture, lib/market.js)
+const MARKET_DIR = path.join(__dirname, 'data', 'market');
+await mkdir(MARKET_DIR, { recursive: true });
+const marketIds = async () => (await readdir(MARKET_DIR, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name);
+const readPack = async (id) => { try { return JSON.parse(await readFile(path.join(MARKET_DIR, safeId(id), 'pack.json'), 'utf8')); } catch { return null; } };
+const summary = (id, p) => ({ id, kind: p.kind, name: p.name, type: p.type, description: p.description, tags: p.tags, mood: p.mood, licence: p.licence, author: p.author, createdAt: p.createdAt, picture: `/api/market/${id}/picture`,
+  walls: (p.config?.walls || []).filter((w) => w.type !== 'door').length, doors: (p.config?.walls || []).filter((w) => w.type === 'door').length, lights: (p.config?.lights || []).length, pins: (p.config?.starts || []).length, difficult: (p.config?.difficult || []).length, squares: p.config?.squares || 0 });
+
+app.get('/api/market', asyncRoute(async (_req, res) => {
+  const maps = [];
+  for (const id of await marketIds()) { const p = await readPack(id); if (p && p.kind === 'map') maps.push(summary(id, p)); }
+  maps.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  res.json({ maps, types: MAP_TYPES, moods: MOODS, licences: LICENCES });
+}));
+
+// Save a map from the editor: its picture and its configuration (data/maps/<picture>.json) become a pack.
+app.post('/api/market/maps', localOnly, asyncRoute(async (req, res) => {
+  const picture = path.basename(String(req.body?.picture ?? ''));
+  if (!(await pictureFiles()).includes(picture)) return res.status(404).json({ error: 'That map picture is not uploaded.' });
+  const why = whyNotShareable(picture);
+  if (why) return res.status(403).json({ error: why });
+  const meta = cleanMeta(req.body, 'picture' + path.extname(picture).toLowerCase());
+  if (meta.licence !== LICENCES[LICENCES.length - 1] && req.body?.rights !== true) return res.status(400).json({ error: 'Confirm that you made this map or have the right to share it (or choose the Private licence).' });
+  let config = {};
+  try { config = JSON.parse(await readFile(mapConfigFile(picture), 'utf8')); } catch { /* no set-up yet: the pack still holds the picture */ }
+  const taken = new Set(await marketIds());
+  const id = packId(meta.name, taken);
+  await mkdir(path.join(MARKET_DIR, id), { recursive: true });
+  await copyFile(path.join(UPLOAD_DIR, picture), path.join(MARKET_DIR, id, meta.picture));
+  if (meta.mood) config.mood = meta.mood;
+  await writeFile(path.join(MARKET_DIR, id, 'pack.json'), JSON.stringify({ ...meta, config }, null, 2));
+  res.json({ ok: true, id, pack: summary(id, { ...meta, config }) });
+}));
+
+app.get('/api/market/:id/picture', asyncRoute(async (req, res) => {
+  const p = await readPack(req.params.id);
+  if (!p) return res.status(404).end();
+  res.sendFile(path.join(MARKET_DIR, safeId(req.params.id), p.picture));
+}));
+
+app.delete('/api/market/:id', localOnly, asyncRoute(async (req, res) => {
+  const id = safeId(req.params.id);
+  if (!id || !(await marketIds()).includes(id)) return res.status(404).json({ error: 'No such pack' });
+  await rm(path.join(MARKET_DIR, id), { recursive: true, force: true });
+  res.json({ ok: true });
+}));
+
+// Add a pack's map to a campaign: the picture and set-up go into the app's map folders (once), the campaign's map list gets an entry.
+app.post('/api/market/:id/install', localOnly, asyncRoute(async (req, res) => {
+  const id = safeId(req.params.id), p = await readPack(id);
+  if (!p) return res.status(404).json({ error: 'No such pack' });
+  const cid = safeCampaignId(req.body?.campaign);
+  if (!cid || !(await campaignIds()).includes(cid)) return res.status(404).json({ error: 'Pick a campaign to add it to.' });
+  const file = `mkt-${id}${path.extname(p.picture)}`;
+  if (!(await pictureFiles()).includes(file)) await copyFile(path.join(MARKET_DIR, id, p.picture), path.join(UPLOAD_DIR, file));
+  const cfgFile = mapConfigFile(file);
+  try { await readFile(cfgFile, 'utf8'); } catch { await writeFile(cfgFile, JSON.stringify({ ...normalizeMapConfig(p.config || {}), source: p.config?.source || 'market' }, null, 2)); }
+  const files = await pictureFiles();
+  const current = (await savedMapList(cid)) ?? entriesToList(mapsFor(await templateOfCampaign(cid), files));
+  if (current.some((m) => m.file === file)) return res.json({ ok: true, already: true, file });
+  const entry = { id: id.slice(0, 40), file, name: p.name, kind: p.type, description: p.description };
+  const { list } = cleanMapList([...current, entry], files);
+  await writeFile(path.join(CAMPAIGNS_DIR, cid, 'maps.json'), JSON.stringify({ version: 1, maps: list }, null, 2));
+  res.json({ ok: true, file, maps: list.length });
+}));
+
+// A pack as one file to send to someone (the picture inside, base64).
+app.get('/api/market/:id/export', asyncRoute(async (req, res) => {
+  const id = safeId(req.params.id), p = await readPack(id);
+  if (!p) return res.status(404).json({ error: 'No such pack' });
+  if (p.licence === LICENCES[LICENCES.length - 1]) return res.status(403).json({ error: 'This pack has the Private licence: it stays on this computer.' });
+  const data = (await readFile(path.join(MARKET_DIR, id, p.picture))).toString('base64');
+  res.setHeader('Content-Disposition', `attachment; filename="${id}.vttpack.json"`);
+  res.json({ format: 'vttpack', version: 1, ...p, picture: { ext: path.extname(p.picture).toLowerCase(), data } });
+}));
+
+app.post('/api/market/import', localOnly, express.json({ limit: '80mb' }), asyncRoute(async (req, res) => {
+  const b = req.body;
+  if (!b || b.format !== 'vttpack' || b.kind !== 'map') return res.status(400).json({ error: 'This is not a map pack file.' });
+  const ext = String(b.picture?.ext ?? '').toLowerCase();
+  if (!IMAGE_EXT.has(ext) || typeof b.picture?.data !== 'string') return res.status(400).json({ error: 'The pack has no usable picture.' });
+  const bytes = Buffer.from(b.picture.data, 'base64');
+  if (bytes.length < 100) return res.status(400).json({ error: 'The pack picture is empty.' });
+  const meta = cleanMeta({ ...b, rights: true }, 'picture' + ext);
+  const id = packId(meta.name, new Set(await marketIds()));
+  await mkdir(path.join(MARKET_DIR, id), { recursive: true });
+  await writeFile(path.join(MARKET_DIR, id, meta.picture), bytes);
+  const config = { ...normalizeMapConfig(b.config || {}), ...(b.config?.mood ? { mood: b.config.mood } : {}) };
+  await writeFile(path.join(MARKET_DIR, id, 'pack.json'), JSON.stringify({ ...meta, config }, null, 2));
+  res.json({ ok: true, id, pack: summary(id, { ...meta, config }) });
 }));
 
 // The places the active campaign can move the table to (only maps that are installed).

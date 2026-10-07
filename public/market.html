@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Market</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:1240px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 16px; max-width:80ch; }
+  .bar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:16px; }
+  .bar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); font-weight:600; }
+  input[type=text], select { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:7px 10px; font:inherit; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:7px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  button.danger { color:var(--danger); }
+  .count { margin-left:auto; color:var(--muted); font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+  .card { background:var(--panel2); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  .card img { width:100%; height:170px; object-fit:cover; display:block; background:#1b2230; }
+  .card .body { padding:12px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .card h3 { margin:0; font-size:16px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .chip.type { color:var(--gold); border-color:#6b5a2a; }
+  .note { color:var(--muted); font-size:13px; }
+  .stats { color:var(--muted); font-size:12px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:auto; padding-top:8px; }
+  .empty { background:var(--panel); border:1px dashed var(--border); border-radius:10px; padding:24px; color:var(--muted); }
+  .status { min-height:22px; margin:0 0 10px; font-size:13px; }
+  .status.ok { color:var(--ok); } .status.bad { color:var(--danger); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Market <span>maps</span></h1>
+  <p class="lead">Maps saved from the map editor, ready to add to any campaign. Add one to a campaign with its picture, walls, doors, lights, pins and terrain, or send it to a friend as a single file. Characters will join here later. Maps from a purchase or from Wizards of the Coast never appear here: they cannot be shared.</p>
+  <div class="bar">
+    <label>Search <input type="text" id="q" placeholder="name or tag" aria-label="Search"></label>
+    <label>Type <select id="type" aria-label="Type"><option value="">All</option></select></label>
+    <label>Mood <select id="mood" aria-label="Mood"><option value="">All</option></select></label>
+    <label>Add to <select id="campaign" aria-label="Campaign to add to"></select></label>
+    <button id="importBtn" type="button">Import a pack file…</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <a class="note" href="/map-test.html">Make or set up a map in the editor</a>
+    <span class="count" id="count"></span>
+  </div>
+  <p class="status" id="status" role="status"></p>
+  <div id="list"></div>
+</div>
+<script src="/nav.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const setStatus = (t, k) => { const s = $('#status'); s.textContent = t || ''; s.className = 'status' + (k ? ' ' + k : ''); };
+  async function api(url, opts) {
+    const res = await fetch(url, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    return data;
+  }
+  const JSONPOST = (body) => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let shop = { maps: [], types: [], moods: [], licences: [] };
+  let campaigns = [];
+  const label = (list, id) => (list.find((m) => m.id === id) || {}).label || '';
+
+  async function load() {
+    try {
+      shop = await api('/api/market');
+      campaigns = (await api('/api/campaigns')).campaigns || [];
+    } catch (err) { setStatus('Could not load the Market: ' + err.message, 'bad'); return; }
+    const type = $('#type'), mood = $('#mood'), camp = $('#campaign');
+    if (type.options.length <= 1) shop.types.forEach((t) => { const o = el('option', '', t[0].toUpperCase() + t.slice(1)); o.value = t; type.appendChild(o); });
+    if (mood.options.length <= 1) shop.moods.filter((m) => m.id).forEach((m) => { const o = el('option', '', m.label); o.value = m.id; mood.appendChild(o); });
+    const keep = camp.value;
+    camp.innerHTML = '';
+    campaigns.filter((c) => !c.test).forEach((c) => { const o = el('option', '', c.name + (c.active ? ' (active)' : '')); o.value = c.id; camp.appendChild(o); });
+    camp.value = keep || (campaigns.find((c) => c.active) || {}).id || '';
+    if (!camp.value && camp.options.length) camp.selectedIndex = 0;       // nothing chosen yet: offer the first campaign
+    render();
+  }
+
+  function render() {
+    const q = $('#q').value.trim().toLowerCase(), type = $('#type').value, mood = $('#mood').value;
+    const list = shop.maps.filter((m) => (!type || m.type === type) && (!mood || m.mood === mood) && (!q || (m.name + ' ' + m.tags.join(' ') + ' ' + m.description).toLowerCase().includes(q)));
+    $('#count').textContent = list.length + ' of ' + shop.maps.length + ' maps';
+    const root = $('#list'); root.innerHTML = '';
+    if (!shop.maps.length) { root.appendChild(el('div', 'empty', 'Nothing here yet. Open the map editor (Tools > Map Test), set a map up, and press "Save to Market".')); return; }
+    if (!list.length) { root.appendChild(el('div', 'empty', 'No map matches that search.')); return; }
+    const grid = el('div', 'grid');
+    for (const m of list) {
+      const card = el('div', 'card');
+      const img = el('img'); img.src = m.picture; img.alt = m.name; img.loading = 'lazy';
+      const body = el('div', 'body');
+      body.appendChild(el('h3', '', m.name));
+      const chips = el('div', 'chips');
+      chips.appendChild(el('span', 'chip type', m.type));
+      if (m.mood) chips.appendChild(el('span', 'chip', label(shop.moods, m.mood)));
+      m.tags.forEach((t) => chips.appendChild(el('span', 'chip', t)));
+      body.appendChild(chips);
+      if (m.description) body.appendChild(el('div', 'note', m.description));
+      const bits = [m.squares ? m.squares + ' squares across' : '', m.walls ? m.walls + ' walls' : '', m.doors ? m.doors + ' doors' : '', m.lights ? m.lights + ' lights' : '', m.pins ? m.pins + ' pins' : '', m.difficult ? 'difficult terrain' : ''].filter(Boolean);
+      body.appendChild(el('div', 'stats', bits.join(' · ') + (bits.length ? ' · ' : '') + m.licence + (m.author ? ' · by ' + m.author : '')));
+      const actions = el('div', 'actions');
+      const add = el('button', 'primary', 'Add to campaign');
+      add.addEventListener('click', async () => {
+        const cid = $('#campaign').value;
+        if (!cid) { setStatus('Pick a campaign to add it to.', 'bad'); return; }
+        add.disabled = true;
+        try {
+          const out = await api('/api/market/' + encodeURIComponent(m.id) + '/install', JSONPOST({ campaign: cid }));
+          setStatus(out.already ? m.name + ' is already in that campaign.' : m.name + ' was added to ' + ((campaigns.find((c) => c.id === cid) || {}).name || cid) + '. Set its start pin on Map Test if it has none.', 'ok');
+        } catch (err) { setStatus('Could not add it: ' + err.message, 'bad'); }
+        add.disabled = false;
+      });
+      const dl = el('a'); dl.href = '/api/market/' + encodeURIComponent(m.id) + '/export'; dl.download = m.id + '.vttpack.json';
+      const dlb = el('button', '', 'Save as a file'); dl.appendChild(dlb);
+      if (m.licence === shop.licences[shop.licences.length - 1]) { dlb.disabled = true; dlb.title = 'Private: stays on this computer'; }
+      const del = el('button', 'danger', 'Delete');
+      del.addEventListener('click', async () => {
+        if (!confirm('Delete the pack "' + m.name + '" from the Market? Campaigns that already use it keep their copy.')) return;
+        try { await api('/api/market/' + encodeURIComponent(m.id), { method: 'DELETE' }); setStatus('Deleted ' + m.name + '.', 'ok'); await load(); } catch (err) { setStatus('Could not delete: ' + err.message, 'bad'); }
+      });
+      actions.append(add, dl, del);
+      body.appendChild(actions);
+      card.append(img, body);
+      grid.appendChild(card);
+    }
+    root.appendChild(grid);
+  }
+
+  $('#q').addEventListener('input', render);
+  $('#type').addEventListener('change', render);
+  $('#mood').addEventListener('change', render);
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    try {
+      const pack = JSON.parse(await file.text());
+      const out = await api('/api/market/import', JSONPOST(pack));
+      setStatus('Imported ' + out.pack.name + '.', 'ok');
+      await load();
+    } catch (err) { setStatus('Could not import that file: ' + err.message, 'bad'); }
+  });
+  load();
+})();
+</script>
+</body>
+</html>

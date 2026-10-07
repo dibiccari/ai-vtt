@@ -55,4 +55,37 @@ test('the eraser takes squares away along its stroke, a right-click drag erases 
   assert.equal(left.area, 0, 'the eraser can clear it all: ' + JSON.stringify(left.list));
 });
 
+test('Save to Market: a purchased picture is refused, a map of your own is saved with its mood and shows in the Market, where it can be added to a campaign', opts, async () => {
+  const click = (id) => `document.querySelector('#${id}').click()`;
+  const fill = (id, v) => `{ const e = document.querySelector('#${id}'); e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }`;
+  await page.eval(`(async () => { ${click('saveMarketBtn')}; ${fill('mkName', 'Goblin trail')}; document.querySelector('#mkRights').click(); ${click('mkSave')}; await new Promise((r) => setTimeout(r, 800)); })()`);
+  const refused = await page.eval(`document.querySelector('#mkStatus').textContent`);
+  assert.match(refused, /purchase|Wizards/, 'a purchased picture cannot be saved: ' + refused);
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#moodSel") && document.querySelector("#moodSel").options.length > 3 && document.querySelector("#banner").textContent.includes("px")');
+  const out = await page.eval(`(async () => {
+    ${fill('moodSel', 'night')}
+    await new Promise((r) => setTimeout(r, 1800));
+    const level = document.querySelector('#lightLevel').value, sound = document.querySelector('#ambienceKind').value;
+    ${click('saveMarketBtn')}; ${fill('mkName', 'Terrain Grounds')}; ${fill('mkType', 'battle')}; ${fill('mkDesc', 'A meadow with a creek and a mesa.')}; ${fill('mkTags', 'outdoor, creek')};
+    document.querySelector('#mkRights').click(); ${click('mkSave')}; await new Promise((r) => setTimeout(r, 1200));
+    return { level, sound, status: document.querySelector('#mkStatus').textContent };
+  })()`);
+  assert.equal(out.level, 'dark', 'the night mood sets the light level'); assert.equal(out.sound, 'night', 'and the ambient sound');
+  assert.match(out.status, /Saved to the Market as "Terrain Grounds"/);
+  const pack = (await server.get('/api/market')).json.maps.find((m) => m.id === 'terrain-grounds');
+  assert.ok(pack && pack.mood === 'night' && pack.type === 'battle' && pack.tags.includes('creek'));
+  // the Market page
+  await page.goto(`${server.base}/market.html`);
+  await page.waitFor('document.querySelectorAll(".card").length >= 1');
+  const card = await page.eval(`(() => { const c = document.querySelector('.card'); return { text: c.innerText, img: c.querySelector('img').getAttribute('src') }; })()`);
+  assert.match(card.text, /Terrain Grounds/); assert.match(card.text, /battle/i); assert.match(card.text, /Night/); assert.match(card.img, /market\/terrain-grounds\/picture/);
+  await page.eval(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Add to campaign').click()`);
+  await page.waitFor(`document.querySelector('#status').textContent.includes('was added')`, 8000);
+  const cid = await page.eval(`document.querySelector('#campaign').value`);
+  assert.ok(cid, 'a campaign is offered');
+  const maps = (await server.get('/api/campaigns/' + cid + '/maps')).json.maps;
+  assert.ok(maps.some((m) => m.name === 'Terrain Grounds'), 'the map is in the chosen campaign\'s list');
+});
+
 test('no page errors in Map Test', opts, () => { assert.deepEqual(page.problems, []); });
