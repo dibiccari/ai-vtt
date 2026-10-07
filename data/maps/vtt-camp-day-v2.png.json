@@ -9926,10 +9926,13 @@
     {
       "name": "start",
       "x": 760,
-      "y": 1030
+      "y": 1030,
+      "radius": 2
     }
   ],
   "light": "bright",
+  "ambience": "forest",
+  "mood": "sunny-day",
   "source": "dd2vtt",
   "group": "camp-v2",
   "variant": "day",
@@ -9944,7 +9947,5 @@
       "flicker": true
     }
   ],
-  "ambient": "ffffffff",
-  "mood": "sunny-day",
-  "ambience": "forest"
+  "ambient": "ffffffff"
 }

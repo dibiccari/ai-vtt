@@ -332,3 +332,12 @@ test('map config keeps what a door can be: locked, secret and the dc; plain wall
   assert.deepEqual(w[2], { x1: 100, y1: 0, x2: 150, y2: 0, type: 'door', open: false, secret: true, dc: 18 });
   assert.deepEqual(w[3], { x1: 150, y1: 0, x2: 200, y2: 0, type: 'door', open: false }, 'a dc outside 5 to 30 is dropped');
 });
+
+test('map config keeps the tile kind: hexagons with a size for regional maps, squares (nothing saved) otherwise', async () => {
+  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 48 }));
+  let c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, 'hex'); assert.equal(c.hexSize, 48);
+  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 9999 }));
+  assert.equal((await s.get('/api/map-config?map=vtt-hex-test.png')).json.config.hexSize, 260, 'the size is clamped');
+  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'square' }));
+  c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, undefined); assert.equal(c.hexSize, undefined);
+});

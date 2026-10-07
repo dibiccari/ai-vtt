@@ -49,6 +49,11 @@
   main:has(#variantSwitch:not([hidden])) .stage-bar { right:190px; }   /* leave room for the Day/Night switch */
   .stage-bar > button { padding:6px 14px; border-radius:8px; white-space:nowrap; }
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
+  .view-switch { position:absolute; left:50%; transform:translateX(-50%); top:12px; z-index:6; display:flex; gap:0; align-items:center; }
+  .view-switch button { border-radius:0; padding:6px 18px; font-weight:700; }
+  .view-switch button:first-child { border-radius:8px 0 0 8px; } .view-switch button:last-child { border-radius:0 8px 8px 0; }
+  .view-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  .view-switch .vnote { margin-left:10px; font-size:12px; color:var(--muted); background:rgba(10,13,18,.75); padding:3px 8px; border-radius:6px; }
   .variant-switch { position:absolute; right:12px; top:12px; z-index:5; display:flex; gap:0; }
   .variant-switch[hidden] { display:none; }
   .zoom-controls { position:absolute; right:12px; bottom:12px; z-index:5; display:flex; flex-direction:column; gap:6px; }
@@ -82,7 +87,9 @@
     <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
-    <label class="check"><input type="checkbox" id="showGrid"> Show grid</label>
+    <label class="field"><span>Tiles of this map</span><select id="tileKind"><option value="square">Squares (battle maps, 5 ft)</option><option value="hex">Hexagons (regional maps, 5 miles)</option></select></label>
+    <label class="field" id="hexRow" hidden><span>Hexagon width in pixels (flat to flat): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
+    <label class="check"><input type="checkbox" id="showGrid"> Show tiles (the squares or the hexagons)</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check"><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token (walls block, difficult terrain costs double)</label>
@@ -115,6 +122,13 @@
       <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
     </label>
     <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
+  </div>
+
+  <div class="group">
+    <h2>DM and player versions</h2>
+    <p class="hint">Every map has two faces. <b>Player</b> is the picture the table shows. <b>DM</b> is the same map with the pins, the start area, area numbers, secret and locked doors and terrain marked, and it is what the AI DM is shown. Use the DM | Player switch above the map to look at each. "Make the DM version" draws the DM face from this map's set-up and saves it for the DM.</p>
+    <div class="row"><button id="makeDmBtn" type="button">Make the DM version</button><button id="dropDmBtn" type="button" class="danger" hidden>Remove it</button></div>
+    <p class="hint" id="dmStatus"></p>
   </div>
 
   <div class="group">
@@ -181,6 +195,11 @@
 
 <main id="stage">
   <canvas id="cv"></canvas>
+  <div class="view-switch" id="viewSwitch" role="group" aria-label="Who is looking">
+    <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
+    <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
+    <span class="vnote" id="viewNote"></span>
+  </div>
   <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
   <div class="zoom-controls">
     <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
@@ -226,7 +245,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
   };
@@ -310,7 +329,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -472,12 +491,12 @@
     if (!S.img) return;
     const v = S.view;
     ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
-    ctx.drawImage(S.img, 0, 0, S.W, S.H);
+    ctx.drawImage(S.viewAs === 'dm' && S.dmImg ? S.dmImg : S.img, 0, 0, S.W, S.H);
     // Fires marked "flicker" in the config are animated over the picture.
     for (const l of S.lights) Flicker.draw(ctx, l.x, l.y, cell() * Math.min(1, Math.max(0.25, Math.pow(l.range / 9, 2))), performance.now() / 1000);
 
     const px = 1 / v.scale;
-    if (S.showGrid) drawGrid(px);
+    if (S.showGrid) { if (S.tiles === 'hex') drawHexes(px); else drawGrid(px); }
 
     if (S.fog && S.tokens.length) {
       ctx.save();
@@ -505,9 +524,16 @@
 
     if (S.showWalls) drawWalls(px);
     drawMoveRange(px);
-    drawTerrain(px);
-    drawStarts(px);
+    if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }                 // the players never see the terrain shading, the pins or the start area
     drawTokens(px);
+  }
+
+  // Hexagonal tiles (regional maps): pointy-top hexagons, hexSize = width flat to flat in picture pixels, one hex is 5 miles.
+  function drawHexes(px) {
+    const hw = S.hexSize, r = hw / Math.sqrt(3), vs = r * 1.5;
+    ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'; ctx.lineWidth = px; ctx.beginPath();
+    for (let row = -1, y = 0; y < S.H + vs; row++, y += vs) for (let x = (row % 2 ? hw / 2 : 0) - hw; x < S.W + hw; x += hw) for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3, X = x + hw / 2 + r * Math.cos(a), Y = y + r + r * Math.sin(a); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); if (i === 5) ctx.closePath(); }
+    ctx.stroke(); ctx.restore();
   }
 
   function drawGrid(px) {
@@ -878,13 +904,14 @@
     for (const w of S.walls) {
       const door = w.type === 'door';
       ctx.lineWidth = (door ? 5 : 4) * px;
-      ctx.strokeStyle = door && w.secret ? 'rgba(210, 120, 255, 0.95)' : door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : w.locked ? 'rgba(255, 150, 60, 0.98)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
-      ctx.setLineDash(door && (w.open || w.secret) ? [10 * px, 8 * px] : []);
+      const dmSees = S.viewAs === 'dm';
+      ctx.strokeStyle = door && w.secret && dmSees ? 'rgba(210, 120, 255, 0.95)' : door && w.secret ? 'rgba(255, 90, 90, 0.95)' : door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : w.locked ? 'rgba(255, 150, 60, 0.98)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
+      ctx.setLineDash(door && (w.open || (w.secret && dmSees)) ? [10 * px, 8 * px] : []);
       ctx.beginPath();
       ctx.moveTo(w.x1, w.y1);
       ctx.lineTo(w.x2, w.y2);
       ctx.stroke();
-      if (door && (w.locked || w.secret)) { ctx.setLineDash([]); ctx.fillStyle = w.secret ? '#d278ff' : '#ff963c'; ctx.beginPath(); ctx.arc((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, 5 * px, 0, Math.PI * 2); ctx.fill(); }
+      if (door && dmSees && (w.locked || w.secret)) { ctx.setLineDash([]); ctx.fillStyle = w.secret ? '#d278ff' : '#ff963c'; ctx.beginPath(); ctx.arc((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, 5 * px, 0, Math.PI * 2); ctx.fill(); }
     }
     ctx.setLineDash([]);
     ctx.restore();
@@ -968,6 +995,7 @@
         S.lights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && l.flicker === true && isFinite(l.x) && isFinite(l.y)) : [];
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.mood = remote && typeof remote.mood === 'string' ? remote.mood : '';
+        S.tiles = remote && remote.tiles === 'hex' ? 'hex' : 'square'; S.hexSize = remote && remote.hexSize >= 20 ? remote.hexSize : 95;
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
         S.rooms = remote && Array.isArray(remote.rooms) ? remote.rooms.filter((r) => Array.isArray(r) && r.length === 4 && r.every(isFinite)) : [];
@@ -977,6 +1005,7 @@
         parkAtStart();
         refreshMapLabels();
         loadAreas();
+        loadDmVersion();
         syncControls();
         resetFog();
         fitView();
@@ -1102,6 +1131,7 @@
     $('#lightLevel').value = S.light;
     $('#ambienceKind').value = S.ambience;
     $('#moodSel').value = S.mood;
+    $('#tileKind').value = S.tiles; $('#hexSize').value = S.hexSize; $('#hexVal').textContent = S.hexSize; $('#hexRow').hidden = S.tiles !== 'hex';
     $('#groupName').value = S.group;
     $('#variantName').value = S.variant;
     refreshVariants();
@@ -1497,6 +1527,8 @@
   });
   $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
+  $('#tileKind').addEventListener('change', (e) => { S.tiles = e.target.value; $('#hexRow').hidden = S.tiles !== 'hex'; save(); requestRender(); });
+  $('#hexSize').addEventListener('input', (e) => { S.hexSize = Number(e.target.value); $('#hexVal').textContent = S.hexSize; save(); requestRender(); });
 
   $('#resetFogBtn').addEventListener('click', resetFog);
   $('#fitBtn').addEventListener('click', fitView);
@@ -1618,6 +1650,53 @@
     box.appendChild(sum);
   }
   $('#selfTestBtn').addEventListener('click', runSelfTest);
+
+  /* ---------------- DM | Player ---------------- */
+  // The DM version is a second picture of the same map (data/dm-maps, served by /api/dm-map): the player picture with the pins, areas and secrets marked. Without one the DM sees the player picture plus live marks.
+  function loadDmVersion() {
+    S.dmImg = null; S.dmMsg = ''; updateViewUi();
+    const name = mapName(); if (!name) return;
+    const img = new Image();
+    img.onload = () => { if (mapName() === name) { S.dmImg = img; updateViewUi(); requestRender(); } };
+    img.onerror = () => updateViewUi();
+    img.src = '/api/dm-map?map=' + encodeURIComponent(name) + '&t=' + Date.now();
+  }
+  function updateViewUi() {
+    document.querySelectorAll('#viewSwitch button[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.viewAs)));
+    $('#viewNote').textContent = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
+    $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
+    $('#dropDmBtn').hidden = !S.dmImg;
+  }
+  function setView(v) { S.viewAs = v; S.dm = v === 'dm'; $('#dm').checked = S.dm; updateViewUi(); resetFog(); requestRender(); }
+  // Draw the DM version from the set-up: the player picture, then terrain, pins with their names, the start area, secret and locked doors, lights; saved for the AI DM (jpeg, at most 2400 px wide).
+  async function makeDmVersion() {
+    const st = $('#dmStatus'); st.textContent = 'Drawing…';
+    const k = Math.min(1, 2400 / S.W), W = Math.round(S.W * k), H = Math.round(S.H * k);
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    x.drawImage(S.img, 0, 0, W, H); x.scale(k, k);
+    const px = 1 / k, cs = cell();
+    x.fillStyle = 'rgba(230, 130, 30, 0.34)'; for (const d of S.difficult) x.fillRect(d.x, d.y, d.w, d.h);
+    x.lineCap = 'round';
+    for (const w of S.walls) if (w.type === 'door' && (w.secret || w.locked)) { x.strokeStyle = w.secret ? '#d278ff' : '#ff963c'; x.lineWidth = 6 * px * k; x.setLineDash(w.secret ? [10, 8] : []); x.beginPath(); x.moveTo(w.x1, w.y1); x.lineTo(w.x2, w.y2); x.stroke(); x.setLineDash([]); }
+    const label = (text, lx, ly, size, color) => { x.font = '700 ' + size + 'px "Segoe UI", system-ui, sans-serif'; x.textBaseline = 'middle'; x.lineWidth = size / 4; x.strokeStyle = 'rgba(0,0,0,0.85)'; x.lineJoin = 'round'; x.strokeText(text, lx, ly); x.fillStyle = color; x.fillText(text, lx, ly); };
+    for (const s of S.starts) {
+      const isStart = s.name === 'start';
+      if (isStart && s.radius > 0) { x.fillStyle = 'rgba(63, 210, 127, 0.16)'; x.strokeStyle = 'rgba(63, 210, 127, 0.85)'; x.lineWidth = 3; x.setLineDash([10, 8]); x.beginPath(); x.arc(s.x, s.y, s.radius * cs, 0, 6.3); x.fill(); x.stroke(); x.setLineDash([]); }
+      x.fillStyle = isStart ? '#3fd27f' : '#4f9dff'; x.strokeStyle = '#000'; x.lineWidth = 2; x.beginPath(); x.arc(s.x, s.y, Math.max(7, cs * 0.16), 0, 6.3); x.fill(); x.stroke();
+      const area = /^area-(\d+)/.exec(s.name), size = Math.max(14, cs * 0.34);
+      label(isStart ? 'START' : area ? area[1] + (s.desc ? '. ' + s.desc.slice(0, 28) : '') : s.name + (s.desc ? ': ' + s.desc.slice(0, 40) : ''), s.x + Math.max(12, cs * 0.24), s.y, size, isStart ? '#9dffc7' : '#cfe4ff');
+    }
+    let n = 0; for (const w of S.walls) if (w.type === 'door') { n++; label(String(n), (w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2 - Math.max(10, cs * 0.22), Math.max(12, cs * 0.26), w.secret ? '#e6b3ff' : w.locked ? '#ffc08a' : '#ffe9a8'); }
+    const url = c.toDataURL('image/jpeg', 0.86);
+    try {
+      const res = await fetch('/api/dm-map?map=' + encodeURIComponent(mapName()), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
+      const data = await res.json().catch(() => ({})); if (!res.ok) throw new Error(data.error || res.statusText);
+      const msg = 'Saved the DM version (' + Math.round(data.bytes / 1024) + ' KB).'; loadDmVersion(); S.dmMsg = msg; updateViewUi();
+    } catch (err) { st.textContent = 'Could not save it: ' + err.message; }
+  }
+  document.getElementById('viewSwitch').addEventListener('click', (e) => { const b = e.target.closest('button[data-view]'); if (b) setView(b.dataset.view); });
+  $('#makeDmBtn').addEventListener('click', makeDmVersion);
+  $('#dropDmBtn').addEventListener('click', async () => { if (!confirm('Remove the saved DM version of this picture?')) return; await fetch('/api/dm-map?map=' + encodeURIComponent(mapName()), { method: 'DELETE' }).catch(() => {}); loadDmVersion(); });
 
   /* ---------------- start ---------------- */
   new ResizeObserver(() => { resizeCanvas(); }).observe(stage);

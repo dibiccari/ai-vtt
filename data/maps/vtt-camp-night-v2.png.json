@@ -9931,6 +9931,8 @@
     }
   ],
   "light": "dark",
+  "ambience": "night",
+  "mood": "camp-night",
   "source": "dd2vtt",
   "group": "camp-v2",
   "variant": "night",
@@ -9969,7 +9971,5 @@
       "name": "lantern-se"
     }
   ],
-  "ambient": "ff1a2240",
-  "mood": "camp-night",
-  "ambience": "night"
+  "ambient": "ff1a2240"
 }

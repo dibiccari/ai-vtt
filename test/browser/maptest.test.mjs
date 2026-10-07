@@ -88,4 +88,50 @@ test('Save to Market: a purchased picture is refused, a map of your own is saved
   assert.ok(maps.some((m) => m.name === 'Terrain Grounds'), 'the map is in the chosen campaign\'s list');
 });
 
+test('DM | Player: the player view hides pins and secrets, the DM view shows them, and Make the DM version saves a picture the server serves back', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#viewSwitch") && document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, out = {};
+    out.start = [S.viewAs, S.dm];
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
+    out.player = [S.viewAs, S.dm, document.querySelector('#dm').checked, document.querySelector('#viewNote').textContent];
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
+    out.dm = [S.viewAs, S.dm];
+    const before = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
+    document.querySelector('#makeDmBtn').click(); await wait(2500);
+    const after = await fetch('/api/dm-map?map=vtt-terrain-test.png');
+    out.dmMap = [before, after.status, after.headers.get('content-type'), (await after.blob()).size > 5000];
+    out.status = document.querySelector('#dmStatus').textContent; out.noteDm = document.querySelector('#viewNote').textContent;
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(300);
+    out.notePlayer = document.querySelector('#viewNote').textContent;
+    window.confirm = () => true; document.querySelector('#dropDmBtn').click(); await wait(800);
+    out.dropped = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
+    return out;
+  })()`);
+  assert.deepEqual(r.start, ['dm', true]); assert.deepEqual(r.player, ['player', false, false, 'What the table sees']); assert.deepEqual(r.dm, ['dm', true]);
+  assert.equal(r.dmMap[0], 404, 'no DM version before'); assert.equal(r.dmMap[1], 200); assert.match(r.dmMap[2], /image\/jpeg/); assert.equal(r.dmMap[3], true);
+  assert.match(r.status, /Saved the DM version/); assert.match(r.noteDm, /DM version of the picture/); assert.equal(r.notePlayer, 'What the table sees');
+  assert.equal(r.dropped, 404, 'it can be removed again');
+});
+
+test('tiles: a regional map shows hexagons, a battle map squares, and one Show tiles box hides or shows either', opts, async () => {
+  const shot = async (url) => {
+    await page.goto(`${server.base}/map-test.html?map=${url}`);
+    await page.waitFor('document.querySelector("#tileKind") && document.querySelector("#banner").textContent.includes("px")');
+    return page.eval(`(async () => { const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const S = window.mapTest.state, box = document.querySelector('#showGrid');
+      const out = { tiles: S.tiles, select: document.querySelector('#tileKind').value, hexRow: !document.querySelector('#hexRow').hidden, showing: box.checked };
+      const count = () => { const cv = document.querySelector('canvas'), x = cv.getContext('2d'), d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) n += d[i] + d[i + 1] + d[i + 2]; return n; };       // the picture's total brightness: lines drawn over it change it
+      box.checked = true; box.dispatchEvent(new Event('change')); await wait(300); out.on = count();
+      box.checked = false; box.dispatchEvent(new Event('change')); await wait(300); out.off = count();
+      return out; })()`);
+  };
+  const hex = await shot('/uploads/dnd-sword-coast-ours.png');
+  assert.equal(hex.tiles, 'hex'); assert.equal(hex.select, 'hex'); assert.equal(hex.hexRow, true, 'the hexagon size slider shows for hexagons');
+  assert.notEqual(hex.on, hex.off, 'ticking Show tiles draws the hexagons');
+  const sq = await shot('/uploads/vtt-terrain-test.png');
+  assert.equal(sq.tiles, 'square'); assert.equal(sq.hexRow, false); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
+});
+
 test('no page errors in Map Test', opts, () => { assert.deepEqual(page.problems, []); });

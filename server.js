@@ -323,6 +323,7 @@ function normalizeMapConfig(body) {
   if (['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(body?.ambience)) config.ambience = body.ambience;
   if (/^[0-9a-f]{6,8}$/i.test(String(body?.ambient ?? ''))) config.ambient = String(body.ambient).toLowerCase();
   if (MOODS.some((m) => m.id && m.id === body?.mood)) config.mood = body.mood;            // a mood theme chosen in the map editor (lib/market.js MOODS)
+  if (body?.tiles === 'hex') { config.tiles = 'hex'; config.hexSize = Math.max(20, Math.min(260, Math.round(Number(body?.hexSize) || 95))); }       // regional maps: hexagons, one hex is 5 miles (squares are the default and need no entry)
   if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
   // Versions of one place (a day and a night map, a summer and a winter map) share a group and have a variant name each.
   const slug = (v, max) => String(v ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max);
@@ -411,6 +412,7 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.light && !config.light) config.light = old.light;
       if (old.ambience && !config.ambience) config.ambience = old.ambience;
       if (old.mood && !config.mood && req.body?.mood === undefined) config.mood = old.mood;
+      if (old.tiles === 'hex' && req.body?.tiles === undefined) { config.tiles = 'hex'; config.hexSize = old.hexSize; }
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
   }
@@ -1591,6 +1593,14 @@ app.put('/api/dm-map', localOnly, asyncRoute(async (req, res) => {
   for (const ext of Object.keys(DM_MEDIA)) { try { await unlink(path.join(DM_MAP_DIR, stem + ext)); } catch { /* none */ } }
   await writeFile(path.join(DM_MAP_DIR, `${stem}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`), bytes);
   res.json({ ok: true, bytes: bytes.length });
+}));
+
+app.delete('/api/dm-map', localOnly, asyncRoute(async (req, res) => {
+  const stem = dmStem(req.query.map);
+  if (!/^[\w.-]{1,120}$/.test(stem)) return res.status(400).json({ error: 'Invalid map name' });
+  let removed = 0;
+  for (const ext of Object.keys(DM_MEDIA)) { try { await unlink(path.join(DM_MAP_DIR, stem + ext)); removed++; } catch { /* none */ } }
+  res.json({ ok: true, removed });
 }));
 
 function buildHistory(history, message, state, inputMode, dmMap) {
