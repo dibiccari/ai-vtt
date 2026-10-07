@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Maps</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; display:grid; grid-template-columns:110px minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); overflow:hidden; }
+  .content { overflow-y:auto; padding:20px; }
+  .page { max-width:1400px; margin:0 auto; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); font-size:13px; margin:0 0 14px; max-width:100ch; }
+  a { color:var(--accent); }
+  input, select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:6px 10px; }
+  .bar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:14px; }
+  .bar label { display:flex; gap:6px; align-items:center; color:var(--muted); font-weight:600; font-size:13px; }
+  .count { margin-left:auto; color:var(--muted); font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:14px; }
+  .card { background:var(--panel2); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  .card img { width:100%; height:165px; object-fit:cover; display:block; background:#1b2230; }
+  .card .body { padding:10px 12px 12px; display:flex; flex-direction:column; gap:5px; flex:1; }
+  .card h3 { margin:0; font-size:14px; word-break:break-all; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .chip { font-size:11px; padding:1px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .chip.kind { color:var(--gold); border-color:#6b5a2a; } .chip.ok { color:var(--ok); border-color:#1f5c3d; } .chip.warn { color:#ffb36b; border-color:#6b4a2a; }
+  .stats { color:var(--muted); font-size:12px; }
+  .links { display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; padding-top:6px; }
+  .links a { font-size:12px; font-weight:600; text-decoration:none; padding:3px 10px; border:1px solid #3a4558; border-radius:6px; background:#1f2632; color:var(--text); }
+  .links a:hover { border-color:var(--accent); }
+  .empty { background:var(--panel); border:1px dashed var(--border); border-radius:10px; padding:24px; color:var(--muted); }
+</style>
+</head>
+<body>
+<script src="/maptools-rail.js"></script>
+<div class="content">
+<div class="page">
+  <h1>Maps <span>every picture</span></h1>
+  <p class="lead">All the maps on this server, with what each one has: its kind and tiles (squares for battle maps, hexagons for regional maps), walls, doors, lights, pins, whether it has a start spot, and whether a DM version of the picture is saved. Open any of them in Map Test, where the DM | Player switch shows each face.</p>
+  <div class="bar">
+    <label>Search <input type="text" id="q" placeholder="name" aria-label="Search"></label>
+    <label>Kind <select id="kind" aria-label="Kind"><option value="">All</option><option value="battle">Battle</option><option value="camp">Camp</option><option value="town">Town</option><option value="regional">Regional</option></select></label>
+    <label>From <select id="origin" aria-label="Where from"><option value="">Anywhere</option><option>made here</option><option>purchased</option><option>Wizards of the Coast</option><option>Market</option><option>uploaded</option></select></label>
+    <label><input type="checkbox" id="needsDm"> Missing a DM version</label>
+    <label><input type="checkbox" id="needsStart"> Missing a start spot (battle and camp)</label>
+    <span class="count" id="count"></span>
+  </div>
+  <div id="list"></div>
+</div>
+</div>
+<script src="/nav.js"></script>
+<script>
+(() => {
+  'use strict';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  let maps = [];
+  const chip = (text, cls) => el('span', 'chip' + (cls ? ' ' + cls : ''), text);
+  function render() {
+    const q = document.getElementById('q').value.trim().toLowerCase(), kind = document.getElementById('kind').value, origin = document.getElementById('origin').value;
+    const needsDm = document.getElementById('needsDm').checked, needsStart = document.getElementById('needsStart').checked;
+    const list = maps.filter((m) => (!q || m.file.toLowerCase().includes(q)) && (!kind || m.kind === kind) && (!origin || m.origin === origin) && (!needsDm || !m.dmVersion) && (!needsStart || ((m.kind === 'battle' || m.kind === 'camp') && !m.hasStart)));
+    document.getElementById('count').textContent = list.length + ' of ' + maps.length + ' maps';
+    const root = document.getElementById('list'); root.innerHTML = '';
+    if (!list.length) { root.appendChild(el('div', 'empty', 'No map matches.')); return; }
+    const grid = el('div', 'grid');
+    for (const m of list) {
+      const card = el('div', 'card');
+      const img = el('img'); img.src = m.url; img.alt = m.file; img.loading = 'lazy';
+      const body = el('div', 'body');
+      body.appendChild(el('h3', '', m.file));
+      const chips = el('div', 'chips');
+      chips.append(chip(m.kind, 'kind'), chip(m.tiles === 'hex' ? 'hexagons (5 miles)' : 'squares'), chip(m.origin), chip(m.dmVersion ? 'DM version' : 'no DM version', m.dmVersion ? 'ok' : 'warn'));
+      if (m.mood) chips.appendChild(chip(m.mood));
+      if (m.group) chips.appendChild(chip(m.group + (m.variant ? ' / ' + m.variant : '')));
+      if ((m.kind === 'battle' || m.kind === 'camp') && !m.hasStart) chips.appendChild(chip('no start spot', 'warn'));
+      if (!m.setUp) chips.appendChild(chip('not set up', 'warn'));
+      body.appendChild(chips);
+      const bits = [m.walls ? m.walls + ' walls' : '', m.doors ? m.doors + ' doors' : '', m.lights ? m.lights + ' lights' : '', m.pins ? m.pins + ' pins' : '', m.difficult ? m.difficult + ' terrain areas' : ''].filter(Boolean);
+      body.appendChild(el('div', 'stats', (bits.join(' · ') || 'no walls, pins or lights yet') + (m.campaigns.length ? ' · used by ' + m.campaigns.join(', ') : '')));
+      const links = el('div', 'links');
+      const open = el('a', '', 'Open in Map Test'); open.href = '/map-test.html?map=' + encodeURIComponent(m.url);
+      links.appendChild(open);
+      if (m.dmVersion) { const dm = el('a', '', 'See the DM version'); dm.href = '/api/dm-map?map=' + encodeURIComponent(m.file); dm.target = '_blank'; dm.rel = 'noopener'; links.appendChild(dm); }
+      const pl = el('a', '', 'See the player picture'); pl.href = m.url; pl.target = '_blank'; pl.rel = 'noopener'; links.appendChild(pl);
+      body.appendChild(links);
+      card.append(img, body); grid.appendChild(card);
+    }
+    root.appendChild(grid);
+  }
+  for (const id of ['q', 'kind', 'origin', 'needsDm', 'needsStart']) document.getElementById(id).addEventListener('input', render);
+  fetch('/api/map-library').then((r) => r.json()).then((d) => { maps = d.maps || []; render(); }).catch((err) => { document.getElementById('list').textContent = 'Could not load the maps: ' + err.message; });
+})();
+</script>
+</body>
+</html>

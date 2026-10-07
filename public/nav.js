@@ -13,6 +13,7 @@
       { href: '/market.html', label: '🛒 Market' }
     ] },
     { label: '🛠 Tools', items: [
+      { href: '/maps.html', label: '🗺 Maps' },
       { href: '/map-test.html', label: '🗺 Map Test' },
       { href: '/test-lab.html', label: '🧪 Test Lab' },
       { href: '/voice-test.html', label: '🔊 Voice Test' },

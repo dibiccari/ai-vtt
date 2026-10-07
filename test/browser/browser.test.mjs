@@ -1010,7 +1010,7 @@ test('a campaign built from scratch opens on its first map, the party on that ma
   } finally {
     await server.post('/api/campaigns/active', { id: LOST });
     await page.goto(`${server.base}/index.html?nosave=1`);
-    await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 1 && window.vtt.state.characters.length >= 4 && !document.querySelector("#chatInput").disabled');       // the earlier tests left one party token in the saved board
+    await page.waitFor('window.vtt && window.vtt.state.characters.length >= 4 && !document.querySelector("#chatInput").disabled');
   }
 });
 

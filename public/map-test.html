@@ -1684,7 +1684,8 @@
       if (isStart && s.radius > 0) { x.fillStyle = 'rgba(63, 210, 127, 0.16)'; x.strokeStyle = 'rgba(63, 210, 127, 0.85)'; x.lineWidth = 3; x.setLineDash([10, 8]); x.beginPath(); x.arc(s.x, s.y, s.radius * cs, 0, 6.3); x.fill(); x.stroke(); x.setLineDash([]); }
       x.fillStyle = isStart ? '#3fd27f' : '#4f9dff'; x.strokeStyle = '#000'; x.lineWidth = 2; x.beginPath(); x.arc(s.x, s.y, Math.max(7, cs * 0.16), 0, 6.3); x.fill(); x.stroke();
       const area = /^area-(\d+)/.exec(s.name), size = Math.max(14, cs * 0.34);
-      label(isStart ? 'START' : area ? area[1] + (s.desc ? '. ' + s.desc.slice(0, 28) : '') : s.name + (s.desc ? ': ' + s.desc.slice(0, 40) : ''), s.x + Math.max(12, cs * 0.24), s.y, size, isStart ? '#9dffc7' : '#cfe4ff');
+      const pretty = s.label || s.name.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');       // pin names are lower-case words joined by dashes
+      label(isStart ? 'START' : area ? area[1] + (s.desc ? '. ' + s.desc.split(/[.:;]/)[0].slice(0, 30) : '') : pretty, s.x + Math.max(12, cs * 0.24), s.y, size, isStart ? '#9dffc7' : '#fff6d8');
     }
     let n = 0; for (const w of S.walls) if (w.type === 'door') { n++; label(String(n), (w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2 - Math.max(10, cs * 0.22), Math.max(12, cs * 0.26), w.secret ? '#e6b3ff' : w.locked ? '#ffc08a' : '#ffe9a8'); }
     const url = c.toDataURL('image/jpeg', 0.86);

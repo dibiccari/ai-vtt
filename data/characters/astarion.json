@@ -16,10 +16,7 @@
     "cha": 10
   },
   "color": "#f0c048",
-  "darkvision": 60,
-  "campaigns": [
-    "lost-mine-of-phandelver"
-  ],
+  "image": "/tokens/mysterious-white-haired-man-cc467.png",
   "sheet": {
     "CharacterName": "Astarion",
     "CharacterName 2": "Astarion",
@@ -122,9 +119,9 @@
     "SlotsTotal 19": "0",
     "SlotsRemaining 19": "0"
   },
-  "expertise": [
-    "Stealth",
-    "Sleight of Hand"
+  "darkvision": 60,
+  "campaigns": [
+    "lost-mine-of-phandelver"
   ],
   "inventory": [
     {
@@ -244,5 +241,9 @@
     "ep": 0,
     "gp": 15,
     "pp": 0
-  }
+  },
+  "expertise": [
+    "Stealth",
+    "Sleight of Hand"
+  ]
 }

@@ -291,8 +291,9 @@ function normalizeMapConfig(body) {
     const name = String(s?.name ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
     const [x, y] = [num(s?.x), num(s?.y)];
     const desc = String(s?.desc ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    const label = String(s?.label ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);        // how the name is written on the DM picture (capitals, apostrophes): the pin name itself is a lower-case slug
     const radius = Math.max(0, Math.min(12, Math.round((Number(s?.radius) || 0) * 2) / 2));          // squares: the arrival area around the pin
-    if (name && x !== null && y !== null && !(name === 'start' && starts.some((o) => o.name === 'start'))) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}) });
+    if (name && x !== null && y !== null && !(name === 'start' && starts.some((o) => o.name === 'start'))) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}), ...(label ? { label } : {}) });
   }
   // Light sources from a .dd2vtt file (image pixels; range in squares). Kept for the lighting work.
   const lights = [];
@@ -362,6 +363,26 @@ app.get('/api/map-configs', asyncRoute(async (_req, res) => {
     } catch { /* skip unreadable config */ }
   }
   res.json({ configs: out });
+}));
+
+// Every map picture with what is known about it, for the Maps page in the map tools: kind (from the campaigns that use it, else guessed from the set-up), tiles, counts, whether a DM version exists, and the campaigns using it.
+app.get('/api/map-library', asyncRoute(async (_req, res) => {
+  const files = (await pictureFiles()).sort();
+  const kinds = new Map(), used = new Map();
+  for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!dirent.isDirectory()) continue;
+    try { for (const m of await mapsForCampaign(dirent.name)) { const f = m.url.split('/').pop(); if (!kinds.has(f)) kinds.set(f, m.kind); used.set(f, [...(used.get(f) || []), dirent.name]); } } catch { /* unreadable campaign */ }
+  }
+  const dmFiles = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
+  const out = [];
+  for (const f of files) {
+    let c = null; try { c = JSON.parse(await readFile(mapConfigFile(f), 'utf8')); } catch { /* no set-up */ }
+    const stem = f.replace(/\.[^.]+$/, '');
+    const origin = /^lmop-/.test(f) ? 'purchased' : /^dnd-/.test(f) ? 'Wizards of the Coast' : /^mkt-/.test(f) ? 'Market' : /^vtt-/.test(f) ? 'made here' : 'uploaded';
+    const kind = kinds.get(f) || (c?.tiles === 'hex' || /coast|region|world/i.test(f) ? 'regional' : /phandalin|town|village/i.test(f) ? 'town' : 'battle');       // pictures no campaign lists are guessed from their set-up and name
+    out.push({ file: f, url: '/uploads/' + f, kind, origin, tiles: c?.tiles === 'hex' ? 'hex' : 'square', setUp: Boolean(c), walls: (c?.walls || []).filter((w) => w.type !== 'door').length, doors: (c?.walls || []).filter((w) => w.type === 'door').length, lights: (c?.lights || []).length, pins: (c?.starts || []).length, hasStart: Boolean((c?.starts || []).find((s) => s.name === 'start')), difficult: (c?.difficult || []).length, mood: c?.mood || '', group: c?.group || '', variant: c?.variant || '', dmVersion: dmFiles.has(stem), campaigns: used.get(f) || [] });
+  }
+  res.json({ maps: out });
 }));
 
 // The numbered areas of the adventure module on a map (data/campaigns/<campaign>/areas.json: picture file -> [{n, name}]); Map Test turns them into pins.

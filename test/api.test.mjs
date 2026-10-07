@@ -341,3 +341,14 @@ test('map config keeps the tile kind: hexagons with a size for regional maps, sq
   ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'square' }));
   c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, undefined); assert.equal(c.hexSize, undefined);
 });
+
+test('map library: every picture with its kind, tiles, counts and whether it has a DM version', async () => {
+  const lib = (await s.get('/api/map-library')).json.maps;
+  assert.ok(lib.length > 10);
+  const m = (f) => lib.find((x) => x.file === f);
+  assert.equal(m('vtt-terrain-test.png').origin, 'made here'); assert.equal(m('vtt-terrain-test.png').tiles, 'square');
+  assert.ok(m('lmop-cragmaw-hideout.png').origin === 'purchased' && m('lmop-cragmaw-hideout.png').kind === 'battle');
+  assert.equal(m('dnd-sword-coast-ours.png').tiles, 'hex'); assert.equal(m('dnd-sword-coast-ours.png').kind, 'regional'); assert.ok(m('dnd-sword-coast-ours.png').pins >= 14);
+  assert.equal(m('vtt-phandalin.png').dmVersion, true, 'the Phandalin DM version is saved');
+  assert.ok(lib.every((x) => typeof x.walls === 'number' && Array.isArray(x.campaigns)));
+});

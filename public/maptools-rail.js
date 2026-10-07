@@ -3,6 +3,7 @@
 (function () {
   'use strict';
   var LINKS = [
+    { href: '/maps.html', label: 'Maps', hint: 'Every map: kind, tiles, walls, pins and whether it has a DM version' },
     { href: '/map-test.html', label: 'Test', hint: 'Try a map: walls, doors, fog of war, line of sight, difficult terrain, pins' },
     { href: '/map-maker.html', label: 'Maker', hint: 'Ask for new maps and give feedback to improve them' }
   ];
