@@ -15,7 +15,7 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt('--max-calls', 12));
+const MAX_CALLS = Number(opt("--max-calls", 16));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -39,6 +39,10 @@ const STEPS = [
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
   { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
   { id: 'gear', say: '[Thorin] I buy a hempen rope (50 ft) and two torches from Orla, the barkeep, and pay with coins from my purse. Please update my gear and coins.', expect: 'gear updates: a rope and torches added to Thorin and coins spent, applied by the server' },
+  { id: 'deathsave', say: '[Lyra] It is my turn and I am at 0 hit points, unconscious and dying. Make my death saving throw.', expect: 'a d20 death save rolled from the tray, no attack or damage on anyone' },
+  { id: 'group', say: '[Table] The scene calls for it: three goblin raiders and an ogre bruiser kick in the front door (the place front-door) and rush into the taproom. Place them on the board and start combat.', expect: 'four creatures added with their own squares near the front-door pin, the ogre Large' },
+  { id: 'fly', say: '[Thorin] I drink the Potion of flying from my pack and rise twenty feet above the floor. Please update the board.', expect: 'Thorin raised to 20 feet (elevate) and a flying effect, no spell slot spent' },
+  { id: 'haste', say: '[Vex] I drink the Potion of speed from my pack, so I am hasted for one minute. Please update the board.', expect: 'a haste effect on Vex for 10 rounds (no concentration source), the DM does not touch Vex\'s speed or AC itself' },
   { id: 'travel', say: '[Thorin] The fight is over. We open the cellar hatch behind the bar and go down into the old cellars to look for the missing barrels, all four of us together.', expect: 'changeMap to the cellars map, resolved to a picture and an arrival square, no problems reported' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
@@ -116,7 +120,7 @@ try {
     mk({ id: 'npc-hidden', name: MARK_CREATURE + ' the Unseen', col: c0 + 5, row: r0 - 4, color: '#333', isPC: false, hidden: true, visibleToParty: false, hp: 20, maxHp: 20, ac: 13, dexMod: 2 }),
     mk({ id: 'trap-hidden', name: MARK_TRAP + ' snare', col: c0 + 3, row: r0 - 2, color: '#a00', isPC: false, hidden: true, kind: 'trap', visibleToParty: false })
   );
-  const T = { active: 'pc-thorin', clock0: 0 };
+  const T = { active: 'pc-thorin', clock0: 0, places: [] };
   const upd = (j) => j.mapUpdates || [];
   const clockNow = async () => (await srv.get('/api/party')).json.clock.minutes;
   const byId = (id) => tokens.find((t) => t.id === id);
@@ -143,6 +147,19 @@ try {
         byId('pc-vex').conditions.push({ name: 'concentrating', rounds: 0 });
         setActive('pc-thorin');
       },
+      deathsave: async () => {
+        startPretendCombat(); setActive('pc-lyra');
+        const l = byId('pc-lyra'), c = chars.find((x) => x.id === 'lyra');
+        T.lyraHp = c.hp; c.hp = 0; Object.assign(l, { hp: 0 }); l.conditions.push({ name: 'unconscious', rounds: 0 }); l.deathSaves = { successes: 0, failures: 0 };
+      },
+      group: async () => {
+        const l = byId('pc-lyra'), c = chars.find((x) => x.id === 'lyra');
+        c.hp = T.lyraHp ?? c.maxHp; l.hp = c.hp; l.conditions = l.conditions.filter((x) => x.name !== 'unconscious'); l.deathSaves = null;
+        combat = { active: false }; setActive('pc-thorin');
+        T.places = [{ name: 'front-door', col: c0 + 8, row: r0 - 4, note: 'The tavern front door; the street is outside.' }];
+      },
+      fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem('thorin', 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
+      haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem('vex', 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
       senses: async () => {
         combat = { active: false };
         T.active = 'pc-vex';
@@ -154,6 +171,13 @@ try {
         );
       }
     }
+  };
+  // The potion is really in the character's saved inventory (the DM refuses to use something nobody owns).
+  const giveItem = async (charId, name, note) => {
+    const cur = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === charId);
+    const inventory = [...(cur.inventory || []), { id: 'potion-' + charId, name, qty: 1, weight: 0.5, requiresAttunement: false, attuned: false, equipped: false, effects: [], note }];
+    await srv.put('/api/party/characters/' + charId, { inventory, coins: cur.coins });
+    Object.assign(chars.find((c) => c.id === charId), (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === charId));
   };
   const knownIds = () => new Set([...tokens.map((t) => t.id), ...chars.map((c) => c.id)]);
   let combat = { active: false };
@@ -174,7 +198,7 @@ try {
     try {
       if (hooks.before[step.id]) await hooks.before[step.id]();
       res = await Promise.race([
-        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
+        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, places: T.places || [], inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS + 5000))
       ]);
     } catch (err) { fail(`${step.id}: no reply (${err.message})`); continue; }
@@ -268,6 +292,34 @@ try {
       check(/\b(sing|song|voices?|chant|noise|sound|hear|heard|music|bellow|rowdy|chorus|muffled)\b/i.test(j.narrative + ' ' + (j.voiceLines || []).map((l) => l.text).join(' ')), 'senses: a hint of the noise behind the door came through');
       if (/\b(asleep|snor|sleeping|barrel)/i.test(told)) warn('senses: something about the silent creature was hinted (no sound, so no hint should come)');
       if (!/\b(notice|spot|saw|sees|see you|eye|glance|turn|catch|caught|look|watch)/i.test(j.narrative)) warn('senses: the narrative does not say the guard noticed Vex (his passive Perception is 30, above any possible roll)');
+    }
+    if (step.id === 'deathsave') {
+      check((j.rolls || []).some((x) => /d20|death/i.test(x)), 'deathsave: a death saving throw was rolled', diagnose(j, raw));
+      check(!upd(j).some((u) => u.type === 'damageToken' && u.tokenId !== 'pc-lyra'), 'deathsave: nobody else was hurt');
+      check(/death sav/i.test(told), 'deathsave: the DM names it as a death save');
+    }
+    if (step.id === 'group') {
+      const adds = upd(j).filter((u) => u.type === 'addToken');
+      check(adds.length >= 4, 'group: four creatures were added', adds.length + ' added');
+      const squares = new Set(adds.map((u) => u.col + ',' + u.row));
+      check(squares.size === adds.length, 'group: every creature has its own square', adds.map((u) => u.col + ',' + u.row).join(' '));
+      const pin = T.places[0], far = adds.filter((u) => Math.hypot(u.col - pin.col, u.row - pin.row) > 8);
+      check(far.length === 0, 'group: all of them are near the front-door pin (within 8 squares)', far.map((u) => u.name + '@' + u.col + ',' + u.row).join(' '));
+      const ogre = adds.find((u) => /ogre/i.test(u.name));
+      check(!!ogre && /large/i.test(String(ogre.size)), 'group: the ogre is Large (the table fills it from the SRD)', ogre ? 'size ' + ogre.size : 'no ogre');
+      check(upd(j).some((u) => u.type === 'startCombat'), 'group: combat started');
+    }
+    if (step.id === 'fly') {
+      const el = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'elevate' && u.tokenId === 'pc-thorin');
+      check(!!el && Number(el.value) > 0 && Number(el.value) <= 20, 'fly: Thorin raised off the floor, no higher than asked (elevate; the DM may stop lower under a ceiling)', el ? 'value ' + el.value : 'no elevate');
+      const eff = upd(j).find((u) => u.type === 'addCondition' && u.tokenId === 'pc-thorin' && /fly|flying/.test(condOf(u)));
+      if (!eff) warn('fly: no flying effect on Thorin (elevation alone also makes him fly if he has a flying speed)');
+    }
+    if (step.id === 'haste') {
+      const h = upd(j).find((u) => u.type === 'addCondition' && u.tokenId === 'pc-vex' && /haste/.test(condOf(u)));
+      check(!!h, 'haste: a haste effect on Vex', upd(j).map((u) => u.type + ':' + (u.tokenId || '') + ':' + condOf(u)).join(', ').slice(0, 200));
+      check(!h || !h.source, 'haste: no concentration source (a potion needs none)', h ? 'source ' + h.source : '');
+      check(!upd(j).some((u) => u.tokenId === 'pc-vex' && ['setSpeed', 'setAc'].includes(u.type)), 'haste: the DM did not change speed or AC itself');
     }
     if (step.id === 'gear') {
       const gears = (raw?.mapUpdates || []).filter((u) => u.type === 'gear');

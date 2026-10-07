@@ -22,6 +22,10 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
     if (/five minutes/.test(said)) return { ...base, mapUpdates: [upd({ action: 'endCombat' }), upd({ action: 'time', value: 5 }), ...(removesEffect ? [upd({ action: 'removeCondition', tokenId: 'pc-thorin', condition: 'shield of faith' })] : [])] };
     if (/Roll my Stealth/.test(said)) return { ...base, rolls: [`Vex Stealth: d20 (${d20[0]}) + 5 = ${d20[0] + 5}`], narrative: 'Somewhere behind the door a rowdy song rises, and the guard at the bar turns his head and notices you at once.' };
     if (/I buy a hempen rope/.test(said)) return { ...base, mapUpdates: [{ type: 'gear', action: 'add', target: 'thorin', to: '', name: 'Rope, hempen (50 ft)', qty: 1, weight: 10, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, { type: 'gear', action: 'add', target: 'thorin', to: '', name: 'Torch', qty: 2, weight: 1, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, { type: 'gear', action: 'coins', target: 'thorin', to: '', name: '', qty: 0, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: -1, pp: 0 }] };
+    if (/death saving throw/.test(said)) return { ...base, rolls: [`Lyra death save: d20 (${d20[0]})`], narrative: 'Lyra clings to life: this death saving throw is rolled while the room blurs and the noise of the fight fades.' };
+    if (/front-door/.test(said)) { const p = state.mapPlaces[0]; return { ...base, mapUpdates: [['goblin', 'Goblin 1', 0, 0], ['goblin', 'Goblin 2', 1, 1], ['goblin', 'Goblin 3', -1, 1], ['ogre', 'Ogre', 2, 0]].map(([m, n, dc, dr], i) => upd({ action: 'add', tokenId: 'raider' + i, name: n, col: p.col + dc, row: p.row + dr, monster: m })).concat([upd({ action: 'startCombat' })]) }; }
+    if (/Potion of flying/.test(said)) return { ...base, mapUpdates: [upd({ action: 'elevate', tokenId: 'pc-thorin', value: 20 }), upd({ action: 'addCondition', tokenId: 'pc-thorin', condition: 'flying', rounds: 0, value: 60 })] };
+    if (/Potion of speed/.test(said)) return { ...base, mapUpdates: [upd({ action: 'addCondition', tokenId: 'pc-vex', condition: 'haste', rounds: 10 })] };
     if (/cellar hatch/.test(said)) return { ...base, mapUpdates: [{ type: 'changeMap', mapId: 'dungeon-cellars', arrive: 'start', reason: 'down the stairs' }] };
     if (/journal/.test(said)) return { ...base, mapUpdates: [{ type: 'journal', category: 'event', title: 'Brawl', text: 'A brawl broke out.', status: 'none', when: 'Evening' }, { type: 'journal', category: 'promise', title: 'Pay Orla', text: 'Pay for the damage.', status: 'open', when: '' }] };
     return base;
@@ -30,7 +34,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
 
 function runCheck(fakeUrl, extra = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '10', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '14', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     child.on('exit', (code) => resolve({ code, out }));
   });
@@ -42,11 +46,11 @@ test('dm-check passes against a well-behaved fake DM, prints no story text and r
     const r = await runCheck(f.url);
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /PASSED: 0 failure/);
-    assert.match(r.out, /USAGE 10 API request\(s\)/);
+    assert.match(r.out, /USAGE 14 API request\(s\)/);
     assert.match(r.out, /journal: 2 entries added/);
     assert.ok(!r.out.includes('tavern is loud'), 'no narrative is printed');
     assert.ok(!r.out.includes('sk-ant-fake'), 'the key is never printed');
-    assert.equal(f.requests.length, 10);
+    assert.equal(f.requests.length, 14);
   } finally { await f.close(); }
 });
 
