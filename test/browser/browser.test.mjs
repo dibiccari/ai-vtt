@@ -771,6 +771,24 @@ test('the in-game clock shows in the top bar and follows a change made elsewhere
   assert.equal((await page.eval('typeof vtt.refreshClock')), 'function');
 });
 
+test('a group the DM puts on a pin is spread around it, not stacked on one tile; a creature on a free square keeps it', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.fogEnabled = false; s.walls = []; s.wallsVersion++;
+    s.areaPins = [{ area: 3, name: 'Kennel', col: 20, row: 14 }];
+    const add = (id, col, row) => ({ type: 'addToken', tokenId: id, name: id, col, row, color: '#0a0', hidden: false, kind: 'creature', monster: 'goblin', maxHp: 7, ac: 15, speed: 30, dexMod: 2 });
+    await vtt.applyMapUpdates([add('g1', 20, 14), add('g2', 20, 14), add('g3', 20, 14), add('g4', 20, 14)]);
+    const g = ['g1', 'g2', 'g3', 'g4'].map((id) => s.tokens.find((t) => t.id === id)).map((t) => [t.col, t.row]);
+    await vtt.applyMapUpdates([add('lone', 30, 20)]);
+    const lone = s.tokens.find((t) => t.id === 'lone');
+    return { g, lone: [lone.col, lone.row] };
+  })()`);
+  assert.equal(new Set(r.g.map((p) => p.join(','))).size, 4, 'four different squares');
+  for (const [c, rw] of r.g) assert.ok(Math.max(Math.abs(c - 20), Math.abs(rw - 14)) <= 4, 'in the vicinity of the pin');
+  assert.ok(r.g.some(([c, rw]) => c !== 20 || rw !== 14) && new Set(r.g.map((p) => p[0])).size > 1 && new Set(r.g.map((p) => p[1])).size > 1, 'not a tidy line');
+  assert.deepEqual(r.lone, [30, 20], 'a creature the DM placed on its own free square stays there');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });

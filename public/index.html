@@ -4123,7 +4123,22 @@ async function applyMapUpdates(updates) {
         const n = existing ? fp(existing) : TokenSize.squares(u.size);
         let want = { col: u.col, row: u.row };
         if (n > 1 && state.areaPins.some((p) => p.col === u.col && p.row === u.row)) want = TokenSize.topLeftFor(u.col, u.row, n);
-        const spot = existing ? { col: clamp(u.col, 0, cols() - n), row: clamp(u.row, 0, rows() - n) } : freeSquareNear(clamp(want.col, 0, cols() - n), clamp(want.row, 0, rows() - n), n);
+        let spot;
+        if (existing) spot = { col: clamp(u.col, 0, cols() - n), row: clamp(u.row, 0, rows() - n) };
+        else {
+          const wc = clamp(want.col, 0, cols() - n), wr = clamp(want.row, 0, rows() - n);
+          // Creatures asked for on a pin (the DM gives the pin's square) or on a taken square are spread around it, not stacked tile by tile: a group of goblins stands in the vicinity.
+          const onPin = state.areaPins.some((p) => p.col === wc && p.row === wr) || state.places.some((p) => p.col === wc && p.row === wr);
+          const taken = state.tokens.filter((t) => !(t.dead && !t.isPC)).map((t) => ({ col: t.col, row: t.row, n: fp(t) }));
+          const occupied = taken.some((o) => TokenSize.overlaps({ col: wc, row: wr, n }, o));
+          spot = null;
+          if (u.isPC !== true && (onPin || occupied) && !plainMap()) {
+            const walls = blockingWalls(), keepN = moveN;
+            spot = TokenSize.scatter({ col: wc, row: wr, n, id: u.tokenId, taken,
+              fits: (c, r) => { if (!inBounds(c, r) || !inBounds(c + n - 1, r + n - 1) || taken.some((o) => TokenSize.overlaps({ col: c, row: r, n }, o))) return false; moveN = n; const b = moveBlocked(wc, wr, c, r, walls); moveN = keepN; return !b; } });
+          }
+          if (!spot) spot = freeSquareNear(wc, wr, n);
+        }
         let token = existing;
         if (existing) {
           Object.assign(existing, spot, { name: u.name || existing.name, color: /^#[0-9a-f]{6}$/i.test(u.color || '') ? u.color : existing.color });

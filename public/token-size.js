@@ -58,7 +58,30 @@
     return out;
   }
 
-  var api = { SIZES: SIZES, normalize: normalize, squares: squares, drawScale: drawScale, smaller: smaller, cells: cells, overlaps: overlaps, gap: gap, centre: centre, topLeftFor: topLeftFor, fallDice: fallDice, meleeReaches: meleeReaches, parseSpeeds: parseSpeeds };
+  // Where to put a creature the DM asked for at (col, row) when that square is a pin or already taken: somewhere in the vicinity, so a group is not stacked into one tile or a
+  // tidy line. o = { col, row, n (footprint), id, taken: [{col,row,n}], fits(c, r) -> boolean (on the map, free, no wall in between) }. The choice is repeatable (a hash of the id),
+  // prefers nearer squares but may leave a gap, and the area grows with how many creatures are already around (2 squares, up to 4). Returns { col, row } or null when nothing fits.
+  function hash(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; }
+  function scatter(o) {
+    var n = o.n || 1, crowd = 0, id = String(o.id || '');
+    (o.taken || []).forEach(function (t) { if (Math.abs(t.col - o.col) <= 4 && Math.abs(t.row - o.row) <= 4) crowd += 1; });
+    for (var R = Math.min(4, 2 + Math.floor(crowd / 3)); R <= 9; R += 1) {
+      var cand = [], total = 0;
+      for (var dc = -R; dc <= R; dc++) for (var dr = -R; dr <= R; dr++) {
+        var c = o.col + dc, r = o.row + dr, d = Math.max(Math.abs(dc), Math.abs(dr));
+        if (!o.fits(c, r)) continue;
+        var w = d === 0 ? 0.6 : 1 / (0.6 + d * 0.5);                        // near squares are likelier, far ones still possible
+        cand.push({ col: c, row: r, w: w }); total += w;
+      }
+      if (!cand.length) continue;
+      var pick = hash(id + ':' + crowd) * total, run = 0;
+      for (var i = 0; i < cand.length; i++) { run += cand[i].w; if (pick <= run) return { col: cand[i].col, row: cand[i].row }; }
+      return { col: cand[cand.length - 1].col, row: cand[cand.length - 1].row };
+    }
+    return null;
+  }
+
+  var api = { scatter: scatter, SIZES: SIZES, normalize: normalize, squares: squares, drawScale: drawScale, smaller: smaller, cells: cells, overlaps: overlaps, gap: gap, centre: centre, topLeftFor: topLeftFor, fallDice: fallDice, meleeReaches: meleeReaches, parseSpeeds: parseSpeeds };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TokenSize = api;
 })(typeof window !== 'undefined' ? window : globalThis);
