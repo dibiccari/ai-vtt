@@ -55,9 +55,17 @@ server.js
 
 ### Roles
 - **DM-host**: the person at the machine running the server (loopback). Can do everything local-only today: settings, keys, campaigns, start over, map setup. The AI is the DM; "host" is the human who administers.
-- **Player seat**: bound to **one character** (`player` name on the character record, plus a random seat token). May move only that character's token (and its summons), speak to the AI as that character, roll its dice, use Pause.
+- **Player seat**: a person who has joined (a display name and a random seat token). A seat starts with **no character**; the host assigns characters to seats (see "Assigning characters" below). A seat may move only the tokens of the characters assigned to it (and their summons), speak to the AI as one of them, roll their dice and use Pause. A seat with no character is a spectator that can still use Pause and chat.
 - **Spectator**: sees what players see; no intents accepted (this is the `?watch=1` view).
-- Identity without accounts: the host creates invite links `/join?seat=<random 128-bit token>`; the player types a display name once; the token is kept in a cookie/localStorage. A seat link can be revoked by the host. The link is a password: do not post it publicly.
+- Identity without accounts: the host creates invite links `/join?seat=<random 128-bit token>`; the player types a display name once; the token is kept in a cookie/localStorage. A seat link can be revoked by the host. The link is a password: do not post it publicly. An invite link is **not tied to a character**: it is just a seat, so the host can invite people first and decide who plays whom afterwards.
+
+### Assigning characters (host decides, players can be moved)
+- A **Players** panel for the host (on the tabletop and the Campaigns page): every seat with its name, whether it is connected, and a character picker. The host assigns one or more party characters to a seat, moves a character from one player to another at any moment (a player leaves, two swap, a new player takes over a hero), or takes a character back (it then belongs to the host).
+- One seat may hold several characters (a couple sharing a laptop, a player running two heroes), and one character has at most one seat. A character with no seat is **host-controlled**, which is how couch co-op works: everyone in the room uses the host's browser, which can move any token and speak as any character.
+- The assignment is stored with the character (`player` = the seat's id, `seatName` = its display name) and in the campaign's saved game, so it survives a restart and a reconnect; a returning seat link gets its characters back.
+- Optional host setting "Let players pick": unassigned characters show as free on the join screen and a new player may claim one; the host can still reassign. Default is off (host assigns).
+- Everyone sees who plays whom: the token tag and the chat line show "Edric (Sam)". The DM is told the player names so it can address people ("Sam, what does Edric do?"), and a character whose player is disconnected is marked, so the DM and the table can skip or offer to play it (host-controlled while away).
+- The server enforces the assignment on every intent: a seat's move, message, roll or Pause for a character it does not hold is refused with a short reason.
 
 ### Per-player visibility enforced on the server
 - Today each browser computes fog and hidden tokens. In multiplayer the server must send each seat a **filtered state**: hidden tokens removed, tokens outside the party's line of sight removed (or reduced to nothing), DM-only maps and notes never sent. That requires moving `seenByParty`, `visibleFrom` and the lighting rules into a server module (shared code, ideally one file used by both sides so Map Test and the table keep agreeing).
@@ -83,9 +91,9 @@ server.js
 - The Pause button is available to **every seat**, always, even when the queue is busy and even for spectators-who-are-players. It jumps the queue, shows a banner to all, and sends [PAUSE] to the DM. Safety settings (lines and veils) stay host-edited but are shown to all on join.
 
 ### Join flow
-1. Host starts the server with `HOST=0.0.0.0` (LAN) or a tunnel, opens Campaigns, ticks "Allow others to join", sees one invite link per party character.
-2. Player opens the link, types a name, is shown the table with their character highlighted.
-3. A seat shows as connected/disconnected to everyone. The host can kick or re-issue a link.
+1. Host starts the server with `HOST=0.0.0.0` (LAN) or a tunnel, opens Campaigns, ticks "Allow others to join" and makes as many invite links as there are players (links are not tied to a character).
+2. Player opens the link, types a name, and waits at the table as a spectator until the host assigns a character (or picks a free one when "Let players pick" is on); their character is then highlighted for them.
+3. The host assigns and moves characters in the Players panel at any time. A seat shows as connected/disconnected to everyone. The host can kick or re-issue a link.
 
 ### The local-only guards
 - `localOnly` stays exactly as is for keys, settings, campaign administration, file edits, start over: those are **host-only forever**. Once the server listens beyond loopback the check still holds (a remote address is never loopback), but note the `Host` check is the DNS-rebinding defence: keep it, and do not "fix" a joiner's 403 by loosening it.
@@ -105,7 +113,7 @@ server.js
 |---|---|---|---|
 | 0 | S (done) | Revision counter, SSE stream, read-only `?watch=1` view | A second browser/phone follows the table live |
 | 1 | M | Server owns board + chat: `GET/POST /state`, intents (move, say), revision check, SSE carries the new state. Single browser still plays normally through it | Two windows, same game, no overwrites; stale write rejected |
-| 2 | M | Seats: invite links, names, `player` on characters, `seatOnly` guard, seat-bound moves, rate limits | A friend joins from another computer and moves only their hero |
+| 2 | M | Seats: invite links, names, the host's Players panel to assign characters to seats (and move them later), `player` on characters, `seatOnly` guard, seat-bound moves, rate limits | A friend joins from another computer, the host gives them a hero, and they move only that hero |
 | 3 | L | Server-side visibility: move `seenByParty`/lighting/fog to a shared module; filtered state per seat | Hidden goblin does not appear in a player's network traffic |
 | 4 | M | Server DM queue, merged simultaneous messages, server-run creature turns, shared dice log, shared Pause | Four people talk at once and the DM answers once, in order |
 | 5 | S/M | Hosting: HTTPS tunnel guide, Allow-others switch, connected-seat list, kick, reconnection polish; per-person voice/TTS toggles | A real session over the internet |
