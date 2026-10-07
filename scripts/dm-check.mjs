@@ -15,7 +15,7 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt("--max-calls", 16));
+const MAX_CALLS = Number(opt("--max-calls", 18));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -43,6 +43,8 @@ const STEPS = [
   { id: 'group', say: '[Table] The scene calls for it: three goblin raiders and an ogre bruiser kick in the front door (the place front-door) and rush into the taproom. Place them on the board and start combat.', expect: 'four creatures added with their own squares near the front-door pin, the ogre Large' },
   { id: 'fly', say: '[Thorin] I drink the Potion of flying from my pack and rise twenty feet above the floor. Please update the board.', expect: 'Thorin raised to 20 feet (elevate) and a flying effect, no spell slot spent' },
   { id: 'haste', say: '[Vex] I drink the Potion of speed from my pack, so I am hasted for one minute. Please update the board.', expect: 'a haste effect on Vex for 10 rounds (no concentration source), the DM does not touch Vex\'s speed or AC itself' },
+  { id: 'forced', say: '[Table] A barrel of lamp oil explodes behind Drunk Bram and the blast throws him 10 feet straight to the east. No roll is needed: just apply the move to the board.', expect: 'a move of Bram marked forced (not his own walking), the destination 10 ft (2 squares) from where he stood' },
+  { id: 'levitate', say: '[Lyra] I use my Boots of levitation to cast Levitate on myself, concentrating, and rise the full 20 feet into the air. Update the board.', expect: 'a levitate effect on Lyra with her as the caster, elevated 20 ft' },
   { id: 'travel', say: '[Thorin] The fight is over. We open the cellar hatch behind the bar and go down into the old cellars to look for the missing barrels, all four of us together.', expect: 'changeMap to the cellars map, resolved to a picture and an arrival square, no problems reported' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
@@ -200,6 +202,8 @@ try {
         combat = { active: false }; setActive('pc-thorin');
         T.places = [{ name: 'front-door', col: c0 + 8, row: r0 - 4, note: 'The tavern front door; the street is outside.' }];
       },
+      forced: async () => { combat = { active: false }; setActive('pc-lyra'); const b = byId('npc-bram'); if (b) Object.assign(b, { hp: 11, dead: false }); T.bram = b ? { col: b.col, row: b.row } : null; },
+      levitate: async () => { combat = { active: false }; setActive('pc-lyra'); const l = byId('pc-lyra'); l.conditions = l.conditions.filter((c) => c.name !== 'concentrating'); await giveItem('lyra', 'Boots of levitation', 'While you wear these boots, you can use an action to cast the levitate spell on yourself at will (concentration).', { equipped: true, attuned: true, requiresAttunement: true }); },
       fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem('thorin', 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
       haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem('vex', 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
       senses: async () => {
@@ -215,9 +219,9 @@ try {
     }
   };
   // The potion is really in the character's saved inventory (the DM refuses to use something nobody owns).
-  const giveItem = async (charId, name, note) => {
+  const giveItem = async (charId, name, note, flags = {}) => {
     const cur = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === charId);
-    const inventory = [...(cur.inventory || []), { id: 'potion-' + charId, name, qty: 1, weight: 0.5, requiresAttunement: false, attuned: false, equipped: false, effects: [], note }];
+    const inventory = [...(cur.inventory || []), { id: 'potion-' + charId, name, qty: 1, weight: 0.5, requiresAttunement: false, attuned: false, equipped: false, effects: [], note, ...flags }];
     await srv.put('/api/party/characters/' + charId, { inventory, coins: cur.coins });
     Object.assign(chars.find((c) => c.id === charId), (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === charId));
   };
@@ -350,6 +354,19 @@ try {
       const ogre = adds.find((u) => /ogre/i.test(u.name));
       check(!!ogre && /large/i.test(String(ogre.size)), 'group: the ogre is Large (the table fills it from the SRD)', ogre ? 'size ' + ogre.size : 'no ogre');
       check(upd(j).some((u) => u.type === 'startCombat'), 'group: combat started');
+    }
+    if (step.id === 'forced') {
+      const mv = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'move' && u.tokenId === 'npc-bram');
+      check(!!mv, 'forced: Bram was moved', mv ? '' : 'no move');
+      check(!!mv && String(mv.condition).toLowerCase().trim() === 'forced', 'forced: the move is marked forced (so it provokes nothing)', mv ? 'condition ' + JSON.stringify(mv.condition) : '');
+      if (mv && T.bram) { const d = Math.hypot(mv.col - T.bram.col, mv.row - T.bram.row); check(d >= 1.5 && d <= 3, 'forced: about 10 ft (2 squares) from where he stood', d.toFixed(1) + ' squares'); }
+    }
+    if (step.id === 'levitate') {
+      const eff = upd(j).find((u) => u.type === 'addCondition' && u.tokenId === 'pc-lyra' && /levitat/.test(condOf(u)));
+      check(!!eff, 'levitate: a levitate effect on Lyra', upd(j).map((u) => u.type + ':' + (u.tokenId || '') + ':' + condOf(u)).join(', ').slice(0, 200));
+      check(!eff || eff.source === 'pc-lyra', 'levitate: Lyra is the caster (concentration source)', eff ? 'source ' + JSON.stringify(eff.source) : '');
+      const el = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'elevate' && u.tokenId === 'pc-lyra');
+      check(!!el && Number(el.value) > 0 && Number(el.value) <= 20, 'levitate: Lyra raised, no more than 20 ft', el ? 'value ' + el.value : 'no elevate');
     }
     if (step.id === 'fly') {
       const el = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'elevate' && u.tokenId === 'pc-thorin');

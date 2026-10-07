@@ -39,11 +39,16 @@ test('expandTokenUpdates: simple actions become their specific updates', async (
   ]);
   const types = out.map((u) => u.type);
   assert.deepEqual(types, ['moveToken', 'damageToken', 'healToken', 'setInitiative', 'startCombat', 'endCombat', 'endTurn', 'removeToken', 'revealToken', 'hideToken', 'addCondition', 'removeCondition', 'setWhere', 'setWhere', 'setWhere', 'restParty', 'restParty', 'setMood', 'playSound', 'lightToken', 'summonToken', 'readyToken', 'template']);
-  assert.deepEqual(out[0], { type: 'moveToken', tokenId: 't1', col: 3, row: 4 });
+  assert.deepEqual(out[0], { type: 'moveToken', tokenId: 't1', col: 3, row: 4, mode: '' });
   assert.equal(out[12].where, 'scouting'); assert.equal(out[13].where, 'elsewhere'); assert.equal(out[14].where, '');
   assert.equal(out[15].kind, 'long'); assert.equal(out[16].kind, 'short');
   assert.equal(out[17].mood, 'combat'); assert.equal(out[18].sound, 'thunder');
   assert.equal(out[19].kind, 'torch'); assert.equal(out[20].ownerId, 'lyra'); assert.equal(out[22].shape, 'cone'); assert.equal(out[22].toward, 'goblin');
+});
+
+test('expandTokenUpdates: a move marked forced or teleport carries its mode, anything else is the creature walking', async () => {
+  const out = await expandTokenUpdates([T('move', { tokenId: 'g', col: 5, row: 5, condition: 'Forced' }), T('move', { tokenId: 'g', col: 6, row: 6, condition: ' teleport ' }), T('move', { tokenId: 'g', col: 7, row: 7, condition: 'sneaks' })]);
+  assert.deepEqual(out.map((u) => u.mode), ['forced', 'teleport', '']);
 });
 
 test('expandTokenUpdates: non-token updates pass through, nulls and unknown actions are dropped', async () => {

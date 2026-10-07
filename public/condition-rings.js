@@ -173,16 +173,16 @@
     var any = function (list) { return list.filter(has); };
     var out = { speed: base.speed, vision: base.vision, canAct: true, againstAdv: [], againstDis: [], ownAdv: [], ownDis: [], lines: [] };
     // speed
-    var stopped = any(['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised', 'lethargic']);
+    var stopped = any(['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised', 'lethargic', 'levitate']);
     if (stopped.length) { out.speed = 0; out.lines.push('Speed 0 ft (' + stopped.join(', ') + ').'); }
     else {
       // haste doubles the speed and slow halves it (both: back to normal); a prone creature crawls at half
-      var sp = base.speed;
+      var sp = base.speed + (has('longstrider') ? 10 : 0);
       if (has('haste')) sp *= 2;
       if (has('slow')) sp = Math.floor(sp / 2);
       if (has('prone')) sp = Math.floor(sp / 2);
       out.speed = sp;
-      if (has('haste') || has('slow')) out.lines.push('Speed ' + sp + ' ft (' + [has('haste') ? 'haste doubles it' : '', has('slow') ? 'slow halves it' : '', has('prone') ? 'prone halves it' : ''].filter(Boolean).join(', ') + ').');
+      if (has('haste') || has('slow') || has('longstrider')) out.lines.push('Speed ' + sp + ' ft (' + [has('longstrider') ? 'longstrider adds 10 ft' : '', has('haste') ? 'haste doubles it' : '', has('slow') ? 'slow halves it' : '', has('prone') ? 'prone halves it' : ''].filter(Boolean).join(', ') + ').');
       else if (has('prone')) out.lines.push('Speed ' + sp + ' ft: crawling (prone).');
     }
     out.acMod = (has('haste') ? 2 : 0) - (has('slow') ? 2 : 0);
@@ -196,13 +196,13 @@
     var cannot = any(['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious']);
     if (cannot.length) { out.canAct = false; out.lines.push("Can't take actions or reactions (" + cannot.join(', ') + ').'); }
     // attacks against it
-    out.againstAdv = any(['blinded', 'paralyzed', 'petrified', 'restrained', 'stunned', 'unconscious']);
+    out.againstAdv = any(['blinded', 'paralyzed', 'petrified', 'restrained', 'stunned', 'unconscious', 'squeezing']);
     if (has('prone')) out.againstAdv.push('prone (melee within 5 ft)');
     out.againstDis = any(['invisible']);
     if (has('prone')) out.againstDis.push('prone (ranged)');
     // its own attacks
     out.ownAdv = any(['invisible']);
-    out.ownDis = any(['blinded', 'frightened', 'poisoned', 'prone', 'restrained']);
+    out.ownDis = any(['blinded', 'frightened', 'poisoned', 'prone', 'restrained', 'squeezing']);
     if (out.againstAdv.length) out.lines.push('Attacks against it have advantage (' + out.againstAdv.join(', ') + ').');
     if (out.againstDis.length) out.lines.push('Attacks against it have disadvantage (' + out.againstDis.join(', ') + ').');
     if (out.ownAdv.length) out.lines.push('Its attacks have advantage (' + out.ownAdv.join(', ') + ').');

@@ -649,7 +649,8 @@ const rows = () => Math.ceil(state.map.height / GRID);
 const centerOf = (cell) => cell * GRID + GRID / 2;
 const sqKey = (c, r) => `${c},${r}`;
 // Token size: a creature's footprint is n x n squares with (col,row) its top-left square (token-size.js). Centre, drawing and range all use the footprint centre.
-const fp = (t) => TokenSize.squares(t && t.size);
+// A creature squeezing through a space one size smaller takes that smaller footprint while it is there (see SQUEEZING).
+const fp = (t) => { const n = TokenSize.squares(t && t.size); return t && t.squeezed && n > 1 ? n - 1 : n; };
 const tcx = (t) => (t.col + fp(t) / 2) * GRID;
 const tcy = (t) => (t.row + fp(t) / 2) * GRID;
 
@@ -977,6 +978,76 @@ function reachTerrain(token, radiusFt, near, rule) {
   return cost;
 }
 
+// SQUEEZING (2014 PHB, "Movement and Position"): a creature can move through a space big enough for a creature one size smaller (a Large creature through a one-square corridor).
+// While it squeezes each foot of movement costs 1 extra foot, it has disadvantage on attack rolls and Dexterity saves, and attacks against it have advantage.
+// The table gives the creature the smaller footprint (token.squeezed, the condition 'squeezing') while its full body does not fit where it stands, and charges the extra foot.
+// reachSqueeze() is a second pass over what the normal pass found: from any reachable square it tries steps the full body cannot make but the body one size smaller can.
+function bodyFits(c, r, n, walls) {
+  if (!inBounds(c, r) || !inBounds(c + n - 1, r + n - 1)) return false;
+  const keep = moveN; moveN = n;
+  let blocked = false;
+  for (let i = 0; i < n && !blocked; i++) {
+    for (let j = 0; j < n && !blocked; j++) {
+      if (i + 1 < n) { const ax = centerOf(c + i), ay = centerOf(r + j); for (const w of walls) if (segmentsIntersect(ax, ay, centerOf(c + i + 1), ay, w)) { blocked = true; break; } }
+      if (!blocked && j + 1 < n) { const ax = centerOf(c + i), ay = centerOf(r + j); for (const w of walls) if (segmentsIntersect(ax, ay, ax, centerOf(r + j + 1), w)) { blocked = true; break; } }
+    }
+  }
+  moveN = keep;
+  return !blocked;
+}
+function reachSqueeze(token, base, radiusFt, near, rule) {
+  const n = TokenSize.squares(token.size), m = n - 1;
+  const fitsMemo = new Map();
+  const fits = (c, r) => { const k = sqKey(c, r); if (!fitsMemo.has(k)) fitsMemo.set(k, bodyFits(c, r, n, near)); return fitsMemo.get(k); };
+  const best = new Map(base);
+  const open = [...base].map(([k, v]) => [v, k]);
+  const keep = moveN;
+  while (open.length) {
+    let bi = 0;
+    for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+    const [here, k] = open.splice(bi, 1)[0];
+    if (here > (best.get(k) ?? Infinity)) continue;
+    const [c, r] = k.split(',').map(Number);
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (dc === 0 && dr === 0) continue;
+        const nc = c + dc, nr = r + dr;
+        const diagonal = dc !== 0 && dr !== 0;
+        const stepFt = diagonal ? (rule === 'circle' ? SQRT2 * FT_PER_SQUARE : rule === 'alternating' ? 7.5 : FT_PER_SQUARE) : FT_PER_SQUARE;
+        let squeeze = 0;
+        moveN = n;
+        const wholeBody = fits(c, r) && fits(nc, nr) && inBounds(nc + n - 1, nr + n - 1) && !moveBlocked(c, r, nc, nr, near);
+        if (!wholeBody) {
+          moveN = m;
+          if (!inFp(nc, nr) || moveBlocked(c, r, nc, nr, near)) continue;
+          squeeze = 1;
+        }
+        moveN = n;
+        const hard = !moveFlying && difficultFp(nc, nr) ? 1 : 0;
+        const next = here + stepFt * (1 + squeeze + hard);
+        if (next > radiusFt + 1e-9) continue;
+        const nk = sqKey(nc, nr);
+        if (next >= (best.get(nk) ?? Infinity) - 1e-9) continue;
+        best.set(nk, next);
+        open.push([next, nk]);
+      }
+    }
+  }
+  moveN = keep;
+  return best;
+}
+// After a creature has been moved: it squeezes while its full body does not fit where it stands.
+function settleBody(t) {
+  const n = TokenSize.squares(t && t.size);
+  if (!t || n < 2) return;
+  const walls = state.gmOverride ? [] : (isFlying(t) ? flyerWalls() : blockingWalls());
+  const narrow = !bodyFits(t.col, t.row, n, walls);
+  if (narrow === Boolean(t.squeezed)) return;
+  t.squeezed = narrow;
+  if (narrow) { setCondition(t, 'squeezing', 0); if (seenByParty(t)) addChat('system', `↳ ${t.name} squeezes through a space one size too small: each foot costs 2, disadvantage on attacks and Dexterity saves, attacks against it have advantage`); }
+  else clearCondition(t, 'squeezing');
+}
+
 function reachable(token) {
   if (!token) return new Map();
   const free = !state.combat.active && !state.gmOverride;                // no fight: move freely, no turns, no budget
@@ -989,7 +1060,7 @@ function reachable(token) {
   const radiusFt = state.gmOverride ? Infinity : free ? FREE_ROAM_FT : token.movementRemaining;
   const R = Number.isFinite(radiusFt) ? Math.ceil(radiusFt / FT_PER_SQUARE) : Math.max(cols(), rows());
   const x0 = tcx(token), y0 = tcy(token);
-  moveN = fp(token);
+  moveN = TokenSize.squares(token.size);          // the normal pass uses the whole body (a squeezing creature gets the second pass below)
   moveFlying = isFlying(token);
   const reachPx = (R + 1) * GRID;
   // Only walls near the token can matter.
@@ -1001,6 +1072,16 @@ function reachable(token) {
     : rule === 'circle' ? reachCircle(token, radiusFt, R, near)
     : rule === 'alternating' ? reachAlternating(token, radiusFt, near)
     : reachStandard(token, radiusFt, near);
+  let narrowKeys = new Set();
+  if (moveN > 1 && near.length && !state.gmOverride) {
+    const withSqueeze = reachSqueeze(token, cost, radiusFt, near, rule);
+    const fullAt = (c, r) => bodyFits(c, r, moveN, near);
+    for (const [k, v] of withSqueeze) {
+      if (!cost.has(k) || v < cost.get(k) - 1e-9) cost.set(k, v);
+      const [c, r] = k.split(',').map(Number);
+      if (!fullAt(c, r)) narrowKeys.add(k);
+    }
+  }
   // A summoned thing cannot stray beyond its leash from the one who controls it.
   if (leashOwner) {
     for (const k of [...cost.keys()]) {
@@ -1014,7 +1095,7 @@ function reachable(token) {
     const o = { col: other.col, row: other.row, n: fp(other) };
     for (const k of [...cost.keys()]) {
       const [c, r] = k.split(',').map(Number);
-      if (TokenSize.overlaps({ col: c, row: r, n: moveN }, o)) cost.delete(k);
+      if (TokenSize.overlaps({ col: c, row: r, n: narrowKeys.has(k) ? moveN - 1 : moveN }, o)) cost.delete(k);
     }
   }
   reachCache = { sig, map: cost };
@@ -1069,13 +1150,17 @@ const CONDITION_HELP = {
 const conditionHelp = (name) => CONDITION_HELP[name] || '';
 // Speed lost to conditions: held, paralyzed, petrified, stunned or unconscious creatures cannot move; prone ones crawl.
 // Flying (2014 PHB "Flying Movement"): a creature with a flying speed (its own, or 60 ft from the fly spell) uses it while it is in the air (elevation above 0), or always when it has no walking speed (a ghost, a flameskull).
-const flySpeedOf = (t) => Math.max(Number(t && t.flySpeed) || 0, hasCondition(t, 'fly') ? 60 : 0);
+// An effect can give a flying speed (fly: feet, or 'walk'), keep a creature up (aloft) or hold it still (still); see public/effect-data.json.
+const effectDefsOn = (t) => tokenConditions(t).map((c) => EFFECT_DEFS[c.name]).filter(Boolean);
+const flySpeedOf = (t) => Math.max(Number(t && t.flySpeed) || 0, ...effectDefsOn(t).map((e) => (e.fly === 'walk' ? Number(t.speed) || 0 : Number(e.fly) || 0)));
+const heldAloft = (t) => hasCondition(t, 'fly') || effectDefsOn(t).some((e) => e.aloft);
 const isFlying = (t) => Boolean(t) && flySpeedOf(t) > 0 && ((Number(t.elevation) || 0) > 0 || !(Number(t.speed) > 0));
 // Speed now: the walking or flying speed, doubled by haste, halved by slow (both: back to normal), halved when prone; none when held, stunned and so on, or lethargic after haste ends.
 function effectiveSpeed(t) {
-  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised', 'lethargic'].some((n) => hasCondition(t, n))) return 0;
+  if (['grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious', 'surprised', 'lethargic'].some((n) => hasCondition(t, n)) || effectDefsOn(t).some((e) => e.still)) return 0;
   let sp = isFlying(t) ? flySpeedOf(t) : t.speed;
   if (!Number.isFinite(sp)) return sp;
+  sp += effectDefsOn(t).reduce((n, e) => n + (Number(e.speedBonus) || 0), 0);       // longstrider and the like
   if (hasCondition(t, 'haste')) sp *= 2;
   if (hasCondition(t, 'slow')) sp = Math.floor(sp / 2);
   return hasCondition(t, 'prone') ? Math.floor(sp / 2) : sp;
@@ -1088,7 +1173,7 @@ const effAcOf = (t) => { const ac = acOf(t); return ac === null ? null : ac + ac
 const FALL_CONDITIONS = ['prone', 'grappled', 'restrained', 'paralyzed', 'petrified', 'stunned', 'unconscious'];
 function checkFall(t) {
   const h = Number(t && t.elevation) || 0;
-  if (h <= 0 || t.hover || hasCondition(t, 'fly')) return false;
+  if (h <= 0 || t.hover || heldAloft(t)) return false;
   if (flySpeedOf(t) > 0 && !FALL_CONDITIONS.some((n) => hasCondition(t, n)) && hpOf(t) !== 0) return false;
   t.elevation = 0;
   const dice = TokenSize.fallDice(h);
@@ -1179,7 +1264,7 @@ function clearCondition(t, name) {
   const removed = t.conditions.length !== before;
   // Haste ending leaves the creature lethargic: it can't move or take actions until after its next turn (2014 PHB, haste).
   if (removed && key === 'haste' && !t.dead) { setCondition(t, 'lethargic', 2); if (seenByParty(t)) addChat('system', `↳ ${t.name} is lethargic: it can't move or take actions until after its next turn`); }
-  if (removed && key === 'fly') checkFall(t);
+  if (removed && (key === 'fly' || EFFECT_DEFS[key]?.aloft || EFFECT_DEFS[key]?.fly)) checkFall(t);
   return removed;
 }
 // When a caster stops concentrating, every effect that depends on it (put on with the caster's token id as its source) ends too.
@@ -1216,20 +1301,32 @@ function noteAttackBy(actor, target) {
   actor.attackedSince = true;
   endEffectsWithTrigger(actor, 'harms', 'it attacked or harmed another creature');
 }
+// The creature a roll line is about: the one whose name (or first name) the line starts with, in a fight or not; the longest name wins.
+function rollLineActor(line) {
+  let best = null, bestLen = 0;
+  for (const t of state.tokens) {
+    if (!t.name || t.dead) continue;
+    for (const n of [String(t.name).toLowerCase(), String(t.name).split(' ')[0].toLowerCase()]) if (n && line.startsWith(n) && n.length > bestLen) { best = t; bestLen = n.length; }
+  }
+  return best;
+}
+const ATTACK_WORDS = /\b(attack|hits?|misses?|strikes?|slash|stab|shoot|fires?|smite|swing|swings)\b/;
+const CHECK_WORDS = /\b(check|acrobatics|animal handling|arcana|athletics|deception|history|insight|intimidation|investigation|medicine|nature|perception|performance|persuasion|religion|sleight of hand|stealth|survival)\b/;
 function noteRollLines(lines) {
-  const actor = state.combat.active ? activeToken() : null;
-  if (!actor) return;
-  const first = String(actor.name || '').split(' ')[0].toLowerCase();
-  if (!first) return;
+  const attacked = new Set();
   for (const raw of lines) {
     const line = String(raw).toLowerCase();
-    if ((line.startsWith(first) || line.startsWith(String(actor.name).toLowerCase())) && /\b(attack|hits?|misses?|strikes?|slash|stab|shoot|fires?|smite|swing|swings)\b/.test(line)) { noteAttackBy(actor, null); break; }
+    const actor = rollLineActor(line);
+    if (!actor) continue;
+    if (ATTACK_WORDS.test(line) && !attacked.has(actor.id)) { attacked.add(actor.id); noteAttackBy(actor, null); }
+    else if (CHECK_WORDS.test(line) && !/\bsav(e|ing)\b/.test(line)) endEffectsWithTrigger(actor, 'check-rolled', 'the 1d4 was used on an ability check');
   }
 }
 // The end of a combatant's turn: rage needs an attack or damage since their last turn; then the flags start over.
 function endOfTurnTriggers(t) {
   if (!t) return;
   if (!t.attackedSince && !t.hurtSince) endEffectsWithTrigger(t, 'idle-round', 'a whole round passed with no attack and no damage taken');
+  for (const c of tokenConditions(t)) if (triggerOf(c) === 'turn-save') state.pendingNotes.push(`${t.name}'s turn is over and ${c.name} is still on it: it repeats its saving throw now (the caster's spell save DC; slow uses Wisdom). Roll it from the dice tray and remove ${c.name} with removeCondition if it succeeds.`);
   t.attackedSince = false; t.hurtSince = false;
 }
 
@@ -1443,7 +1540,7 @@ function endTurn() {
 
 function serializeToken(t) {
   return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', size: TokenSize.normalize(t.size), footprint: fp(t), flySpeed: t.flySpeed || 0, hover: Boolean(t.hover), elevation: Number(t.elevation) || 0, ...(Number(t.elevation) > 0 ? { elevationNote: `${t.elevation} ft up: a melee attacker needs a reach of at least ${t.elevation} ft to hit it (5 ft reach cannot); brought down it falls ${TokenSize.fallDice(t.elevation)}d6 bludgeoning and lands prone` } : {}), speedNow: effectiveSpeed(t), effectiveAc: effAcOf(t), conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds, ...(c.armed ? { armed: true } : {}), ...(Number.isFinite(c.untilMin) ? { untilMin: c.untilMin, minutesLeft: minutesLeft(c) } : {}), ...(c.source ? { source: c.source } : {}), ...(c.concentration ? { concentration: true } : {}) })),
-    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null };
+    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null, squeezed: Boolean(t.squeezed) };
 }
 
 /* =====================================================================
@@ -2303,6 +2400,7 @@ function finishPointer(e, cancelled) {
       const fromCol = t.col, fromRow = t.row;
       t.col = target.col;
       t.row = target.row;
+      settleBody(t);
       noteOpportunityAttacks(t, fromCol, fromRow);
       if (!state.gmOverride && state.combat.active) t.movementRemaining = Math.max(0, t.movementRemaining - Math.min(t.movementRemaining, Math.round(target.cost)));
       animateToken(t, fromX, fromY);
@@ -4097,9 +4195,11 @@ async function applyMapUpdates(updates) {
         const fromX = tcx(t), fromY = tcy(t);
         let col = clamp(u.col, 0, cols() - fp(t)), row = clamp(u.row, 0, rows() - fp(t));
         // The DM's moves obey the table's walls and the token's speed: a move that cannot be done stops at the nearest square that can.
-        if (!plainMap() && !(col === t.col && row === t.row)) {
+        const shoved = u.mode === 'forced' || u.mode === 'teleport';       // not the creature's own walking: no opportunity attacks, no movement spent
+        if (u.mode === 'teleport') { const spot = freeSquareNear(col, row, fp(t)); col = spot.col; row = spot.row; }
+        else if (!plainMap() && !(col === t.col && row === t.row)) {
           const saved = t.movementRemaining;
-          t.movementRemaining = effectiveSpeed(t) * (hasCondition(t, 'dashing') ? 2 : 1);
+          t.movementRemaining = u.mode === 'forced' ? 120 : effectiveSpeed(t) * (hasCondition(t, 'dashing') ? 2 : 1);
           const reach = reachable(t);
           t.movementRemaining = saved;
           if (!reach.has(sqKey(col, row))) {
@@ -4118,9 +4218,10 @@ async function applyMapUpdates(updates) {
         const fromCol = t.col, fromRow = t.row;
         t.col = col;
         t.row = row;
+        settleBody(t);
         animateToken(t, fromX, fromY);
         if (seenByParty(t)) addChat('system', `↳ ${t.name} moved to (${t.col}, ${t.row})`);
-        if (!t.isPC) noteOpportunityAttacks(t, fromCol, fromRow);
+        if (!t.isPC && !shoved) noteOpportunityAttacks(t, fromCol, fromRow);
         break;
       }
       case 'addToken': {
@@ -4535,7 +4636,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
+window.vtt = { settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
 
 init().catch((err) => {
   console.error(err);
