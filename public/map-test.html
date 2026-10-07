@@ -34,6 +34,9 @@
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
   #pinCard { position:absolute; z-index:6; width:240px; background:var(--panel); border:1px solid var(--accent); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
   #pinCard[hidden], #pinCard [hidden] { display:none; }
+  .brush-box { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
+  .brush-box[hidden] { display:none; }
+  .brush-box input { width:110px; }
   #pcGuide { font-size:12px; color:var(--muted); }
   #pcGuide summary { cursor:pointer; color:var(--text); font-weight:600; }
   #pcGuideText { margin-top:6px; max-height:220px; overflow:auto; line-height:1.45; white-space:normal; }
@@ -88,7 +91,7 @@
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
-    <p class="hint">Terrain: choose the Terrain tool above the map and drag a rectangle over difficult ground (right-click inside one to remove it).</p>
+    <p class="hint">Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again.</p>
   </div>
 
   <div class="group">
@@ -162,7 +165,9 @@
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
-    <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: drag a rectangle over rubble, mud, shallow water or thick undergrowth (it snaps to the grid). Moving into those squares costs double. Right-click inside a rectangle to remove it">Terrain</button>
+    <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
+    <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
+    <label id="brushBox" class="brush-box" hidden title="Brush size in squares across ([ and ] change it)">Brush <input type="range" id="brush" min="1" max="12" step="1" value="2"> <b id="brushVal">2</b></label>
     <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
   </div>
   <div class="banner" id="banner">Loading maps...</div>
@@ -193,7 +198,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
   };
@@ -553,13 +558,75 @@
     ctx.restore();
   }
 
-  // Difficult terrain: shaded rectangles (always shown, stronger while the Terrain tool is selected), plus the one being dragged.
+  // ---- Difficult terrain is painted with a round brush: the squares are kept as a set while you drag and saved as the fewest rectangles that cover them.
+  const gridPx = () => S.W / S.squares;
+  const isTerrainTool = () => S.tool === 'terrain' || S.tool === 'eraser';
+  const cellsOfRects = () => {
+    const g = gridPx(), set = new Set();
+    for (const d of S.difficult) {
+      const c0 = Math.round(d.x / g), r0 = Math.round(d.y / g), c1 = Math.round((d.x + d.w) / g), r1 = Math.round((d.y + d.h) / g);
+      for (let c = c0; c < c1; c++) for (let r = r0; r < r1; r++) set.add(c + ',' + r);
+    }
+    return set;
+  };
+  // The squares under the brush at a world point: a disc of diameter S.brush squares (size 1 is just the square under the pointer).
+  function brushCells(p) {
+    const g = gridPx(), cols = Math.ceil(S.W / g - 1e-6), rows = Math.ceil(S.H / g - 1e-6), out = [];
+    if (S.brush <= 1) { const c = Math.floor(p.x / g), r = Math.floor(p.y / g); return c >= 0 && r >= 0 && c < cols && r < rows ? [c + ',' + r] : []; }
+    const R = S.brush / 2, cx = p.x / g, cy = p.y / g;
+    for (let c = Math.floor(cx - R); c <= Math.ceil(cx + R); c++) for (let r = Math.floor(cy - R); r <= Math.ceil(cy + R); r++) {
+      if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+      if (Math.hypot(c + 0.5 - cx, r + 0.5 - cy) <= R) out.push(c + ',' + r);
+    }
+    return out;
+  }
+  // Squares to rectangles: runs along each row, then runs with the same columns on consecutive rows are joined into one taller rectangle.
+  function rectsOfCells(set) {
+    const g = gridPx(), rows = new Map();
+    for (const k of set) { const [c, r] = k.split(',').map(Number); if (!rows.has(r)) rows.set(r, []); rows.get(r).push(c); }
+    const open = new Map(), out = [];
+    for (const r of [...rows.keys()].sort((a, b) => a - b)) {
+      const cs = rows.get(r).sort((a, b) => a - b), runs = [];
+      for (const c of cs) { const last = runs[runs.length - 1]; if (last && last[1] === c - 1) last[1] = c; else runs.push([c, c]); }
+      const next = new Map();
+      for (const [a, b] of runs) {
+        const key = a + ',' + b, above = open.get(key);
+        if (above && above.r1 === r - 1) { above.r1 = r; next.set(key, above); } else { const rect = { a, b, r0: r, r1: r }; out.push(rect); next.set(key, rect); }
+      }
+      open.clear(); for (const [k, v] of next) open.set(k, v);
+    }
+    return out.map((q) => ({ x: Math.round(q.a * g), y: Math.round(q.r0 * g), w: Math.round((q.b - q.a + 1) * g), h: Math.round((q.r1 - q.r0 + 1) * g) }));
+  }
+  // One stroke segment from the last point to this one (so a quick drag leaves no gaps).
+  function brushStroke(from, to, erase) {
+    const g = gridPx(), steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / (g / 2)));
+    let changed = false;
+    for (let i = 0; i <= steps; i++) {
+      const q = { x: from.x + (to.x - from.x) * (i / steps), y: from.y + (to.y - from.y) * (i / steps) };
+      for (const k of brushCells(q)) { if (erase ? S.drag.cells.delete(k) : (S.drag.cells.has(k) ? false : (S.drag.cells.add(k), true))) changed = true; }
+    }
+    if (changed) { S.difficult = rectsOfCells(S.drag.cells); S.difficultSquares = null; }
+  }
+  function setBrush(n) {
+    S.brush = Math.max(1, Math.min(12, Math.round(n)));
+    $('#brush').value = String(S.brush); $('#brushVal').textContent = String(S.brush);
+    requestRender();
+  }
+
+  // Difficult terrain: shaded rectangles (always shown, stronger while the Terrain tool is selected), plus the brush.
   function drawTerrain(px) {
-    if (!S.showTerrain && S.tool !== 'terrain') return;             // hidden unless the box is ticked or the Terrain tool is selected
-    const list = S.drag && S.drag.kind === 'terrain' && S.drag.rect ? S.difficult.concat([S.drag.rect]) : S.difficult;
-    if (!list.length) return;
+    const editing = isTerrainTool();
+    if (!S.showTerrain && !editing) return;             // hidden unless the box is ticked or the Terrain tool or the Eraser is selected
+    const list = S.difficult;
     ctx.save();
-    const editing = S.tool === 'terrain';
+    if (editing && S.hover && !(S.drag && S.drag.kind === 'pan')) {          // the brush: the squares one press would paint or erase
+      ctx.fillStyle = S.tool === 'eraser' ? 'rgba(255, 90, 90, 0.30)' : 'rgba(255, 200, 80, 0.30)';
+      ctx.strokeStyle = S.tool === 'eraser' ? 'rgba(255, 110, 110, 0.95)' : 'rgba(255, 215, 120, 0.95)';
+      ctx.lineWidth = 1.5 * px; ctx.setLineDash([]);
+      const g = gridPx();
+      for (const k of brushCells(S.hover)) { const [c, r] = k.split(',').map(Number); ctx.fillRect(c * g, r * g, g, g); ctx.strokeRect(c * g, r * g, g, g); }
+    }
+    if (!list.length) { ctx.restore(); return; }
     for (const d of list) {
       ctx.fillStyle = editing ? 'rgba(200, 120, 40, 0.38)' : 'rgba(230, 130, 30, 0.34)';
       ctx.fillRect(d.x, d.y, d.w, d.h);
@@ -987,6 +1054,7 @@
     if (tool === 'start' && !S.showPins) { S.showPins = true; $('#showPins').checked = true; }       // choosing the Pins tool turns the pins back on
     if (tool !== 'start') S.selected = null;
     positionPinCard();
+    $('#brushBox').hidden = !isTerrainTool();
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
     cv.style.cursor = tool === 'pan' ? 'grab' : tool === 'toggle' ? 'pointer' : 'crosshair';
     requestRender();
@@ -1075,11 +1143,10 @@
 
     if (e.button === 2) {
       if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
-      if (S.tool === 'terrain') {
-        for (let i = S.difficult.length - 1; i >= 0; i--) {
-          const d = S.difficult[i];
-          if (p.x >= d.x && p.x <= d.x + d.w && p.y >= d.y && p.y <= d.y + d.h) { S.difficult.splice(i, 1); save(); requestRender(); break; }
-        }
+      if (isTerrainTool()) {
+        try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+        S.drag = { kind: 'brush', erase: true, last: p, cells: cellsOfRects() };
+        brushStroke(p, p, true); requestRender();
         return;
       }
       return;
@@ -1117,9 +1184,11 @@
       parkAtStart(); revealFog();
       save();
       selectPin(pin, true);
-    } else if (S.tool === 'terrain') {
+    } else if (isTerrainTool()) {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
-      S.drag = { kind: 'terrain', x0: p.x, y0: p.y, rect: null };
+      try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+      S.drag = { kind: 'brush', erase: S.tool === 'eraser', last: p, cells: cellsOfRects() };
+      brushStroke(p, p, S.drag.erase); requestRender();
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);
       if (w) { w.open = !w.open; wallsChanged(); }
@@ -1147,13 +1216,9 @@
     if (S.drag && S.drag.kind === 'pan') {
       S.view.ox = S.drag.ox + (e.clientX - S.drag.sx);
       S.view.oy = S.drag.oy + (e.clientY - S.drag.sy);
-    } else if (S.drag && S.drag.kind === 'terrain') {
-      // Snap to the grid so every shaded square is a whole square.
-      const g = S.W / S.squares;
-      const sx = (v) => Math.round(clamp(v, 0, S.W) / g) * g, sy = (v) => Math.round(clamp(v, 0, S.H) / g) * g;
-      const x1 = Math.min(sx(S.drag.x0), sx(p.x)), x2 = Math.max(sx(S.drag.x0), sx(p.x));
-      const y1 = Math.min(sy(S.drag.y0), sy(p.y)), y2 = Math.max(sy(S.drag.y0), sy(p.y));
-      S.drag.rect = { x: Math.round(x1), y: Math.round(y1), w: Math.round(x2 - x1), h: Math.round(y2 - y1) };
+    } else if (S.drag && S.drag.kind === 'brush') {
+      brushStroke(S.drag.last, p, S.drag.erase);
+      S.drag.last = p;
     } else if (S.drag && S.drag.kind === 'start') {
       S.drag.spot.x = Math.round(clamp(p.x, 0, S.W));
       S.drag.spot.y = Math.round(clamp(p.y, 0, S.H));
@@ -1175,7 +1240,7 @@
     try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (kind === 'token') save();
     if (kind === 'start') { if (drag.spot.name === 'start') parkAtStart(); save(); renderStartList(); revealFog(); requestRender(); }
-    if (kind === 'terrain' && drag.rect && drag.rect.w > 0 && drag.rect.h > 0) { S.difficult.push(drag.rect); save(); }
+    if (kind === 'brush') { S.difficultSquares = null; save(); }
     setTool(S.tool);
   }
   cv.addEventListener('pointerup', endDrag);
@@ -1329,6 +1394,11 @@
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
+  $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
+  document.addEventListener('keydown', (e) => {
+    if (!isTerrainTool() || e.target.closest('input, textarea, select')) return;
+    if (e.key === '[') setBrush(S.brush - 1); else if (e.key === ']') setBrush(S.brush + 1);
+  });
   $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
 
