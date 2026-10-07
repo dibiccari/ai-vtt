@@ -360,7 +360,20 @@ app.get('/api/map-areas', asyncRoute(async (req, res) => {
     };
     if (Array.isArray(list)) { for (const a of list) if (Number.isFinite(a?.n) && typeof a?.name === 'string' && !areas.some((o) => o.n === a.n)) areas.push({ n: a.n, name: a.name.slice(0, 60), text: sectionOf(a.n) }); }
   }
-  res.json({ areas: areas.sort((a, b) => a.n - b.n) });
+  // maps with no numbered areas: areas.json `_pinGuides` {picture: {file, heading, pins[]}} gives the named pins the section of the adventure under that heading
+  const pinGuides = {};
+  for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!dirent.isDirectory()) continue;
+    const g = (await readJson(path.join(CAMPAIGNS_DIR, dirent.name, 'areas.json'), {}))._pinGuides?.[file];
+    if (!g || !Array.isArray(g.pins)) continue;
+    const text = await readFile(path.join(CAMPAIGNS_DIR, dirent.name, path.basename(String(g.file))), 'utf8').catch(() => '');
+    const at = text.toUpperCase().indexOf('## ' + String(g.heading).toUpperCase());
+    if (at < 0) continue;
+    const rest = text.slice(at).replace(/^## .*\n/, ''), next = /^## /m.exec(rest);
+    const guide = rest.slice(0, next ? next.index : rest.length).replace(/\s+/g, ' ').trim().slice(0, 3200);
+    for (const pin of g.pins) pinGuides[String(pin)] = guide;
+  }
+  res.json({ areas: areas.sort((a, b) => a.n - b.n), pinGuides });
 }));
 
 app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {

@@ -710,8 +710,9 @@
   /* ---------------- module areas: numbered rooms dragged onto the map as pins named area-N ---------------- */
   const isAreaPin = (p) => /^area-\d+(-\d+)?$/.test(p.name);          // area-3 is the first pin of area 3, area-3-2 a second one (a room with two parts)
   let AREAS = [];
+  let PIN_GUIDES = {};
   async function loadAreas() {
-    try { AREAS = (await (await fetch('/api/map-areas?map=' + encodeURIComponent(mapName()))).json()).areas || []; } catch { AREAS = []; }
+    try { const r = await (await fetch('/api/map-areas?map=' + encodeURIComponent(mapName()))).json(); AREAS = r.areas || []; PIN_GUIDES = r.pinGuides || {}; } catch { AREAS = []; PIN_GUIDES = {}; }
     renderAreaList();
   }
   function renderAreaList() {
@@ -1237,10 +1238,10 @@
       $('#pcStart').hidden = pin.name === 'start';
       $('#pcRadius').value = pin.radius || 0;
       $('#pcRadiusRow').hidden = isAreaPin(pin);
-      const am = /^area-(\d+)/.exec(pin.name), area = am && AREAS.find((a) => a.n === Number(am[1]));        // a module area pin shows its text from the adventure
-      $('#pcGuide').hidden = !(area && area.text);
+      const am = /^area-(\d+)/.exec(pin.name), area = am && AREAS.find((a) => a.n === Number(am[1])), pinGuide = PIN_GUIDES[pin.name];        // a module area pin shows its text from the adventure
+      $('#pcGuide').hidden = !((area && area.text) || pinGuide);
       $('#pcGuide').open = false;
-      $('#pcGuideText').textContent = area && area.text ? area.name + '. ' + area.text : '';
+      $('#pcGuideText').textContent = area && area.text ? area.name + '. ' + area.text : (pinGuide || '');
     }
     positionPinCard();
     renderStartList();

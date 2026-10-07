@@ -1,448 +1,487 @@
 {
- "lmop-cragmaw-hideout.png": [
-  {
-   "n": 1,
-   "name": "Cave Mouth"
+  "lmop-cragmaw-hideout.png": [
+    {
+      "n": 1,
+      "name": "Cave Mouth"
+    },
+    {
+      "n": 2,
+      "name": "Goblin Blind"
+    },
+    {
+      "n": 3,
+      "name": "Kennel"
+    },
+    {
+      "n": 4,
+      "name": "Steep Passage"
+    },
+    {
+      "n": 5,
+      "name": "Overpass"
+    },
+    {
+      "n": 6,
+      "name": "Goblin Den"
+    },
+    {
+      "n": 7,
+      "name": "Twin Pools Cave"
+    },
+    {
+      "n": 8,
+      "name": "Klarg's Cave"
+    }
+  ],
+  "lmop-redbrand-hideout.png": [
+    {
+      "n": 1,
+      "name": "Cellar"
+    },
+    {
+      "n": 2,
+      "name": "Barracks"
+    },
+    {
+      "n": 3,
+      "name": "Trapped Hall"
+    },
+    {
+      "n": 4,
+      "name": "Tresendar Crypts"
+    },
+    {
+      "n": 5,
+      "name": "Slave Pens"
+    },
+    {
+      "n": 6,
+      "name": "Armory"
+    },
+    {
+      "n": 7,
+      "name": "Storeroom and Work Area"
+    },
+    {
+      "n": 8,
+      "name": "Crevasse"
+    },
+    {
+      "n": 9,
+      "name": "Guard Barracks"
+    },
+    {
+      "n": 10,
+      "name": "Common Room"
+    },
+    {
+      "n": 11,
+      "name": "Wizard's Workshop"
+    },
+    {
+      "n": 12,
+      "name": "Glasstaff's Quarters"
+    }
+  ],
+  "lmop-thundertree.png": [
+    {
+      "n": 1,
+      "name": "Westernmost Cottage"
+    },
+    {
+      "n": 2,
+      "name": "Blighted Cottages"
+    },
+    {
+      "n": 3,
+      "name": "The Brown Horse"
+    },
+    {
+      "n": 4,
+      "name": "Druid's Watch"
+    },
+    {
+      "n": 5,
+      "name": "Blighted Farmhouse"
+    },
+    {
+      "n": 6,
+      "name": "Ruined Store"
+    },
+    {
+      "n": 7,
+      "name": "Dragon's Tower"
+    },
+    {
+      "n": 8,
+      "name": "Old Smithy"
+    },
+    {
+      "n": 9,
+      "name": "Herbalist's Shop"
+    },
+    {
+      "n": 10,
+      "name": "Town Square"
+    },
+    {
+      "n": 11,
+      "name": "Old Garrison"
+    },
+    {
+      "n": 12,
+      "name": "Weaver's Cottage"
+    },
+    {
+      "n": 13,
+      "name": "Dragon Cultists"
+    }
+  ],
+  "lmop-wave-echo-cave.png": [
+    {
+      "n": 1,
+      "name": "Cave Entrance"
+    },
+    {
+      "n": 2,
+      "name": "Mine Tunnels"
+    },
+    {
+      "n": 3,
+      "name": "Old Entrance"
+    },
+    {
+      "n": 4,
+      "name": "Old Guardroom"
+    },
+    {
+      "n": 5,
+      "name": "Assayers' Office"
+    },
+    {
+      "n": 6,
+      "name": "South Barracks"
+    },
+    {
+      "n": 7,
+      "name": "Ruined Storeroom"
+    },
+    {
+      "n": 8,
+      "name": "Fungi Cavern"
+    },
+    {
+      "n": 9,
+      "name": "Great Cavern"
+    },
+    {
+      "n": 10,
+      "name": "Dark Pool"
+    },
+    {
+      "n": 11,
+      "name": "North Barracks"
+    },
+    {
+      "n": 12,
+      "name": "Smelter Cavern"
+    },
+    {
+      "n": 13,
+      "name": "Starry Cavern"
+    },
+    {
+      "n": 14,
+      "name": "Wizards' Quarters"
+    },
+    {
+      "n": 15,
+      "name": "Forge of Spells"
+    },
+    {
+      "n": 16,
+      "name": "Booming Cavern"
+    },
+    {
+      "n": 17,
+      "name": "Old Streambed"
+    },
+    {
+      "n": 18,
+      "name": "Collapsed Cavern"
+    },
+    {
+      "n": 19,
+      "name": "Temple Of Dumathoin"
+    },
+    {
+      "n": 20,
+      "name": "Priests' Quarters"
+    }
+  ],
+  "lmop-cragmaw-castle-day.png": [
+    {
+      "n": 1,
+      "name": "Castle Entrance"
+    },
+    {
+      "n": 2,
+      "name": "Trapped Hall"
+    },
+    {
+      "n": 3,
+      "name": "Archer Post"
+    },
+    {
+      "n": 4,
+      "name": "Ruined Barracks"
+    },
+    {
+      "n": 5,
+      "name": "Storeroom"
+    },
+    {
+      "n": 6,
+      "name": "Hobgoblin Barracks"
+    },
+    {
+      "n": 7,
+      "name": "Banquet Hall"
+    },
+    {
+      "n": 8,
+      "name": "Dark Hall"
+    },
+    {
+      "n": 9,
+      "name": "Goblin Shrine"
+    },
+    {
+      "n": 10,
+      "name": "Postern Gate"
+    },
+    {
+      "n": 11,
+      "name": "Ruined Tower"
+    },
+    {
+      "n": 12,
+      "name": "Guard Barracks"
+    },
+    {
+      "n": 13,
+      "name": "Owlbear Tower"
+    },
+    {
+      "n": 14,
+      "name": "King's Quarters"
+    }
+  ],
+  "lmop-cragmaw-castle-night.png": [
+    {
+      "n": 1,
+      "name": "Castle Entrance"
+    },
+    {
+      "n": 2,
+      "name": "Trapped Hall"
+    },
+    {
+      "n": 3,
+      "name": "Archer Post"
+    },
+    {
+      "n": 4,
+      "name": "Ruined Barracks"
+    },
+    {
+      "n": 5,
+      "name": "Storeroom"
+    },
+    {
+      "n": 6,
+      "name": "Hobgoblin Barracks"
+    },
+    {
+      "n": 7,
+      "name": "Banquet Hall"
+    },
+    {
+      "n": 8,
+      "name": "Dark Hall"
+    },
+    {
+      "n": 9,
+      "name": "Goblin Shrine"
+    },
+    {
+      "n": 10,
+      "name": "Postern Gate"
+    },
+    {
+      "n": 11,
+      "name": "Ruined Tower"
+    },
+    {
+      "n": 12,
+      "name": "Guard Barracks"
+    },
+    {
+      "n": 13,
+      "name": "Owlbear Tower"
+    },
+    {
+      "n": 14,
+      "name": "King's Quarters"
+    }
+  ],
+  "dnd-redbrand-hideout.jpg": [
+    {
+      "n": 1,
+      "name": "Cellar"
+    },
+    {
+      "n": 2,
+      "name": "Barracks"
+    },
+    {
+      "n": 3,
+      "name": "Trapped Hall"
+    },
+    {
+      "n": 4,
+      "name": "Tresendar Crypts"
+    },
+    {
+      "n": 5,
+      "name": "Slave Pens"
+    },
+    {
+      "n": 6,
+      "name": "Armory"
+    },
+    {
+      "n": 7,
+      "name": "Storeroom and Work Area"
+    },
+    {
+      "n": 8,
+      "name": "Crevasse"
+    },
+    {
+      "n": 9,
+      "name": "Guard Barracks"
+    },
+    {
+      "n": 10,
+      "name": "Common Room"
+    },
+    {
+      "n": 11,
+      "name": "Wizard's Workshop"
+    },
+    {
+      "n": 12,
+      "name": "Glasstaff's Quarters"
+    }
+  ],
+  "dnd-dm-redbrand-hideout.jpg": [
+    {
+      "n": 1,
+      "name": "Cellar"
+    },
+    {
+      "n": 2,
+      "name": "Barracks"
+    },
+    {
+      "n": 3,
+      "name": "Trapped Hall"
+    },
+    {
+      "n": 4,
+      "name": "Tresendar Crypts"
+    },
+    {
+      "n": 5,
+      "name": "Slave Pens"
+    },
+    {
+      "n": 6,
+      "name": "Armory"
+    },
+    {
+      "n": 7,
+      "name": "Storeroom and Work Area"
+    },
+    {
+      "n": 8,
+      "name": "Crevasse"
+    },
+    {
+      "n": 9,
+      "name": "Guard Barracks"
+    },
+    {
+      "n": 10,
+      "name": "Common Room"
+    },
+    {
+      "n": 11,
+      "name": "Wizard's Workshop"
+    },
+    {
+      "n": 12,
+      "name": "Glasstaff's Quarters"
+    }
+  ],
+  "_sources": {
+    "lmop-cragmaw-hideout.png": "06-cragmaw-hideout.md",
+    "lmop-redbrand-hideout.png": "10-redbrand-hideout.md",
+    "dnd-redbrand-hideout.jpg": "10-redbrand-hideout.md",
+    "dnd-dm-redbrand-hideout.jpg": "10-redbrand-hideout.md",
+    "lmop-thundertree.png": "14-ruins-of-thundertree.md",
+    "lmop-wave-echo-cave.png": "16-part-4-wave-echo-cave.md",
+    "lmop-cragmaw-castle-day.png": "15-wyvern-tor.md",
+    "lmop-cragmaw-castle-night.png": "15-wyvern-tor.md"
   },
-  {
-   "n": 2,
-   "name": "Goblin Blind"
-  },
-  {
-   "n": 3,
-   "name": "Kennel"
-  },
-  {
-   "n": 4,
-   "name": "Steep Passage"
-  },
-  {
-   "n": 5,
-   "name": "Overpass"
-  },
-  {
-   "n": 6,
-   "name": "Goblin Den"
-  },
-  {
-   "n": 7,
-   "name": "Twin Pools Cave"
-  },
-  {
-   "n": 8,
-   "name": "Klarg's Cave"
+  "_pinGuides": {
+    "lmop-agathas-lair.png": {
+      "file": "12-conyberry-and-agatha-s-lair.md",
+      "heading": "AGATHA'S LAIR",
+      "pins": [
+        "lair-door",
+        "agathas-home"
+      ]
+    },
+    "lmop-old-owl-well.png": {
+      "file": "13-old-owl-well.md",
+      "heading": "OLD OWL WELL",
+      "pins": [
+        "tower-ruin",
+        "kost-tent",
+        "old-well",
+        "wall-gaps"
+      ]
+    },
+    "lmop-goblin-ambush.png": {
+      "file": "05-part-1-goblin-arrows.md",
+      "heading": "GOBLIN AMBUSH",
+      "pins": [
+        "dead-horses",
+        "goblins-one-side",
+        "goblins-other-side",
+        "goblin-trail"
+      ]
+    },
+    "lmop-wyvern-tor.png": {
+      "file": "15-wyvern-tor.md",
+      "heading": "WYVERNTOR",
+      "pins": [
+        "orc-sentry",
+        "cave-mouth",
+        "orc-camp"
+      ]
+    }
   }
- ],
- "lmop-redbrand-hideout.png": [
-  {
-   "n": 1,
-   "name": "Cellar"
-  },
-  {
-   "n": 2,
-   "name": "Barracks"
-  },
-  {
-   "n": 3,
-   "name": "Trapped Hall"
-  },
-  {
-   "n": 4,
-   "name": "Tresendar Crypts"
-  },
-  {
-   "n": 5,
-   "name": "Slave Pens"
-  },
-  {
-   "n": 6,
-   "name": "Armory"
-  },
-  {
-   "n": 7,
-   "name": "Storeroom and Work Area"
-  },
-  {
-   "n": 8,
-   "name": "Crevasse"
-  },
-  {
-   "n": 9,
-   "name": "Guard Barracks"
-  },
-  {
-   "n": 10,
-   "name": "Common Room"
-  },
-  {
-   "n": 11,
-   "name": "Wizard's Workshop"
-  },
-  {
-   "n": 12,
-   "name": "Glasstaff's Quarters"
-  }
- ],
- "lmop-thundertree.png": [
-  {
-   "n": 1,
-   "name": "Westernmost Cottage"
-  },
-  {
-   "n": 2,
-   "name": "Blighted Cottages"
-  },
-  {
-   "n": 3,
-   "name": "The Brown Horse"
-  },
-  {
-   "n": 4,
-   "name": "Druid's Watch"
-  },
-  {
-   "n": 5,
-   "name": "Blighted Farmhouse"
-  },
-  {
-   "n": 6,
-   "name": "Ruined Store"
-  },
-  {
-   "n": 7,
-   "name": "Dragon's Tower"
-  },
-  {
-   "n": 8,
-   "name": "Old Smithy"
-  },
-  {
-   "n": 9,
-   "name": "Herbalist's Shop"
-  },
-  {
-   "n": 10,
-   "name": "Town Square"
-  },
-  {
-   "n": 11,
-   "name": "Old Garrison"
-  },
-  {
-   "n": 12,
-   "name": "Weaver's Cottage"
-  },
-  {
-   "n": 13,
-   "name": "Dragon Cultists"
-  }
- ],
- "lmop-wave-echo-cave.png": [
-  {
-   "n": 1,
-   "name": "Cave Entrance"
-  },
-  {
-   "n": 2,
-   "name": "Mine Tunnels"
-  },
-  {
-   "n": 3,
-   "name": "Old Entrance"
-  },
-  {
-   "n": 4,
-   "name": "Old Guardroom"
-  },
-  {
-   "n": 5,
-   "name": "Assayers' Office"
-  },
-  {
-   "n": 6,
-   "name": "South Barracks"
-  },
-  {
-   "n": 7,
-   "name": "Ruined Storeroom"
-  },
-  {
-   "n": 8,
-   "name": "Fungi Cavern"
-  },
-  {
-   "n": 9,
-   "name": "Great Cavern"
-  },
-  {
-   "n": 10,
-   "name": "Dark Pool"
-  },
-  {
-   "n": 11,
-   "name": "North Barracks"
-  },
-  {
-   "n": 12,
-   "name": "Smelter Cavern"
-  },
-  {
-   "n": 13,
-   "name": "Starry Cavern"
-  },
-  {
-   "n": 14,
-   "name": "Wizards' Quarters"
-  },
-  {
-   "n": 15,
-   "name": "Forge of Spells"
-  },
-  {
-   "n": 16,
-   "name": "Booming Cavern"
-  },
-  {
-   "n": 17,
-   "name": "Old Streambed"
-  },
-  {
-   "n": 18,
-   "name": "Collapsed Cavern"
-  },
-  {
-   "n": 19,
-   "name": "Temple Of Dumathoin"
-  },
-  {
-   "n": 20,
-   "name": "Priests' Quarters"
-  }
- ],
- "lmop-cragmaw-castle-day.png": [
-  {
-   "n": 1,
-   "name": "Castle Entrance"
-  },
-  {
-   "n": 2,
-   "name": "Trapped Hall"
-  },
-  {
-   "n": 3,
-   "name": "Archer Post"
-  },
-  {
-   "n": 4,
-   "name": "Ruined Barracks"
-  },
-  {
-   "n": 5,
-   "name": "Storeroom"
-  },
-  {
-   "n": 6,
-   "name": "Hobgoblin Barracks"
-  },
-  {
-   "n": 7,
-   "name": "Banquet Hall"
-  },
-  {
-   "n": 8,
-   "name": "Dark Hall"
-  },
-  {
-   "n": 9,
-   "name": "Goblin Shrine"
-  },
-  {
-   "n": 10,
-   "name": "Postern Gate"
-  },
-  {
-   "n": 11,
-   "name": "Ruined Tower"
-  },
-  {
-   "n": 12,
-   "name": "Guard Barracks"
-  },
-  {
-   "n": 13,
-   "name": "Owlbear Tower"
-  },
-  {
-   "n": 14,
-   "name": "King's Quarters"
-  }
- ],
- "lmop-cragmaw-castle-night.png": [
-  {
-   "n": 1,
-   "name": "Castle Entrance"
-  },
-  {
-   "n": 2,
-   "name": "Trapped Hall"
-  },
-  {
-   "n": 3,
-   "name": "Archer Post"
-  },
-  {
-   "n": 4,
-   "name": "Ruined Barracks"
-  },
-  {
-   "n": 5,
-   "name": "Storeroom"
-  },
-  {
-   "n": 6,
-   "name": "Hobgoblin Barracks"
-  },
-  {
-   "n": 7,
-   "name": "Banquet Hall"
-  },
-  {
-   "n": 8,
-   "name": "Dark Hall"
-  },
-  {
-   "n": 9,
-   "name": "Goblin Shrine"
-  },
-  {
-   "n": 10,
-   "name": "Postern Gate"
-  },
-  {
-   "n": 11,
-   "name": "Ruined Tower"
-  },
-  {
-   "n": 12,
-   "name": "Guard Barracks"
-  },
-  {
-   "n": 13,
-   "name": "Owlbear Tower"
-  },
-  {
-   "n": 14,
-   "name": "King's Quarters"
-  }
- ],
- "dnd-redbrand-hideout.jpg": [
-  {
-   "n": 1,
-   "name": "Cellar"
-  },
-  {
-   "n": 2,
-   "name": "Barracks"
-  },
-  {
-   "n": 3,
-   "name": "Trapped Hall"
-  },
-  {
-   "n": 4,
-   "name": "Tresendar Crypts"
-  },
-  {
-   "n": 5,
-   "name": "Slave Pens"
-  },
-  {
-   "n": 6,
-   "name": "Armory"
-  },
-  {
-   "n": 7,
-   "name": "Storeroom and Work Area"
-  },
-  {
-   "n": 8,
-   "name": "Crevasse"
-  },
-  {
-   "n": 9,
-   "name": "Guard Barracks"
-  },
-  {
-   "n": 10,
-   "name": "Common Room"
-  },
-  {
-   "n": 11,
-   "name": "Wizard's Workshop"
-  },
-  {
-   "n": 12,
-   "name": "Glasstaff's Quarters"
-  }
- ],
- "dnd-dm-redbrand-hideout.jpg": [
-  {
-   "n": 1,
-   "name": "Cellar"
-  },
-  {
-   "n": 2,
-   "name": "Barracks"
-  },
-  {
-   "n": 3,
-   "name": "Trapped Hall"
-  },
-  {
-   "n": 4,
-   "name": "Tresendar Crypts"
-  },
-  {
-   "n": 5,
-   "name": "Slave Pens"
-  },
-  {
-   "n": 6,
-   "name": "Armory"
-  },
-  {
-   "n": 7,
-   "name": "Storeroom and Work Area"
-  },
-  {
-   "n": 8,
-   "name": "Crevasse"
-  },
-  {
-   "n": 9,
-   "name": "Guard Barracks"
-  },
-  {
-   "n": 10,
-   "name": "Common Room"
-  },
-  {
-   "n": 11,
-   "name": "Wizard's Workshop"
-  },
-  {
-   "n": 12,
-   "name": "Glasstaff's Quarters"
-  }
- ],
- "_sources": {
-  "lmop-cragmaw-hideout.png": "06-cragmaw-hideout.md",
-  "lmop-redbrand-hideout.png": "10-redbrand-hideout.md",
-  "dnd-redbrand-hideout.jpg": "10-redbrand-hideout.md",
-  "dnd-dm-redbrand-hideout.jpg": "10-redbrand-hideout.md",
-  "lmop-thundertree.png": "14-ruins-of-thundertree.md",
-  "lmop-wave-echo-cave.png": "16-part-4-wave-echo-cave.md",
-  "lmop-cragmaw-castle-day.png": "15-wyvern-tor.md",
-  "lmop-cragmaw-castle-night.png": "15-wyvern-tor.md"
- }
 }
