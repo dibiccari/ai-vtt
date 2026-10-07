@@ -35,7 +35,7 @@ const STEPS = [
   { id: 'handoff', say: 'TABLE', expect: 'the DM gives the status and options for the active player and waits (no rolls, no turns played for the player)' },
   { id: 'attack', say: '[Thorin] I attack Drunk Bram, who is right next to me, with my longsword, and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
   { id: 'effects', say: '[Seraphine] It is my turn. I cast Bless on Thorin and Vex with my action, concentrating on it. Just apply it.', expect: 'a known effect sent by name only (table gives the duration), caster id as source for the concentration effect, concentrating on the caster' },
-  { id: 'warded', say: '[Lyra] It is my turn. I carry a Sanctuary ward cast on me earlier and I know that attacking will end it, so go ahead: I attack Drunk Bram with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
+  { id: 'warded', say: '[Lyra] It is my turn. I carry a Sanctuary ward cast on me earlier and I know that attacking will end it, so go ahead: I attack Garrick, a brawler standing right next to me, with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
   { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
   { id: 'gear', say: '[Thorin] I buy a hempen rope (50 ft) and two torches from Orla, the barkeep, and pay with coins from my purse. Please update my gear and coins.', expect: 'gear updates: a rope and torches added to Thorin and coins spent, applied by the server' },
@@ -183,7 +183,7 @@ try {
   const hooks = {
     before: {
       effects: async () => setActive('pc-seraphine'),
-      warded: async () => { setActive('pc-lyra'); const l = byId('pc-lyra'); if (l && !l.conditions.some((c) => c.name === 'sanctuary')) l.conditions.push({ name: 'sanctuary', rounds: 10, untilMin: undefined }); },        // Lyra was warded earlier by someone else's turn: the table state carries it
+      warded: async () => { setActive('pc-lyra'); if (!byId('npc-garrick')) { const ly = byId('pc-lyra'); tokens.push(mk({ id: 'npc-garrick', name: 'Garrick the brawler', col: ly.col, row: ly.row + 1, color: '#a85', isPC: false, hp: 13, maxHp: 13, ac: 11, dexMod: 0 })); if (combat.active) { const g = byId('npc-garrick'); g.initiative = 9; combat.order.push({ tokenId: g.id, initiative: 9 }); } } const l = byId('pc-lyra'); if (l && !l.conditions.some((c) => c.name === 'sanctuary')) l.conditions.push({ name: 'sanctuary', rounds: 10, untilMin: undefined }); },        // Lyra was warded earlier by someone else's turn: the table state carries it
       time: async () => {                                              // a 10 minute concentration effect is running on Thorin, put on by Vex: it must survive the end of the fight
         T.clock0 = await clockNow();
         if (byId('npc-bram')) Object.assign(byId('npc-bram'), { hp: 0, dead: true });
