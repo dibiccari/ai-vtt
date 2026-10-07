@@ -605,9 +605,8 @@
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.beginPath(); ctx.arc(s.x, s.y, 3 * px, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = 'rgba(63, 210, 127, 1)'; ctx.lineWidth = 3 * px; ctx.beginPath(); ctx.arc(s.x, s.y, 11 * px, 0, Math.PI * 2); ctx.stroke();
       } else {
-        const label = s.desc ? s.name + ': ' + (s.desc.length > 48 ? s.desc.slice(0, 47) + '…' : s.desc) : s.name;       // the pin's description sits beside its name
-        ctx.strokeText(label, s.x + 13 * px, s.y);
-        ctx.fillText(label, s.x + 13 * px, s.y);
+        ctx.strokeText(s.name, s.x + 13 * px, s.y);
+        ctx.fillText(s.name, s.x + 13 * px, s.y);
       }
     }
     ctx.restore();
