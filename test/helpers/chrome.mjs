@@ -41,6 +41,8 @@ export async function launchChrome() {
   await send('Runtime.enable'); await send('Page.enable');
   const api = {
     problems,
+    // Script run in every page before its own scripts (to fake the microphone and speech recognition, for example).
+    async addInitScript(source) { await send('Page.addScriptToEvaluateOnNewDocument', { source }); },
     async goto(url) { const loaded = new Promise((r) => waiters.push(r)); await send('Page.navigate', { url }); await loaded; },
     // Evaluate an expression (or an async IIFE) in the page and return its JSON value. Page-level `const` and functions of the tabletop script are visible.
     async eval(expression) {

@@ -3702,6 +3702,7 @@ const voice = (() => {
   let listening = false;     // recognition currently running
   let continuous = false;    // Start Listening mode
   let holding = false;       // push-to-talk held
+  let pendingFlush = null;   // waiting for the recognizer to finish after a release
   let transcript = '';
   let interim = '';
   let speakGen = 0;
@@ -3813,6 +3814,7 @@ const voice = (() => {
     };
     rec.onend = () => {
       listening = false;
+      if (pendingFlush && !holding) { finishHold(); return; }              // the last words are in: send them
       if ((holding || continuous) && !speaking) { startRecognition(); }
     };
     return rec;
@@ -3841,11 +3843,21 @@ const voice = (() => {
     if (holding || state.busy) return;
     if (!(await ensureMic())) return;
     cancelSpeech();
+    clearTimeout(pendingFlush); pendingFlush = null;
     holding = true;
     transcript = ''; interim = '';
     reflectUi();
     if (SpeechRec) { status('Listening…', true); startRecognition(); }
     else status('Mic is live, but this browser cannot transcribe speech. Type your action instead.');
+  }
+
+  // The talking is over: send what was heard and, unless Start Listening is on, let the microphone stream go (it is only for the level meter; the speech recognizer listens by itself),
+  // so the browser's recording indicator goes out too.
+  function finishHold() {
+    clearTimeout(pendingFlush); pendingFlush = null;
+    if (holding) return;
+    flush();
+    if (!continuous) { releaseMic(); status(SpeechRec ? 'Microphone idle.' : status_idle_no_stt()); }
   }
 
   function endHold() {
@@ -3854,9 +3866,11 @@ const voice = (() => {
     reflectUi();
     // Give the recognizer a moment to deliver its final result before sending.
     setTimeout(() => {
-      if (!continuous) stopRecognition();
-      flush();
-    }, 450);
+      if (holding) return;                                                    // pressed again in the meantime
+      // Stop the recognizer and send what it heard once it has delivered its last words (its onend); a timer covers a recognizer that never ends.
+      if (!continuous && listening) { stopRecognition(); pendingFlush = setTimeout(finishHold, 1500); }
+      else finishHold();
+    }, 350);
   }
 
   async function toggleContinuous() {
