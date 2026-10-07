@@ -149,7 +149,7 @@
       "label": "Miners' Trail"
     }
   ],
-  "ambience": "town",
   "light": "bright",
+  "ambience": "town",
   "mood": "town"
 }

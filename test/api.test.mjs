@@ -346,8 +346,8 @@ test('map library: every picture with its kind, tiles, counts and whether it has
   const lib = (await s.get('/api/map-library')).json.maps;
   assert.ok(lib.length > 10);
   const m = (f) => lib.find((x) => x.file === f);
-  assert.equal(m('vtt-terrain-test.png').origin, 'made here'); assert.equal(m('vtt-terrain-test.png').tiles, 'square');
-  assert.ok(m('lmop-cragmaw-hideout.png').origin === 'purchased' && m('lmop-cragmaw-hideout.png').kind === 'battle');
+  assert.equal(m('vtt-terrain-test.png').origin, 'Explorer'); assert.equal(m('vtt-terrain-test.png').tiles, 'square');
+  assert.ok(m('lmop-cragmaw-hideout.png').origin === 'Map Adventurer' && m('lmop-cragmaw-hideout.png').kind === 'battle');
   assert.equal(m('dnd-sword-coast-ours.png').tiles, 'hex'); assert.equal(m('dnd-sword-coast-ours.png').kind, 'regional'); assert.ok(m('dnd-sword-coast-ours.png').pins >= 14);
   assert.equal(m('vtt-phandalin.png').dmVersion, true, 'the Phandalin DM version is saved');
   assert.ok(lib.every((x) => typeof x.walls === 'number' && Array.isArray(x.campaigns)));
@@ -360,6 +360,7 @@ test('map sets: the real pictures gather into places (day and night together, DM
   assert.deepEqual(by.camp.times, ['day', 'night']); assert.equal(by.camp.levels[0].looks.length, 2);
   assert.deepEqual(by['cragmaw-castle'].times, ['day', 'night']);
   assert.equal(by['lmop-phandalin'].hasDm, true); assert.equal(by['dnd-sword-coast-ours'].tiles, 'hex'); assert.equal(by['dnd-sword-coast-ours'].levels[0].isRevealed, true);
-  assert.equal(by['vtt-phandalin'].kind, 'town'); assert.ok(by['vtt-phandalin'].hasDm);
+  assert.equal(by['vtt-phandalin'].kind, 'town'); assert.equal(by['vtt-phandalin'].origin, 'Explorer'); assert.equal(by['dnd-sword-coast-ours'].origin, 'Explorer'); assert.equal(by['lmop-phandalin'].origin, 'Wizards of the Coast', 'the Phandalin pictures are Wizards of the Coast art although they carry the pack prefix'); assert.equal(by['lmop-cragmaw-hideout'].origin, 'Map Adventurer');
+  const coast = by['dnd-northswordcoast']; assert.ok(coast && !by['dnd-northswordcoast-playerversion'], 'the plain and the player version of the Sword Coast are one place'); assert.equal(coast.levels[0].looks[0].player, 'dnd-northswordcoast-playerversion.jpg'); assert.equal(coast.levels[0].looks[0].dm, 'dnd-northswordcoast.jpg'); assert.equal(by['dnd-phandalin'].origin, 'Wizards of the Coast'); assert.ok(by['vtt-phandalin'].hasDm);
   assert.equal((await s.post('/api/mapsets', {})).status, 404, 'nothing writes to sets yet');
 });

@@ -11,7 +11,7 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
-import { buildSets } from './lib/mapsets.js';
+import { buildSets, originOf } from './lib/mapsets.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
@@ -165,7 +165,7 @@ app.use(liveMiddleware(null, () => campaignIds()));
 const OLD_MAP_NAMES = {
   'camp-day.png': 'vtt-camp-day.png', 'camp-night.png': 'vtt-camp-night.png', 'dungeon-cellars.png': 'vtt-dungeon-cellars.png', 'terrain-test.png': 'vtt-terrain-test.png',
   'phandalin.jpg': 'dnd-phandalin.jpg', 'phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg',
-  'phandalin-playerversion.jpg': 'dnd-phandalin-playerversion.jpg', 'phandelver.jpg': 'dnd-phandelver.jpg', 'northswordcoast.jpg': 'dnd-northswordcoast.jpg',
+  'phandalin-playerversion.jpg': 'dnd-phandalin-playerversion.jpg', 'northswordcoast.jpg': 'dnd-northswordcoast.jpg',
   'northswordcoast-playerversion.jpg': 'dnd-northswordcoast-playerversion.jpg', 'dnd-phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg'
 };
 const currentMapName = (name) => { const base = path.basename(String(name ?? '')); return OLD_MAP_NAMES[base] || (/^rusty-flagon-[^/]+\.png$/.test(base) ? 'vtt-' + base : base); };
@@ -379,7 +379,7 @@ app.get('/api/map-library', asyncRoute(async (_req, res) => {
   for (const f of files) {
     let c = null; try { c = JSON.parse(await readFile(mapConfigFile(f), 'utf8')); } catch { /* no set-up */ }
     const stem = f.replace(/\.[^.]+$/, '');
-    const origin = /^lmop-/.test(f) ? 'purchased' : /^dnd-/.test(f) ? 'Wizards of the Coast' : /^mkt-/.test(f) ? 'Market' : /^vtt-/.test(f) ? 'made here' : 'uploaded';
+    const origin = originOf(f);
     const kind = kinds.get(f) || (c?.tiles === 'hex' || /coast|region|world/i.test(f) ? 'regional' : /phandalin|town|village/i.test(f) ? 'town' : 'battle');       // pictures no campaign lists are guessed from their set-up and name
     out.push({ file: f, url: '/uploads/' + f, kind, origin, tiles: c?.tiles === 'hex' ? 'hex' : 'square', setUp: Boolean(c), walls: (c?.walls || []).filter((w) => w.type !== 'door').length, doors: (c?.walls || []).filter((w) => w.type === 'door').length, lights: (c?.lights || []).length, pins: (c?.starts || []).length, hasStart: Boolean((c?.starts || []).find((s) => s.name === 'start')), difficult: (c?.difficult || []).length, mood: c?.mood || '', group: c?.group || '', variant: c?.variant || '', dmVersion: dmFiles.has(stem), campaigns: used.get(f) || [] });
   }

@@ -30,3 +30,10 @@ test('buildSets: day and night become one set, DM pictures attach to their place
   assert.equal(by['vtt-crypt-claude'].levels[0].isRevealed, false); assert.equal(by['vtt-crypt-claude'].needsStart, true);
   assert.equal(by['vtt-phandalin'].hasDm, true, 'a DM picture in data/dm-maps counts'); assert.deepEqual(sets.map((s) => s.links), [[], [], [], [], []]);
 });
+
+test('buildSets: a player version beside the plain picture is one place, the plain one being the DM face; the Phandalin pictures count as Wizards of the Coast', () => {
+  const sets = buildSets({ pictures: ['dnd-northswordcoast.jpg', 'dnd-northswordcoast-playerversion.jpg', 'lmop-phandalin-player-version.jpg', 'lmop-agathas-lair.png'] });
+  assert.equal(sets.length, 3);
+  const coast = sets.find((x) => x.id === 'dnd-northswordcoast'); assert.equal(coast.levels[0].looks[0].player, 'dnd-northswordcoast-playerversion.jpg'); assert.equal(coast.levels[0].looks[0].dm, 'dnd-northswordcoast.jpg');
+  assert.equal(sets.find((x) => x.id === 'lmop-phandalin').origin, 'Wizards of the Coast'); assert.equal(sets.find((x) => x.id === 'lmop-agathas-lair').origin, 'Map Adventurer');
+});

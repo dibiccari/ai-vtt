@@ -33,10 +33,9 @@
   <p class="lead">The ChatGPT brief says "strictly overhead, orthographic, no perspective" (below), and the three ChatGPT versions were redone. Claude's own map is unchanged, since it was already drawn from straight above. Same size, 1536 x 1024, 30 x 20 squares. Pick a version and try it: Token tool, click in a room, watch the fog and the line of sight; untick "DM view" to see what a player sees.</p>
 
   <div class="tabs" id="tabs" role="group" aria-label="Which map">
-    <button data-m="vtt-crypt-claude" aria-pressed="true">1. Claude (code-drawn)</button>
     <button data-m="vtt-crypt-chatgpt-v2" aria-pressed="false">2. ChatGPT (picture and its own walls)</button>
     <button data-m="vtt-crypt-both-v2" aria-pressed="false">3. Both (ChatGPT's picture, Claude's walls)</button>
-    <button data-m="vtt-crypt-repaint-v2" aria-pressed="false">4. Claude's walls + ChatGPT repaint</button>
+    <button data-m="vtt-crypt-repaint-v2" aria-pressed="true">4. Claude's walls + ChatGPT repaint</button>
     <button id="open" aria-pressed="false">Open this one full page ↗</button>
   </div>
   <p class="how" id="how"></p>
@@ -44,14 +43,12 @@
 
   <h2>The pictures</h2>
   <div class="grid">
-    <figure><img src="../../uploads/vtt-crypt-claude.png" alt=""><figcaption><b>1. Claude.</b> Drawn in code from a room plan. Plain but clean and exactly overhead.</figcaption></figure>
     <figure><img src="crypt-chatgpt-v2.png" alt=""><figcaption><b>2 and 3. ChatGPT, strictly overhead.</b> Now a true plan view: pillars are flat circles, tombs and crates flat rectangles. A more tangled layout than Claude's, and very dark.</figcaption></figure>
     <figure><img src="crypt-claude-repaint-v2.png" alt=""><figcaption><b>4. Repaint.</b> Claude's layout, painted by ChatGPT's image editor: warm stone, flagstones, planks. Overhead, and the same rooms.</figcaption></figure>
   </div>
 
   <h2>Walls, doors and lights on each picture (red walls, green doors, blue lights)</h2>
   <div class="grid">
-    <figure><img src="crypt-claude-walls.png" alt=""><figcaption><b>1. Claude.</b> 168 wall segments, 8 doors, 15 lights. Drawn from the plan, so exact.</figcaption></figure>
     <figure><img src="crypt-chatgpt-v2-walls.png" alt=""><figcaption><b>2. ChatGPT alone.</b> 56 wall segments, 7 doors, 3 lights read by its vision model: boxes of the right sort but in the wrong places, with big rooms drawn over rock and rooms left open.</figcaption></figure>
     <figure><img src="crypt-both-v2-walls.png" alt=""><figcaption><b>3. Both.</b> 160 wall segments, 6 doors, 3 lights read off the picture by Claude with a pixel ruler: rooms, doors, altar, pillars, tombs, crates and barrels follow the painting closely. The painter's layout is irregular, so a few spots (the small door stubs in the south) are best guesses.</figcaption></figure>
     <figure><img src="crypt-repaint-v2-walls.png" alt=""><figcaption><b>4. Repaint.</b> Claude's original walls on the repaint. Room outlines line up well; loose objects (pillars, tombs, crates) drifted about half a square from where they were drawn, so their blocking shapes are slightly off.</figcaption></figure>
@@ -59,8 +56,6 @@
 
   <h2>Line of sight: a token in the entry hall, and in the chamber</h2>
   <div class="grid">
-    <figure><img src="crypt-claude-los-hall.png" alt=""><figcaption><b>1. Claude, hall.</b></figcaption></figure>
-    <figure><img src="crypt-claude-los-chamber.png" alt=""><figcaption><b>1. Claude, chamber.</b> Pillars cast clean shadows.</figcaption></figure>
     <figure><img src="crypt-chatgpt-v2-los-hall.png" alt=""><figcaption><b>2. ChatGPT alone, hall.</b></figcaption></figure>
     <figure><img src="crypt-chatgpt-v2-los-chamber.png" alt=""><figcaption><b>2. ChatGPT alone, chamber.</b> The walls it read do not enclose the room, so sight leaks.</figcaption></figure>
     <figure><img src="crypt-both-v2-los-hall.png" alt=""><figcaption><b>3. Both, hall.</b></figcaption></figure>
@@ -72,7 +67,6 @@
   <h2>Reading the result</h2>
   <table>
     <tr><th></th><th>Picture</th><th>Walls, doors, lights</th><th>Effort and cost</th></tr>
-    <tr><td>1. Claude</td><td>Clean, plain, exactly overhead</td><td>Exact</td><td>A script; free</td></tr>
     <tr><td>2. ChatGPT alone</td><td>Atmospheric, now strictly overhead</td><td>Poor: not usable for line of sight</td><td>$0.05 plus a few cents; one command</td></tr>
     <tr><td>3. Both</td><td>ChatGPT's painting</td><td>Good where the picture is clear, guessed where it is murky</td><td>Claude reads the picture by hand in several steps</td></tr>
     <tr><td>4. Repaint</td><td>Painted, from Claude's layout</td><td>Exact for the rooms and doors; objects off by up to half a square</td><td>About $0.07; no tracing; verify with the overlay</td></tr>
@@ -85,8 +79,8 @@
 <script src="/nav.js"></script>
 <script>
   const frame = document.getElementById('frame'), how = document.getElementById('how');
-  const notes = { 'vtt-crypt-claude': 'Drawn in code: every wall, door and torch is exactly where the picture shows it.', 'vtt-crypt-chatgpt-v2': 'ChatGPT\'s picture with ChatGPT\'s own traced walls: watch the line of sight leak.', 'vtt-crypt-both-v2': 'ChatGPT\'s picture with walls, doors, pillars and lights read off it by Claude.', 'vtt-crypt-repaint-v2': 'Claude\'s map with exact walls, repainted by ChatGPT with the layout locked.' };
-  let current = 'vtt-crypt-claude';
+  const notes = { 'vtt-crypt-chatgpt-v2': 'ChatGPT\'s picture with ChatGPT\'s own traced walls: watch the line of sight leak.', 'vtt-crypt-both-v2': 'ChatGPT\'s picture with walls, doors, pillars and lights read off it by Claude.', 'vtt-crypt-repaint-v2': 'Claude\'s map with exact walls, repainted by ChatGPT with the layout locked.' };
+  let current = 'vtt-crypt-repaint-v2';
   const show = (m) => {
     current = m;
     document.querySelectorAll('#tabs button[data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
@@ -95,7 +89,7 @@
   };
   document.getElementById('tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.m) show(b.dataset.m); else if (b.id === 'open') window.open('/map-test.html?map=/uploads/' + current + '.png', '_blank'); });
   fetch('crypt-prompt-v2.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt').textContent = t.trim(); });
-  show('vtt-crypt-claude');
+  show('vtt-crypt-repaint-v2');
 </script>
 </body>
 </html>

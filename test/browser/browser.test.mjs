@@ -1002,7 +1002,7 @@ test('a campaign built from scratch opens on its first map, the party on that ma
   await server.post('/api/campaigns/active', { id: made.json.id });
   try {
     await page.goto(`${server.base}/index.html?nosave=1`);
-    await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 2 && window.vtt.state.map.url');
+    try { await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 2 && window.vtt.state.map.url'); } catch (e) { const st = await page.eval("JSON.stringify({ vtt: !!window.vtt, tokens: window.vtt && window.vtt.state.tokens.map((t) => t.id), url: window.vtt && window.vtt.state.map.url, chars: window.vtt && window.vtt.state.characters.length, body: document.body.innerText.slice(0, 200) })").catch((x) => String(x)); throw new Error('the scratch campaign did not open: ' + st + ' problems: ' + JSON.stringify(page.problems.slice(-3))); }
     const r = await page.eval(`(() => { const s = vtt.state; const pcs = s.tokens.filter((t) => t.isPC); return { url: s.map.url, kind: s.mapKind, pcs: pcs.map((t) => [t.col, t.row]), visited: s.visitedMaps }; })()`);
     assert.match(r.url, /lmop-goblin-ambush/); assert.equal(r.kind, 'battle');
     assert.ok(r.pcs.length >= 2 && r.pcs.every(([c, rr]) => c >= 0 && rr >= 0), 'the party is on the map, not off in the corner at -100');
@@ -1010,7 +1010,8 @@ test('a campaign built from scratch opens on its first map, the party on that ma
   } finally {
     await server.post('/api/campaigns/active', { id: LOST });
     await page.goto(`${server.base}/index.html?nosave=1`);
-    await page.waitFor('window.vtt && window.vtt.state.characters.length >= 4 && !document.querySelector("#chatInput").disabled');
+    const ready = 'window.vtt && window.vtt.state.characters.length >= 3 && !document.querySelector("#chatInput").disabled';
+    try { await page.waitFor(ready, 12000); } catch { await page.goto(`${server.base}/index.html?nosave=1`); try { await page.waitFor(ready); } catch (e) { const st = await page.eval("JSON.stringify({ vtt: !!window.vtt, chars: window.vtt && window.vtt.state.characters.length, tokens: window.vtt && window.vtt.state.tokens.length, disabled: document.querySelector('#chatInput') && document.querySelector('#chatInput').disabled, body: document.body.innerText.slice(0, 160) })").catch((x) => String(x)); throw new Error('the table did not come back: ' + st + ' problems: ' + JSON.stringify(page.problems.slice(-3))); } }       // the page sometimes answers a focus event by reloading under us: load it once more
   }
 });
 

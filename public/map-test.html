@@ -49,11 +49,13 @@
   main:has(#variantSwitch:not([hidden])) .stage-bar { right:190px; }   /* leave room for the Day/Night switch */
   .stage-bar > button { padding:6px 14px; border-radius:8px; white-space:nowrap; }
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
-  .view-switch { position:absolute; left:50%; transform:translateX(-50%); top:12px; z-index:6; display:flex; gap:0; align-items:center; }
+  .view-switch { display:inline-flex; gap:0; align-items:center; }
   .view-switch button { border-radius:0; padding:6px 18px; font-weight:700; }
   .view-switch button:first-child { border-radius:8px 0 0 8px; } .view-switch button:last-child { border-radius:0 8px 8px 0; }
   .view-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
-  .view-switch .vnote { margin-left:10px; font-size:12px; color:var(--muted); background:rgba(10,13,18,.75); padding:3px 8px; border-radius:6px; }
+  .stage-bar .vnote { font-size:12px; color:var(--muted); background:rgba(10,13,18,.75); padding:3px 8px; border-radius:6px; }
+  .stage-bar [hidden] { display:none !important; }
+  .view-switch button.tool { border-radius:0; padding:6px 16px; } .view-switch button.tool:first-child { border-radius:8px 0 0 8px; } .view-switch button.tool:last-child { border-radius:0 8px 8px 0; }
   .variant-switch { position:absolute; right:12px; top:12px; z-index:5; display:flex; gap:0; }
   .variant-switch[hidden] { display:none; }
   .zoom-controls { position:absolute; right:12px; bottom:12px; z-index:5; display:flex; flex-direction:column; gap:6px; }
@@ -75,7 +77,7 @@
   <div class="group">
     <h2>Map</h2>
     <select id="mapSelect" aria-label="Map"></select>
-    <label class="check"><input type="checkbox" id="onlyUvtt" checked> Only list .dd2vtt maps</label>
+    <p class="hint">One entry for each place: its day and night looks and its DM and player pictures are in the same entry (use the Day | Night and DM | Player buttons above the map).</p>
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
       <input type="number" id="squares" min="5" max="400" step="1" value="50">
     </label>
@@ -195,11 +197,6 @@
 
 <main id="stage">
   <canvas id="cv"></canvas>
-  <div class="view-switch" id="viewSwitch" role="group" aria-label="Who is looking">
-    <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
-    <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
-    <span class="vnote" id="viewNote"></span>
-  </div>
   <div class="variant-switch" id="variantSwitch" role="group" aria-label="Versions of this map" hidden></div>
   <div class="zoom-controls">
     <button id="zoomInBtn" title="Zoom in" aria-label="Zoom in">+</button>
@@ -207,15 +204,26 @@
     <button id="fitBtn" title="Fit map to view" aria-label="Fit map to view">⤢</button>
   </div>
   <div class="stage-bar" id="stageBar">
+    <span class="view-switch" id="viewSwitch" role="group" aria-label="Who is looking">
+      <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
+      <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
+    </span>
+    <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
+      <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
+      <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
+    </span>
+    <span class="vnote" id="viewNote"></span>
+    <span class="tool-sep" aria-hidden="true"></span>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
+    <span class="view-switch" id="terrainPair">
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
     <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
+    </span>
     <label id="brushBox" class="brush-box" hidden title="Brush size in squares across ([ and ] change it)">Brush <input type="range" id="brush" min="1" max="12" step="1" value="2"> <b id="brushVal">2</b></label>
-    <button class="tool" data-tool="pan" aria-pressed="false" title="Drag to pan. Middle mouse or Space also pans. Scroll to zoom">Pan</button>
   </div>
   <div class="banner" id="banner">Loading maps...</div>
 </main>
@@ -743,30 +751,31 @@
     renderVariantSwitch();
   }
 
+  // Day | Night next to DM | Player: the day and night looks of one place (the maps of one group). A map with no night look shows Night greyed out.
   function renderVariantSwitch() {
-    const box = $('#variantSwitch');
-    box.innerHTML = '';
+    $('#variantSwitch').hidden = true;                 // the old switch at the top right is replaced by the Day | Night pair in the bar
     const mates = S.group ? S.configs.filter((c) => c.group === S.group) : [];
-    const order = ['day', 'night'];
-    mates.sort((a, b) => (order.indexOf(a.variant) + 1 || 99) - (order.indexOf(b.variant) + 1 || 99) || String(a.variant).localeCompare(String(b.variant)));
-    box.hidden = mates.length < 2;
-    for (const c of mates) {
-      const b = document.createElement('button');
-      const url = '/uploads/' + c.map;
-      b.textContent = c.variant;
-      b.setAttribute('aria-pressed', String(url === S.url));
-      b.title = 'Show the ' + c.variant + ' version of this map';
-      b.addEventListener('click', async () => {
-        if (url === S.url) return;
-        const keep = { ...S.view };
-        $('#mapSelect').value = url;
-        await loadMap(url);
-        S.view = keep;                      // keep the same zoom and position so the versions line up
-        requestRender();
-      });
-      box.appendChild(b);
+    const find = (t) => mates.find((c) => c.variant === t);
+    const here = S.variant === 'night' ? 'night' : 'day';
+    for (const b of document.querySelectorAll('#timeSwitch button[data-time]')) {
+      const t = b.dataset.time, mate = find(t), ok = t === here || Boolean(mate);
+      b.hidden = !ok;                          // a map with no night look has no Night button
+      b.setAttribute('aria-pressed', String(t === here));
+      b.title = 'Show the ' + t + ' look of this map';
     }
   }
+  document.querySelector('#timeSwitch').addEventListener('click', async (e) => {
+    const b = e.target.closest('button[data-time]'); if (!b || b.disabled) return;
+    const mate = (S.group ? S.configs.filter((c) => c.group === S.group) : []).find((c) => c.variant === b.dataset.time);
+    if (!mate) return;
+    const url = '/uploads/' + mate.map;
+    if (url === S.url) return;
+    const keep = { ...S.view };
+    $('#mapSelect').value = url;
+    await loadMap(url);
+    S.view = keep;                      // keep the same zoom and position so the looks line up
+    requestRender();
+  });
 
   // The other maps that pins can be copied to; the day/night twin of this map is preselected.
   function fillCopyTargets() {
@@ -1031,8 +1040,9 @@
   // A battle or camp map with no start pin gets an exclamation mark in the list; it goes away once a pin is named "start".
   function mapLabel(url) {
     const name = url.split('/').pop();
+    const shown = (S.placeNames && S.placeNames.get(url)) || name;
     const has = url === S.url ? S.starts.some((p) => p.name === 'start') : !S.missingStart.has(name);
-    return (S.needsStart.has(name) && !has ? '❗ ' : '') + name;
+    return (S.needsStart.has(name) && !has ? '❗ ' : '') + shown;
   }
   function refreshMapLabels() {
     for (const opt of $('#mapSelect').options) opt.textContent = mapLabel(opt.value);
@@ -1040,15 +1050,20 @@
 
   async function loadMapList(initial = false) {
     const select = $('#mapSelect');
-    let maps = [];
+    // The list shows places, not pictures: a day and night pair, or a player picture with its DM picture, is one entry (GET /api/mapsets). The entry opens its day look.
+    let places = [];
     try {
-      const res = await fetch('/api/maps');
-      const data = await res.json();
-      maps = Array.isArray(data.maps) ? data.maps : [];
+      const res = await fetch('/api/mapsets');
+      places = (await res.json()).sets || [];
     } catch (err) {
       $('#banner').textContent = `Could not list maps: ${err.message}`;
       return;
     }
+    const lookUrl = (set, time) => { const lk = set.levels[0].looks.find((l) => l.time === time) || set.levels[0].looks[0]; return '/uploads/' + lk.player; };
+    const maps = places.map((p) => lookUrl(p, 'day'));
+    const nameOf = new Map(); const dupes = new Set(); for (const p of places) { if (nameOf.has(p.name)) dupes.add(p.name); nameOf.set(p.name, true); }
+    S.placeNames = new Map(places.map((p) => [lookUrl(p, 'day'), p.name + (dupes.has(p.name) ? ' (' + p.origin + ')' : '')]));                                   // the day look (or the only one) stands for the place
+    const placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));
     select.innerHTML = '';
     try {
       const res = await fetch('/api/map-configs');
@@ -1062,25 +1077,6 @@
     }
     const wanted = new URLSearchParams(location.search).get('map');
     let shown = maps;
-    if (S.onlyUvtt) {
-      let uvtt = new Set();
-      try {
-        const res = await fetch('/api/map-configs');
-        uvtt = new Set((await res.json()).configs.filter((c) => c.source === 'dd2vtt').map((c) => '/uploads/' + c.map));
-      } catch { /* treated as none */ }
-      shown = maps.filter((m) => uvtt.has(m));
-      if (!shown.length || (initial && wanted && maps.includes(wanted) && !uvtt.has(wanted))) {
-        if (!shown.length) {
-          $('#banner').textContent = 'No .dd2vtt maps yet. Use "Import .dd2vtt as new map", or untick "Only list .dd2vtt maps".';
-          S.img = null;
-          requestRender();
-          return;
-        }
-        shown = maps;
-        S.onlyUvtt = false;
-        $('#onlyUvtt').checked = false;
-      }
-    }
     shown = shown.slice().sort((a, b) => (b.endsWith('/vtt-terrain-test.png') ? 1 : 0) - (a.endsWith('/vtt-terrain-test.png') ? 1 : 0));     // the Terrain Test Grounds map always comes first
     for (const url of shown) {
       const opt = document.createElement('option');
@@ -1089,9 +1085,9 @@
       select.appendChild(opt);
     }
     const last = store.get('vtt.maptest.lastMap', null);
-    const first = shown.includes(wanted) ? wanted : shown.includes(last) ? last : shown[0];
-    select.value = first;
-    await loadMap(first);
+    const asked = wanted && placeOf.has(wanted) ? wanted : last && placeOf.has(last) ? last : shown[0];       // a night look asked for by name opens as itself
+    select.value = placeOf.get(asked) || shown[0];
+    await loadMap(asked);
   }
 
   /* ---------------- doors: normal, locked or secret, with a DC ---------------- */
@@ -1144,7 +1140,7 @@
     positionPinCard();
     $('#brushBox').hidden = !isTerrainTool();
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
-    cv.style.cursor = tool === 'pan' ? 'grab' : tool === 'toggle' ? 'pointer' : 'crosshair';
+    cv.style.cursor = tool === 'toggle' ? 'pointer' : 'crosshair';
     requestRender();
   }
 
@@ -1223,7 +1219,7 @@
     try { cv.setPointerCapture(e.pointerId); } catch { /* a replayed click has no live pointer */ }
     const p = toWorld(e);
 
-    if (e.button === 1 || S.tool === 'pan' || S.spaceDown) {
+    if (e.button === 1 || S.spaceDown) {
       S.drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy };
       cv.style.cursor = 'grabbing';
       return;
@@ -1490,12 +1486,6 @@
   });
   $('#groupName').addEventListener('change', groupChanged);
   $('#variantName').addEventListener('change', groupChanged);
-  $('#onlyUvtt').checked = S.onlyUvtt;
-  $('#onlyUvtt').addEventListener('change', (e) => {
-    S.onlyUvtt = e.target.checked;
-    store.set('vtt.maptest.onlyUvtt', S.onlyUvtt);
-    loadMapList();
-  });
 
   $('#squares').addEventListener('input', (e) => {
     const n = clamp(Math.round(Number(e.target.value)), 5, 400);
@@ -1667,7 +1657,15 @@
     $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
     $('#dropDmBtn').hidden = !S.dmImg;
   }
-  function setView(v) { S.viewAs = v; S.dm = v === 'dm'; $('#dm').checked = S.dm; updateViewUi(); resetFog(); requestRender(); }
+  function setView(v) {
+    S.viewAs = v; S.dm = v === 'dm'; $('#dm').checked = S.dm;
+    // The player view has no editing of pins or terrain: those buttons go away, and a tool that is no longer there gives way to the Token tool.
+    const player = v === 'player';
+    document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player;
+    if (player && ['start', 'terrain', 'eraser'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
+    if (player) $('#brushBox').hidden = true;
+    updateViewUi(); resetFog(); requestRender();
+  }
   // Draw the DM version from the set-up: the player picture, then terrain, pins with their names, the start area, secret and locked doors, lights; saved for the AI DM (jpeg, at most 2400 px wide).
   async function makeDmVersion() {
     const st = $('#dmStatus'); st.textContent = 'Drawing…';

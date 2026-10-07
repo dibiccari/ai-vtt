@@ -97,8 +97,12 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     out.start = [S.viewAs, S.dm];
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
     out.player = [S.viewAs, S.dm, document.querySelector('#dm').checked, document.querySelector('#viewNote').textContent];
+    const vis = (t) => { const e = document.querySelector('button.tool[data-tool="' + t + '"]'); return Boolean(e) && !e.hidden && e.offsetParent !== null; };
+    out.toolsPlayer = ['start', 'terrain', 'eraser', 'token', 'toggle', 'pan'].map(vis);
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
     out.dm = [S.viewAs, S.dm];
+    out.toolsDm = ['start', 'terrain', 'eraser', 'token', 'toggle', 'pan'].map(vis);
+    out.firstInBar = document.querySelector('#stageBar').firstElementChild.id;
     const before = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
     document.querySelector('#makeDmBtn').click(); await wait(2500);
     const after = await fetch('/api/dm-map?map=vtt-terrain-test.png');
@@ -111,6 +115,8 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     return out;
   })()`);
   assert.deepEqual(r.start, ['dm', true]); assert.deepEqual(r.player, ['player', false, false, 'What the table sees']); assert.deepEqual(r.dm, ['dm', true]);
+  assert.deepEqual(r.toolsPlayer, [false, false, false, true, true, false], 'in the player view the Pins, Terrain and Eraser buttons are gone, Token and Open/Close stay, and there is no Pan');
+  assert.deepEqual(r.toolsDm, [true, true, true, true, true, false], 'the DM view has them all, and still no Pan'); assert.equal(r.firstInBar, 'viewSwitch', 'the DM | Player switch is first in the line');
   assert.equal(r.dmMap[0], 404, 'no DM version before'); assert.equal(r.dmMap[1], 200); assert.match(r.dmMap[2], /image\/jpeg/); assert.equal(r.dmMap[3], true);
   assert.match(r.status, /Saved the DM version/); assert.match(r.noteDm, /DM version of the picture/); assert.equal(r.notePlayer, 'What the table sees');
   assert.equal(r.dropped, 404, 'it can be removed again');
@@ -132,6 +138,25 @@ test('tiles: a regional map shows hexagons, a battle map squares, and one Show t
   assert.notEqual(hex.on, hex.off, 'ticking Show tiles draws the hexagons');
   const sq = await shot('/uploads/vtt-terrain-test.png');
   assert.equal(sq.tiles, 'square'); assert.equal(sq.hexRow, false); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
+});
+
+test('the map list shows places, Day | Night appears only when there is a night look, Terrain | Eraser are one pair', opts, async () => {
+  const look = async (url) => {
+    await page.goto(`${server.base}/map-test.html?map=${url}`);
+    await page.waitFor('document.querySelector("#timeSwitch") && document.querySelector("#banner").textContent.includes("px")');
+    await page.eval('new Promise((r) => setTimeout(r, 800))');
+    return page.eval(`(() => ({ options: [...document.querySelectorAll('#mapSelect option')].map((o) => o.textContent), day: [...document.querySelectorAll('#timeSwitch button')].map((b) => [b.textContent, !b.hidden, b.getAttribute('aria-pressed')]),
+      pair: [...document.querySelectorAll('#terrainPair button')].map((b) => b.textContent) }))()`);
+  };
+  const camp = await look('/uploads/vtt-camp-day.png');
+  assert.ok(camp.options.some((o) => o === 'Camp'), 'the list has the place "Camp": ' + camp.options.join(', '));
+  assert.ok(!camp.options.some((o) => /\.(png|jpe?g)$/.test(o) && !/^❗/.test(o)), 'and no entry is a bare file name');
+  assert.equal(camp.options.filter((o) => /camp/i.test(o)).length, 1, 'day and night are one entry');
+  assert.deepEqual(camp.day, [['Day', true, 'true'], ['Night', true, 'false']]); assert.deepEqual(camp.pair, ['Terrain', 'Eraser']);
+  await page.eval(`document.querySelector('#timeSwitch button[data-time="night"]').click()`);
+  await page.waitFor('document.querySelector("#timeSwitch button[data-time=night]").getAttribute("aria-pressed") === "true"', 8000);
+  const crypt = await look('/uploads/vtt-crypt-repaint-v2.png');
+  assert.deepEqual(crypt.day, [['Day', true, 'true'], ['Night', false, 'false']], 'a map with no night look has no Night button');
 });
 
 test('no page errors in Map Test', opts, () => { assert.deepEqual(page.problems, []); });
