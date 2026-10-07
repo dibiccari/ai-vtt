@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battle map comparison</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; --accent:#4f9dff; color-scheme: dark; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width:1700px; margin:0 auto; padding:20px; }
+  h1 { margin:0 0 6px; font-size:22px; } h1 span { color:var(--gold); }
+  h2 { font-size:18px; margin:26px 0 8px; }
+  .lead { color:var(--muted); max-width:95ch; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 10px; }
+  .tabs button { font:inherit; font-weight:600; color:var(--text); background:#1f2632; border:1px solid #3a4558; border-radius:8px; padding:9px 16px; cursor:pointer; }
+  .tabs button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  iframe { width:100%; height:880px; border:1px solid var(--border); border-radius:12px; background:#05070a; }
+  .how { color:var(--muted); font-size:13px; margin:0 0 8px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:16px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  figure img { width:100%; height:auto; display:block; border-radius:8px; }
+  figcaption { margin-top:8px; color:var(--muted); font-size:13px; }
+  figcaption b { color:var(--text); }
+  table { border-collapse:collapse; width:100%; max-width:1100px; } td, th { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; } th { background:var(--panel); }
+  pre { white-space:pre-wrap; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; color:var(--muted); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Battle map <span>comparison</span>: the same crypt, three ways</h1>
+  <p class="lead">One brief (below), one size (1536 x 1024, 30 x 20 squares). <b>Claude</b> drew the picture and its walls, doors and lights in code. <b>ChatGPT</b> painted the picture with its image model and then read the walls off it with its own vision model, with nobody correcting the numbers. <b>Both</b> is ChatGPT's picture with the walls, doors, pillars, furniture and lights read off it by Claude with a pixel ruler. Pick one below and try it: choose the Token tool, click in a room, and watch the fog and the line of sight. Untick "DM view" to see what a player sees; the Open/Close tool opens a door.</p>
+
+  <div class="tabs" id="tabs" role="group" aria-label="Which map">
+    <button data-m="claude" aria-pressed="true">1. Claude (code-drawn)</button>
+    <button data-m="chatgpt" aria-pressed="false">2. ChatGPT (picture and walls)</button>
+    <button data-m="both" aria-pressed="false">3. Both (ChatGPT's picture, Claude's walls)</button>
+    <button id="open" aria-pressed="false">Open this one full page ↗</button>
+  </div>
+  <p class="how" id="how"></p>
+  <iframe id="frame" title="Map Test"></iframe>
+
+  <h2>What each one has (walls drawn in red, doors green, lights blue)</h2>
+  <div class="grid">
+    <figure><img src="crypt-claude-walls.png" alt="Claude's walls on its picture"><figcaption><b>Claude.</b> 168 wall segments, 8 doors, 15 lights. Walls come from the room plan, so they sit exactly on the stone edges. Simpler art, but the picture and the line of sight cannot disagree.</figcaption></figure>
+    <figure><img src="crypt-chatgpt-walls.png" alt="ChatGPT's walls on the painted picture"><figcaption><b>ChatGPT alone.</b> 35 wall segments, 4 doors, 4 lights. The painting is the best-looking of the three, but the walls it read off it are in the wrong places, mostly outside the picture, and only four room-sized boxes line up with anything.</figcaption></figure>
+    <figure><img src="crypt-both-walls.png" alt="Claude's walls on ChatGPT's picture"><figcaption><b>Both.</b> 114 wall segments, 4 doors, 3 lights. The painted picture with walls that follow its stone edges, the doors where the doorways are, pillars, tombs, crates and barrels as sight blockers, and the torches and the brazier as lights. About as good as the painter's picture allows.</figcaption></figure>
+  </div>
+
+  <h2>Line of sight, a token in the entry hall (left) and in the chamber (right)</h2>
+  <div class="grid">
+    <figure><img src="crypt-claude-los-hall.png" alt=""><figcaption><b>Claude:</b> the hall, its corridor and the closed door; nothing beyond.</figcaption></figure>
+    <figure><img src="crypt-claude-los-chamber.png" alt=""><figcaption><b>Claude:</b> the chamber with the pillars blocking views behind them.</figcaption></figure>
+    <figure><img src="crypt-chatgpt-los-hall.png" alt=""><figcaption><b>ChatGPT alone:</b> the token sees through walls into the chamber and out into the rock: the traced walls do not enclose the room.</figcaption></figure>
+    <figure><img src="crypt-chatgpt-los-chamber.png" alt=""><figcaption><b>ChatGPT alone:</b> the chamber is not closed either.</figcaption></figure>
+    <figure><img src="crypt-both-los-hall.png" alt=""><figcaption><b>Both:</b> the hall and its corridor up to the closed door, like Claude's.</figcaption></figure>
+    <figure><img src="crypt-both-los-chamber.png" alt=""><figcaption><b>Both:</b> the chamber with the four painted pillars as blockers.</figcaption></figure>
+  </div>
+
+  <h2>Reading the result</h2>
+  <table>
+    <tr><th></th><th>Picture</th><th>Walls, doors, lights</th><th>Effort</th></tr>
+    <tr><td>Claude</td><td>Clean and clear, plainer</td><td>Exact (drawn from the plan)</td><td>A script; the same result every time; free</td></tr>
+    <tr><td>ChatGPT</td><td>Painterly and atmospheric (about $0.05)</td><td>Poor: an image model's reading of a picture does not give usable coordinates (a few cents more)</td><td>One command, but not playable</td></tr>
+    <tr><td>Both</td><td>ChatGPT's painting</td><td>Good: read with a ruler and checked by drawing the walls on the picture</td><td>Claude reads the picture in several steps; it is slow and was done by hand for this one</td></tr>
+  </table>
+  <p class="lead">The lesson for a map editor: let an image model paint, and give the human (or Claude) an editor that overlays walls on the painting so they can be drawn, nudged and checked. Letting the image model place the walls by itself does not work yet.</p>
+
+  <h2>The brief both were given</h2>
+  <pre id="prompt"></pre>
+</div>
+<script src="/nav.js"></script>
+<script>
+  const frame = document.getElementById('frame'), how = document.getElementById('how');
+  const notes = { claude: 'Drawn in code: every wall, door and torch is exactly where the picture shows it.', chatgpt: 'ChatGPT\\'s picture with ChatGPT\\'s own traced walls: watch the line of sight leak through the walls.', both: 'ChatGPT\\'s picture with walls, doors, pillars and lights read off it by Claude.' };
+  let current = 'claude';
+  const show = (m) => {
+    current = m;
+    document.querySelectorAll('#tabs button[data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+    frame.src = '/map-test.html?embed=1&map=/uploads/vtt-crypt-' + m + '.png';
+    how.textContent = notes[m] + ' Token tool: click inside a room. DM view off: see what a player sees.';
+  };
+  document.getElementById('tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.m) show(b.dataset.m); else if (b.id === 'open') window.open('/map-test.html?map=/uploads/vtt-crypt-' + current + '.png', '_blank'); });
+  fetch('crypt-prompt.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt').textContent = t.trim(); });
+  show('claude');
+</script>
+</body>
+</html>
