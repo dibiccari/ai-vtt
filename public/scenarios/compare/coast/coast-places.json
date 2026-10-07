@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Neverwinter",
+    "kind": "city",
+    "fx": 0.2191,
+    "fy": 0.4828
+  },
+  {
+    "name": "Phandalin",
+    "kind": "town",
+    "fx": 0.5722,
+    "fy": 0.7779
+  },
+  {
+    "name": "Thundertree",
+    "kind": "ruins",
+    "fx": 0.4108,
+    "fy": 0.4655
+  },
+  {
+    "name": "Cragmaw Castle",
+    "kind": "ruins",
+    "fx": 0.5562,
+    "fy": 0.6069
+  },
+  {
+    "name": "Conyberry",
+    "kind": "ruins",
+    "fx": 0.8385,
+    "fy": 0.5297
+  },
+  {
+    "name": "Old Owl Well",
+    "kind": "ruins",
+    "fx": 0.9273,
+    "fy": 0.611
+  },
+  {
+    "name": "Leilon",
+    "kind": "ruins",
+    "fx": 0.4164,
+    "fy": 0.8745
+  },
+  {
+    "name": "Cragmaw Hideout",
+    "kind": "point",
+    "fx": 0.4297,
+    "fy": 0.7145
+  },
+  {
+    "name": "Wave Echo Cave",
+    "kind": "point",
+    "fx": 0.6799,
+    "fy": 0.7724
+  },
+  {
+    "name": "Wyvern Tor",
+    "kind": "point",
+    "fx": 0.9301,
+    "fy": 0.6814
+  },
+  {
+    "name": "Agatha's Lair",
+    "kind": "point",
+    "fx": 0.7951,
+    "fy": 0.5241
+  },
+  {
+    "name": "Mount Hotenow",
+    "kind": "peak",
+    "fx": 0.3409,
+    "fy": 0.2828
+  },
+  {
+    "name": "Icespire Peak",
+    "kind": "peak",
+    "fx": 0.7913,
+    "fy": 0.7324
+  }
+]

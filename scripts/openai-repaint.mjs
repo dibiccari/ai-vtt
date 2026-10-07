@@ -1,6 +1,6 @@
 // Repaints a picture with OpenAI's image model while asking it to keep every shape where it is (image edit with high input fidelity), so a map whose walls, doors and lights were
 // drawn exactly keeps them valid under the richer painting. The result must be checked: overlay the walls on it with scripts/pixel-grid.mjs. Costs money (about $0.05-0.20).
-// Usage: node scripts/openai-repaint.mjs --in <picture.png> --prompt-file <file> --out <result.png> [--size 1536x1024] [--quality medium]
+// Usage: node scripts/openai-repaint.mjs --in <picture.png> --prompt-file <file> --out <result.png> [--size 1536x1024] [--quality medium] [--fidelity high|low]
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +19,7 @@ form.append('model', 'gpt-image-1');
 form.append('prompt', (await readFile(path.resolve(promptFile), 'utf8')).trim());
 form.append('size', size);
 form.append('quality', quality);
-form.append('input_fidelity', 'high');
+form.append('input_fidelity', opt('fidelity', 'high'));
 form.append('image', new Blob([await readFile(path.resolve(input))], { type: 'image/png' }), path.basename(input));
 const t0 = Date.now();
 const res = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form });
