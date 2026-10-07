@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camp, day and night</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; --accent:#4f9dff; color-scheme: dark; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width:1700px; margin:0 auto; padding:20px; }
+  h1 { margin:0 0 6px; font-size:22px; } h1 span { color:var(--gold); } h2 { font-size:18px; margin:24px 0 8px; }
+  .lead { color:var(--muted); max-width:95ch; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 10px; }
+  .tabs button { font:inherit; font-weight:600; color:var(--text); background:#1f2632; border:1px solid #3a4558; border-radius:8px; padding:9px 16px; cursor:pointer; }
+  .tabs button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  iframe { width:100%; height:880px; border:1px solid var(--border); border-radius:12px; background:#05070a; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(480px, 1fr)); gap:16px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  figure img { width:100%; height:auto; display:block; border-radius:8px; }
+  figcaption { margin-top:8px; color:var(--muted); font-size:13px; } figcaption b { color:var(--text); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>The forest camp <span>redone</span>, day and night</h1>
+  <p class="lead">Left, the camps Claude drew in code (flat colours, exact walls and lights). Right, the same two maps repainted by ChatGPT's image editor in the chosen hand-inked sepia style, strictly overhead, with the layout locked. The walls, tents, boulders, fire light and start spot are the originals, laid over the new picture unchanged. Try a token on each: Token tool, click in the clearing, and watch the fog and the line of sight around the tents.</p>
+  <div class="tabs" id="tabs" role="group" aria-label="Which map">
+    <button data-m="vtt-camp-day" aria-pressed="true">Day: Claude's original</button>
+    <button data-m="vtt-camp-day-v2" aria-pressed="false">Day: repainted</button>
+    <button data-m="vtt-camp-night" aria-pressed="false">Night: Claude's original</button>
+    <button data-m="vtt-camp-night-v2" aria-pressed="false">Night: repainted</button>
+    <button id="open" aria-pressed="false">Open this one full page ↗</button>
+  </div>
+  <iframe id="frame" title="Map Test"></iframe>
+  <h2>Side by side</h2>
+  <div class="grid">
+    <figure><img src="../../uploads/vtt-camp-day.png" alt=""><figcaption><b>Day, original.</b> Bright and readable, flat colours.</figcaption></figure>
+    <figure><img src="../../uploads/vtt-camp-day-v2.png" alt=""><figcaption><b>Day, repainted.</b> Inked and textured, in warm olive and sand. The sepia style turns the greens olive, so it reads as an old printed map rather than a sunny clearing.</figcaption></figure>
+    <figure><img src="../../uploads/vtt-camp-night.png" alt=""><figcaption><b>Night, original.</b> Moonlit blues and a warm fire pool.</figcaption></figure>
+    <figure><img src="../../uploads/vtt-camp-night-v2.png" alt=""><figcaption><b>Night, repainted.</b> The firelight pool is stronger and the forest sits in deep olive-black. The tents, logs, fire ring and boulders keep their places; the small camp items are redrawn a little differently.</figcaption></figure>
+  </div>
+  <p class="lead">How it was made: each picture was padded to the editor's 3:2 shape (the extra edges mirror the forest), repainted at 1536 x 1024, then cropped and scaled back to 2000 x 1500 (scripts/fit-picture.mjs, scripts/openai-repaint.mjs, about $0.07 each). The walls drift up to about 25 pixels (half a square is 25 pixels) at the tents.</p>
+</div>
+<script src="/nav.js"></script>
+<script>
+  const frame = document.getElementById('frame');
+  let current = 'vtt-camp-day';
+  const show = (m) => { current = m; document.querySelectorAll('#tabs button[data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m))); frame.src = '/map-test.html?embed=1&map=/uploads/' + m + '.png'; };
+  document.getElementById('tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.m) show(b.dataset.m); else if (b.id === 'open') window.open('/map-test.html?map=/uploads/' + current + '.png', '_blank'); });
+  show('vtt-camp-day');
+</script>
+</body>
+</html>

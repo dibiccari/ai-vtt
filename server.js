@@ -163,7 +163,7 @@ app.use(liveMiddleware(null, () => campaignIds()));
 // old file, so the old names keep working: the picture is redirected and the config and DM picture lookups use the new name.
 const OLD_MAP_NAMES = {
   'camp-day.png': 'vtt-camp-day.png', 'camp-night.png': 'vtt-camp-night.png', 'dungeon-cellars.png': 'vtt-dungeon-cellars.png', 'terrain-test.png': 'vtt-terrain-test.png',
-  'wotc-redbrand-hideout.jpg': 'dnd-redbrand-hideout.jpg', 'phandalin.jpg': 'dnd-phandalin.jpg', 'phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg',
+  'phandalin.jpg': 'dnd-phandalin.jpg', 'phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg',
   'phandalin-playerversion.jpg': 'dnd-phandalin-playerversion.jpg', 'phandelver.jpg': 'dnd-phandelver.jpg', 'northswordcoast.jpg': 'dnd-northswordcoast.jpg',
   'northswordcoast-playerversion.jpg': 'dnd-northswordcoast-playerversion.jpg', 'map-kings-road.gif': 'dnd-map-kings-road.gif', 'dnd-phandalin-dmversion.jpg': 'dnd-dm-phandalin.jpg'
 };

@@ -285,7 +285,7 @@ test('the Market: save a map as a pack, list it, add it to a campaign, export an
   const shop = (await s.get('/api/market')).json;
   assert.deepEqual(shop.types, ['battle', 'camp', 'town', 'regional']); assert.ok(shop.moods.some((m) => m.id === 'haunted') && shop.licences.length >= 4);
   const pictures = (await s.get('/api/maps')).json.maps.map((u) => u.replace('/uploads/', ''));
-  const mine = pictures.find((f) => /^vtt-/.test(f)), bought = pictures.find((f) => /^lmop-/.test(f));
+  const mine = pictures.find((f) => f === 'vtt-terrain-test.png'), bought = pictures.find((f) => /^lmop-/.test(f));
   assert.ok(mine && bought, 'the sandbox has a generated and a purchased picture');
   assert.equal((await s.post('/api/market/maps', { picture: bought, name: 'Stolen', rights: true })).status, 403, 'a purchased picture is never packed');
   assert.equal((await s.post('/api/market/maps', { picture: 'nope.png', name: 'x', rights: true })).status, 404);

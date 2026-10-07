@@ -107,27 +107,3 @@ test('start pins lie inside their picture (image size from the config walls and 
   for (const [name, c] of Object.entries(configs)) for (const s of c.starts || []) assert.ok(s.x >= 0 && s.y >= 0, `${name}: pin ${s.name} is off the picture`);
 });
 
-// The wall builder reads a layout and the picture and writes a map config. It is run inside a throwaway copy so the real data/maps stays untouched.
-test('build-walls-from-layout: Redbrand Hideout builds walls, 13 doors and bars, and the doors sit on walls', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'vtt-walls-'));
-  try {
-    for (const d of ['scripts', 'lib', 'data']) await cp(path.join(ROOT, d), path.join(dir, d), { recursive: true });
-    await mkdir(path.join(dir, 'public'));
-    await symlink(path.join(ROOT, 'public', 'uploads'), path.join(dir, 'public', 'uploads'));
-    const out = execFileSync(process.execPath, ['scripts/build-walls-from-layout.mjs', 'data/map-layouts/dnd-redbrand-hideout.json'], { cwd: dir, encoding: 'utf8' });
-    assert.match(out, / walls, 13 doors, \d+ fences/);
-    const built = JSON.parse(await readFile(path.join(dir, 'data', 'maps', 'dnd-redbrand-hideout.jpg.json'), 'utf8'));
-    const count = (t) => built.walls.filter((w) => w.type === t).length;
-    assert.ok(count('wall') > 100 && count('fence') > 0); assert.equal(count('door'), 13);
-    // a door must lie on the line of a wall or fence (within 35 px (under half a 82.5 px square; wall bands are drawn about 20 px thick, and the worst door in the committed layout is 30 px off) of some wall or fence)
-    const dist = (px, py, w) => { const dx = w.x2 - w.x1, dy = w.y2 - w.y1, l2 = dx * dx + dy * dy; const t = l2 ? Math.max(0, Math.min(1, ((px - w.x1) * dx + (py - w.y1) * dy) / l2)) : 0; return Math.hypot(px - (w.x1 + t * dx), py - (w.y1 + t * dy)); };
-    const solid = built.walls.filter((w) => w.type !== 'door');
-    for (const d of built.walls.filter((w) => w.type === 'door')) {
-      for (const [x, y] of [[d.x1, d.y1], [d.x2, d.y2]]) assert.ok(solid.some((w) => dist(x, y, w) < 35), `door end (${x},${y}) is not touching a wall`);
-    }
-    assert.ok(built.secrets.length >= 1);
-    // Not compared with the committed config: that one was tuned by hand-checking screenshots and the builder (cave mask) no longer reproduces it exactly.
-    const copy = JSON.parse(await readFile(path.join(dir, 'data', 'maps', 'dnd-dm-redbrand-hideout.jpg.json'), 'utf8'));
-    assert.deepEqual(copy.walls, built.walls, 'the DM-version picture shares the walls');
-  } finally { await rm(dir, { recursive: true, force: true }); }
-});
