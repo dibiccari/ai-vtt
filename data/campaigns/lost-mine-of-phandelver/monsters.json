@@ -123,7 +123,7 @@
         "walk": "0 ft., fly 40 ft."
       },
       "dexterity": 17,
-      "attacks": "See the module statistics in Appendix B / Monster Descriptions (fire bolt, fireball, rejuvenation).",
+      "attacks": "Multiattack: two Fire Ray attacks. Fire Ray: ranged spell attack +5 to hit, range 30 ft., 10 (3d6) fire. Spellcasting (5th level, Int, save DC 13, +5 to hit, verbal only): mage hand at will; magic missile, shield (3 slots, 1st); blur, flaming sphere (2 slots, 2nd); fireball (1 slot, 3rd). Illumination (dim 15 ft. or bright 15 ft. + dim 15 ft., switched as an action). Magic Resistance (advantage on saves against spells). Rejuvenation: if destroyed it regains all hit points in 1 hour unless holy water is sprinkled on its remains or dispel magic or remove curse is cast on them. Resistant to lightning, necrotic, piercing; immune to cold, fire, poison, charmed, frightened, paralyzed, poisoned. Darkvision 60 ft. CR 4.",
       "image": "/tokens/demilich-3edf0.png",
       "passivePerception": 12
     },
@@ -144,7 +144,7 @@
         "walk": "30 ft."
       },
       "dexterity": 16,
-      "attacks": "Multiattack: two claw attacks. Rotting Gaze (weird insight). See the module statistics for details.",
+      "attacks": "Multiattack: two Claws. Claws: melee +4 to hit, reach 5 ft., 6 (1d6+3) slashing. Rotting Gaze: one creature within 30 ft. that it can see, DC 12 Con save or 10 (3d6) necrotic. Weird Insight: one creature within 30 ft., contested Cha (Deception) against its Wis (Insight); if it wins it learns one fact or secret about them. Keen Sight (advantage on sight-based Perception). Truesight 120 ft. CR 2.",
       "image": "/tokens/eyeless-undead-a7e8d.png",
       "passivePerception": 12
     },
@@ -186,7 +186,7 @@
         "walk": "20 ft."
       },
       "dexterity": 13,
-      "attacks": "See the module statistics (Claws). CR 1/8.",
+      "attacks": "Claws: melee +3 to hit, reach 5 ft., 3 (1d4+1) piercing. False Appearance (looks like a dead shrub while motionless). Vulnerable to fire; immune to blinded, deafened; blindsight 60 ft. CR 1/8.",
       "image": "/tokens/treant-987d3.png",
       "passivePerception": 9
     }
