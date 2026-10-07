@@ -757,7 +757,7 @@ function pointSegmentDistance(px, py, w) {
   return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
 }
 
-const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open));       // stops movement
+const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open && !w.secret));       // stops movement (a secret door is a wall until the DM reveals it)
 // a flyer goes over low fences, windows and chasm bars, but not walls or closed doors
 const flyerWalls = () => blockingWalls().filter((w) => w.type !== 'fence' && w.type !== 'window' && w.type !== 'bars');
 const sightWalls = () => blockingWalls().filter((w) => w.type !== 'fence');                   // stops sight (a fence or a window stops movement only)
@@ -1429,6 +1429,11 @@ function seenByParty(t) {
   return state.sight.some((s) => visibleFrom(s, x, y));
 }
 const canSee = (t) => seenByParty(t) || state.dmView;
+// Is a point (a door, say) in the party's sight? Used to decide whether a change there is worth a line in the chat.
+function seenByPartyPoint(x, y) {
+  if (!state.fogEnabled || state.gmOverride) return true;
+  return state.sight.some((s) => visibleFrom(s, x, y));
+}
 
 // Token art cache: url -> HTMLImageElement (loads lazily, re-renders when ready).
 const tokenArt = new Map();
@@ -1526,7 +1531,7 @@ function doorAt(wx, wy) {
   const tolerance = Math.max(8, 10 / state.view.scale);
   let best = null, bestDist = Infinity;
   for (const w of state.walls) {
-    if (w.type !== 'door') continue;
+    if (w.type !== 'door' || w.secret) continue;
     const d = pointSegmentDistance(wx, wy, w);
     if (d < tolerance && d < bestDist) { best = w; bestDist = d; }
   }
@@ -1842,7 +1847,8 @@ async function serverWalls() {
     state.wallsInPicture = config.source === 'dd2vtt';        // the picture already shows its own walls: only doors are marked on top
     const f = state.map.drawW / state.map.img.naturalWidth;
     return config.walls.map((w) => ({
-      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open)
+      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open),
+      ...(w.type === 'door' && w.locked ? { locked: true } : {}), ...(w.type === 'door' && w.secret ? { secret: true } : {}), ...(w.type === 'door' && w.dc ? { dc: w.dc } : {})
     }));
   } catch {
     return [];
@@ -1961,7 +1967,7 @@ function drawWallSegments(alpha) {
   ctx.globalAlpha = alpha;
   ctx.lineCap = 'round';
   for (const w of state.walls) {
-    const isDoor = w.type === 'door';
+    const isDoor = w.type === 'door' && !w.secret;           // a secret door is drawn, and works, like the wall it hides in
     if (state.wallsInPicture && !isDoor && !state.drawWalls && !state.gmOverride) continue;
     ctx.setLineDash(isDoor && w.open ? [10, 8] : []);
     ctx.lineWidth = 10;
@@ -1970,6 +1976,11 @@ function drawWallSegments(alpha) {
     ctx.lineWidth = 6;
     ctx.strokeStyle = isDoor ? (w.open ? 'rgba(213, 140, 63, 0.75)' : '#d58c3f') : '#c7ccd6';
     ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
+    if (isDoor && w.locked && !w.open) {                      // a padlock on a locked door
+      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+      ctx.setLineDash([]); ctx.fillStyle = '#1c1f26'; ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#f0c048'; ctx.fillRect(mx - 4, my - 1, 8, 6); ctx.beginPath(); ctx.arc(mx, my - 2, 3.2, Math.PI, 0); ctx.stroke();
+    }
   }
   ctx.setLineDash([]);
   if (state.drawWalls) {
@@ -2313,6 +2324,12 @@ canvas.addEventListener('pointerdown', (e) => {
     }
     const door = doorAt(world.x, world.y);
     if (door) {
+      if (door.locked && !door.open) {                         // locked: the table will not open it; the DM is told someone tried it
+        const n = state.walls.filter((w) => w.type === 'door').indexOf(door) + 1, who = activeToken();
+        toast('The door is locked');
+        state.pendingNotes.push(`${who ? who.name : 'Someone'} tried door ${n}, which is locked. Decide what happens (a key, thieves' tools, forcing it) and unlock it with action door if they get through.`);
+        return;
+      }
       door.open = !door.open;
       wallsChanged();
       toast(door.open ? 'Door opened' : 'Door closed');
@@ -3614,7 +3631,7 @@ async function sendTurn(spokenText, opts) {
       activeTokenId: active ? active.id : null,
       tokens: state.tokens.map((t) => ({ ...serializeToken(t), visibleToParty: seenByParty(t) })),
       characters: state.characters.map(({ sheetLog, ...rest }) => rest),
-      walls: state.walls.map(({ x1, y1, x2, y2, type, open }) => ({ x1, y1, x2, y2, type, open: !!open })),
+      walls: state.walls.map(({ x1, y1, x2, y2, type, open, locked, secret, dc }) => ({ x1, y1, x2, y2, type, open: !!open, ...(locked ? { locked: true } : {}), ...(secret ? { secret: true } : {}), ...(dc ? { dc } : {}) })),
       gridSize: GRID,
       mapUrl: state.map.url || '',
       movementRule: state.moveRule,
@@ -4181,6 +4198,19 @@ async function applyMapUpdates(updates) {
         const h = clamp(Math.round(Number(u.feet) || 0), 0, 5000);
         t.elevation = h;
         if (seenByParty(t)) addChat('system', h ? `↳ ${t.name} is ${h} ft in the air` : `↳ ${t.name} is on the ground`);
+        break;
+      }
+      case 'doorAction': {
+        // The DM works a door by its number (the order of the doors in the wall list): open, close, lock, unlock, or reveal a secret door.
+        const door = state.walls.filter((w) => w.type === 'door')[u.n - 1];
+        if (!door) { state.pendingNotes.push(`There is no door ${u.n}: the doors are numbered 1 to ${state.walls.filter((w) => w.type === 'door').length}.`); break; }
+        const mid = { x: (door.x1 + door.x2) / 2, y: (door.y1 + door.y2) / 2 }, say = (t) => { if (seenByPartyPoint(mid.x, mid.y)) addChat('system', '↳ ' + t); };
+        if (u.op === 'reveal') { if (door.secret) { delete door.secret; addChat('system', '↳ A hidden door is revealed'); } }
+        else if (u.op === 'unlock') { if (door.locked) { delete door.locked; say('A door is unlocked'); } }
+        else if (u.op === 'lock') { door.open = false; door.locked = true; say('A door is locked'); }
+        else if (u.op === 'open') { if (door.secret) state.pendingNotes.push(`Door ${u.n} is still a secret door: reveal it first.`); else if (door.locked) state.pendingNotes.push(`Door ${u.n} is locked: unlock it first.`); else if (!door.open) { door.open = true; say('A door opens'); } }
+        else if (u.op === 'close') { if (!door.secret && door.open) { door.open = false; say('A door closes'); } }
+        wallsChanged();
         break;
       }
       case 'resizeToken': {

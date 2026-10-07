@@ -826,6 +826,49 @@ test('forced and teleported moves from the DM: no opportunity attack, no movemen
   assert.equal(r.forcedWall, true, 'a wall stops a forced move'); assert.deepEqual(r.teleport, [24, 10, 0], 'a teleport lands past the wall with no opportunity attack');
 });
 
+test('doors: the DM opens, closes, locks, unlocks and reveals them; locked doors stay shut for a click; a secret door is a wall until revealed', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state; s.fogEnabled = false; s.pendingNotes = []; s.combat = { active: false, round: 0, order: [] };
+    const hero = s.tokens[0]; hero.col = 10; hero.row = 10;
+    const G = 50; const reach = (c, r) => vtt.reachable(hero).has(c + ',' + r);
+    // three doors in a wall at x = 650 (column 13): rows 8-9 normal, 10-11 locked, 12-13 secret; the wall above and below is solid
+    const H = s.map.height;
+    s.walls = [{ x1: 650, y1: 0, x2: 650, y2: 400, type: 'wall', open: false }, { x1: 650, y1: 400, x2: 650, y2: 450, type: 'door', open: false }, { x1: 650, y1: 450, x2: 650, y2: 500, type: 'door', open: false, locked: true, dc: 14 },
+      { x1: 650, y1: 500, x2: 650, y2: 550, type: 'door', open: false, secret: true, dc: 17 }, { x1: 650, y1: 550, x2: 650, y2: H, type: 'wall', open: false }]; s.wallsVersion++;
+    const out = {};
+    const row = (y) => Math.floor(y / G);
+    hero.row = 8; out.closedBlocks = !reach(16, 8);
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 1, op: 'open' }]); out.opened = reach(16, 8);
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 1, op: 'close' }]); out.closedAgain = !reach(16, 8);
+    // the locked door: opening it is refused (and the DM is told), unlocking then opening works
+    hero.row = 9; await vtt.applyMapUpdates([{ type: 'doorAction', n: 2, op: 'open' }]); out.lockedStays = !reach(16, 9); out.noteLocked = s.pendingNotes.filter((n) => /Door 2 is locked/.test(n)).length;
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 2, op: 'unlock' }]); out.unlockedFlag = !s.walls[2].locked; await vtt.applyMapUpdates([{ type: 'doorAction', n: 2, op: 'open' }]); out.openAfterUnlock = reach(16, 9);
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 2, op: 'lock' }]); out.lockClosesIt = [s.walls[2].locked === true, s.walls[2].open === false, !reach(16, 9)];
+    // the secret door: a wall (opening it is refused, it is not clickable) until revealed
+    hero.row = 10; await vtt.applyMapUpdates([{ type: 'doorAction', n: 3, op: 'open' }]); out.secretWall = !reach(16, 10); out.noteSecret = s.pendingNotes.filter((n) => /Door 3 is still a secret/.test(n)).length;
+    s.walls[3].open = true; out.secretIgnoresOpen = !reach(16, 10);                                                        // even a stray open flag does not open it
+    s.walls[3].open = false;
+    const before = s.chat.length;
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 3, op: 'reveal' }]); out.revealed = [s.walls[3].secret === undefined, s.chat.slice(before).some((m) => /hidden door is revealed/.test(m.content))];
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 3, op: 'open' }]); out.revealedOpens = reach(16, 10);
+    await vtt.applyMapUpdates([{ type: 'doorAction', n: 9, op: 'open' }]); out.noSuchDoor = s.pendingNotes.filter((n) => /There is no door 9/.test(n)).length;
+    // what the DM is sent
+    s.walls[2].locked = true; s.walls[3].secret = true; s.walls[3].open = false;
+    out.sentFlags = s.walls.map(({ locked, secret, dc }) => [!!locked, !!secret, dc || 0]);
+    s.walls = []; s.wallsVersion++;
+    return out;
+  })()`);
+  assert.equal(r.closedBlocks, true); assert.equal(r.opened, true, 'the DM opens a door'); assert.equal(r.closedAgain, true, 'and closes it');
+  assert.equal(r.lockedStays, true, 'a locked door stays shut when the DM tries to open it'); assert.equal(r.noteLocked, 1, 'and the DM is told');
+  assert.equal(r.unlockedFlag, true); assert.equal(r.openAfterUnlock, true, 'unlock, then open');
+  assert.deepEqual(r.lockClosesIt, [true, true, true], 'lock shuts a door and keeps it shut');
+  assert.equal(r.secretWall, true, 'a secret door is a wall'); assert.equal(r.noteSecret, 1); assert.equal(r.secretIgnoresOpen, true);
+  assert.deepEqual(r.revealed, [true, true], 'reveal turns it into a door and tells the players'); assert.equal(r.revealedOpens, true);
+  assert.equal(r.noSuchDoor, 1);
+  assert.deepEqual(r.sentFlags[2], [true, false, 14]); assert.deepEqual(r.sentFlags[3], [false, true, 17]);
+});
+
 test('the high cliff on Terrain Test Grounds: its face stops anyone on foot, a flyer reaches the top', opts, async () => {
   await page.eval(setup);
   const r = await page.eval(`(async () => {

@@ -15,7 +15,7 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt("--max-calls", 18));
+const MAX_CALLS = Number(opt("--max-calls", 20));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -45,6 +45,8 @@ const STEPS = [
   { id: 'haste', say: '[Vex] I drink the Potion of speed from my pack, so I am hasted for one minute. Please update the board.', expect: 'a haste effect on Vex for 10 rounds (no concentration source), the DM does not touch Vex\'s speed or AC itself' },
   { id: 'forced', say: '[Table] A barrel of lamp oil explodes behind Drunk Bram and the blast throws him 10 feet straight to the east. No roll is needed: just apply the move to the board.', expect: 'a move of Bram marked forced (not his own walking), the destination 10 ft (2 squares) from where he stood' },
   { id: 'levitate', say: '[Lyra] I use my Boots of levitation to cast Levitate on myself, concentrating, and rise the full 20 feet into the air. Update the board.', expect: 'a levitate effect on Lyra with her as the caster, elevated 20 ft' },
+  { id: 'lockeddoor', say: '[Vex] I kneel at the cellar door and try to pick its lock with my thieves\' tools. Roll it for me.', expect: 'a roll from the tray, and door action unlock (then open) only if the roll meets the lock\'s dc; the secret door is never mentioned' },
+  { id: 'searchwall', say: '[Thorin] I search the old shelves along the south wall, tapping the stone behind them for anything hidden. Roll my Perception.', expect: 'a Perception roll; if it meets the secret door\'s dc the DM reveals it with action door, otherwise nothing hidden is mentioned' },
   { id: 'travel', say: '[Thorin] The fight is over. We open the cellar hatch behind the bar and go down into the old cellars to look for the missing barrels, all four of us together.', expect: 'changeMap to the cellars map, resolved to a picture and an arrival square, no problems reported' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
@@ -164,7 +166,7 @@ try {
     mk({ id: 'npc-hidden', name: MARK_CREATURE + ' the Unseen', col: c0 + 5, row: r0 - 4, color: '#333', isPC: false, hidden: true, visibleToParty: false, hp: 20, maxHp: 20, ac: 13, dexMod: 2 }),
     mk({ id: 'trap-hidden', name: MARK_TRAP + ' snare', col: c0 + 3, row: r0 - 2, color: '#a00', isPC: false, hidden: true, kind: 'trap', visibleToParty: false })
   );
-  const T = { active: 'pc-thorin', clock0: 0, places: [] };
+  const T = { active: 'pc-thorin', clock0: 0, places: [], walls: [] };
   const upd = (j) => j.mapUpdates || [];
   const clockNow = async () => (await srv.get('/api/party')).json.clock.minutes;
   const byId = (id) => tokens.find((t) => t.id === id);
@@ -204,6 +206,15 @@ try {
       },
       forced: async () => { combat = { active: false }; setActive('pc-lyra'); const b = byId('npc-bram'); if (b) Object.assign(b, { hp: 11, dead: false }); T.bram = b ? { col: b.col, row: b.row } : null; },
       levitate: async () => { combat = { active: false }; setActive('pc-lyra'); const l = byId('pc-lyra'); l.conditions = l.conditions.filter((c) => c.name !== 'concentrating'); await giveItem('lyra', 'Boots of levitation', 'While you wear these boots, you can use an action to cast the levitate spell on yourself at will (concentration).', { equipped: true, attuned: true, requiresAttunement: true }); },
+      lockeddoor: async () => {
+        combat = { active: false }; setActive('pc-vex');
+        const v = byId('pc-vex');
+        T.places = [{ name: 'cellar-door', col: v.col + 1, row: v.row - 3, note: 'the door down to the cellar' }, { name: 'old-shelves', col: v.col + 6, row: v.row + 3, note: 'dusty shelves against the south wall' }];
+        const g = 50;
+        T.walls = [{ x1: (v.col + 1) * g, y1: (v.row - 3) * g, x2: (v.col + 2) * g, y2: (v.row - 3) * g, type: 'door', open: false, locked: true, dc: 12 },
+                   { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
+      },
+      searchwall: async () => { combat = { active: false }; setActive('pc-thorin'); },
       fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem('thorin', 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
       haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem('vex', 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
       senses: async () => {
@@ -244,7 +255,7 @@ try {
     try {
       if (hooks.before[step.id]) await hooks.before[step.id]();
       res = await Promise.race([
-        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, places: T.places || [], inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
+        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: T.walls || [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, places: T.places || [], inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS + 5000))
       ]);
     } catch (err) { fail(`${step.id}: no reply (${err.message})`); continue; }
@@ -367,6 +378,24 @@ try {
       check(!eff || eff.source === 'pc-lyra', 'levitate: Lyra is the caster (concentration source)', eff ? 'source ' + JSON.stringify(eff.source) : '');
       const el = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'elevate' && u.tokenId === 'pc-lyra');
       check(!!el && Number(el.value) > 0 && Number(el.value) <= 20, 'levitate: Lyra raised, no more than 20 ft', el ? 'value ' + el.value : 'no elevate');
+    }
+    if (step.id === 'lockeddoor') {
+      const acts = (raw?.mapUpdates || []).filter((u) => u.type === 'token' && u.action === 'door');
+      check((j.rolls || []).some((x) => /d20/i.test(x)), 'lockeddoor: the lock was rolled for', diagnose(j, raw));
+      check(!acts.some((u) => Number(u.value) === 2), 'lockeddoor: the secret door (number 2) was not touched');
+      check(!/secret door|hidden door/i.test(told), 'lockeddoor: the secret door is not mentioned');
+      const unlocked = acts.some((u) => Number(u.value) === 1 && /unlock/.test(String(u.condition).toLowerCase()));
+      const said = /\b(click|opens|open|swings|unlock|give)\b/i.test(j.narrative), failed = /\b(fail|holds|stays|resists|jammed|no luck|won't)\b/i.test(j.narrative);
+      check(unlocked === (said && !failed) || unlocked || failed, 'lockeddoor: the board matches the story (door 1 unlocked when the narration says it opened)', 'actions ' + JSON.stringify(acts.map((u) => [u.value, u.condition])));
+      if (!unlocked && !failed) warn('lockeddoor: the narration may say the lock gave way but no unlock action came');
+    }
+    if (step.id === 'searchwall') {
+      const acts = (raw?.mapUpdates || []).filter((u) => u.type === 'token' && u.action === 'door');
+      check((j.rolls || []).some((x) => /d20|perception/i.test(x)), 'searchwall: a Perception roll came back', diagnose(j, raw));
+      const revealed = acts.some((u) => Number(u.value) === 2 && /reveal/.test(String(u.condition).toLowerCase()));
+      check(!acts.some((u) => Number(u.value) === 1 && /reveal/.test(String(u.condition).toLowerCase())), 'searchwall: only the secret door can be revealed');
+      if (!revealed) warn('searchwall: the secret door was not revealed (the roll may have missed its dc of 8)');
+      else pass('searchwall: the secret door was revealed with action door');
     }
     if (step.id === 'fly') {
       const el = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'elevate' && u.tokenId === 'pc-thorin');

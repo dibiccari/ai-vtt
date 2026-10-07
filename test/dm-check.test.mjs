@@ -28,6 +28,8 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
     if (/Potion of speed/.test(said)) return { ...base, mapUpdates: [upd({ action: 'addCondition', tokenId: 'pc-vex', condition: 'haste', rounds: 10 })] };
     if (/lamp oil explodes/.test(said)) return { ...base, mapUpdates: [upd({ action: 'move', tokenId: 'npc-bram', col: state.tokens.find((x) => x.id === 'npc-bram').col + 2, row: state.tokens.find((x) => x.id === 'npc-bram').row, condition: 'forced' })] };
     if (/Boots of levitation/.test(said)) return { ...base, mapUpdates: [upd({ action: 'addCondition', tokenId: 'pc-lyra', condition: 'levitate', name: 'pc-lyra', rounds: 0 }), upd({ action: 'elevate', tokenId: 'pc-lyra', value: 20 })] };
+    if (/pick its lock/.test(said)) return { ...base, rolls: [`Vex thieves' tools: d20 (${d20[0]}) + 7 = ${d20[0] + 7}`], narrative: 'The tumblers fall and the cellar door swings open with a click, the stairs beyond black and cold.', mapUpdates: [upd({ action: 'door', value: 1, condition: 'unlock' }), upd({ action: 'door', value: 1, condition: 'open' })] };
+    if (/search the old shelves/.test(said)) return { ...base, rolls: [`Thorin Perception: d20 (${d20[0]}) + 1 = ${d20[0] + 1}`], narrative: 'Behind the dusty shelves a seam in the stone gives way to a hidden latch and a narrow door swings back.', mapUpdates: [upd({ action: 'door', value: 2, condition: 'reveal' })] };
     if (/cellar hatch/.test(said)) return { ...base, mapUpdates: [{ type: 'changeMap', mapId: 'dungeon-cellars', arrive: 'start', reason: 'down the stairs' }] };
     if (/journal/.test(said)) return { ...base, mapUpdates: [{ type: 'journal', category: 'event', title: 'Brawl', text: 'A brawl broke out.', status: 'none', when: 'Evening' }, { type: 'journal', category: 'promise', title: 'Pay Orla', text: 'Pay for the damage.', status: 'open', when: '' }] };
     return base;
@@ -36,7 +38,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
 
 function runCheck(fakeUrl, extra = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '16', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '18', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     child.on('exit', (code) => resolve({ code, out }));
   });
@@ -48,11 +50,11 @@ test('dm-check passes against a well-behaved fake DM, prints no story text and r
     const r = await runCheck(f.url);
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /PASSED: 0 failure/);
-    assert.match(r.out, /USAGE 16 API request\(s\)/);
+    assert.match(r.out, /USAGE 18 API request\(s\)/);
     assert.match(r.out, /journal: 2 entries added/);
     assert.ok(!r.out.includes('tavern is loud'), 'no narrative is printed');
     assert.ok(!r.out.includes('sk-ant-fake'), 'the key is never printed');
-    assert.equal(f.requests.length, 16);
+    assert.equal(f.requests.length, 18);
   } finally { await f.close(); }
 });
 

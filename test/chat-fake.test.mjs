@@ -163,3 +163,24 @@ test('a second map change: arrival spots, pins and the module areas of the new m
   assert.ok(bad.json.characterProblems.some((p) => /moon-base/.test(p)));
   assert.ok(!bad.json.mapUpdates.some((u) => u.type === 'changeMap'));
 });
+
+test('doors: the DM is given numbered doors with their state, dc and nearby place; a door action reaches the table as doorAction', async () => {
+  const walls = [
+    { x1: 100, y1: 0, x2: 100, y2: 50, type: 'wall', open: false },
+    { x1: 0, y1: 100, x2: 50, y2: 100, type: 'door', open: false },
+    { x1: 300, y1: 100, x2: 350, y2: 100, type: 'door', open: true },
+    { x1: 400, y1: 150, x2: 450, y2: 150, type: 'door', open: false, locked: true, dc: 15 },
+    { x1: 500, y1: 200, x2: 550, y2: 200, type: 'door', open: false, secret: true, dc: 18 }
+  ];
+  setReply({ ...reply, mapUpdates: [{ type: 'token', action: 'door', tokenId: '', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: 'Unlock', rounds: 0, monster: '', value: 3, ac: 0 }] });
+  const r = await s.post('/api/chat', { message: '[Edric] I pick the lock', gridSize: 50, walls, places: [{ name: 'cellar-door', col: 8, row: 3, note: 'the cellar' }], tokens: [tok({ id: 'pc1', name: 'Edric' })] });
+  assert.equal(r.status, 200, r.text);
+  const doors = boardStateOf(fake.requests.at(-1)).doors;
+  assert.deepEqual(doors.map((d) => [d.n, d.state]), [[1, 'closed'], [2, 'open'], [3, 'locked'], [4, 'secret']]);
+  assert.equal(doors[2].dc, 15); assert.equal(doors[3].dc, 18); assert.deepEqual(doors[2].at, [8, 3]); assert.equal(doors[2].near, 'cellar-door'); assert.equal(doors[0].near, undefined);
+  const act = r.json.mapUpdates.find((u) => u.type === 'doorAction');
+  assert.deepEqual([act.n, act.op], [3, 'unlock'], 'the DM\'s door action becomes a doorAction for the table');
+  setReply(reply);
+  await s.post('/api/chat', { message: 'look', walls: [{ x1: 0, y1: 0, x2: 10, y2: 0, type: 'wall' }], tokens: [tok({ id: 'pc1', name: 'Edric' })] });
+  assert.equal(boardStateOf(fake.requests.at(-1)).doors, undefined, 'no doors, no door list');
+});

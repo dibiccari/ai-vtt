@@ -135,6 +135,12 @@
   </div>
 
   <div class="group">
+    <h2>Doors</h2>
+    <p class="hint">Each door can be normal, <b>locked</b> (the table will not open it until the DM unlocks it; set the DC of the lock) or <b>secret</b> (a plain wall to everyone until the DM reveals it; set the DC to spot it). Orange dots mark locked doors on the map, purple ones secret doors.</p>
+    <div id="doorList"></div>
+  </div>
+
+  <div class="group">
     <h2>Pins</h2>
     <p class="hint">Use the Pins tool. The green ring and circle is where the party starts (drag it, or set its circle size on its card); the blue pins are places the DM can narrate and send the party to. Click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
     <div id="startList" class="hint"></div>
@@ -263,7 +269,7 @@
     return Math.hypot(px - (w.x1 + t * ex), py - (w.y1 + t * ey));
   }
 
-  const blockingWalls = (walls) => walls.filter((w) => !(w.type === 'door' && w.open));       // stops movement
+  const blockingWalls = (walls) => walls.filter((w) => !(w.type === 'door' && w.open && !w.secret));       // stops movement (a secret door is a wall)
   const sightWalls = (walls) => blockingWalls(walls).filter((w) => w.type !== 'fence');       // stops sight: a fence or a window does not
 
   // Cast rays at every wall endpoint (+/- epsilon) plus a uniform fan; `walls` must already exclude open doors.
@@ -338,7 +344,8 @@
 
   function cleanWalls(list) {
     return (Array.isArray(list) ? list : []).filter(validWall).map((w) => ({
-      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open)
+      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open) && !(w.type === 'door' && w.secret),
+      ...(w.type === 'door' && w.locked ? { locked: true } : {}), ...(w.type === 'door' && w.secret ? { secret: true } : {}), ...(w.type === 'door' && w.dc ? { dc: w.dc } : {})
     }));
   }
 
@@ -871,12 +878,13 @@
     for (const w of S.walls) {
       const door = w.type === 'door';
       ctx.lineWidth = (door ? 5 : 4) * px;
-      ctx.strokeStyle = door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
-      ctx.setLineDash(door && w.open ? [10 * px, 8 * px] : []);
+      ctx.strokeStyle = door && w.secret ? 'rgba(210, 120, 255, 0.95)' : door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : w.locked ? 'rgba(255, 150, 60, 0.98)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
+      ctx.setLineDash(door && (w.open || w.secret) ? [10 * px, 8 * px] : []);
       ctx.beginPath();
       ctx.moveTo(w.x1, w.y1);
       ctx.lineTo(w.x2, w.y2);
       ctx.stroke();
+      if (door && (w.locked || w.secret)) { ctx.setLineDash([]); ctx.fillStyle = w.secret ? '#d278ff' : '#ff963c'; ctx.beginPath(); ctx.arc((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, 5 * px, 0, Math.PI * 2); ctx.fill(); }
     }
     ctx.setLineDash([]);
     ctx.restore();
@@ -1057,8 +1065,34 @@
     await loadMap(first);
   }
 
+  /* ---------------- doors: normal, locked or secret, with a DC ---------------- */
+  function renderDoorList() {
+    const box = $('#doorList'); box.innerHTML = '';
+    const doors = S.walls.filter((w) => w.type === 'door');
+    if (!doors.length) { box.textContent = 'This map has no doors.'; return; }
+    const g = S.W / S.squares;
+    doors.forEach((d, i) => {
+      const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px;align-items:center;margin:4px 0;';
+      const label = document.createElement('span'); label.style.cssText = 'flex:1;font-size:12px;'; label.textContent = 'Door ' + (i + 1) + ' (' + Math.floor((d.x1 + d.x2) / 2 / g) + ',' + Math.floor((d.y1 + d.y2) / 2 / g) + ')';
+      const sel = document.createElement('select'); sel.setAttribute('aria-label', 'State of door ' + (i + 1)); sel.style.width = '96px';
+      [['', 'Normal'], ['locked', 'Locked'], ['secret', 'Secret']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); });
+      sel.value = d.secret ? 'secret' : d.locked ? 'locked' : '';
+      const dc = document.createElement('input'); dc.type = 'number'; dc.min = '5'; dc.max = '30'; dc.placeholder = 'DC'; dc.title = 'The DC to pick the lock or to spot the door'; dc.style.width = '56px'; dc.value = d.dc || '';
+      dc.setAttribute('aria-label', 'DC of door ' + (i + 1)); dc.hidden = !sel.value;
+      const apply = () => {
+        delete d.locked; delete d.secret;
+        if (sel.value === 'locked') { d.locked = true; d.open = false; } else if (sel.value === 'secret') { d.secret = true; d.open = false; }
+        const n = Math.round(Number(dc.value)); if (sel.value && n >= 5 && n <= 30) d.dc = n; else delete d.dc;
+        dc.hidden = !sel.value; wallsChanged(); requestRender();
+      };
+      sel.addEventListener('change', apply); dc.addEventListener('change', apply);
+      row.append(label, sel, dc); box.appendChild(row);
+    });
+  }
+
   /* ---------------- controls ---------------- */
   function syncControls() {
+    renderDoorList();
     $('#squares').value = S.squares;
     $('#squaresVal').textContent = S.squares;
     $('#vision').value = S.visionFt;
@@ -1215,7 +1249,9 @@
       brushStroke(p, p, S.drag.erase); requestRender();
     } else if (S.tool === 'toggle') {
       const w = nearestWall(p, true);
-      if (w) { w.open = !w.open; wallsChanged(); }
+      if (w && w.secret) { setSavedNote('That is a secret door: it stays a wall until it is revealed (Doors list).'); }
+      else if (w && w.locked && !w.open) { setSavedNote('That door is locked: unlock it in the Doors list first.'); }
+      else if (w) { w.open = !w.open; wallsChanged(); }
     }
   }
 

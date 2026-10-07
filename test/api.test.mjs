@@ -317,3 +317,18 @@ test('the Market: save a map as a pack, list it, add it to a campaign, export an
   assert.equal((await s.del('/api/market/secret')).status, 200); assert.equal((await s.del('/api/market/secret')).status, 404);
   assert.equal((await s.get('/api/market')).json.maps.length, 2);
 });
+
+test('map config keeps what a door can be: locked, secret and the dc; plain walls drop the flags; a secret door is never saved open', async () => {
+  const body = { squares: 20, walls: [
+    { x1: 0, y1: 0, x2: 50, y2: 0, type: 'wall', open: false, locked: true, secret: true, dc: 12 },
+    { x1: 50, y1: 0, x2: 100, y2: 0, type: 'door', open: false, locked: true, dc: 15 },
+    { x1: 100, y1: 0, x2: 150, y2: 0, type: 'door', open: true, secret: true, dc: 18 },
+    { x1: 150, y1: 0, x2: 200, y2: 0, type: 'door', open: false, dc: 99 }
+  ], starts: [] };
+  ok(await s.put('/api/map-config?map=vtt-door-test.png', body));
+  const w = (await s.get('/api/map-config?map=vtt-door-test.png')).json.config.walls;
+  assert.deepEqual(w[0], { x1: 0, y1: 0, x2: 50, y2: 0, type: 'wall', open: false });
+  assert.deepEqual(w[1], { x1: 50, y1: 0, x2: 100, y2: 0, type: 'door', open: false, locked: true, dc: 15 });
+  assert.deepEqual(w[2], { x1: 100, y1: 0, x2: 150, y2: 0, type: 'door', open: false, secret: true, dc: 18 });
+  assert.deepEqual(w[3], { x1: 150, y1: 0, x2: 200, y2: 0, type: 'door', open: false }, 'a dc outside 5 to 30 is dropped');
+});
