@@ -36,6 +36,7 @@
     <button data-m="claude" aria-pressed="true">1. Claude (code-drawn)</button>
     <button data-m="chatgpt" aria-pressed="false">2. ChatGPT (picture and walls)</button>
     <button data-m="both" aria-pressed="false">3. Both (ChatGPT's picture, Claude's walls)</button>
+    <button data-m="repaint" aria-pressed="false">4. Claude's walls + ChatGPT repaint</button>
     <button id="open" aria-pressed="false">Open this one full page ↗</button>
   </div>
   <p class="how" id="how"></p>
@@ -46,6 +47,14 @@
     <figure><img src="crypt-claude-walls.png" alt="Claude's walls on its picture"><figcaption><b>Claude.</b> 168 wall segments, 8 doors, 15 lights. Walls come from the room plan, so they sit exactly on the stone edges. Simpler art, but the picture and the line of sight cannot disagree.</figcaption></figure>
     <figure><img src="crypt-chatgpt-walls.png" alt="ChatGPT's walls on the painted picture"><figcaption><b>ChatGPT alone.</b> 35 wall segments, 4 doors, 4 lights. The painting is the best-looking of the three, but the walls it read off it are in the wrong places, mostly outside the picture, and only four room-sized boxes line up with anything.</figcaption></figure>
     <figure><img src="crypt-both-walls.png" alt="Claude's walls on ChatGPT's picture"><figcaption><b>Both.</b> 114 wall segments, 4 doors, 3 lights. The painted picture with walls that follow its stone edges, the doors where the doorways are, pillars, tombs, crates and barrels as sight blockers, and the torches and the brazier as lights. About as good as the painter's picture allows.</figcaption></figure>
+  </div>
+
+  <h2>Fourth try: Claude draws the walls, ChatGPT repaints (the "upscale" idea)</h2>
+  <p class="lead">Claude's code-drawn crypt was given to ChatGPT's image editor (gpt-image-1, high input fidelity, about $0.07) with the instruction to repaint it richly but keep every wall, door, pillar, tomb and torch exactly where it is. Claude's own walls, doors and lights were then laid over the result unchanged.</p>
+  <div class="grid">
+    <figure><img src="crypt-repaint-walls.png" alt="Claude's walls on the repainted picture"><figcaption><b>Walls on the repaint.</b> The red outlines (the unchanged code-drawn walls) follow the rooms, corridors, doors, pillars, tombs and crates of the new painting closely. A few objects sit a little off, and the painting gave the corridor walls their own thickness, but the line of sight stays right where it matters.</figcaption></figure>
+    <figure><img src="crypt-repaint-los-chamber.png" alt=""><figcaption><b>Line of sight in the repaint:</b> a token in the chamber sees the room, and the four pillars cast their shadows exactly where they stand in the painting.</figcaption></figure>
+    <figure><img src="crypt-repaint-los-hall.png" alt=""><figcaption><b>The hall:</b> bounded by its walls and the closed door, like the code-drawn original.</figcaption></figure>
   </div>
 
   <h2>Line of sight, a token in the entry hall (left) and in the chamber (right)</h2>
@@ -63,8 +72,10 @@
     <tr><th></th><th>Picture</th><th>Walls, doors, lights</th><th>Effort</th></tr>
     <tr><td>Claude</td><td>Clean and clear, plainer</td><td>Exact (drawn from the plan)</td><td>A script; the same result every time; free</td></tr>
     <tr><td>ChatGPT</td><td>Painterly and atmospheric (about $0.05)</td><td>Poor: an image model's reading of a picture does not give usable coordinates (a few cents more)</td><td>One command, but not playable</td></tr>
+    <tr><td>Claude walls + ChatGPT repaint</td><td>Painterly, in the same layout as Claude's map</td><td>Exact: the original walls, doors and lights, unchanged</td><td>Two steps and a check; about $0.07; no hand tracing</td></tr>
     <tr><td>Both</td><td>ChatGPT's painting</td><td>Good: read with a ruler and checked by drawing the walls on the picture</td><td>Claude reads the picture in several steps; it is slow and was done by hand for this one</td></tr>
   </table>
+  <p class="lead">The fourth way (Claude's code-drawn layout, repainted by ChatGPT with the layout locked) gives the painted look and exact walls with no hand tracing: the best of both here. The repaint moved a few small things by a few pixels, so it should always be checked with the overlay, and it costs about $0.07 a picture.</p>
   <p class="lead">The lesson for a map editor: let an image model paint, and give the human (or Claude) an editor that overlays walls on the painting so they can be drawn, nudged and checked. Letting the image model place the walls by itself does not work yet.</p>
 
   <h2>The brief both were given</h2>
@@ -73,7 +84,7 @@
 <script src="/nav.js"></script>
 <script>
   const frame = document.getElementById('frame'), how = document.getElementById('how');
-  const notes = { claude: 'Drawn in code: every wall, door and torch is exactly where the picture shows it.', chatgpt: 'ChatGPT\'s picture with ChatGPT\'s own traced walls: watch the line of sight leak through the walls.', both: 'ChatGPT\'s picture with walls, doors, pillars and lights read off it by Claude.' };
+  const notes = { claude: 'Drawn in code: every wall, door and torch is exactly where the picture shows it.', chatgpt: 'ChatGPT\'s picture with ChatGPT\'s own traced walls: watch the line of sight leak through the walls.', both: 'ChatGPT\'s picture with walls, doors, pillars and lights read off it by Claude.', repaint: 'Claude\'s map (exact walls) repainted by ChatGPT with the instruction to keep everything in place: the walls were not changed at all.' };
   let current = 'claude';
   const show = (m) => {
     current = m;
