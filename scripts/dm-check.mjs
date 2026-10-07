@@ -15,7 +15,8 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt('--max-calls', 10));
+const MAX_CALLS = Number(opt('--max-calls', 11));
+const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
 const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25], 'claude-sonnet-5-5': [2, 10], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };   // $ per million tokens (input, output); cache reads cost 5% of input, cache writes 125%
@@ -37,6 +38,7 @@ const STEPS = [
   { id: 'warded', say: '[Lyra] It is my turn. I carry a Sanctuary ward cast on me earlier and I know that attacking will end it, so go ahead: I attack Drunk Bram with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
   { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
+  { id: 'gear', say: '[Thorin] I buy a hempen rope (50 ft) and two torches from Orla, the barkeep, and pay with coins from my purse. Please update my gear and coins.', expect: 'gear updates: a rope and torches added to Thorin and coins spent, applied by the server' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
 
@@ -159,6 +161,8 @@ try {
   const used = { d4: 0, d6: 0, d8: 0, d10: 0, d12: 0, d20: 0, d100: 0 };
 
   for (const [n, step] of STEPS.entries()) {
+    if (ONLY_STEPS.length && !ONLY_STEPS.includes(step.id)) continue;
+    if (ONLY_STEPS.length && !combat.active && ['handoff', 'attack', 'effects', 'warded'].includes(step.id)) startPretendCombat();
     if (calls.length >= MAX_CALLS) { warn(`call cap reached before step ${step.id}`); break; }
     console.log(`-- step ${n + 1}/${STEPS.length}: ${step.id}`);
     const before = calls.length;
@@ -263,6 +267,18 @@ try {
       check(/\b(sing|song|voices?|chant|noise|sound|hear|heard|music|bellow|rowdy|chorus|muffled)\b/i.test(j.narrative + ' ' + (j.voiceLines || []).map((l) => l.text).join(' ')), 'senses: a hint of the noise behind the door came through');
       if (/\b(asleep|snor|sleeping|barrel)/i.test(told)) warn('senses: something about the silent creature was hinted (no sound, so no hint should come)');
       if (!/\b(notice|spot|saw|sees|see you|eye|glance|turn|catch|caught|look|watch)/i.test(j.narrative)) warn('senses: the narrative does not say the guard noticed Vex (his passive Perception is 30, above any possible roll)');
+    }
+    if (step.id === 'gear') {
+      const gears = (raw?.mapUpdates || []).filter((u) => u.type === 'gear');
+      check(gears.length >= 1, 'gear: the DM sent gear updates', gears.length + ' updates');
+      const rope = gears.find((u) => u.action === 'add' && /rope/i.test(u.name)), torch = gears.find((u) => u.action === 'add' && /torch/i.test(u.name));
+      const spent = gears.find((u) => u.action === 'coins' && (u.gp < 0 || u.sp < 0 || u.cp < 0 || u.ep < 0));
+      check(!!rope && /thorin/i.test(rope.target), 'gear: a rope added to Thorin', rope ? 'target ' + rope.target : 'missing');
+      check(!!torch && /thorin/i.test(torch.target) && torch.qty >= 2, 'gear: two torches added to Thorin', torch ? 'target ' + torch.target + ', qty ' + torch.qty : 'missing');
+      check(!!spent && /thorin/i.test(spent.target), 'gear: coins spent from Thorin', spent ? 'target ' + spent.target : 'missing');
+      const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === 'thorin');
+      check((th.inventory || []).some((i) => /rope/i.test(i.name)) && (th.inventory || []).some((i) => /torch/i.test(i.name)), 'gear: the rope and torches are in Thorin\'s saved inventory');
+      check((j.partyChanged || []).includes('thorin'), 'gear: the table was told the party changed');
     }
     if (step.id === 'journal') {
       check((j.journalAdded || []).length >= 1, `journal: ${j.journalAdded?.length || 0} entries added`);

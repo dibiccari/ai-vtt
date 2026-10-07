@@ -21,6 +21,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
     if (/Sanctuary ward cast on me/.test(said)) return { ...base, rolls: [`Lyra attack: d20 (${d20[0]}) + 4 = ${d20[0] + 4}`, `Damage: d4 (${state.diceTray.d4[0]}) + 2`], mapUpdates: [upd({ action: 'damage', tokenId: 'npc-bram', value: 3 }), ...(removesEffect ? [upd({ action: 'removeCondition', tokenId: 'pc-lyra', condition: 'sanctuary' })] : [])] };
     if (/five minutes/.test(said)) return { ...base, mapUpdates: [upd({ action: 'endCombat' }), upd({ action: 'time', value: 5 }), ...(removesEffect ? [upd({ action: 'removeCondition', tokenId: 'pc-thorin', condition: 'shield of faith' })] : [])] };
     if (/Roll my Stealth/.test(said)) return { ...base, rolls: [`Vex Stealth: d20 (${d20[0]}) + 5 = ${d20[0] + 5}`], narrative: 'Somewhere behind the door a rowdy song rises, and the guard at the bar turns his head and notices you at once.' };
+    if (/I buy a hempen rope/.test(said)) return { ...base, mapUpdates: [{ type: 'gear', action: 'add', target: 'thorin', to: '', name: 'Rope, hempen (50 ft)', qty: 1, weight: 10, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, { type: 'gear', action: 'add', target: 'thorin', to: '', name: 'Torch', qty: 2, weight: 1, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, { type: 'gear', action: 'coins', target: 'thorin', to: '', name: '', qty: 0, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: -1, pp: 0 }] };
     if (/journal/.test(said)) return { ...base, mapUpdates: [{ type: 'journal', category: 'event', title: 'Brawl', text: 'A brawl broke out.', status: 'none', when: 'Evening' }, { type: 'journal', category: 'promise', title: 'Pay Orla', text: 'Pay for the damage.', status: 'open', when: '' }] };
     return base;
   };
@@ -40,11 +41,11 @@ test('dm-check passes against a well-behaved fake DM, prints no story text and r
     const r = await runCheck(f.url);
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /PASSED: 0 failure/);
-    assert.match(r.out, /USAGE 8 API request\(s\)/);
+    assert.match(r.out, /USAGE 9 API request\(s\)/);
     assert.match(r.out, /journal: 2 entries added/);
     assert.ok(!r.out.includes('tavern is loud'), 'no narrative is printed');
     assert.ok(!r.out.includes('sk-ant-fake'), 'the key is never printed');
-    assert.equal(f.requests.length, 8);
+    assert.equal(f.requests.length, 9);
   } finally { await f.close(); }
 });
 
