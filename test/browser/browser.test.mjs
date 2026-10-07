@@ -971,6 +971,23 @@ test('a campaign built from scratch opens on its first map, the party on that ma
   }
 });
 
+test('hold the Space bar to talk: it works on the page, on a button and in an empty chat box, not while a message is being typed', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const press = (target) => { const down = new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true, cancelable: true }); (target || document.body).dispatchEvent(down); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', bubbles: true })); return down.defaultPrevented; };
+    const input = document.querySelector('#chatInput'), out = {};
+    document.activeElement && document.activeElement.blur(); out.page = press(document.body);
+    const b = document.querySelector('#micBtn'); b.focus(); out.button = press(b);
+    input.focus(); input.value = ''; out.emptyBox = press(input);
+    input.value = 'I open the'; out.typing = press(input);
+    input.value = ''; const sel = [...document.querySelectorAll('select')].find((x) => x.offsetParent); if (sel) { sel.focus(); if (document.activeElement === sel) out.select = press(sel); }
+    return out;
+  })()`);
+  assert.equal(r.page, true, 'Space on the page starts hold to talk'); assert.equal(r.button, true, 'and with a button focused (it does not press the button)');
+  assert.equal(r.emptyBox, true, 'and in the empty chat box'); assert.equal(r.typing, false, 'but a space typed into a message stays a space');
+  if ('select' in r) assert.equal(r.select, false, 'a drop-down keeps its own Space');
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });

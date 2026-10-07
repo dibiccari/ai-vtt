@@ -391,7 +391,7 @@
     <div class="composer">
       <div class="speaker">Acting as <strong id="speakerName">—</strong></div>
       <div class="voice-bar">
-        <button class="btn btn-mic" id="micBtn" type="button" title="Hold to talk. Release to send. (Hold Space while not typing)">🎙 Hold to Talk</button>
+        <button class="btn btn-mic" id="micBtn" type="button" title="Hold to talk. Release to send. (Or hold the Space bar: it works unless you are typing a message)">🎙 Hold to Talk</button>
         <button class="btn btn-sm" id="micToggleBtn" type="button" title="Start or stop continuous listening">Start Listening</button>
         <button class="btn btn-sm" id="stopSpeechBtn" type="button" title="Silence the DM">🔇 Stop voice</button>
         <div class="mic-meter" aria-hidden="true"><div id="micLevel"></div></div>
@@ -4064,15 +4064,26 @@ const voice = (() => {
     $('#micToggleBtn').addEventListener('click', toggleContinuous);
     $('#stopSpeechBtn').addEventListener('click', cancelSpeech);
     $('#speakToggle').addEventListener('change', (e) => { if (!e.target.checked) cancelSpeech(); });
-    // Spacebar push-to-talk while the chat tab is open and no field has focus.
+    // Spacebar push-to-talk while the chat tab is open: hold Space to talk, release to send. It works with focus on a button (the space does not press it) and in the empty
+    // chat box (a leading space there is useless); in any other field, or in the chat box once something is typed, Space is just a space.
+    let spaceHeld = false;
+    const spaceTalks = () => {
+      const el = document.activeElement, tag = el?.tagName;
+      if (tag === 'BUTTON') return true;
+      if (el && el.id === 'chatInput') return !el.value.trim();
+      return !/^(INPUT|TEXTAREA|SELECT)$/.test(tag) && !el?.isContentEditable;
+    };
     window.addEventListener('keydown', (e) => {
-      if (e.code !== 'Space' || e.repeat) return;
-      if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(document.activeElement?.tagName)) return;
+      if (e.code !== 'Space') return;
+      if (spaceHeld) { if (spaceTalks()) e.preventDefault(); return; }      // key repeat while holding
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || !spaceTalks()) return;
       if (!$('#panel-chat').classList.contains('active')) return;
       e.preventDefault();
-      beginHold();
+      spaceHeld = true;
+      beginHold().then(() => { if (!spaceHeld) endHold(); });                // released before the microphone was ready
     });
-    window.addEventListener('keyup', (e) => { if (e.code === 'Space') endHold(); });
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space' && spaceHeld) { spaceHeld = false; endHold(); } });
+    window.addEventListener('blur', () => { if (spaceHeld) { spaceHeld = false; endHold(); } });
     window.addEventListener('beforeunload', () => { if (synth) synth.cancel(); releaseMic(); });
     reflectUi();
   }
