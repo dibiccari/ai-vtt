@@ -125,19 +125,19 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
 test('tiles: a regional map shows hexagons, a battle map squares, and one Show tiles box hides or shows either', opts, async () => {
   const shot = async (url) => {
     await page.goto(`${server.base}/map-test.html?map=${url}`);
-    await page.waitFor('document.querySelector("#tileKind") && document.querySelector("#banner").textContent.includes("px")');
+    await page.waitFor('document.querySelector("#mapKind") && document.querySelector("#banner").textContent.includes("px")');
     return page.eval(`(async () => { const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const S = window.mapTest.state, box = document.querySelector('#showGrid');
-      const out = { tiles: S.tiles, select: document.querySelector('#tileKind').value, hexRow: !document.querySelector('#hexRow').hidden, showing: box.checked };
+      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRow: !document.querySelector('#hexRow').hidden, showRow: !document.querySelector('#showTilesRow').hidden, squaresRow: !document.querySelector('#squares').closest('label').hidden, label: document.querySelector('#showTilesText').textContent, showing: box.checked };
       const count = () => { const cv = document.querySelector('canvas'), x = cv.getContext('2d'), d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) n += d[i] + d[i + 1] + d[i + 2]; return n; };       // the picture's total brightness: lines drawn over it change it
       box.checked = true; box.dispatchEvent(new Event('change')); await wait(300); out.on = count();
       box.checked = false; box.dispatchEvent(new Event('change')); await wait(300); out.off = count();
       return out; })()`);
   };
   const hex = await shot('/uploads/dnd-sword-coast-ours.png');
-  assert.equal(hex.tiles, 'hex'); assert.equal(hex.select, 'hex'); assert.equal(hex.hexRow, true, 'the hexagon size slider shows for hexagons');
+  assert.equal(hex.tiles, 'hex'); assert.equal(hex.select, 'regional', 'the label says it is a regional map'); assert.equal(hex.squaresRow, false, 'no squares control on a hexagon map'); assert.match(hex.label, /hexagons/); assert.equal(hex.hexRow, true, 'the hexagon size slider shows for hexagons');
   assert.notEqual(hex.on, hex.off, 'ticking Show tiles draws the hexagons');
   const sq = await shot('/uploads/vtt-terrain-test.png');
-  assert.equal(sq.tiles, 'square'); assert.equal(sq.hexRow, false); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
+  assert.equal(sq.tiles, 'square'); assert.equal(sq.select, 'battle'); assert.equal(sq.hexRow, false, 'no hexagon slider on a battle map'); assert.equal(sq.squaresRow, true); assert.match(sq.label, /squares/); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
 });
 
 test('the map list shows places, Day | Night appears only when there is a night look, Terrain | Eraser are one pair', opts, async () => {

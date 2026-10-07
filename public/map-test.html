@@ -89,9 +89,9 @@
     <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
-    <label class="field"><span>Tiles of this map</span><select id="tileKind"><option value="square">Squares (battle maps, 5 ft)</option><option value="hex">Hexagons (regional maps, 5 miles)</option></select></label>
+    <label class="field"><span>Type of map</span><select id="mapKind" aria-label="Type of map"><option value="battle">Battle map (squares)</option><option value="camp">Camp (squares)</option><option value="town">Town map (no tiles)</option><option value="regional">Regional map (hexagons, 5 miles)</option></select></label>
     <label class="field" id="hexRow" hidden><span>Hexagon width in pixels (flat to flat): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
-    <label class="check"><input type="checkbox" id="showGrid"> Show tiles (the squares or the hexagons)</label>
+    <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check"><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token (walls block, difficult terrain costs double)</label>
@@ -253,7 +253,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
   };
@@ -337,7 +337,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind });
     serverSaveTimer = setTimeout(async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -504,7 +504,7 @@
     for (const l of S.lights) Flicker.draw(ctx, l.x, l.y, cell() * Math.min(1, Math.max(0.25, Math.pow(l.range / 9, 2))), performance.now() / 1000);
 
     const px = 1 / v.scale;
-    if (S.showGrid) { if (S.tiles === 'hex') drawHexes(px); else drawGrid(px); }
+    if (S.showGrid && S.tiles !== 'none') { if (S.tiles === 'hex') drawHexes(px); else drawGrid(px); }
 
     if (S.fog && S.tokens.length) {
       ctx.save();
@@ -1004,7 +1004,9 @@
         S.lights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && l.flicker === true && isFinite(l.x) && isFinite(l.y)) : [];
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.mood = remote && typeof remote.mood === 'string' ? remote.mood : '';
-        S.tiles = remote && remote.tiles === 'hex' ? 'hex' : 'square'; S.hexSize = remote && remote.hexSize >= 20 ? remote.hexSize : 95;
+        S.hexSize = remote && remote.hexSize >= 20 ? remote.hexSize : 95;
+        S.kind = remote && ['battle', 'camp', 'town', 'regional'].includes(remote.kind) ? remote.kind : (S.placeKinds && S.placeKinds.get(S.url)) || (remote && remote.tiles === 'hex' ? 'regional' : 'battle');
+        S.tiles = tilesOf(S.kind);
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
         S.rooms = remote && Array.isArray(remote.rooms) ? remote.rooms.filter((r) => Array.isArray(r) && r.length === 4 && r.every(isFinite)) : [];
@@ -1062,6 +1064,7 @@
     const lookUrl = (set, time) => { const lk = set.levels[0].looks.find((l) => l.time === time) || set.levels[0].looks[0]; return '/uploads/' + lk.player; };
     const maps = places.map((p) => lookUrl(p, 'day'));
     const nameOf = new Map(); const dupes = new Set(); for (const p of places) { if (nameOf.has(p.name)) dupes.add(p.name); nameOf.set(p.name, true); }
+    S.placeKinds = new Map(places.map((p) => [lookUrl(p, 'day'), p.kind]));
     S.placeNames = new Map(places.map((p) => [lookUrl(p, 'day'), p.name + (dupes.has(p.name) ? ' (' + p.origin + ')' : '')]));                                   // the day look (or the only one) stands for the place
     const placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));
     select.innerHTML = '';
@@ -1127,10 +1130,22 @@
     $('#lightLevel').value = S.light;
     $('#ambienceKind').value = S.ambience;
     $('#moodSel').value = S.mood;
-    $('#tileKind').value = S.tiles; $('#hexSize').value = S.hexSize; $('#hexVal').textContent = S.hexSize; $('#hexRow').hidden = S.tiles !== 'hex';
+    $('#hexSize').value = S.hexSize; $('#hexVal').textContent = S.hexSize; applyKindUi();
     $('#groupName').value = S.group;
     $('#variantName').value = S.variant;
     refreshVariants();
+  }
+
+  // What a kind of map uses: battle and camp squares, regional hexagons, town nothing. Only the controls that apply are shown.
+  const tilesOf = (kind) => (kind === 'regional' ? 'hex' : kind === 'town' ? 'none' : 'square');
+  function applyKindUi() {
+    $('#mapKind').value = S.kind;
+    $('#hexRow').hidden = S.tiles !== 'hex';
+    $('#showTilesRow').hidden = S.tiles === 'none';
+    $('#showTilesText').textContent = S.tiles === 'hex' ? 'Show hexagons (5 miles each)' : 'Show squares (5 ft each)';
+    const squareMap = S.tiles === 'square';
+    for (const id of ['squares']) { const row = $('#' + id).closest('label') || $('#' + id).parentElement; if (row) row.hidden = !squareMap; }
+    $('#moveTest').closest('label').hidden = !squareMap;
   }
 
   function setTool(tool) {
@@ -1517,7 +1532,7 @@
   });
   $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; requestRender(); });
-  $('#tileKind').addEventListener('change', (e) => { S.tiles = e.target.value; $('#hexRow').hidden = S.tiles !== 'hex'; save(); requestRender(); });
+  $('#mapKind').addEventListener('change', (e) => { S.kind = e.target.value; S.tiles = tilesOf(S.kind); applyKindUi(); save(); requestRender(); });
   $('#hexSize').addEventListener('input', (e) => { S.hexSize = Number(e.target.value); $('#hexVal').textContent = S.hexSize; save(); requestRender(); });
 
   $('#resetFogBtn').addEventListener('click', resetFog);

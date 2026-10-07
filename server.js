@@ -325,6 +325,7 @@ function normalizeMapConfig(body) {
   if (['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(body?.ambience)) config.ambience = body.ambience;
   if (/^[0-9a-f]{6,8}$/i.test(String(body?.ambient ?? ''))) config.ambient = String(body.ambient).toLowerCase();
   if (MOODS.some((m) => m.id && m.id === body?.mood)) config.mood = body.mood;            // a mood theme chosen in the map editor (lib/market.js MOODS)
+  if (['battle', 'camp', 'town', 'regional'].includes(body?.kind)) config.kind = body.kind;                      // the type of map chosen in the map tools
   if (body?.tiles === 'hex') { config.tiles = 'hex'; config.hexSize = Math.max(20, Math.min(260, Math.round(Number(body?.hexSize) || 95))); }       // regional maps: hexagons, one hex is 5 miles (squares are the default and need no entry)
   if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
   // Versions of one place (a day and a night map, a summer and a winter map) share a group and have a variant name each.
@@ -449,6 +450,7 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.ambience && !config.ambience) config.ambience = old.ambience;
       if (old.mood && !config.mood && req.body?.mood === undefined) config.mood = old.mood;
       if (old.tiles === 'hex' && req.body?.tiles === undefined) { config.tiles = 'hex'; config.hexSize = old.hexSize; }
+      if (old.kind && req.body?.kind === undefined) config.kind = old.kind;
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
   }

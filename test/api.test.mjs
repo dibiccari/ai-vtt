@@ -333,6 +333,13 @@ test('map config keeps what a door can be: locked, secret and the dc; plain wall
   assert.deepEqual(w[3], { x1: 150, y1: 0, x2: 200, y2: 0, type: 'door', open: false }, 'a dc outside 5 to 30 is dropped');
 });
 
+test('map config keeps the map type (battle, camp, town, regional) and the sets use it', async () => {
+  ok(await s.put('/api/map-config?map=vtt-kind-test.png', { squares: 30, walls: [], starts: [], kind: 'town' }));
+  assert.equal((await s.get('/api/map-config?map=vtt-kind-test.png')).json.config.kind, 'town');
+  ok(await s.put('/api/map-config?map=vtt-kind-test.png', { squares: 30, walls: [], starts: [], kind: 'nonsense' }));
+  assert.equal((await s.get('/api/map-config?map=vtt-kind-test.png')).json.config.kind, undefined);
+});
+
 test('map config keeps the tile kind: hexagons with a size for regional maps, squares (nothing saved) otherwise', async () => {
   ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 48 }));
   let c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, 'hex'); assert.equal(c.hexSize, 48);
