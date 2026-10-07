@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
-import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile, rm } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile, rm, open } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
-import { buildSets, originOf } from './lib/mapsets.js';
+import { buildSets, originOf, imageSize } from './lib/mapsets.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
@@ -398,7 +398,9 @@ app.get('/api/mapsets', asyncRoute(async (_req, res) => {
     try { for (const m of await mapsForCampaign(dirent.name)) { const f = m.url.split('/').pop(); listed[f] = { kind: listed[f]?.kind || m.kind, campaigns: [...(listed[f]?.campaigns || []), dirent.name] }; } } catch { /* unreadable campaign */ }
   }
   const dmPictures = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
-  res.json({ sets: buildSets({ pictures, configs, dmPictures, listed }) });
+  const sizes = {};
+  for (const f of pictures) { try { const fh = await open(path.join(UPLOAD_DIR, f)); const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close(); const sz = imageSize(b.subarray(0, bytesRead)); if (sz) sizes[f] = sz; } catch { /* unreadable picture */ } }
+  res.json({ sets: buildSets({ pictures, configs, dmPictures, listed, sizes }) });
 }));
 
 // The numbered areas of the adventure module on a map (data/campaigns/<campaign>/areas.json: picture file -> [{n, name}]); Map Test turns them into pins.

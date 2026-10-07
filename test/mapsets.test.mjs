@@ -1,7 +1,7 @@
 // Map sets, step 1: the set view built from today's files (lib/mapsets.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSets, facePlace } from '../lib/mapsets.js';
+import { buildSets, facePlace, gameSize, imageSize } from '../lib/mapsets.js';
 
 test('facePlace: DM and player versions name the place and the role', () => {
   assert.deepEqual(facePlace('dnd-dm-phandalin.jpg'), { key: 'dnd-phandalin', role: 'dm', explicit: true });
@@ -36,4 +36,13 @@ test('buildSets: a player version beside the plain picture is one place, the pla
   assert.equal(sets.length, 3);
   const coast = sets.find((x) => x.id === 'dnd-northswordcoast'); assert.equal(coast.levels[0].looks[0].player, 'dnd-northswordcoast-playerversion.jpg'); assert.equal(coast.levels[0].looks[0].dm, 'dnd-northswordcoast.jpg');
   assert.equal(sets.find((x) => x.id === 'lmop-phandalin').origin, 'Wizards of the Coast'); assert.equal(sets.find((x) => x.id === 'lmop-agathas-lair').origin, 'Map Adventurer');
+});
+
+test('gameSize and imageSize: squares are 5 ft, hexagons 5 miles, height x width', () => {
+  assert.deepEqual(gameSize('battle', { w: 2000, h: 1500 }, 40, 0), { unit: 'ft', width: 200, height: 150, tilesAcross: 40, tilesDown: 30 });
+  assert.deepEqual(gameSize('camp', { w: 1500, h: 1000 }, 30, 0), { unit: 'ft', width: 150, height: 100, tilesAcross: 30, tilesDown: 20 });
+  const r = gameSize('regional', { w: 1324, h: 1813 }, 0, 48); assert.equal(r.unit, 'miles'); assert.equal(r.width, 138); assert.ok(r.height > r.width, 'a tall map is taller than wide');
+  assert.equal(gameSize('town', { w: 1000, h: 800 }, 30, 0), null); assert.equal(gameSize('battle', null, 30, 0), null);
+  const png = Buffer.alloc(32); png.writeUInt32BE(0x89504e47, 0); png.writeUInt32BE(1536, 16); png.writeUInt32BE(1024, 20);
+  assert.deepEqual(imageSize(png), { w: 1536, h: 1024 }); assert.equal(imageSize(Buffer.from('nope')), null);
 });

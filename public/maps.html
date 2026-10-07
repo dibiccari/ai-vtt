@@ -81,6 +81,7 @@
       if (!lv.looks[0].setUp) chips.appendChild(chip('not set up', 'warn'));
       body.appendChild(chips);
       const bits = [lv.walls ? lv.walls + ' walls' : '', lv.doors ? lv.doors + ' doors' : '', lv.looks.reduce((n, l) => Math.max(n, l.lights), 0) ? lv.looks.reduce((n, l) => Math.max(n, l.lights), 0) + ' lights' : '', lv.pins ? lv.pins + ' pins' : '', lv.difficult ? lv.difficult + ' terrain areas' : ''].filter(Boolean);
+      if (lv.px) { const px = lv.px; body.appendChild(el('div', 'stats', 'Size: ' + px.h + ' x ' + px.w + ' px' + (lv.game ? ' · ' + lv.game.height.toLocaleString() + ' x ' + lv.game.width.toLocaleString() + ' ' + lv.game.unit + ' (' + lv.game.tilesDown + ' x ' + lv.game.tilesAcross + (lv.game.unit === 'miles' ? ' hexagons' : ' squares') + ')' : ''))); }
       body.appendChild(el('div', 'stats', (bits.join(' · ') || 'no walls, pins or lights yet') + (s.campaigns.length ? ' · used by ' + s.campaigns.join(', ') : '')));
       const links = el('div', 'links');
       for (const l of lv.looks) {

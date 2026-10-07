@@ -79,6 +79,7 @@
     <select id="mapSelect" aria-label="Map"></select>
     <label class="field"><span>Type of map</span><select id="mapKind" aria-label="Type of map"><option value="battle">Battle map (squares)</option><option value="camp">Camp (squares)</option><option value="town">Town map (no tiles)</option><option value="regional">Regional map (hexagons, 5 miles)</option></select></label>
     <p class="hint" id="scaleNote"></p>
+    <div class="readout" id="sizeNote"></div>
     <p class="hint">One entry for each place: its day and night looks and its DM and player pictures are in the same entry (use the Day | Night and DM | Player buttons above the map).</p>
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
       <input type="number" id="squares" min="5" max="400" step="1" value="50">
@@ -1164,6 +1165,14 @@
   // The scale of every map: one square is 5 ft, one hexagon is 5 miles. The note says how big the picture is in those units.
   function updateScaleNote() {
     const el = $('#scaleNote'); if (!el) return;
+    const sz = $('#sizeNote');
+    if (sz) {                                                          // height x width, in pixels and in game units
+      const px = S.W ? S.H + ' x ' + S.W + ' px (height x width)' : '';
+      let game = '';
+      if (S.tiles === 'square' && S.squares > 0 && S.W) { const down = Math.round(S.H / (S.W / S.squares)); game = down * 5 + ' x ' + S.squares * 5 + ' ft (' + down + ' x ' + S.squares + ' squares)'; }
+      else if (S.tiles === 'hex' && S.hexSize > 0 && S.W) { const a = S.W / S.hexSize, d = S.H / (S.hexSize * 0.866); game = Math.round(d * 5) + ' x ' + Math.round(a * 5) + ' miles (' + d.toFixed(1) + ' x ' + a.toFixed(1) + ' hexagons)'; }
+      sz.textContent = px ? 'Size: ' + px + (game ? '\n' + game : '') : '';
+    }
     if (S.tiles === 'square' && S.squares > 0 && S.W) { const across = S.squares, down = Math.round(S.H / (S.W / S.squares)); el.textContent = 'One square = 5 ft. This map is ' + across + ' x ' + down + ' squares (' + across * 5 + ' x ' + down * 5 + ' ft).'; }
     else if (S.tiles === 'hex' && S.hexSize > 0 && S.W) { const across = S.W / S.hexSize, down = S.H / (S.hexSize * 0.866); el.textContent = 'One hexagon = 5 miles. This map is about ' + across.toFixed(1) + ' x ' + down.toFixed(1) + ' hexagons (about ' + Math.round(across * 5) + ' x ' + Math.round(down * 5) + ' miles).'; }
     else el.textContent = S.tiles === 'none' ? 'A town map has no tiles.' : '';
@@ -1186,6 +1195,7 @@
 
   function updateStats() {
     updateHint();
+    updateScaleNote();
     const doors = S.walls.filter((w) => w.type === 'door').length;
     const open = S.walls.filter((w) => w.type === 'door' && w.open).length;
     $('#stats').textContent = `${S.walls.length - doors} walls · ${doors} doors (${open} open) · ${S.tokens.length ? 'player token placed' : 'no player token'}\n1 square = ${cell().toFixed(1)} px · vision ${Math.round((S.visionFt / FT_PER_SQUARE) * cell())} px`;
