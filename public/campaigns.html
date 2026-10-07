@@ -192,7 +192,7 @@
 
   /* ---------------- New campaign wizard ---------------- */
   // Steps: Start (another playthrough of a campaign you have, or build your own) > Story (name, and for your own the premise the DM reads) > Table (rules) > Party > Maps (your own only) > Review.
-  const wiz = { step: 0, mode: 'copy', from: '', name: '', premise: '', rules: '2014', permadeath: false, variantEncumbrance: false, notes: '', party: [], maps: [], pictures: null, loadedFrom: '', busy: false };
+  const wiz = { step: 0, mode: 'copy', from: '', name: '', premise: '', rules: '2014', permadeath: false, variantEncumbrance: false, notes: '', party: [], maps: [], pictures: null, loadedFrom: '', busy: false, pdfFiles: [], pdfNote: '', quick: null, quickForm: { name: '', race: 'Human', cls: 'Fighter', level: 1 }, requests: [] };
   const wizSteps = () => wiz.mode === 'scratch' ? ['Start', 'Story', 'Table', 'Party', 'Maps', 'Review'] : ['Start', 'Name', 'Table', 'Party', 'Review'];
   const prettyPicture = (url) => decodeURIComponent(url.split('/').pop()).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ');
 
@@ -236,7 +236,31 @@
     const premise = el('textarea'); premise.rows = 10; premise.style.width = '100%'; premise.value = wiz.premise; premise.setAttribute('aria-label', 'Premise');
     premise.placeholder = 'The setting, the tone, the opening scene, the main characters (NPCs), what is going on behind the scenes, and what the players can discover. The DM treats this as secret material and reveals it as the story goes.';
     premise.addEventListener('input', () => { wiz.premise = premise.value; });
-    box.appendChild(wizField('Premise and notes for the DM', premise, 'You can add more documents on the Continue page afterwards, or import an adventure PDF there.'));
+    box.appendChild(wizField('Premise and notes for the DM', premise, 'You can add more documents on the Continue page afterwards.'));
+    // An adventure you own as a PDF (a Wizards of the Coast module, for example): read here in the browser, split into chapters, saved as documents when the campaign is made.
+    const pdf = el('div'); pdf.style.cssText = 'border:1px dashed var(--border);border-radius:10px;padding:12px;margin-bottom:12px;';
+    pdf.appendChild(el('div', '', 'Or start from an adventure PDF (optional)'));
+    pdf.appendChild(el('div', 'note', 'Its text is read in your browser, nothing is uploaded elsewhere, and it is split into chapters by the PDF\'s bookmarks. The DM then runs it as secret module material.'));
+    const input = el('input'); input.type = 'file'; input.accept = 'application/pdf,.pdf'; input.setAttribute('aria-label', 'Adventure PDF');
+    const msg = el('p', 'note', wiz.pdfNote || (wiz.pdfFiles.length ? wiz.pdfFiles.length + ' documents ready.' : ''));
+    const bar = el('progress'); bar.max = 1; bar.value = 0; bar.hidden = true;
+    input.addEventListener('change', async () => {
+      const file = input.files[0]; input.value = '';
+      if (!file) return;
+      bar.hidden = false; msg.textContent = 'Reading ' + file.name + '…';
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+        const result = await PdfExtract.extractDocument(doc, (d, t) => { bar.value = d / t; msg.textContent = 'Reading page ' + d + ' of ' + t + '…'; });
+        const files = PdfExtract.toFiles(result.chapters), chars = files.reduce((n, f) => n + f.text.length, 0);
+        bar.hidden = true;
+        if (!files.length || chars < 2000) { wiz.pdfFiles = []; wiz.pdfNote = 'Almost no text could be read. This PDF is probably scanned images, which this tool cannot read yet.'; }
+        else { wiz.pdfFiles = files; wiz.pdfNote = 'Found ' + files.length + ' documents, about ' + fmt(chars) + ' characters (~' + fmt(Math.round(chars / 4)) + ' tokens)' + (result.fromBookmarks ? ', split by the PDF\'s chapters.' : '.') + ' They are saved when you press Create.'; }
+      } catch (err) { bar.hidden = true; wiz.pdfFiles = []; wiz.pdfNote = 'Could not read that PDF: ' + err.message; }
+      msg.textContent = wiz.pdfNote;
+    });
+    pdf.append(input, bar, msg);
+    box.appendChild(pdf);
   }
 
   function wizTable(box) {
@@ -264,6 +288,32 @@
     make.style.display = 'block'; make.style.marginTop = '8px';
     box.appendChild(make);
     wiz.partyIds = picker.ids;
+    // A starter character from four choices; the rest is filled in on the Character Sheets page.
+    const quick = el('details'); quick.style.cssText = 'margin-top:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;';
+    quick.open = wiz.quickOpen === true;
+    quick.addEventListener('toggle', () => { wiz.quickOpen = quick.open; });
+    quick.appendChild(el('summary', '', 'Make a starter character here'));
+    quick.appendChild(el('p', 'note', 'Name, race, class and level give a complete sheet (standard ability scores placed for the class, the race\'s bonuses, armor, weapons and spell slots). Choose cantrips, spells, background and personality afterwards on the Character Sheets page.'));
+    const form = el('div'); form.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+    const nm = el('input'); nm.placeholder = 'Name'; nm.value = wiz.quickForm.name; nm.setAttribute('aria-label', 'Character name'); nm.addEventListener('input', () => { wiz.quickForm.name = nm.value; });
+    const pick = (label, list, key) => { const sel = el('select'); sel.setAttribute('aria-label', label); list.forEach((v) => { const o = el('option', '', String(v)); o.value = String(v); sel.appendChild(o); }); sel.value = String(wiz.quickForm[key]); sel.addEventListener('change', () => { wiz.quickForm[key] = key === 'level' ? Number(sel.value) : sel.value; }); return sel; };
+    const mk = el('button', '', 'Make character');
+    const fill = () => { form.append(nm, pick('Race', wiz.quick.races, 'race'), pick('Class', wiz.quick.classes, 'cls'), pick('Level', wiz.quick.levels, 'level'), mk); };
+    if (wiz.quick) fill(); else { form.appendChild(el('span', 'note', 'Loading the choices…')); api('/api/characters/quick').then((q) => { wiz.quick = q; form.innerHTML = ''; fill(); }).catch(() => { form.textContent = 'The choices could not be loaded.'; }); }
+    mk.addEventListener('click', async () => {
+      if (!wiz.quickForm.name.trim()) { setStatus('Give the character a name.', 'bad'); return; }
+      mk.disabled = true;
+      try {
+        const out = await api('/api/characters/quick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(wiz.quickForm) });
+        allChars = allChars.concat([out.character]);
+        wiz.party = [...new Set([...wiz.party, out.character.id])];
+        wiz.quickForm.name = '';
+        setStatus(out.character.name + ' was made and added to the party.', 'ok');
+        render();
+      } catch (err) { setStatus('Could not make the character: ' + err.message, 'bad'); mk.disabled = false; }
+    });
+    quick.appendChild(form);
+    box.appendChild(quick);
   }
 
   function wizMaps(box) {
@@ -305,6 +355,30 @@
         box.appendChild(row);
       }
     }
+    // A map that does not exist yet: write a request the assistant works through (the Map Maker page lists it).
+    const ask = el('details'); ask.style.cssText = 'margin-top:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;';
+    ask.open = wiz.askOpen === true; ask.addEventListener('toggle', () => { wiz.askOpen = ask.open; });
+    ask.appendChild(el('summary', '', 'Ask for a new map'));
+    ask.appendChild(el('p', 'note', 'Describe the place. The request goes to the Map Maker list; when you ask the assistant to work through the map requests it draws the map, and the picture then shows up in the list above (reload this page).'));
+    const rt = el('input'); rt.placeholder = 'Name, for example: The flooded crypt'; rt.style.width = '320px'; rt.setAttribute('aria-label', 'Map name');
+    const rd = el('textarea'); rd.rows = 3; rd.style.width = '100%'; rd.placeholder = 'What it looks like and what is in it: rooms, doors, water, lights, traps…'; rd.setAttribute('aria-label', 'Map description');
+    const rb = el('button', '', 'Send the request'); rb.style.marginTop = '8px';
+    const rm = el('p', 'note', wiz.requests.length ? 'Requested so far: ' + wiz.requests.join(', ') + '.' : '');
+    rb.addEventListener('click', async () => {
+      if (!rt.value.trim()) { setStatus('Give the map a name.', 'bad'); return; }
+      rb.disabled = true;
+      try {
+        const cur = await api('/api/map-maker');
+        const list = (cur.requests || []).concat([{ title: rt.value.trim(), description: rd.value.trim(), cols: 40, rows: 30, features: [], status: 'new' }]);
+        await api('/api/map-maker/requests', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(list) });
+        wiz.requests.push(rt.value.trim()); rt.value = ''; rd.value = '';
+        setStatus('Requested. It is on the Map Maker page.', 'ok');
+        rm.textContent = 'Requested so far: ' + wiz.requests.join(', ') + '.';
+      } catch (err) { setStatus('Could not send the request: ' + err.message, 'bad'); }
+      rb.disabled = false;
+    });
+    ask.append(rt, rd, rb, rm);
+    box.appendChild(ask);
     const more = el('p', 'note'); more.style.marginTop = '10px';
     more.append('Need a map that is not here? ');
     const a1 = el('a', '', 'Ask for one in the Map Maker'); a1.href = '/map-maker.html'; a1.target = '_blank'; a1.rel = 'noopener';
@@ -319,6 +393,7 @@
     const rows = [];
     if (wiz.mode === 'copy') rows.push(['Based on', (campaigns.find((x) => x.id === wiz.from) || {}).name || wiz.from]);
     rows.push(['Name', wiz.name || (wiz.mode === 'copy' ? '(the template\'s name, marked new)' : '(missing: go back to Story)')]);
+    if (wiz.mode === 'scratch' && wiz.pdfFiles.length) rows.push(['Adventure PDF', wiz.pdfFiles.length + ' documents from the PDF']);
     if (wiz.mode === 'scratch') rows.push(['Premise', wiz.premise ? wiz.premise.length + ' characters written' : 'none yet (you can add documents afterwards)']);
     rows.push(['Rules', wiz.rules + (wiz.permadeath ? ', permanent death' : ', no permanent death') + (wiz.variantEncumbrance ? ', variant encumbrance' : '')]);
     rows.push(['Party', wiz.party.length ? wiz.party.map((id) => names.get(id) || id).join(', ') : '(nobody yet: go back to Party)']);
@@ -339,7 +414,8 @@
         ? { scratch: true, name: wiz.name, premise: wiz.premise, party: wiz.party, maps: wiz.maps, settings }
         : { template: wiz.from, name: wiz.name, party: wiz.party, settings };
       const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      Object.assign(wiz, { step: 0, name: '', premise: '', party: [], maps: [], notes: '' });
+      if (wiz.mode === 'scratch') for (const f of wiz.pdfFiles) await api('/api/campaigns/' + encodeURIComponent(out.id) + '/files/' + encodeURIComponent(f.name), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.text }) });
+      Object.assign(wiz, { step: 0, name: '', premise: '', party: [], maps: [], notes: '', pdfFiles: [], pdfNote: '', requests: [] });
       setStatus('Created ' + out.name + '. Finish setting it up below, then press Continue to play.', 'ok');
       lastCreated = out.id;
       await load();

@@ -953,6 +953,24 @@ test('a group the DM puts on a pin is spread around it, not stacked on one tile;
   assert.deepEqual(r.lone, [30, 20], 'a creature the DM placed on its own free square stays there');
 });
 
+test('a campaign built from scratch opens on its first map, the party on that map\'s start pin', opts, async () => {
+  const made = await server.post('/api/campaigns/new', { scratch: true, name: 'Opening Scene', premise: 'A test.', party: ['edric', 'astarion'], maps: [{ file: 'lmop-goblin-ambush.png', name: 'The ambush', kind: 'battle', description: 'A trail.' }] });
+  assert.equal(made.status, 200);
+  await server.post('/api/campaigns/active', { id: made.json.id });
+  try {
+    await page.goto(`${server.base}/index.html?nosave=1`);
+    await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 2 && window.vtt.state.map.url');
+    const r = await page.eval(`(() => { const s = vtt.state; const pcs = s.tokens.filter((t) => t.isPC); return { url: s.map.url, kind: s.mapKind, pcs: pcs.map((t) => [t.col, t.row]), visited: s.visitedMaps }; })()`);
+    assert.match(r.url, /lmop-goblin-ambush/); assert.equal(r.kind, 'battle');
+    assert.ok(r.pcs.length >= 2 && r.pcs.every(([c, rr]) => c >= 0 && rr >= 0), 'the party is on the map, not off in the corner at -100');
+    assert.ok(r.visited.some((u) => /goblin-ambush/.test(u)), 'the map counts as visited');
+  } finally {
+    await server.post('/api/campaigns/active', { id: LOST });
+    await page.goto(`${server.base}/index.html?nosave=1`);
+    await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 1 && window.vtt.state.characters.length >= 4 && !document.querySelector("#chatInput").disabled');       // the earlier tests left one party token in the saved board
+  }
+});
+
 test('no page errors were logged during the whole run', opts, () => {
   assert.deepEqual(page.problems, []);
 });

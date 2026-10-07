@@ -9,7 +9,7 @@
     "dev": "node --watch server.js",
     "check": "node scripts/check.mjs",
     "test": "node --test --test-reporter=spec test/*.test.mjs",
-    "test:browser": "node --experimental-websocket --test --test-reporter=spec test/browser/browser.test.mjs test/browser/maptest.test.mjs",
+    "test:browser": "node --experimental-websocket --test --test-reporter=spec test/browser/browser.test.mjs test/browser/maptest.test.mjs test/browser/wizard.test.mjs",
     "dm-check": "node scripts/dm-check.mjs"
   },
   "engines": {

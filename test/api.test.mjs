@@ -259,3 +259,24 @@ test('new campaign from scratch: its own name, premise document, picked maps and
   assert.equal((await s.get('/api/campaigns/the-sunken-bell/settings')).json.tableNotes, 'be gentle');
   assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', party: ['edric'] })).json.id, 'the-sunken-bell-2', 'a second one with the same name gets its own id');
 });
+
+test('quick starter characters: a name, race, class and level give a full sheet; bad requests change nothing', async () => {
+  const choices = (await s.get('/api/characters/quick')).json;
+  assert.ok(choices.classes.includes('Wizard') && choices.races.includes('Tiefling') && choices.levels.length === 5);
+  const before = (await s.get('/api/characters')).json.length;
+  assert.equal((await s.post('/api/characters/quick', { name: '', cls: 'Wizard', race: 'Elf' })).status, 400);
+  assert.equal((await s.post('/api/characters/quick', { name: 'Nope', cls: 'Jedi', race: 'Elf' })).status, 400);
+  assert.equal((await s.post('/api/characters/quick', { name: 'Nope', cls: 'Wizard', race: 'Ewok' })).status, 400);
+  assert.equal((await s.get('/api/characters')).json.length, before);
+  const r = await s.post('/api/characters/quick', { name: 'Mira Vale', cls: 'Wizard', race: 'Elf', level: 3 }); ok(r);
+  const c = r.json.character;
+  assert.equal(c.id, 'mira-vale'); assert.equal(c.class, 'Wizard'); assert.equal(c.level, 3);
+  assert.equal(c.abilities.int, 15); assert.equal(c.abilities.dex, 15, 'the elf bonus (+2 Dexterity) is on top of the standard array');
+  assert.equal(c.maxHp, 6 + 2 + 2 * (4 + 2), 'hit die + Con at level 1, then the average and Con each level');
+  assert.equal(c.ac, 12); assert.equal(c.darkvision, 60);
+  assert.equal(c.sheet.ClassLevel, 'Wizard 3'); assert.equal(c.sheet['Race '], 'Elf'); assert.ok(c.sheet['SpellSaveDC  2']);
+  assert.ok(c.inventory.some((i) => /spellbook/i.test(i.name)));
+  const again = await s.post('/api/characters/quick', { name: 'Mira Vale', cls: 'Fighter', race: 'Human' }); ok(again);
+  assert.equal(again.json.character.id, 'mira-vale-2'); assert.equal(again.json.character.ac, 18);
+  assert.ok((await s.get('/api/characters')).json.some((x) => x.id === 'mira-vale'));
+});

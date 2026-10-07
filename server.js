@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
+import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
@@ -174,6 +175,23 @@ app.get('/api/characters', asyncRoute(async (req, res) => {
   const rules = (await readSettings(path.join(CAMPAIGNS_DIR, await getActiveCampaignId()))).rules === '2024' ? '2024' : '2014';
   // effSpeed / effMaxHp: what exhaustion leaves (the tabletop moves and heals by these; the stored speed and maximum stay as they are).
   res.json((await listCharacters(req.query.campaign ? safeCampaignId(req.query.campaign) : '')).map((c) => { const e = computeEffective(seedFromSheet(c), false, rules); return c.track?.exhaustion ? { ...c, effSpeed: e.speed, effMaxHp: e.maxHp } : c; }));
+}));
+
+// Quick starter characters for the new campaign wizard (lib/quick-character.js): name, race, class and level in, a full sheet out.
+app.get('/api/characters/quick', (_req, res) => res.json(quickChoices()));
+app.post('/api/characters/quick', localOnly, asyncRoute(async (req, res) => {
+  const name = String(req.body?.name ?? '').trim().slice(0, 40);
+  if (!name) return res.status(400).json({ error: 'Give the character a name.' });
+  const { classes, races } = quickChoices();
+  const cls = String(req.body?.cls ?? ''), race = String(req.body?.race ?? '');
+  if (!classes.includes(cls)) return res.status(400).json({ error: 'Pick a class: ' + classes.join(', ') });
+  if (!races.includes(race)) return res.status(400).json({ error: 'Pick a race: ' + races.join(', ') });
+  const taken = new Set((await listCharacters()).map((c) => c.id));
+  let id = safeId(name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')) || 'hero';
+  for (let n = 2; taken.has(id); n++) id = safeId(`${id.replace(/-\d+$/, '')}-${n}`);
+  const character = normalizeCharacter(buildQuickCharacter({ id, name, cls, race, level: req.body?.level }));
+  await saveCharacter(character);
+  res.json({ ok: true, character });
 }));
 
 app.post('/api/characters', asyncRoute(async (req, res) => {
@@ -820,7 +838,7 @@ app.get('/api/campaigns', asyncRoute(async (_req, res) => {
     try { voiceCount = Object.keys(await loadCharacterVoices(id)).length; } catch { /* none */ }
     campaigns.push({
       party: (await listCharacters(id)).map((ch) => ({ id: ch.id, name: ch.name, class: ch.class, level: ch.level, color: ch.color, image: ch.image || '' })),
-      id, template: meta.template || id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test),
+      id, template: meta.template || id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test), custom: Boolean(meta.custom),
       active: id === active,
       files: files.map((f) => ({ name: f.name, chars: f.chars })),
       totalChars, approxTokens: Math.round(totalChars / 4), voiceCount

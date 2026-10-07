@@ -4618,6 +4618,13 @@ async function init() {
   await setMap(board?.mapUrl || null);
   if (state.zoomToParty) focusStart();
   visitMap(state.map.url);
+  // A campaign you built yourself has no ready-made scene: the party opens on its first map, on that map's start pin.
+  if (!board && active && active.custom && !state.map.url) {
+    try {
+      const first = ((await api('/api/maps/available')).maps || [])[0];
+      if (first) await travelTo({ mapUrl: first.url, mapName: first.name, kind: first.kind, col: first.start.col, row: first.start.row, px: first.startPx });
+    } catch { /* the DM moves the table when the story opens */ }
+  }
   if (!state.chat.length) {
     let campaignNote = '';
     if (active) campaignNote = active.totalChars ? ` Campaign: ${active.name} (${active.files.length} documents loaded).` : ` Campaign: ${active.name} has no text loaded, so the DM is improvising. Add it on the Campaigns page.`;
