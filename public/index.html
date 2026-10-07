@@ -1901,11 +1901,17 @@ function drawReachable() {
   const reach = reachable(t);
   const set = new Set(reach.keys());
   set.add(sqKey(t.col, t.row));
-  ctx.save();
-  ctx.fillStyle = 'rgba(240, 192, 72, 0.10)';
+  // the squares the whole body can cover: a big creature standing on any reachable top-left square covers fp x fp squares from it
+  const body = new Set();
   for (const k of set) {
     const [c, r] = k.split(',').map(Number);
-    ctx.fillRect(c * GRID, r * GRID, GRID * fp(t), GRID * fp(t));
+    for (let dc = 0; dc < fp(t); dc++) for (let dr = 0; dr < fp(t); dr++) body.add(sqKey(c + dc, r + dr));
+  }
+  ctx.save();
+  ctx.fillStyle = 'rgba(240, 192, 72, 0.10)';
+  for (const k of body) {
+    const [c, r] = k.split(',').map(Number);
+    ctx.fillRect(c * GRID, r * GRID, GRID, GRID);
   }
   ctx.strokeStyle = 'rgba(240, 192, 72, 0.85)';
   ctx.lineWidth = 2 / state.view.scale;
@@ -1916,13 +1922,13 @@ function drawReachable() {
     ctx.arc(tcx(t), tcy(t), (t.movementRemaining / FT_PER_SQUARE) * GRID, 0, Math.PI * 2);
   } else {
     // Boundary outline: edges whose neighbour is outside the reachable set.
-    for (const k of set) {
+    for (const k of body) {
       const [c, r] = k.split(',').map(Number);
       const x = c * GRID, y = r * GRID;
-      if (!set.has(sqKey(c, r - 1))) { ctx.moveTo(x, y); ctx.lineTo(x + GRID, y); }
-      if (!set.has(sqKey(c, r + 1))) { ctx.moveTo(x, y + GRID); ctx.lineTo(x + GRID, y + GRID); }
-      if (!set.has(sqKey(c - 1, r))) { ctx.moveTo(x, y); ctx.lineTo(x, y + GRID); }
-      if (!set.has(sqKey(c + 1, r))) { ctx.moveTo(x + GRID, y); ctx.lineTo(x + GRID, y + GRID); }
+      if (!body.has(sqKey(c, r - 1))) { ctx.moveTo(x, y); ctx.lineTo(x + GRID, y); }
+      if (!body.has(sqKey(c, r + 1))) { ctx.moveTo(x, y + GRID); ctx.lineTo(x + GRID, y + GRID); }
+      if (!body.has(sqKey(c - 1, r))) { ctx.moveTo(x, y); ctx.lineTo(x, y + GRID); }
+      if (!body.has(sqKey(c + 1, r))) { ctx.moveTo(x + GRID, y); ctx.lineTo(x + GRID, y + GRID); }
     }
   }
   ctx.stroke();
