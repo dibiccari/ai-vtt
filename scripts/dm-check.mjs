@@ -98,6 +98,41 @@ const srv = await startServer({ env: { ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_UR
 const cleanup = async () => { await srv.stop().catch(() => {}); await new Promise((r) => proxy.close(r)); };
 process.on('SIGINT', async () => { await cleanup(); process.exit(130); });
 
+// --gating: one call on a Lost Mine copy: the party is in Phandalin and heads for a battle map the story has not led them to (Cragmaw Castle). It must be quiet: no creatures, no combat, no leads.
+if (flag('--gating')) {
+  try {
+    console.log(`Gating check against model ${model}; throwaway server on port ${srv.port}; one API call.`);
+    const party = ['edric', 'rachel', 'shadowheart', 'astarion'];
+    const made = await srv.post('/api/campaigns/new', { template: 'lost-mine-of-phandelver', name: 'gate-check', party, settings: {} });
+    check(made.status === 200 && made.json.id === 'gate-check', 'fresh Lost Mine copy created in the sandbox');
+    await srv.post('/api/campaigns/active', { id: 'gate-check' });
+    await srv.post('/api/campaigns/gate-check/start-over');
+    const chars = (await srv.get('/api/characters?campaign=gate-check')).json;
+    const maps = (await srv.get('/api/maps/available')).json.maps;
+    const town = maps.find((m) => m.id === 'phandalin'), castle = maps.find((m) => m.id === 'cragmaw-castle');
+    check(chars.length === 4 && !!town && !!castle, 'the party, Phandalin and Cragmaw Castle are available', chars.length + ' characters, maps: ' + maps.map((m) => m.id).join(','));
+    if (failures) throw new Error('setup failed');
+    const tokens = chars.map((c, i) => ({ id: 'pc-' + c.id, name: c.name, col: 10 + i, row: 10, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: 0, where: '', readied: '', image: '', hidden: false, kind: 'creature', speed: 30, movementRemaining: 30, conditions: [], summon: null, dead: false, stable: false, deathSaves: null, spent: null, initiative: null, visibleToParty: true }));
+    const say = '[Edric] We have only just arrived in Phandalin and have heard nothing about any castle. Still, I feel like exploring: let us walk out of town to the ruined Cragmaw Castle in the hills right now and look around.';
+    const res = await srv.post('/api/chat', { message: say, history: [], activeTokenId: 'pc-edric', tokens, characters: chars, walls: [], gridSize: 50, mapUrl: town.url, mapName: town.name, visitedMaps: [town.url], inputMode: 'text', combat: { active: false }, diceMode: 'ai', movementRule: 'circle' });
+    check(res.status === 200 && !res.json?.offline, 'gating: HTTP 200');
+    const rec = calls.find((c) => c.response && c.status === 200);
+    const state = JSON.parse(/BOARD STATE \(JSON\):\n(.*)\n\nPLAYER ACTION/.exec(JSON.stringify(rec.request.messages.at(-1).content).length ? (Array.isArray(rec.request.messages.at(-1).content) ? rec.request.messages.at(-1).content.filter((c) => c.type === 'text').map((c) => c.text).join('\n') : rec.request.messages.at(-1).content) : '')[1]);
+    check(state.maps.find((m) => m.id === 'cragmaw-castle')?.visitedByParty === false, 'gating: the DM was told Cragmaw Castle has not been visited');
+    check(!('visitedByParty' in state.maps.find((m) => m.id === 'phandalin')), 'gating: the town carries no visited flag (open any time)');
+    const j = res.json, upd = j.mapUpdates || [];
+    console.log('DEBUG ' + JSON.stringify({ updates: upd.map((u) => ({ t: u.type, n: u.name })), narrative: String(j.narrative).slice(0, 700) }));
+    check(!upd.some((u) => u.type === 'addToken' || u.type === 'startCombat'), 'gating: no creatures were added and no fight started', upd.map((u) => u.type + ':' + (u.name || '')).join(', '));
+    check(!/\b(grol|klarg|hobgoblin|ogre|king)\b/i.test(j.narrative) || /\b(empty|abandoned|quiet|deserted|nothing)\b/i.test(j.narrative), 'gating: the castle is described as quiet, not as the module\'s stronghold');
+  } catch (err) { fail('gating check aborted: ' + err.message); }
+  const [pin, pout] = PRICES[model] || PRICES['claude-opus-5-5'];
+  let cost = 0; for (const c of calls) { const u = c.response?.usage; if (u) cost += ((u.input_tokens || 0) * pin + (u.output_tokens || 0) * pout + (u.cache_read_input_tokens || 0) * pin * 0.1 + (u.cache_creation_input_tokens || 0) * pin * 1.25) / 1e6; }
+  console.log(`USAGE ${calls.length} API request(s), estimated cost ${cost.toFixed(3)}`);
+  await cleanup();
+  console.log(`\n${failures ? 'FAILED' : 'PASSED'}: ${failures} failure(s), ${warnings} warning(s)`);
+  process.exit(failures ? 1 : 0);
+}
+
 try {
   console.log(`DM check against model ${model}; throwaway server on port ${srv.port}; at most ${MAX_CALLS} API calls.`);
   // fresh campaign: a copy of the tavern test with its four characters
