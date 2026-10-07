@@ -27,10 +27,19 @@
     <figure><img src="shire-claude.png" alt="Regional map drawn by Claude with code"><figcaption><b>Claude (code-drawn).</b> Strictly top-down; every river, road, field and village is a known object with a known position, so a hex grid, travel distances and place names can be laid on exactly. Flat, clean "map art"; fields and mountains look repetitive.</figcaption></figure>
     <figure><img src="shire-chatgpt.png" alt="Regional map painted by ChatGPT"><figcaption><b>ChatGPT (image model).</b> Painterly, charming and varied; reads as a place at once. Drawn at a slight bird's-eye angle rather than flat top-down, features are not exact (the road and river are only roughly where the prompt put them), and you cannot ask for "a village at hex 12,7".</figcaption></figure>
   </div>
-  <h2>The prompt both were given</h2>
+  <h2>Round 2: a rugged frontier coast</h2>
+  <p class="lead">Same idea, a different land: sea and cliffs on the west, moor and hills, pine forest, mountains across the north, a walled harbour town, hamlets and two ruins. Same size, 1536 x 1024. Left: Claude's code. Right: ChatGPT's image model.</p>
+  <div class="pair">
+    <figure><img src="frontier-claude.png" alt="Frontier coast drawn by Claude with code"><figcaption><b>Claude (code-drawn).</b> Everything is where the code put it, but the composition is weaker: the mountains form a wall, the ruins sit inside it, the river stops short of the sea and the coast is smooth. Flat shapes and one repeating pine.</figcaption></figure>
+    <figure><img src="frontier-chatgpt.png" alt="Frontier coast painted by ChatGPT"><figcaption><b>ChatGPT (image model).</b> A real map feel: ragged cliffs and islets, an ink-and-wash mountain range, varied forest, a palisaded harbour with a bridge, a tower and a ruined keep in sensible places. Slightly angled view, and the exact positions are the model's, not ours.</figcaption></figure>
+  </div>
+  <h2>The prompts both were given</h2>
+  <pre id="prompt2"></pre>
+  <h2>Round 1 prompt</h2>
   <pre id="prompt"></pre>
   <p class="lead">Asked for plain features instead of the trademarked name: the generator is more reliable with a description than with a name. The same words were my brief for the code.</p>
 </div>
-<script>fetch('shire-prompt.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt').textContent = t.trim(); });</script>
+<script>fetch('frontier-prompt.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt2').textContent = t.trim(); });
+fetch('shire-prompt.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt').textContent = t.trim(); });</script>
 </body>
 </html>
