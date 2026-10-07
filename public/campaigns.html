@@ -190,73 +190,206 @@
     return { box, ids: () => [...chosen] };
   }
 
-  const newForm = { from: '', name: '', rules: '2014', permadeath: false, variantEncumbrance: false, notes: '', party: [], loadedFrom: '' };
+  /* ---------------- New campaign wizard ---------------- */
+  // Steps: Start (another playthrough of a campaign you have, or build your own) > Story (name, and for your own the premise the DM reads) > Table (rules) > Party > Maps (your own only) > Review.
+  const wiz = { step: 0, mode: 'copy', from: '', name: '', premise: '', rules: '2014', permadeath: false, variantEncumbrance: false, notes: '', party: [], maps: [], pictures: null, loadedFrom: '', busy: false };
+  const wizSteps = () => wiz.mode === 'scratch' ? ['Start', 'Story', 'Table', 'Party', 'Maps', 'Review'] : ['Start', 'Name', 'Table', 'Party', 'Review'];
+  const prettyPicture = (url) => decodeURIComponent(url.split('/').pop()).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ');
 
-  // Start another playthrough of a campaign you already have: its maps (and their starting positions) are already chosen; you pick the party and the table settings.
+  function wizField(label, node, hint) {
+    const l = el('label', 'field'); l.style.display = 'block'; l.style.marginBottom = '12px';
+    l.appendChild(el('div', '', label));
+    l.appendChild(node);
+    if (hint) l.appendChild(el('div', 'note', hint));
+    return l;
+  }
+  function wizCheck(text, checked, onChange) {
+    const l = el('label'); l.style.cssText = 'display:block;margin-bottom:10px;';
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = checked; cb.addEventListener('change', () => onChange(cb.checked));
+    l.append(cb, document.createTextNode(' ' + text));
+    return l;
+  }
+
+  function wizStart(box) {
+    const templates = campaigns.filter((x) => x.template === x.id && !x.custom);
+    if (!wiz.from || !templates.some((x) => x.id === wiz.from)) wiz.from = templates.length ? templates[0].id : '';
+    box.appendChild(el('p', 'note', 'How do you want to begin?'));
+    const choice = (value, title, text, selected, onPick) => {
+      const c = el('label'); c.style.cssText = 'display:block;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;' + (selected ? 'border-color:var(--accent);background:rgba(79,157,255,.08);' : '');
+      const r = el('input'); r.type = 'radio'; r.name = 'wizStart'; r.checked = selected; r.addEventListener('change', onPick);
+      const b = el('b', '', ' ' + title); c.append(r, b, el('div', 'note', text));
+      return c;
+    };
+    templates.forEach((t) => {
+      box.appendChild(choice(t.id, t.name, 'Another playthrough: the same documents and maps with their starting positions already chosen. You pick the party and the table rules.' + (t.description ? ' ' + t.description : ''), wiz.mode === 'copy' && wiz.from === t.id, () => { wiz.mode = 'copy'; wiz.from = t.id; wiz.loadedFrom = ''; render(); }));
+    });
+    box.appendChild(choice('scratch', 'Build my own', 'A new campaign from nothing: you write the premise the DM works from, pick the maps (or make them with the Map Maker) and choose the party.', wiz.mode === 'scratch', () => { wiz.mode = 'scratch'; render(); }));
+    box.appendChild(el('p', 'note', 'Adventures you add later (such as other Wizards of the Coast modules) will appear here as more choices.'));
+  }
+
+  function wizStory(box) {
+    const name = el('input'); name.value = wiz.name; name.style.width = '320px'; name.setAttribute('aria-label', 'Name');
+    name.placeholder = wiz.mode === 'scratch' ? 'For example: The Sunken Bell' : 'Name of the new campaign';
+    name.addEventListener('input', () => { wiz.name = name.value; });
+    box.appendChild(wizField('Name', name));
+    if (wiz.mode !== 'scratch') return;
+    const premise = el('textarea'); premise.rows = 10; premise.style.width = '100%'; premise.value = wiz.premise; premise.setAttribute('aria-label', 'Premise');
+    premise.placeholder = 'The setting, the tone, the opening scene, the main characters (NPCs), what is going on behind the scenes, and what the players can discover. The DM treats this as secret material and reveals it as the story goes.';
+    premise.addEventListener('input', () => { wiz.premise = premise.value; });
+    box.appendChild(wizField('Premise and notes for the DM', premise, 'You can add more documents on the Continue page afterwards, or import an adventure PDF there.'));
+  }
+
+  function wizTable(box) {
+    const rules = el('select'); rules.setAttribute('aria-label', 'Rules edition');
+    [['2014', '2014 Player\'s Handbook'], ['2024', '2024 revised rules']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; rules.appendChild(o); });
+    rules.value = wiz.rules; rules.addEventListener('change', () => { wiz.rules = rules.value; });
+    box.appendChild(wizField('Rules edition', rules));
+    box.appendChild(wizCheck('Permanent death (off: a character who would die is left out of the fight and the story takes a setback instead)', wiz.permadeath, (v) => { wiz.permadeath = v; }));
+    box.appendChild(wizCheck('Optional encumbrance rule (encumbered over Strength x 5 lb, heavily over x 10). Off: only the carrying capacity, Strength x 15 lb.', wiz.variantEncumbrance, (v) => { wiz.variantEncumbrance = v; }));
+    const notes = el('textarea'); notes.rows = 3; notes.style.width = '100%'; notes.value = wiz.notes; notes.placeholder = 'Notes about your table for the DM';
+    notes.addEventListener('input', () => { wiz.notes = notes.value; });
+    box.appendChild(wizField('Notes about your table for the DM', notes));
+    // Start the settings from the chosen campaign's own (once per choice), so the notes about the table carry over.
+    if (wiz.mode === 'copy' && wiz.from && wiz.loadedFrom !== wiz.from) {
+      wiz.loadedFrom = wiz.from;
+      api('/api/campaigns/' + encodeURIComponent(wiz.from) + '/settings').then((s) => { Object.assign(wiz, { rules: s.rules, permadeath: s.permadeath, variantEncumbrance: s.variantEncumbrance === true, notes: s.tableNotes }); if (section === 'new' && wizSteps()[wiz.step] === 'Table') render(); }).catch(() => {});
+    }
+  }
+
+  function wizParty(box) {
+    box.appendChild(el('p', 'note', 'Who is playing? Pick from the characters you have.'));
+    const picker = partyPicker(wiz.party, (ids) => { wiz.party = ids; });
+    box.appendChild(picker.box);
+    const make = el('a', 'note', 'Make a new character on the Character Sheets page (a new tab; come back and reload this page)'); make.href = '/characters.html'; make.target = '_blank'; make.rel = 'noopener';
+    make.style.display = 'block'; make.style.marginTop = '8px';
+    box.appendChild(make);
+    wiz.partyIds = picker.ids;
+  }
+
+  function wizMaps(box) {
+    box.appendChild(el('p', 'note', 'Pick the pictures this campaign can use. The DM moves the table between them. Set each one\'s starting spot afterwards on the Map Test page, and describe what each place is for the DM.'));
+    if (!wiz.pictures) {
+      box.appendChild(el('p', 'note', 'Loading the map pictures…'));
+      api('/api/maps').then((d) => { wiz.pictures = (d.maps || []).slice().sort(); if (section === 'new') render(); }).catch(() => { wiz.pictures = []; render(); });
+      return;
+    }
+    const grid = el('div'); grid.addEventListener('scroll', () => { wiz.gridScroll = grid.scrollTop; }); grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-height:340px;overflow:auto;padding:4px;border:1px solid var(--border);border-radius:10px;';
+    for (const url of wiz.pictures) {
+      const file = url.replace('/uploads/', '');
+      const chosen = wiz.maps.find((m) => m.file === file);
+      const c = el('label'); c.style.cssText = 'display:block;border:1px solid ' + (chosen ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;padding:6px;cursor:pointer;font-size:12px;';
+      const img = el('img'); img.src = url; img.loading = 'lazy'; img.alt = ''; img.style.cssText = 'width:100%;height:90px;object-fit:cover;border-radius:6px;display:block;margin-bottom:4px;';
+      const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!chosen;
+      cb.addEventListener('change', () => {
+        if (cb.checked) wiz.maps.push({ file, name: prettyPicture(url), kind: 'battle', description: '' }); else wiz.maps = wiz.maps.filter((m) => m.file !== file);
+        render();
+      });
+      c.append(img, cb, document.createTextNode(' ' + prettyPicture(url)));
+      grid.appendChild(c);
+    }
+    box.appendChild(grid);
+    grid.scrollTop = wiz.gridScroll || 0;       // keep the place in the list when a picture is ticked
+    if (wiz.maps.length) {
+      box.appendChild(el('h3', '', 'The places you chose')).style.cssText = 'font-size:16px;margin:16px 0 6px;';
+      for (const m of wiz.maps) {
+        const row = el('div'); row.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;';
+        const top = el('div'); top.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;align-items:center;';
+        const nm = el('input'); nm.value = m.name; nm.style.width = '240px'; nm.setAttribute('aria-label', 'Name of ' + m.file); nm.addEventListener('input', () => { m.name = nm.value; });
+        const kind = el('select'); kind.setAttribute('aria-label', 'Kind of ' + m.file);
+        [['battle', 'Battle map (grid, fog, tokens)'], ['camp', 'Camp (grid and tokens, no fog)'], ['town', 'Town picture (no grid)'], ['regional', 'Regional map (no grid)']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; kind.appendChild(o); });
+        kind.value = m.kind; kind.addEventListener('change', () => { m.kind = kind.value; });
+        top.append(nm, kind, el('span', 'note', m.file));
+        const ds = el('textarea'); ds.rows = 2; ds.style.width = '100%'; ds.value = m.description; ds.placeholder = 'What this place is, for the DM (for example: the flooded crypt under the chapel)';
+        ds.addEventListener('input', () => { m.description = ds.value; });
+        row.append(top, ds);
+        box.appendChild(row);
+      }
+    }
+    const more = el('p', 'note'); more.style.marginTop = '10px';
+    more.append('Need a map that is not here? ');
+    const a1 = el('a', '', 'Ask for one in the Map Maker'); a1.href = '/map-maker.html'; a1.target = '_blank'; a1.rel = 'noopener';
+    more.append(a1, ' (it can generate dungeons and camps), or upload a picture or a .dd2vtt file on ');
+    const a2 = el('a', '', 'Map Test'); a2.href = '/map-test.html'; a2.target = '_blank'; a2.rel = 'noopener';
+    more.append(a2, '. Reload this page afterwards to see it above.');
+    box.appendChild(more);
+  }
+
+  function wizReview(box) {
+    const names = new Map(allChars.map((c) => [c.id, c.name]));
+    const rows = [];
+    if (wiz.mode === 'copy') rows.push(['Based on', (campaigns.find((x) => x.id === wiz.from) || {}).name || wiz.from]);
+    rows.push(['Name', wiz.name || (wiz.mode === 'copy' ? '(the template\'s name, marked new)' : '(missing: go back to Story)')]);
+    if (wiz.mode === 'scratch') rows.push(['Premise', wiz.premise ? wiz.premise.length + ' characters written' : 'none yet (you can add documents afterwards)']);
+    rows.push(['Rules', wiz.rules + (wiz.permadeath ? ', permanent death' : ', no permanent death') + (wiz.variantEncumbrance ? ', variant encumbrance' : '')]);
+    rows.push(['Party', wiz.party.length ? wiz.party.map((id) => names.get(id) || id).join(', ') : '(nobody yet: go back to Party)']);
+    if (wiz.mode === 'scratch') rows.push(['Maps', wiz.maps.length ? wiz.maps.map((m) => m.name).join(', ') : 'none yet (the DM works without a picture; add maps later on the Continue page)']);
+    const dl = el('div'); dl.style.cssText = 'display:grid;grid-template-columns:120px 1fr;gap:6px 14px;margin-bottom:14px;';
+    for (const [k, v] of rows) { const kk = el('b', '', k); dl.append(kk, el('span', '', v)); }
+    box.appendChild(dl);
+  }
+
+  async function wizCreate() {
+    if (wiz.busy) return;
+    if (wiz.mode === 'scratch' && !wiz.name.trim()) { setStatus('Give the campaign a name first (Story step).', 'bad'); return; }
+    if (!wiz.party.length) { setStatus('Pick at least one character (Party step).', 'bad'); return; }
+    wiz.busy = true;
+    try {
+      const settings = { rules: wiz.rules, permadeath: wiz.permadeath, variantEncumbrance: wiz.variantEncumbrance, tableNotes: wiz.notes };
+      const body = wiz.mode === 'scratch'
+        ? { scratch: true, name: wiz.name, premise: wiz.premise, party: wiz.party, maps: wiz.maps, settings }
+        : { template: wiz.from, name: wiz.name, party: wiz.party, settings };
+      const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      Object.assign(wiz, { step: 0, name: '', premise: '', party: [], maps: [], notes: '' });
+      setStatus('Created ' + out.name + '. Finish setting it up below, then press Continue to play.', 'ok');
+      lastCreated = out.id;
+      await load();
+    } catch (err) { setStatus('Could not create it: ' + err.message, 'bad'); }
+    wiz.busy = false;
+  }
+
   function newCampaignBox() {
     const box = el('div', 'card');
     box.appendChild(el('h3', '', 'New campaign'));
-    box.appendChild(el('p', 'note', 'Start another playthrough of a campaign you already have. It uses the same documents and maps, with the same starting positions, so the maps are already chosen. You pick the characters and the table settings; the journal, board and chat start fresh.'));
-    const templates = campaigns.filter((x) => x.template === x.id);
-    if (!newForm.from || !templates.some((x) => x.id === newForm.from)) newForm.from = templates.length ? templates[0].id : '';
-    const field = (label, node) => { const l = el('label', 'field'); l.style.display = 'block'; l.style.marginBottom = '10px'; l.appendChild(el('div', '', label)); l.appendChild(node); return l; };
-
-    const from = el('select'); from.setAttribute('aria-label', 'Copy from');
-    templates.forEach((x) => { const o = el('option', '', x.name); o.value = x.id; from.appendChild(o); });
-    from.value = newForm.from;
-    from.addEventListener('change', () => { newForm.from = from.value; newForm.loadedFrom = ''; render(); });
-    box.appendChild(field('Which campaign (its maps and documents are copied)', from));
-
-    const name = el('input'); name.value = newForm.name; name.placeholder = 'Name of the new campaign'; name.style.width = '320px'; name.setAttribute('aria-label', 'Name');
-    name.addEventListener('input', () => { newForm.name = name.value; });
-    box.appendChild(field('Name', name));
-
-    const rules = el('select'); rules.setAttribute('aria-label', 'Rules edition');
-    [['2014', '2014 Player\'s Handbook'], ['2024', '2024 revised rules']].forEach(([v, t]) => { const o = el('option', '', t); o.value = v; rules.appendChild(o); });
-    rules.value = newForm.rules; rules.addEventListener('change', () => { newForm.rules = rules.value; });
-    box.appendChild(field('Rules edition', rules));
-
-    const death = el('label'); death.style.cssText = 'display:block;margin-bottom:10px;';
-    const dcb = el('input'); dcb.type = 'checkbox'; dcb.checked = newForm.permadeath; dcb.addEventListener('change', () => { newForm.permadeath = dcb.checked; });
-    death.append(dcb, document.createTextNode(' Permanent death (off: a character who would die is left out of the fight and the story takes a setback instead)'));
-    box.appendChild(death);
-
-    const enc = el('label'); enc.style.cssText = 'display:block;margin-bottom:10px;';
-    const ecb = el('input'); ecb.type = 'checkbox'; ecb.checked = newForm.variantEncumbrance; ecb.addEventListener('change', () => { newForm.variantEncumbrance = ecb.checked; });
-    enc.append(ecb, document.createTextNode(' Optional encumbrance rule (encumbered over Strength x 5 lb, heavily over x 10). Off: only the carrying capacity, Strength x 15 lb.'));
-    box.appendChild(enc);
-
-    const notes = el('textarea'); notes.rows = 3; notes.style.width = '100%'; notes.value = newForm.notes; notes.placeholder = 'Notes about your table for the DM';
-    notes.addEventListener('input', () => { newForm.notes = notes.value; });
-    box.appendChild(field('Notes about your table for the DM', notes));
-
-    const picker = partyPicker(newForm.party, (ids) => { newForm.party = ids; });
-    const partyField = el('div'); partyField.style.marginBottom = '10px';
-    partyField.appendChild(el('div', '', 'Party: who is playing'));
-    partyField.appendChild(picker.box);
-    const make = el('a', 'note', 'Make a new character on the Character Sheets page'); make.href = '/characters.html'; make.target = '_blank'; make.rel = 'noopener';
-    partyField.appendChild(make);
-    box.appendChild(partyField);
-
-    const go = el('button', 'primary', 'Create campaign');
-    go.addEventListener('click', async () => {
-      try {
-        const out = await api('/api/campaigns/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ template: newForm.from, name: newForm.name, party: picker.ids(), settings: { rules: newForm.rules, permadeath: newForm.permadeath, variantEncumbrance: newForm.variantEncumbrance, tableNotes: newForm.notes } }) });
-        Object.assign(newForm, { name: '', party: [] });
-        setStatus('Created ' + out.name + '. Finish setting it up below, then press Continue to play.', 'ok');
-        lastCreated = out.id;
-        await load();
-      } catch (err) { setStatus('Could not create it: ' + err.message, 'bad'); }
+    const steps = wizSteps();
+    if (wiz.step >= steps.length) wiz.step = steps.length - 1;
+    const bar = el('div'); bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px;';
+    steps.forEach((label, i) => {
+      const chip = el('span', '', (i + 1) + '. ' + label);
+      chip.style.cssText = 'padding:3px 10px;border-radius:999px;font-size:13px;border:1px solid ' + (i === wiz.step ? 'var(--accent)' : 'var(--border)') + ';' + (i === wiz.step ? 'background:rgba(79,157,255,.15);' : 'color:var(--muted);');
+      bar.appendChild(chip);
     });
-    box.appendChild(go);
-
-    // Start the settings from the chosen campaign's own (once per choice), so the notes about the table carry over.
-    if (newForm.from && newForm.loadedFrom !== newForm.from) {
-      newForm.loadedFrom = newForm.from;
-      api('/api/campaigns/' + encodeURIComponent(newForm.from) + '/settings').then((s) => { Object.assign(newForm, { rules: s.rules, permadeath: s.permadeath, variantEncumbrance: s.variantEncumbrance === true, notes: s.tableNotes }); render(); }).catch(() => { /* defaults stay */ });
+    box.appendChild(bar);
+    const body = el('div'); body.style.marginBottom = '12px';
+    const here = steps[wiz.step];
+    if (here === 'Start') wizStart(body);
+    else if (here === 'Story' || here === 'Name') wizStory(body);
+    else if (here === 'Table') wizTable(body);
+    else if (here === 'Party') wizParty(body);
+    else if (here === 'Maps') wizMaps(body);
+    else wizReview(body);
+    box.appendChild(body);
+    const nav = el('div'); nav.style.cssText = 'display:flex;gap:8px;';
+    const back = el('button', '', 'Back'); back.disabled = wiz.step === 0;
+    back.addEventListener('click', () => { wiz.step = Math.max(0, wiz.step - 1); render(); });
+    nav.appendChild(back);
+    if (wiz.step < steps.length - 1) {
+      const next = el('button', 'primary', 'Next');
+      next.addEventListener('click', () => {
+        if (here === 'Story' && wiz.mode === 'scratch' && !wiz.name.trim()) { setStatus('Give the campaign a name first.', 'bad'); return; }
+        if (here === 'Party' && !wiz.party.length) { setStatus('Pick at least one character.', 'bad'); return; }
+        setStatus('');
+        wiz.step += 1; render();
+      });
+      nav.appendChild(next);
+    } else {
+      const go = el('button', 'primary', 'Create campaign');
+      go.addEventListener('click', wizCreate);
+      nav.appendChild(go);
     }
+    box.appendChild(nav);
     return box;
   }
+
 
   // setup = false: the card you continue from (Continue, Settings, who is in the party). setup = true: the full setup card, for a campaign you are creating (documents, maps, safety, PDF import, start over).
   function card(c, setup) {

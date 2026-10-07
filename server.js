@@ -849,7 +849,29 @@ app.put('/api/campaigns/:id/party', localOnly, asyncRoute(async (req, res) => {
 }));
 
 // Start another playthrough of a campaign: copies its documents, voices and maps list (so the maps and their starting positions are already chosen) and takes the party and table settings from the request; its journal, party stash and chat start empty.
+// A campaign built from nothing (the wizard's "Build my own"): its own name, a premise written for the DM, the maps picked from the uploaded pictures, a party and the table settings.
+async function createScratchCampaign(req, res) {
+  const ids = await campaignIds();
+  const name = String(req.body?.name ?? '').trim().slice(0, 80);
+  if (!name) return res.status(400).json({ error: 'Give the campaign a name.' });
+  let id = safeCampaignId(name.replace(/\s+/g, '-')) || 'campaign';
+  for (let n = 2; ids.includes(id); n++) id = safeCampaignId(`${id.replace(/-\d+$/, '')}-${n}`);
+  const known = new Set((await listCharacters()).map((c) => c.id));
+  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => String(x)).filter((x) => known.has(x));
+  if (!party.length) return res.status(400).json({ error: 'Pick at least one character for the party (make new ones on the Character Sheets page first).' });
+  const premise = String(req.body?.premise ?? '').trim().slice(0, 20000);
+  const { list, problems } = cleanMapList(req.body?.maps, await pictureFiles());
+  const dest = path.join(CAMPAIGNS_DIR, id);
+  await mkdir(dest, { recursive: true });
+  await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: id, system: 'D&D 5th Edition', levels: String(req.body?.levels ?? '').slice(0, 40), description: premise.split(/\n/)[0].slice(0, 200), party, custom: true }, null, 2));
+  if (premise) await writeFile(path.join(dest, '00-premise.md'), `# ${name}\n\n${premise}\n`);
+  await writeFile(path.join(dest, 'maps.json'), JSON.stringify({ maps: list }, null, 2));
+  await writeSettings(dest, req.body?.settings);
+  res.json({ ok: true, id, name, template: id, party, maps: list.length, problems });
+}
+
 app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
+  if (req.body?.scratch === true) return createScratchCampaign(req, res);
   const from = safeCampaignId(req.body?.template);
   const ids = await campaignIds();
   if (!from || !ids.includes(from)) return res.status(404).json({ error: 'No such campaign to copy' });

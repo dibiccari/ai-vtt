@@ -241,3 +241,21 @@ test('map config: pins may share a name (only start is unique) and keep their ar
   assert.equal(back.starts.find((p) => p.x === 40).radius, 1.5);
   assert.equal(back.starts.find((p) => p.name === 'start').radius, 2);
 });
+
+test('new campaign from scratch: its own name, premise document, picked maps and party; bad requests change nothing', async () => {
+  const before = (await s.get('/api/campaigns')).json.campaigns.length;
+  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: '', party: ['edric'] })).status, 400);
+  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: 'No Party', party: ['ghost'] })).status, 400);
+  assert.equal((await s.get('/api/campaigns')).json.campaigns.length, before);
+  assert.equal(await exists('data/campaigns/no-party'), false, 'nothing is written for a refused request');
+  const picture = (await s.get('/api/maps')).json.maps[0].replace('/uploads/', '');
+  const r = await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', premise: 'A drowned village whose bell still rings at night.\nTone: eerie, low magic.', party: ['edric', 'ghost'], maps: [{ file: picture, name: 'The shore', kind: 'camp', description: 'Where the party lands.' }, { file: 'nope.png' }], settings: { rules: '2014', tableNotes: 'be gentle' } }); ok(r);
+  assert.equal(r.json.id, 'the-sunken-bell'); assert.deepEqual(r.json.party, ['edric']); assert.equal(r.json.maps, 1); assert.equal(r.json.problems.length, 1);
+  const c = (await s.get('/api/campaigns')).json.campaigns.find((x) => x.id === 'the-sunken-bell');
+  assert.equal(c.template, 'the-sunken-bell'); assert.ok(c.files.some((f) => f.name === '00-premise.md'));
+  assert.match((await s.get('/api/campaigns/the-sunken-bell/files/00-premise.md')).json.text, /drowned village/);
+  const maps = (await s.get('/api/campaigns/the-sunken-bell/maps')).json;
+  assert.equal(maps.custom, true); assert.deepEqual(maps.maps.map((m) => [m.name, m.kind]), [['The shore', 'camp']]);
+  assert.equal((await s.get('/api/campaigns/the-sunken-bell/settings')).json.tableNotes, 'be gentle');
+  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', party: ['edric'] })).json.id, 'the-sunken-bell-2', 'a second one with the same name gets its own id');
+});
