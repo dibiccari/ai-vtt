@@ -15,7 +15,7 @@ import { CATEGORIES, STATUSES } from '../lib/journal.js';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt('--max-calls', 11));
+const MAX_CALLS = Number(opt('--max-calls', 12));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -39,6 +39,7 @@ const STEPS = [
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
   { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
   { id: 'gear', say: '[Thorin] I buy a hempen rope (50 ft) and two torches from Orla, the barkeep, and pay with coins from my purse. Please update my gear and coins.', expect: 'gear updates: a rope and torches added to Thorin and coins spent, applied by the server' },
+  { id: 'travel', say: '[Thorin] The fight is over. We open the cellar hatch behind the bar and go down into the old cellars to look for the missing barrels, all four of us together.', expect: 'changeMap to the cellars map, resolved to a picture and an arrival square, no problems reported' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
 
@@ -279,6 +280,13 @@ try {
       const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === 'thorin');
       check((th.inventory || []).some((i) => /rope/i.test(i.name)) && (th.inventory || []).some((i) => /torch/i.test(i.name)), 'gear: the rope and torches are in Thorin\'s saved inventory');
       check((j.partyChanged || []).includes('thorin'), 'gear: the table was told the party changed');
+    }
+    if (step.id === 'travel') {
+      const asked = (raw?.mapUpdates || []).find((u) => u.type === 'changeMap');
+      check(!!asked && /cellar/i.test(asked.mapId), 'travel: the DM moved the table to the cellars map', asked ? 'mapId ' + asked.mapId : 'no changeMap');
+      const moved = upd(j).find((u) => u.type === 'changeMap');
+      check(!!moved && /dungeon-cellars/.test(moved.mapUrl) && Number.isInteger(moved.col) && Number.isInteger(moved.row), 'travel: the server resolved it to the picture and an arrival square', moved ? moved.mapUrl : 'not resolved');
+      check((j.characterProblems || []).length === 0, 'travel: no problems were reported', (j.characterProblems || []).join('; ').slice(0, 160));
     }
     if (step.id === 'journal') {
       check((j.journalAdded || []).length >= 1, `journal: ${j.journalAdded?.length || 0} entries added`);

@@ -133,3 +133,33 @@ test('usage: every DM call is counted (tokens and an estimated cost) in the sess
   const reset = (await s.post('/api/usage/reset')).json;
   assert.equal(reset.total.calls, 0); assert.equal(reset.session.calls, 0);
 });
+
+test('a second map change: arrival spots, pins and the module areas of the new map reach the DM and the creatures it places', async () => {
+  // the first change: to a named arrival spot other than the start (an arrival that is not a known spot falls back to the start)
+  setReply({ ...reply, mapUpdates: [{ type: 'changeMap', mapId: 'cragmaw-hideout', arrive: 'start', reason: 'arrive' }] });
+  const first = (await s.post('/api/chat', { message: 'go to the hideout' })).json.mapUpdates[0];
+  setReply({ ...reply, mapUpdates: [{ type: 'changeMap', mapId: 'wave-echo-cave', arrive: 'start', reason: 'arrive' }] });
+  const second = (await s.post('/api/chat', { message: 'go on to the cave' })).json.mapUpdates[0];
+  assert.match(second.mapUrl, /wave-echo-cave/); assert.notEqual(second.mapUrl, first.mapUrl);
+  assert.ok(Number.isInteger(second.col) && Number.isInteger(second.row) && second.col >= 0 && second.row >= 0);
+  assert.ok(second.mapName && second.kind, 'the table is told the name and kind of the new place');
+  // the table then sends the pins of that map; the DM must be given them
+  setReply(reply);
+  await s.post('/api/chat', {
+    message: 'look around', mapUrl: second.mapUrl,
+    areas: [{ area: 1, name: 'Cave Entrance', col: 12, row: 40 }, { area: 8, name: 'Fungi Cavern', col: 30, row: 22 }],
+    places: [{ name: 'old-entrance', note: 'a second way in', col: 5, row: 60 }]
+  });
+  const board = boardStateOf(fake.requests.at(-1));
+  assert.deepEqual(board.moduleAreas.map((a) => [a.area, a.name, a.col, a.row]), [[1, 'Cave Entrance', 12, 40], [8, 'Fungi Cavern', 30, 22]]);
+  assert.deepEqual(board.mapPlaces.map((p) => [p.name, p.col, p.row]), [['old-entrance', 5, 60]]);
+  // a creature the DM adds on a module area keeps the square it asked for
+  setReply({ ...reply, mapUpdates: [{ type: 'token', action: 'add', tokenId: 'g9', name: 'Goblin 9', col: 30, row: 22, color: '#0a0', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: 'goblin', value: 0, ac: 0 }] });
+  const add = (await s.post('/api/chat', { message: 'the goblins appear' })).json.mapUpdates.find((u) => u.type === 'addToken');
+  assert.deepEqual([add.col, add.row, add.maxHp], [30, 22, 7]);
+  // an unknown map id is reported, not followed
+  setReply({ ...reply, mapUpdates: [{ type: 'changeMap', mapId: 'moon-base', arrive: 'start', reason: 'x' }] });
+  const bad = await s.post('/api/chat', { message: 'to the moon' });
+  assert.ok(bad.json.characterProblems.some((p) => /moon-base/.test(p)));
+  assert.ok(!bad.json.mapUpdates.some((u) => u.type === 'changeMap'));
+});
