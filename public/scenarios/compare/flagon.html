@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Rusty Flagon, repainted</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; --accent:#4f9dff; color-scheme: dark; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { max-width:1700px; margin:0 auto; padding:20px; } h1 { margin:0 0 6px; font-size:22px; } h1 span { color:var(--gold); }
+  .lead { color:var(--muted); max-width:95ch; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(560px, 1fr)); gap:16px; margin-top:14px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  figure img { width:100%; height:auto; display:block; border-radius:8px; }
+  figcaption { margin-top:8px; color:var(--muted); font-size:13px; } figcaption b { color:var(--text); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>The Rusty Flagon <span>repainted</span></h1>
+  <p class="lead">Claude's code-drawn tavern, repainted by ChatGPT's image editor in the chosen hand-inked style with the layout locked (about $0.07). The map's walls, doors and start spot are unchanged and sit on the new picture; the tavern in the tabletop and the Test Lab now uses it. <a href="/map-test.html?map=/uploads/vtt-rusty-flagon-mutfjjbo.png">Open it in Map Test</a> to try a token.</p>
+  <div class="grid">
+    <figure><img src="flagon/rusty-flagon-original.png" alt=""><figcaption><b>Before:</b> the code-drawn picture.</figcaption></figure>
+    <figure><img src="flagon/rusty-flagon-repaint.png" alt=""><figcaption><b>After:</b> the repaint. Tables, stools, bar, rug, kitchen and doors are where they were; the fireplace, wood and stone gained texture and shadow.</figcaption></figure>
+  </div>
+</div>
+<script src="/nav.js"></script>
+</body>
+</html>
