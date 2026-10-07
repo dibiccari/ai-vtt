@@ -261,14 +261,14 @@
   "starts": [
     {
       "name": "start",
-      "x": 618,
-      "y": 2012,
+      "x": 688,
+      "y": 1942,
       "radius": 2
     },
     {
       "name": "lair-door",
-      "x": 1048,
-      "y": 1298,
+      "x": 1043,
+      "y": 1314,
       "desc": "A low doorway in a screen of warped, interwoven branches: the entrance to Agatha's domelike shelter."
     },
     {

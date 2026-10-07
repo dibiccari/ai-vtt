@@ -214,7 +214,8 @@
     {
       "name": "start",
       "x": 725,
-      "y": 825
+      "y": 825,
+      "radius": 2
     }
   ],
   "light": "dim",
