@@ -121,6 +121,7 @@ test('map sets are packets: every set lives in data/mapsets/<guid>/ with its set
     assert.ok(ent.isDirectory(), `${ent.name}: a flat set file is left over (the server turns it into a packet)`);
     const set = await json('data', 'mapsets', path.join(ent.name, 'set.json'));
     assert.equal(set.id, ent.name, 'the folder is named by the set id');
+    assert.ok((await readdir(path.join(dir, ent.name))).includes('blueprint.svg'), `${set.slug}: no blueprint.svg in its packet`);
     for (const lv of set.levels) for (const look of lv.looks) {
       const files = [look.player, look.dm && !String(look.dm).startsWith('data/dm-maps:') ? look.dm : null].filter(Boolean);
       for (const f of files) assert.ok((await readdir(path.join(dir, ent.name))).includes(f), `${set.slug}: ${f} is not in its packet`);

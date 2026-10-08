@@ -6,12 +6,13 @@ import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile, rm
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
 import { buildSets, originOf, imageSize } from './lib/mapsets.js';
+import { blueprintSvg } from './lib/blueprint.js';
 import { newGuid, docFromBuilt, configFromSet, applyConfigToSet, indexSets, summarizeSet, checkSetDoc, isGuid } from './lib/mapsetstore.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
@@ -325,6 +326,17 @@ async function saveSet(doc) {
   await mkdir(packetDir(doc.id), { recursive: true });
   await writeFile(path.join(packetDir(doc.id), 'set.json'), JSON.stringify(doc, null, 2));
   await adoptPictures(doc);
+  await writeBlueprint(doc);
+}
+// The vector layer of the set as blueprint.svg in its packet, in the pixel size of its first picture (redrawn on every save).
+async function writeBlueprint(doc) {
+  try {
+    const file = doc.levels[0].looks[0].player;
+    const fh = await open(picturePath(file));
+    const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close();
+    const sz = imageSize(b.subarray(0, bytesRead)) || {};
+    await writeFile(path.join(packetDir(doc.id), 'blueprint.svg'), blueprintSvg(doc, { width: sz.w, height: sz.h }));
+  } catch { /* the picture is unreadable: the set still saved */ }
 }
 async function loadSets() {
   // old flat files (data/mapsets/<guid>.json) become packets the first time they are seen
@@ -344,6 +356,7 @@ async function loadSets() {
   }
   PACKET_FILES = files;
   SETS = { docs: new Map(docs.map((d) => [d.id, d])), index: indexSets(docs) };
+  for (const d of docs) { if (!existsSync(path.join(packetDir(d.id), 'blueprint.svg'))) await writeBlueprint(d); }       // sets saved before blueprints existed get theirs
 }
 // Every picture is in a set: pictures that are not yet (new uploads, a Market install) get one built from their old set-up. Runs one at a time.
 function ensureSets() {
@@ -527,6 +540,13 @@ app.post('/api/mapsets/:guid/archive', localOnly, asyncRoute(async (req, res) =>
 }));
 // Clone: a full, independent copy of a place: new id, its pictures copied to new file names (vtt-pack- for a copy of a purchased map, vtt- otherwise), walls, doors, pins, lights and terrain copied.
 // Deleting either one never touches the other's files. A copy of a purchased or Wizards of the Coast map keeps `derivedFrom` and its picture names start with vtt-pack-, so the Market still refuses it.
+app.get('/api/mapsets/:guid/blueprint.svg', asyncRoute(async (req, res) => {
+  const { docs } = await ensureSets();
+  const doc = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
+  if (!doc) return res.status(404).json({ error: 'No such map set' });
+  await writeBlueprint(doc);
+  res.type('image/svg+xml').sendFile(path.join(packetDir(doc.id), 'blueprint.svg'));
+}));
 app.post('/api/mapsets/:guid/clone', localOnly, asyncRoute(async (req, res) => {
   const { docs } = await ensureSets();
   const src = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;

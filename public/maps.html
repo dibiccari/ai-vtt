@@ -93,6 +93,7 @@
       for (const l of lv.looks) {
         const open = el('a', '', s.times.length > 1 ? 'Open ' + l.time + ' in Map Test' : 'Open in Map Test'); open.href = '/map-test.html?set=' + s.guid + (l.time !== 'main' ? '&time=' + l.time : ''); links.appendChild(open);
       }
+      const bp = el('a', '', 'Blueprint'); bp.href = '/api/mapsets/' + s.guid + '/blueprint.svg'; bp.target = '_blank'; bp.rel = 'noopener'; bp.title = 'The walls, doors, pins and terrain of this map as an SVG drawing'; links.appendChild(bp);
       const dm = lv.looks.find((l) => l.dm);
       if (dm) { const a = el('a', '', 'See the DM version'); a.href = dm.dm.startsWith('data/dm-maps:') ? '/api/dm-map?map=' + encodeURIComponent(dm.player) : '/uploads/' + dm.dm; a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a); }
       const arch = el('button', '', s.archived ? 'Restore' : 'Archive'); arch.title = s.archived ? 'Show this map in the lists again' : 'Hide this map from the lists (nothing is deleted)';

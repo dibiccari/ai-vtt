@@ -46,3 +46,18 @@ test('gameSize and imageSize: squares are 5 ft, hexagons 5 miles, height x width
   const png = Buffer.alloc(32); png.writeUInt32BE(0x89504e47, 0); png.writeUInt32BE(1536, 16); png.writeUInt32BE(1024, 20);
   assert.deepEqual(imageSize(png), { w: 1536, h: 1024 }); assert.equal(imageSize(Buffer.from('nope')), null);
 });
+
+import { blueprintSvg } from '../lib/blueprint.js';
+test('blueprintSvg: the vector layer of a set as an SVG with fixed layer ids, the right counts and no fills on walls', () => {
+  const doc = { id: 'g', version: 3, name: 'Inn', kind: 'battle', slug: 'inn', levels: [{ squares: 20, walls: [
+    { x1: 0, y1: 0, x2: 100, y2: 0, type: 'wall' }, { x1: 100, y1: 0, x2: 100, y2: 100, type: 'wall' }, { x1: 0, y1: 100, x2: 50, y2: 100, type: 'fence' }, { x1: 50, y1: 0, x2: 50, y2: 50, type: 'door', open: true, locked: true }
+  ], starts: [{ name: 'start', x: 10, y: 10, radius: 2 }, { name: 'bar', x: 40, y: 40 }], difficult: [{ x: 0, y: 0, w: 50, h: 50 }] }] };
+  const svg = blueprintSvg(doc, { width: 1000, height: 800 });
+  assert.match(svg, /viewBox="0 0 1000 800"/); assert.match(svg, /data-set="g" data-version="3"/);
+  for (const id of ['grid', 'difficult', 'fences', 'walls', 'doors', 'pins']) assert.match(svg, new RegExp(`<g id="${id}"`), id);
+  assert.equal((svg.match(/<g id="walls"[^>]*>([\s\S]*?)<\/g>/)[1].match(/<line /g) || []).length, 2, 'two wall segments');
+  assert.equal((svg.match(/<g id="fences"[^>]*>([\s\S]*?)<\/g>/)[1].match(/<line /g) || []).length, 1);
+  assert.match(svg, /data-open="1" data-locked="1"/);
+  assert.equal((svg.match(/data-name="/g) || []).length, 2, 'both pins');
+  assert.equal((svg.match(/<line [^>]*x1="\d+(?:\.\d)?" y1="0" x2="\d+(?:\.\d)?" y2="800"/g) || []).length, 19, 'a grid line between each of the 20 squares');
+});
