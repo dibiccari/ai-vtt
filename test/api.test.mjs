@@ -41,7 +41,7 @@ test('campaigns: list, stats, and the active campaign switch', async () => {
 
 test('characters: party filtering, save keeps the stored sheet, validation, delete', async () => {
   const all = (await s.get('/api/characters')).json;
-  assert.equal(all.length, 8);
+  assert.equal(all.length, 12);
   assert.deepEqual((await s.get(`/api/characters?campaign=${LOST}`)).json.map((c) => c.id), ['astarion', 'edric', 'rachel', 'shadowheart']);
   const edric = all.find((c) => c.id === 'edric');
   const saved = await s.post('/api/characters', { id: 'edric', name: 'Edric', class: 'Fighter', level: 1, hp: 3, maxHp: 12, ac: 18, abilities: edric.abilities });
