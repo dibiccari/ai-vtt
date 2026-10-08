@@ -91,3 +91,7 @@ This also fixes a problem of today: a door a player opened is saved into the map
 5. **Regional maps**: no start pin, no token; the party is a pin. Right?
 6. **Town maps**: free movement with a token, no tiles, revealed by default. Or no token either?
 7. **Which step first?** Step 1 is built (see below). Next would be step 2, with ids and the separate state files from section 6b.
+
+## 6c. Pins the players can see (user idea, Nov 2026, not built)
+
+A pin gets a `visibility` in the set file: `dm` (default, today's behaviour: only the DM and Map Test see it), `known` (players see it from the start, e.g. the town square) or `discoverable` (hidden until found). The set file only says what a pin CAN be; which discoverable pins the party has found is game state, saved with the campaign keyed by set id, level and pin id (`discoveredPins`). A pin is discovered when the DM sends a reveal (a new `revealPin` token action) or when a party token walks into its radius (e.g. the Shrine of Luck). The player map gets a "Show discovered places" toggle that draws the known and discovered pins with their `label`; the DM picture always shows all of them. Regional and town maps benefit most (no fog there, so pins are how places unlock).
