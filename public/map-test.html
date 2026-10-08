@@ -398,7 +398,8 @@
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
     vctx.clearRect(0, 0, S.W, S.H);
-    vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
+    const darkPlace = S.light === 'dark';
+    vctx.fillStyle = darkPlace ? 'rgba(2, 3, 5, 0.93)' : 'rgba(4, 5, 8, 0.55)';       // in a dark place what is out of the light is nearly black, so the light's reach shows
     vctx.fillRect(0, 0, S.W, S.H);
     const radius = (visionNow() / FT_PER_SQUARE) * cell();
     const walls = sightWalls(S.walls);
@@ -413,9 +414,9 @@
       for (const c of [sctx, vctx]) {
         c.save();
         c.globalCompositeOperation = 'destination-out';
-        const grad = c.createRadialGradient(t.x, t.y, radius * 0.65, t.x, t.y, radius);
-        grad.addColorStop(0, 'rgba(0,0,0,1)');
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        const grad = c.createRadialGradient(t.x, t.y, darkPlace ? radius * 0.45 : radius * 0.65, t.x, t.y, radius);
+        if (darkPlace) { grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(0.35, 'rgba(0,0,0,0.55)'); grad.addColorStop(1, 'rgba(0,0,0,0)'); }       // bright light to half the reach, then dim light fading out
+        else { grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)'); }
         c.fillStyle = grad;
         c.beginPath();
         c.moveTo(poly[0].x, poly[0].y);
@@ -556,6 +557,7 @@
       ctx.restore();
     }
 
+    drawTokenLight();
     if (S.showWalls) drawWalls(px);
     drawMoveRange(px);
     if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }                 // the players never see the terrain shading, the pins or the start area
@@ -951,6 +953,24 @@
     }
     ctx.setLineDash([]);
     ctx.restore();
+  }
+
+  // In a dark place the test token's light warms the ground it reaches (brighter for a lantern than a candle), only where its line of sight goes.
+  function drawTokenLight() {
+    if (S.light !== 'dark' || S.testLight < 1 || !S.polys.length) return;
+    const strength = [0, 0.16, 0.3, 0.42][S.testLight], reach = (visionNow() / FT_PER_SQUARE) * cell();
+    S.polys.forEach((poly, i) => {
+      const t = S.polyOwners[i];
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(poly[0].x, poly[0].y);
+      for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
+      ctx.closePath(); ctx.clip();
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, reach);
+      g.addColorStop(0, 'rgba(255,190,100,' + strength + ')'); g.addColorStop(0.5, 'rgba(255,160,70,' + strength * 0.55 + ')'); g.addColorStop(1, 'rgba(255,140,50,0)');
+      ctx.fillStyle = g; ctx.fillRect(t.x - reach, t.y - reach, reach * 2, reach * 2);
+      ctx.restore();
+    });
   }
 
   function drawTokens(px) {
