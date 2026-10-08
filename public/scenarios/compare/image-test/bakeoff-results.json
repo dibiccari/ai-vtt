@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-08T20:27:02.853Z",
+  "at": "2026-10-08T20:44:19.634Z",
   "layout": "layout.png",
   "runs": [
     {
@@ -45,10 +45,18 @@
       "model": "gemini-nano-banana-2.1",
       "quality": "1K",
       "price": "$0.03",
-      "file": "gemini-nano-banana.png",
-      "ok": false,
-      "seconds": 0,
-      "error": "Gemini 429: Rate limit exceeded for model gemini-nano-banana-2.1 (limit: 0 input tokens per minute on Free Tier). Please upgrade your tier at https://ai.dev/rate-limit."
+      "file": "gemini-nano-banana.jpg",
+      "ok": true,
+      "seconds": 26,
+      "bytes": 834877,
+      "note": "",
+      "drift": {
+        "walls": 9,
+        "medianPx": 4,
+        "within8": 0.6666666666666666,
+        "within20": 0.7777777777777778,
+        "worstPx": 52
+      }
     },
     {
       "id": "gemini-3-pro",
@@ -57,10 +65,18 @@
       "model": "gemini-3-pro-image",
       "quality": "1K",
       "price": "$0.13",
-      "file": "gemini-3-pro.png",
-      "ok": false,
-      "seconds": 0,
-      "error": "Gemini 429: Rate limit exceeded for model gemini-3-pro-image (limit: 0 input tokens per minute on Free Tier). Please upgrade your tier at https://ai.dev/rate-limit."
+      "file": "gemini-3-pro.jpg",
+      "ok": true,
+      "seconds": 19,
+      "bytes": 914742,
+      "note": "",
+      "drift": {
+        "walls": 9,
+        "medianPx": 4,
+        "within8": 0.5555555555555556,
+        "within20": 0.7777777777777778,
+        "worstPx": 26
+      }
     },
     {
       "id": "fal-canny",
@@ -70,9 +86,17 @@
       "quality": "standard",
       "price": "a few cents",
       "file": "fal-canny.png",
-      "ok": false,
-      "seconds": 1,
-      "error": "fal.ai 403: \"User is locked. Reason: TOP_UP.\""
+      "ok": true,
+      "seconds": 166,
+      "bytes": 1604462,
+      "note": "seed 7",
+      "drift": {
+        "walls": 9,
+        "medianPx": 2,
+        "within8": 1,
+        "within20": 1,
+        "worstPx": 4
+      }
     },
     {
       "id": "fal-kontext",
@@ -82,9 +106,17 @@
       "quality": "standard",
       "price": "a few cents",
       "file": "fal-kontext.png",
-      "ok": false,
-      "seconds": 0,
-      "error": "fal.ai 403: \"User is locked. Reason: TOP_UP.\""
+      "ok": true,
+      "seconds": 8,
+      "bytes": 1447265,
+      "note": "seed 7",
+      "drift": {
+        "walls": 9,
+        "medianPx": 40,
+        "within8": 0.1111111111111111,
+        "within20": 0.1111111111111111,
+        "worstPx": 48
+      }
     }
   ]
 }
