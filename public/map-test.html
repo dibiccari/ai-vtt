@@ -1434,7 +1434,6 @@
       }
       return;
     }
-    if (p.x < -20 || p.y < -20 || p.x > S.W + 20 || p.y > S.H + 20) return;
     const ep = endpointAt(p);
     if (ep) {
       S.wallSel = ep.w;
@@ -1450,6 +1449,7 @@
       S.drag = { kind: 'wallmove', w, sx: p.x, sy: p.y, orig: { x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2 }, snap: JSON.stringify(S.walls), moved: false };
       syncWallBox(); requestRender(); return;
     }
+    if (p.x < -20 || p.y < -20 || p.x > S.W + 20 || p.y > S.H + 20) { S.wallSel = null; syncWallBox(); requestRender(); return; }       // a new wall cannot start off the map; existing ones can still be picked there
     const a = snapToEnds(p, null);
     S.wallSel = null;
     S.drag = { kind: 'wallnew', x1: a.x, y1: a.y, x2: a.x, y2: a.y, snap: JSON.stringify(S.walls), moved: false };
@@ -1523,6 +1523,7 @@
     }
     for (const w of W) {
       if (Math.hypot(w.x2 - w.x1, w.y2 - w.y1) < 3) add(w.x1, w.y1, 'tiny');
+      for (const k of [1, 2]) if (w['x' + k] < -2 || w['y' + k] < -2 || w['x' + k] > S.W + 2 || w['y' + k] > S.H + 2) add(w['x' + k], w['y' + k], 'off');
       for (const k of [1, 2]) {
         const x = w['x' + k], y = w['y' + k];
         for (const o of W) {
@@ -1534,7 +1535,7 @@
     }
     return out;
   }
-  const PROBLEM_TEXT = { cross: 'two walls cross', gap: 'a wall ends close to another without touching it', tiny: 'a very short wall' };
+  const PROBLEM_TEXT = { cross: 'two walls cross', gap: 'a wall ends close to another without touching it', tiny: 'a very short wall', off: 'a wall end is off the map (click it and press Delete, or drag it back)' };
   function nextProblem() {
     if (!S.problems.length || S.problemIx < 0) { S.problems = findWallProblems(); S.problemIx = -1; }
     if (!S.problems.length) { $('#wallInfo').textContent = 'No problems found'; requestRender(); return; }
