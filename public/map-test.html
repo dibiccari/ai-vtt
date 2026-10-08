@@ -441,8 +441,34 @@
         c.restore();
       }
     }
+    if (darkPlace) revealMapLights(walls);
     revealObjectTops(radius);
     requestRender();
+  }
+
+  // In a dark place the map's own lights (wall torches, braziers) light the ground they reach: what a token can see AND a light reaches is shown, bright to half the light's range, dim out to the range.
+  function revealMapLights(walls) {
+    if (!S.mapLights || !S.mapLights.length || !S.polys.length) return;
+    for (const L of S.mapLights) {
+      const r = L.range * cell();
+      const near = walls.filter((w) => pointSegmentDistance(L.x, L.y, w) <= r * 1.1);
+      const lp = visibilityPolygon(L.x, L.y, near, S.W, S.H);
+      if (lp.length < 3) continue;
+      for (const tp of S.polys) for (const c of [sctx, vctx]) {
+        c.save();
+        c.beginPath(); c.moveTo(tp[0].x, tp[0].y);
+        for (let i = 1; i < tp.length; i++) c.lineTo(tp[i].x, tp[i].y);
+        c.closePath(); c.clip();
+        c.globalCompositeOperation = 'destination-out';
+        const g = c.createRadialGradient(L.x, L.y, r * 0.3, L.x, L.y, r);
+        g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.5, 'rgba(0,0,0,0.6)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g;
+        c.beginPath(); c.moveTo(lp[0].x, lp[0].y);
+        for (let i = 1; i < lp.length; i++) c.lineTo(lp[i].x, lp[i].y);
+        c.closePath(); c.fill();
+        c.restore();
+      }
+    }
   }
 
 
@@ -1062,6 +1088,7 @@
         }
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.lights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && l.flicker === true && isFinite(l.x) && isFinite(l.y)) : [];
+        S.mapLights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0) : [];
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.mood = remote && typeof remote.mood === 'string' ? remote.mood : '';
         S.hexSize = remote && remote.hexSize >= 20 ? remote.hexSize : 95;
