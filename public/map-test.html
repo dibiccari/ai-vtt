@@ -1199,7 +1199,6 @@
   }
   function setTool(tool) {
     S.tool = tool;
-    if (tool === 'start' && !S.showPins) { S.showPins = true; $('#showPins').checked = true; }       // choosing the Pins tool turns the pins back on
     if (tool !== 'start') S.selected = null;
     positionPinCard();
     $('#brushBox').hidden = !isTerrainTool();
@@ -1508,7 +1507,10 @@
   $('#pcDone').addEventListener('click', () => selectPin(null));
 
   /* ---------------- sidebar wiring ---------------- */
-  document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+  document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.tool === 'start' && !S.showPins) { S.showPins = true; $('#showPins').checked = true; }       // clicking the Pins tool turns the pins back on; nothing else does
+    setTool(b.dataset.tool);
+  }));
   $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
   $('#publisher').value = store.get('vtt.maptest.publisher', '') || '';
   $('#publisher').addEventListener('change', (e) => { store.set('vtt.maptest.publisher', e.target.value); loadMapList(); });
