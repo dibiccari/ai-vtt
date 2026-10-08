@@ -156,7 +156,7 @@ test('the map list shows places, Day | Night appears only when there is a night 
   assert.deepEqual(camp.day, [['Day', true, 'true'], ['Night', true, 'false']]); assert.deepEqual(camp.pair, ['Terrain', 'Eraser']);
   await page.eval(`document.querySelector('#timeSwitch button[data-time="night"]').click()`);
   await page.waitFor('document.querySelector("#timeSwitch button[data-time=night]").getAttribute("aria-pressed") === "true"', 8000);
-  const crypt = await look('/uploads/vtt-crypt-repaint-v2.png');
+  const crypt = await look('/uploads/vtt-crypt-method-b.png');
   assert.deepEqual(crypt.day, [['Day', true, 'true'], ['Night', false, 'false']], 'a map with no night look has no Night button');
 });
 

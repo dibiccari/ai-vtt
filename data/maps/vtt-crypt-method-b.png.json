@@ -1359,7 +1359,7 @@
       "x2": 665.6,
       "y2": 358.4,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 921.6,
@@ -1367,7 +1367,7 @@
       "x2": 1024,
       "y2": 563.2,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 921.6,
@@ -1375,7 +1375,7 @@
       "x2": 1024,
       "y2": 716.8,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 204.8,
@@ -1399,7 +1399,7 @@
       "x2": 563.2,
       "y2": 921.6,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 870.4,

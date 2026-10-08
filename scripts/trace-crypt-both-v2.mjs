@@ -1,5 +1,5 @@
 // The "both" half of the crypt comparison, second round (strictly overhead brief): ChatGPT painted public/scenarios/compare/crypt-chatgpt-v2.png; Claude read it with the pixel ruler
-// (scripts/pixel-grid.mjs) and wrote down where floors end and stone begins, the doors, the objects and the lights, in image pixels; this turns them into data/maps/vtt-crypt-both-v2.png.json.
+// (scripts/pixel-grid.mjs) and wrote down where floors end and stone begins, the doors, the objects and the lights, in image pixels; this turns them into data/maps/vtt-crypt-method-a.png.json.
 //   node scripts/trace-crypt-both-v2.mjs
 import { writeFile } from 'node:fs/promises';
 import { ngon } from '../lib/mapkit.js';
@@ -40,5 +40,5 @@ const config = {
   lights: [{ x: 441, y: 263, range: 6, intensity: 1, color: 'ffffa24d', name: 'torch-1', flicker: true }, { x: 973, y: 336, range: 8, intensity: 1, color: 'ffffa24d', name: 'brazier', flicker: true }, { x: 1076, y: 817, range: 6, intensity: 1, color: 'ffffa24d', name: 'torch-2', flicker: true }],
   ambient: 'ff2a2630'
 };
-await writeFile('data/maps/vtt-crypt-both-v2.png.json', JSON.stringify(config, null, 2));
-console.log(`vtt-crypt-both-v2.png.json: ${walls.filter((w) => w.type !== 'door').length} wall segments, ${walls.filter((w) => w.type === 'door').length} doors, ${config.lights.length} lights`);
+await writeFile('data/maps/vtt-crypt-method-a.png.json', JSON.stringify(config, null, 2));
+console.log(`vtt-crypt-method-a.png.json: ${walls.filter((w) => w.type !== 'door').length} wall segments, ${walls.filter((w) => w.type === 'door').length} doors, ${config.lights.length} lights`);

@@ -33,8 +33,8 @@
   <p class="lead">The ChatGPT brief says "strictly overhead, orthographic, no perspective" (below), and the three ChatGPT versions were redone. Claude's own map is unchanged, since it was already drawn from straight above. Same size, 1536 x 1024, 30 x 20 squares. Pick a version and try it: Token tool, click in a room, watch the fog and the line of sight; untick "DM view" to see what a player sees.</p>
 
   <div class="tabs" id="tabs" role="group" aria-label="Which map">
-    <button data-m="vtt-crypt-both-v2" aria-pressed="false">3. Both (ChatGPT's picture, Claude's walls)</button>
-    <button data-m="vtt-crypt-repaint-v2" aria-pressed="true">4. Claude's walls + ChatGPT repaint</button>
+    <button data-m="vtt-crypt-method-a" aria-pressed="false">Crypt Method A (ChatGPT's picture, Claude's traced walls)</button>
+    <button data-m="vtt-crypt-method-b" aria-pressed="true">Crypt Method B (Claude's layout, ChatGPT's repaint)</button>
     <button id="open" aria-pressed="false">Open this one full page ↗</button>
   </div>
   <p class="how" id="how"></p>
@@ -75,8 +75,8 @@
 <script src="/nav.js"></script>
 <script>
   const frame = document.getElementById('frame'), how = document.getElementById('how');
-  const notes = { 'vtt-crypt-chatgpt-v2': 'ChatGPT\'s picture with ChatGPT\'s own traced walls: watch the line of sight leak.', 'vtt-crypt-both-v2': 'ChatGPT\'s picture with walls, doors, pillars and lights read off it by Claude.', 'vtt-crypt-repaint-v2': 'Claude\'s map with exact walls, repainted by ChatGPT with the layout locked.' };
-  let current = 'vtt-crypt-repaint-v2';
+  const notes = { 'vtt-crypt-chatgpt-v2': 'ChatGPT\'s picture with ChatGPT\'s own traced walls: watch the line of sight leak.', 'vtt-crypt-method-a': 'ChatGPT\'s picture with walls, doors, pillars and lights read off it by Claude.', 'vtt-crypt-method-b': 'Claude\'s map with exact walls, repainted by ChatGPT with the layout locked.' };
+  let current = 'vtt-crypt-method-b';
   const show = (m) => {
     current = m;
     document.querySelectorAll('#tabs button[data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
@@ -85,7 +85,7 @@
   };
   document.getElementById('tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.m) show(b.dataset.m); else if (b.id === 'open') window.open('/map-test.html?map=/uploads/' + current + '.png', '_blank'); });
   fetch('crypt-prompt-v2.txt').then((r) => r.text()).then((t) => { document.getElementById('prompt').textContent = t.trim(); });
-  show('vtt-crypt-repaint-v2');
+  show('vtt-crypt-method-b');
 </script>
 </body>
 </html>
