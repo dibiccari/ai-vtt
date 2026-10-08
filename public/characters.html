@@ -88,7 +88,14 @@
   .lvl .slots input { width:44px; text-align:center; background:var(--field); border:1px solid #2f394b; border-radius:5px; color:var(--text); font:inherit; padding:2px; }
   .lvl .line { width:100%; font:inherit; color:var(--text); background:var(--field); border:1px solid #2f394b; border-radius:5px; padding:3px 7px; }
   .spells { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; }
-  .printbar { display:none; }
+  .combo { position:relative; }
+  .combo .menu { position:absolute; left:0; right:0; top:100%; z-index:30; background:var(--panel); border:1px solid var(--accent); border-radius:8px; margin-top:2px; max-height:260px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,.6); min-width:220px; }
+  .combo .opt { display:flex; justify-content:space-between; gap:10px; padding:5px 9px; cursor:pointer; font-size:13px; color:var(--text); }
+  .combo .opt small { color:var(--muted); white-space:nowrap; }
+  .combo .opt.on, .combo .opt:hover { background:#1f2a3d; }
+  .combo .none { padding:6px 9px; color:var(--muted); font-size:12px; }
+  .combo input.bad { border-color:var(--danger); }
+  .hint { font-size:11px; color:var(--muted); }
 
   .modal { position:fixed; inset:0; background:rgba(5,7,10,.88); display:none; align-items:center; justify-content:center; z-index:60; padding:20px; }
   .modal.open { display:flex; }
@@ -128,6 +135,7 @@
     .cols { grid-template-columns:1fr 1.2fr 1.2fr; }
     .spells { grid-template-columns:repeat(3, 1fr); }
     .card, .lvl { break-inside:avoid; }
+    .combo .menu { display:none !important; }
   }
 </style>
 </head>
@@ -136,7 +144,7 @@
   <h1>Character <span>Sheets</span></h1>
   <button class="primary" id="newBtn">+ New character</button>
   <div id="list" style="display:flex; flex-direction:column; gap:8px;"></div>
-  <p class="note">Click a box and type. Saving also updates the name, class, level, HP, AC, speed and ability scores the tabletop uses. Modifiers, saves, skills, initiative and passive Perception follow the ability scores, level and proficiency boxes. Print / Save as PDF gives a printable copy.</p>
+  <p class="note">Sheets are read only: the DM changes them while you play (level-ups, hit points, gear, spells), and a new character is built with + New character, where spells, weapons and armor are picked from the real lists in the books. Once it is saved it is locked. Print / Save as PDF gives a printable copy.</p>
 </aside>
 
 <main>
@@ -204,6 +212,7 @@
     dirty: false,
     tokens: [], meta: {}, // token library
     fields: new Map(),    // field name -> [elements]
+    options: { spells: [], weapons: [], armor: [] },       // the real spells, weapons and armor of the books (GET /api/sheet-options)
     layout: null          // which sheet field is which skill, save, spell line and slot row (GET /api/sheet-layout)
   };
 
@@ -312,7 +321,7 @@
       undo.textContent = 'Undo';
       undo.title = 'Put these fields back as they were. Press Save to keep it.';
       undo.addEventListener('click', () => undoEntry(entry));
-      row.append(left, undo);
+      if (locked()) row.append(left); else row.append(left, undo);
       list.appendChild(row);
     });
   }
@@ -370,7 +379,11 @@
     $('#toolbar').hidden = false;
     $('#color').value = c.color || '#4f9dff';
     $('#delBtn').disabled = !c.id;
-    setStatus(c.id ? '' : 'Fill in at least the name, then Save', c.id ? '' : 'dirty');
+    for (const id of ['#saveBtn', '#pickBtn', '#clearTokBtn']) $(id).hidden = locked();
+    $('#color').closest('label').hidden = locked();
+    $('#nameInput').readOnly = locked();
+    $('#tokImg').style.cursor = locked() ? 'default' : 'pointer';
+    setStatus(c.id ? 'Read only: the DM and character creation change a sheet' : 'New character: fill it in and Save (it is locked after that)', c.id ? '' : 'dirty');
     updateWho();
     renderList();
     renderLog();
@@ -384,6 +397,52 @@
   }
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
+  // A text box with a searchable list under it. Only things from the list can be kept: a typed name that is not in the list goes back to what it was.
+  // items: [{ name, hint }]; onPick(item | null) runs when the value really changes (null = emptied).
+  function combo(input, items, onPick) {
+    const wrap = el('div', 'combo');
+    input.replaceWith(wrap);
+    wrap.appendChild(input);
+    input.autocomplete = 'off';
+    let menu = null, shown = [], at = -1, atFocus = '';
+    const close = () => { if (menu) { menu.remove(); menu = null; } at = -1; };
+    const find = (v) => items.find((i) => i.name.toLowerCase() === String(v).trim().toLowerCase());
+    function open() {
+      const q = input.value.trim().toLowerCase();
+      shown = items.filter((i) => !q || i.name.toLowerCase().includes(q) || (i.hint || '').toLowerCase().includes(q)).slice(0, 60);
+      if (!menu) { menu = el('div', 'menu'); menu.setAttribute('role', 'listbox'); wrap.appendChild(menu); }
+      menu.innerHTML = '';
+      if (!shown.length) menu.appendChild(el('div', 'none', 'Nothing in the books matches "' + input.value + '"'));
+      shown.forEach((it, i) => {
+        const o = el('div', 'opt' + (i === at ? ' on' : ''));
+        o.setAttribute('role', 'option');
+        o.append(el('span', '', it.name), el('small', '', it.hint || ''));
+        o.addEventListener('mousedown', (e) => { e.preventDefault(); choose(it); });
+        menu.appendChild(o);
+      });
+    }
+    function choose(it) { input.value = it.name; input.classList.remove('bad'); atFocus = it.name; close(); onPick(it); }
+    input.addEventListener('focus', () => { atFocus = input.value; open(); });
+    input.addEventListener('input', () => { at = -1; open(); input.classList.toggle('bad', Boolean(input.value.trim()) && !find(input.value)); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); if (!menu) open(); at = Math.min(shown.length - 1, at + 1); open(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); at = Math.max(0, at - 1); open(); }
+      else if (e.key === 'Enter' && menu) { e.preventDefault(); const it = shown[at >= 0 ? at : 0]; if (it) choose(it); }
+      else if (e.key === 'Escape') { close(); }
+    });
+    input.addEventListener('blur', () => {
+      close();
+      const v = input.value.trim();
+      if (!v) { if (atFocus) { atFocus = ''; onPick(null); } return; }
+      const it = find(v);
+      if (it) { if (it.name !== atFocus) choose(it); else input.value = it.name; input.classList.remove('bad'); return; }
+      if (v === atFocus) return;                  // what was already on the sheet stays until it is changed
+      input.value = atFocus; input.classList.remove('bad');
+      input.dispatchEvent(new Event('input', { bubbles: true }));       // the sheet gets the old value back too
+    });
+    return wrap;
+  }
+
   // A labelled one-line box (or a taller one with rows) bound to a sheet field.
   function field(name, label, opts = {}) {
     const wrap = el('label', 'fld' + (opts.cls ? ' ' + opts.cls : ''));
@@ -393,7 +452,7 @@
     if (multi) input.rows = opts.rows; else input.type = 'text';
     input.setAttribute('aria-label', label || name.trim());
     if (opts.max) input.maxLength = opts.max;
-    if (opts.readonly) input.readOnly = true;
+    if (opts.readonly || locked()) input.readOnly = true;
     if (opts.placeholder) input.placeholder = opts.placeholder;
     input.value = S.sheet[name] == null ? '' : String(S.sheet[name]);
     input.addEventListener('input', () => setValue(name, input.value, input));
@@ -405,7 +464,7 @@
     const input = el('input', cls);
     input.type = 'text';
     input.setAttribute('aria-label', label);
-    if (opts.readonly) input.readOnly = true;
+    if (opts.readonly || locked()) input.readOnly = true;
     if (opts.max) input.maxLength = opts.max;
     input.value = S.sheet[name] == null ? '' : String(S.sheet[name]);
     input.addEventListener('input', () => setValue(name, input.value, input));
@@ -417,10 +476,13 @@
     cb.type = 'checkbox';
     cb.setAttribute('aria-label', label);
     cb.checked = S.sheet[name] === true;
+    cb.disabled = locked();
     cb.addEventListener('change', () => setValue(name, cb.checked, cb));
     register(name, cb);
     return cb;
   }
+  // A saved character's sheet is read only: the DM changes it in play and character creation sets it up. Only a new, unsaved character is editable here.
+  const locked = () => Boolean(S.cur && S.cur.id);
   const card = (title) => { const c = el('section', 'card'); if (title) c.appendChild(el('h3', '', title)); return c; };
 
   function renderSheet() {
@@ -439,8 +501,10 @@
     const page = el('div', 'page');
     const head = el('div', 'head');
     const ib = el('div', 'imgbox'); ib.tabIndex = 0; ib.setAttribute('role', 'button'); ib.setAttribute('aria-label', 'Choose the character token');
-    ib.addEventListener('click', openPicker);
-    ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
+    if (!locked()) {
+      ib.addEventListener('click', openPicker);
+      ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
+    } else { ib.style.cursor = 'default'; ib.removeAttribute('role'); ib.tabIndex = -1; }
     registerImageBox(ib);
     const idGrid = el('div', 'grid g3');
     idGrid.append(
@@ -488,6 +552,7 @@
       const row = el('div', 'row');
       const ex = el('input', 'exp'); ex.type = 'checkbox'; ex.title = 'Expertise'; ex.setAttribute('aria-label', name + ' expertise');
       ex.checked = (S.cur.expertise || []).includes(name);
+      ex.disabled = locked();
       ex.addEventListener('change', () => {
         const list = new Set(S.cur.expertise || []);
         if (ex.checked) list.add(name); else list.delete(name);
@@ -521,11 +586,18 @@
     atk.appendChild(head3);
     for (const [n, a, d] of [['Wpn Name', 'Wpn1 AtkBonus', 'Wpn1 Damage'], ['Wpn Name 2', 'Wpn2 AtkBonus ', 'Wpn2 Damage '], ['Wpn Name 3', 'Wpn3 AtkBonus  ', 'Wpn3 Damage ']]) {
       const row = el('div', 'wpn');
-      row.append(plainInput(n, '', 'Attack name'), plainInput(a, '', 'Attack bonus'), plainInput(d, '', 'Damage and type'));
+      const nameBox = plainInput(n, '', 'Weapon (pick from the list)');
+      row.append(nameBox, plainInput(a, '', 'Attack bonus'), plainInput(d, '', 'Damage and type'));
+      if (!locked()) combo(nameBox, S.options.weapons.map((w) => ({ name: w.name, hint: w.category + ' · ' + w.dice + ' ' + w.type.toLowerCase(), weapon: w })), (it) => {
+        setValue(n, it ? it.name : '', null);
+        if (it) { const r = weaponNumbers(it.weapon); setValue(a, r.attack, null); setValue(d, r.damage, null); }
+      });
       atk.appendChild(row);
     }
     atk.appendChild(field('AttacksSpellcasting', '', { rows: 5 }));
+    atk.appendChild(el('div', 'hint', 'Pick a weapon from the list and the attack bonus and damage are worked out from the abilities and proficiency.'));
     mid.appendChild(atk);
+    mid.appendChild(armorCard());
 
     const money = card('Coins');
     const coins = el('div', 'coins');
@@ -583,11 +655,53 @@
         h.appendChild(slots);
       }
       box.appendChild(h);
-      for (const f of S.layout.spellLines[lvl] || []) box.appendChild(plainInput(f, 'line', (lvl === 0 ? 'Cantrip' : 'Level ' + lvl + ' spell')));
+      const here = S.options.spells.filter((sp) => sp.level === lvl).map((sp) => ({ name: sp.name, hint: sp.school + (sp.concentration ? ' · conc.' : '') + ' · ' + sp.classes.join(', ') }));
+      for (const f of S.layout.spellLines[lvl] || []) {
+        const inp = plainInput(f, 'line', (lvl === 0 ? 'Cantrip' : 'Level ' + lvl + ' spell') + ' (pick from the list)');
+        box.appendChild(inp);
+        if (!locked()) combo(inp, here, (it) => setValue(f, it ? it.name : '', null));
+      }
       grid.appendChild(box);
     }
     page.appendChild(grid);
     return page;
+  }
+
+  // Attack bonus and damage for a weapon: Strength, or Dexterity for ranged and finesse weapons (the better one for finesse), plus proficiency.
+  function weaponNumbers(w) {
+    const str = modOf(S.sheet.STR), dex = modOf(S.sheet.DEX);
+    const level = levelOfText(S.sheet.ClassLevel) || (S.cur && S.cur.level) || 1;
+    const m = w.ranged ? dex : w.props.includes('Finesse') ? Math.max(str, dex) : str;
+    return { attack: signed(m + profOf(level)), damage: w.dice ? w.dice + (m ? signed(m) : '') + ' ' + w.type.toLowerCase() : '' };
+  }
+
+  // Armor and shield come from the books: choosing them works out armor class (base, Dexterity up to the armor's limit, +2 for a shield).
+  function armorCard() {
+    const c = card('Armor and shield');
+    const row = el('div', 'grid g3');
+    const wrap = el('label', 'fld'); wrap.appendChild(el('span', '', 'Armor'));
+    const input = el('input'); input.type = 'text'; input.value = (S.cur && S.cur.armor) || ''; input.placeholder = 'None (unarmored)'; input.setAttribute('aria-label', 'Armor (pick from the list)');
+    wrap.appendChild(input);
+    const items = S.options.armor.filter((a) => a.category !== 'Shield').map((a) => ({ name: a.name, hint: a.category + ' · AC ' + a.base + (a.dexBonus ? ' + Dex' + (a.maxDex != null ? ' (max ' + a.maxDex + ')' : '') : ''), armor: a }));
+    const shieldWrap = el('label', 'fld'); shieldWrap.appendChild(el('span', '', 'Shield (+2)'));
+    const sh = el('input'); sh.type = 'checkbox'; sh.checked = Boolean(S.cur && S.cur.shield); sh.setAttribute('aria-label', 'Carries a shield');
+    shieldWrap.appendChild(sh);
+    const out = el('div', 'hint');
+    const apply = () => {
+      const a = (items.find((i) => i.name === (S.cur.armor || '')) || {}).armor;
+      const dex = modOf(S.sheet.DEX);
+      const base = a ? a.base + (a.dexBonus ? (a.maxDex != null ? Math.min(dex, a.maxDex) : dex) : 0) : 10 + dex;
+      const ac = base + (S.cur.shield ? 2 : 0);
+      out.textContent = (a ? a.name + ': ' + a.base + (a.dexBonus ? ' + Dexterity' + (a.maxDex != null ? ' (at most ' + a.maxDex + ')' : '') : '') : 'No armor: 10 + Dexterity') + (S.cur.shield ? ' + 2 for the shield' : '') + ' = AC ' + ac + (a && a.strMin && modOf(S.sheet.STR) < 0 ? '' : '') + (a && a.stealth ? ' · disadvantage on Stealth' : '') + (a && a.strMin ? ' · needs Strength ' + a.strMin : '');
+      setValue('AC', String(ac), null);
+    };
+    row.append(wrap, shieldWrap);
+    c.append(row, out);
+    input.readOnly = locked(); sh.disabled = locked();
+    if (!locked()) combo(input, items, (it) => { S.cur.armor = it ? it.name : ''; apply(); });
+    sh.addEventListener('change', () => { S.cur.shield = sh.checked; apply(); });
+    out.textContent = (S.cur && S.cur.armor ? S.cur.armor : 'No armor chosen') + (S.cur && S.cur.shield ? ' and a shield' : '') + ' (choose from the list to work out armor class)';
+    return c;
   }
 
   // Darkvision is kept on the character record (the tabletop reads it), not in the sheet fields.
@@ -597,6 +711,7 @@
     const input = el('input'); input.type = 'number'; input.min = '0'; input.max = '120'; input.step = '10';
     input.setAttribute('aria-label', 'Darkvision in feet');
     input.value = S.cur && S.cur.darkvision ? String(S.cur.darkvision) : '0';
+    input.readOnly = locked();
     input.addEventListener('input', () => { if (S.cur) { S.cur.darkvision = clamp(parseInt(input.value, 10) || 0, 0, 120); markDirty(); } });
     wrap.appendChild(input);
     return wrap;
@@ -670,7 +785,7 @@
 
   /* ---------------- saving ---------------- */
   async function save() {
-    if (!S.cur) return;
+    if (!S.cur || locked()) return;
     const sheetName = String(S.sheet.CharacterName || '').trim();
     if (!sheetName) { setStatus('Enter a Character Name on the sheet first', 'bad'); return; }
     const payload = charFromSheet(S.cur, S.sheet);
@@ -684,11 +799,8 @@
       S.chars.sort((a, b) => a.name.localeCompare(b.name));
       S.cur = JSON.parse(JSON.stringify(saved));
       S.dirty = false;
-      $('#delBtn').disabled = false;
-      renderList();
-      renderLog();
-      updateWho();
-      setStatus('Saved', 'ok');
+      open(S.cur);                                   // a saved sheet is read only
+      setStatus('Saved. The sheet is now read only: the DM changes it in play.', 'ok');
       try { history.replaceState(null, '', '?id=' + encodeURIComponent(saved.id)); } catch { /* not critical */ }
     } catch (err) {
       setStatus('Could not save: ' + err.message, 'bad');
@@ -776,7 +888,7 @@
   }
 
   function openPicker() {
-    if (!S.cur) return;
+    if (!S.cur || locked()) return;
     $('#modal').classList.add('open');
     renderPicker();
     $('#mFind').focus();
@@ -819,6 +931,7 @@
   window.addEventListener('beforeunload', (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
   async function start() {
+    try { S.options = await api('/api/sheet-options'); } catch { /* the lists stay empty: the boxes are then plain text */ }
     try { S.layout = await api('/api/sheet-layout'); } catch (err) { setStatus('Could not load the sheet layout: ' + err.message, 'bad'); }
     await loadTokens();
     try { S.chars = await api('/api/characters'); } catch (err) { setStatus('Could not load characters: ' + err.message, 'bad'); S.chars = []; }
@@ -828,6 +941,20 @@
     const c = S.chars.find((x) => x.id === wanted) || S.chars[0];
     if (c) open(JSON.parse(JSON.stringify(c)));
   }
+  // A read-only sheet follows what the DM changes in play: look again when the tab comes back into view.
+  async function refreshLocked() {
+    if (!S.cur || !S.cur.id || S.dirty || document.visibilityState !== 'visible') return;
+    try {
+      const all = await api('/api/characters');
+      const now = all.find((c) => c.id === S.cur.id);
+      if (now && JSON.stringify(now) !== JSON.stringify(S.chars.find((c) => c.id === now.id))) {
+        S.chars = all.sort((a, b) => a.name.localeCompare(b.name));
+        open(JSON.parse(JSON.stringify(now)));
+      }
+    } catch { /* offline: keep what is shown */ }
+  }
+  document.addEventListener('visibilitychange', refreshLocked);
+  window.addEventListener('focus', refreshLocked);
   window.addEventListener('pagehide', () => { if (S.cur && S.cur.id) store.set('vtt.sheets.last', S.cur.id); });
   window.sheetPage = { state: S, charFromSheet, sheetFromChar, setValue, recalc };
   start();

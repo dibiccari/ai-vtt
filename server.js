@@ -114,6 +114,8 @@ function normalizeCharacter(body) {
     image: TOKEN_URL_RE.test(body.image ?? '') ? body.image : '',
     ...(Object.keys(sheet).length ? { sheet } : {}),
     darkvision: int(body.darkvision, 0, 0, 120),
+    ...(String(body.armor ?? '').trim() ? { armor: String(body.armor).trim().slice(0, 60) } : {}),
+    ...(body.shield === true ? { shield: true } : {}),
     ...(campaigns.length ? { campaigns } : {}),
     ...(body.track && typeof body.track === 'object' ? { track: normalizeTrack(body.track) } : {}),
     ...(Array.isArray(body.inventory) ? { inventory: normalizeInventory(body.inventory) } : {}),
@@ -179,6 +181,22 @@ const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 const SHEET_FIELDS = JSON.parse(await readFile(path.join(__dirname, 'lib', 'sheet-fields.json'), 'utf8'));
 app.get('/api/sheet-layout', (_req, res) => res.json({ skills: SKILLS, saves: SAVES, spellLines: SHEET_FIELDS.spellLines, slots: SHEET_FIELDS.slots }));
 
+// The real things a sheet can pick from (SRD 5.1): spells, weapons, armor and shields, with what is needed to work out attack bonus, damage and armor class.
+let sheetOptionsCache = null;
+app.get('/api/sheet-options', asyncRoute(async (_req, res) => {
+  if (!sheetOptionsCache) {
+    const spells = JSON.parse(await readFile(path.join(__dirname, 'data', 'srd', 'spells.json'), 'utf8'));
+    const equipment = JSON.parse(await readFile(path.join(__dirname, 'data', 'srd', 'equipment.json'), 'utf8'));
+    const cat = (e) => e.equipment_category?.index;
+    sheetOptionsCache = {
+      spells: spells.map((s) => ({ name: s.name, level: s.level, school: s.school?.name || '', classes: (s.classes || []).map((c) => c.name), concentration: Boolean(s.concentration), ritual: Boolean(s.ritual) })).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name)),
+      weapons: equipment.filter((e) => cat(e) === 'weapon').map((e) => ({ name: e.name, category: e.category_range || '', ranged: e.weapon_range === 'Ranged', dice: e.damage?.damage_dice || '', type: e.damage?.damage_type?.name || '', props: (e.properties || []).map((p) => p.name), range: e.range ? (e.range.long ? `${e.range.normal}/${e.range.long} ft` : `${e.range.normal} ft`) : '', versatile: e.two_handed_damage?.damage_dice || '' })).sort((a, b) => a.name.localeCompare(b.name)),
+      armor: equipment.filter((e) => cat(e) === 'armor').map((e) => ({ name: e.name, category: e.armor_category || '', base: e.armor_class?.base ?? 10, dexBonus: e.armor_class?.dex_bonus !== false, maxDex: e.armor_class?.max_bonus ?? (e.armor_category === 'Medium' ? 2 : null), strMin: e.str_minimum || 0, stealth: Boolean(e.stealth_disadvantage) })).sort((a, b) => a.name.localeCompare(b.name))
+    };
+  }
+  res.json(sheetOptionsCache);
+}));
+
 app.get('/api/characters', asyncRoute(async (req, res) => {
   const rules = (await readSettings(path.join(CAMPAIGNS_DIR, await getActiveCampaignId()))).rules === '2024' ? '2024' : '2014';
   // effSpeed / effMaxHp: what exhaustion leaves (the tabletop moves and heals by these; the stored speed and maximum stay as they are).
@@ -214,6 +232,8 @@ app.post('/api/characters', asyncRoute(async (req, res) => {
       if (req.body?.inventory === undefined && old.inventory) character.inventory = normalizeInventory(old.inventory);
       if (req.body?.coins === undefined && old.coins) character.coins = normalizeCoins(old.coins);
       if (req.body?.campaigns === undefined && old.campaigns?.length) character.campaigns = old.campaigns;
+      if (req.body?.armor === undefined && old.armor) character.armor = old.armor;
+      if (req.body?.shield === undefined && old.shield) character.shield = true;
       if (req.body?.darkvision === undefined && old.darkvision) character.darkvision = int(old.darkvision, 0, 0, 120);
     } catch { /* new character: nothing to keep */ }
   }
