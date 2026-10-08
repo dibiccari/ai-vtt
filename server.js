@@ -396,7 +396,10 @@ function normalizeMapConfig(body) {
 
 app.get('/api/map-config', asyncRoute(async (req, res) => {
   try {
-    res.json({ config: await readMapConfig(req.query.map) });
+    const config = await readMapConfig(req.query.map);
+    const { index } = await ensureSets();
+    const hit = index.get(currentMapName(req.query.map));
+    res.json({ config, setVersion: hit ? hit.set.version || 1 : 0 });
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
     res.json({ config: null });
@@ -509,6 +512,12 @@ app.get('/api/map-areas', asyncRoute(async (req, res) => {
 app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   const config = normalizeMapConfig(req.body);
   const file = req.query.map;
+  // A page that was open before the map changed elsewhere (another tab, a script) must not write its old copy over the newer one.
+  if (Number.isFinite(req.body?.baseVersion)) {
+    const { index } = await ensureSets();
+    const hit = index.get(currentMapName(file));
+    if (hit && (hit.set.version || 1) !== req.body.baseVersion) return res.status(409).json({ error: 'This map was changed somewhere else since this page loaded it. Reload the page, then make your change again.', version: hit.set.version || 1 });
+  }
   // The Map Test page does not know about lights: keep the ones already saved.
   if (!config.lights) {
     try {
@@ -534,7 +543,9 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
     } catch { /* no earlier config */ }
   }
   await writeMapConfig(file, config);
-  res.json({ ok: true, walls: config.walls.length });
+  const { index: after } = await ensureSets();
+  const now = after.get(currentMapName(file));
+  res.json({ ok: true, walls: config.walls.length, version: now ? now.set.version || 1 : 0 });
 }));
 
 // ---------------------------------------------------------------- Market (maps saved as packs: data/market/<id>/pack.json + picture, lib/market.js)

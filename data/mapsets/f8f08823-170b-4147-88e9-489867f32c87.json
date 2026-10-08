@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 67,
+  "version": 86,
   "id": "f8f08823-170b-4147-88e9-489867f32c87",
   "slug": "vtt-crypt-method-a",
   "name": "Crypt Method A",
@@ -851,14 +851,6 @@
           "open": false
         },
         {
-          "x1": 749,
-          "y1": 532,
-          "x2": 749,
-          "y2": 883,
-          "type": "wall",
-          "open": false
-        },
-        {
           "x1": 301,
           "y1": 601,
           "x2": 456,
@@ -1373,8 +1365,16 @@
         {
           "x1": 603,
           "y1": 569,
+          "x2": 750.4,
+          "y2": 570.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 750.4,
+          "y1": 570.1,
           "x2": 749,
-          "y2": 569,
+          "y2": 883,
           "type": "wall",
           "open": false
         }

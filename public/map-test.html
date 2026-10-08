@@ -213,9 +213,17 @@
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
+    <button class="tool" data-tool="walls" aria-pressed="false" title="Walls: click a point, then click where the wall ends (the next click carries on from there; Esc or a right-click stops), or drag from one point to another; click a wall to select it, drag its end to move it (corners that meet move together; hold Alt to move just one end), drag the middle to move the whole wall, drag on empty ground to draw a new wall (ends snap to other walls; hold Shift for straight lines), right-click a wall or press Delete to remove it. Ctrl+Z undoes.">Walls</button>
     <span class="view-switch" id="terrainPair">
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
     <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
+    </span>
+    <span id="wallBox" class="brush-box" hidden>
+      <select id="wallType" title="What the selected wall is" disabled><option value="wall">Wall</option><option value="door">Door</option><option value="fence">Fence / window</option></select>
+      <button id="wallDelete" disabled title="Delete the selected wall (Delete key)">Delete</button>
+      <button id="wallUndo" disabled title="Undo the last wall change (Ctrl+Z)">Undo</button>
+      <button id="wallProblems" title="Find walls that cross, or almost meet but do not touch">Find problems</button>
+      <span id="wallInfo"></span>
     </span>
     <label id="brushBox" class="brush-box" hidden title="Brush size in squares across ([ and ] change it)">Brush <input type="range" id="brush" min="1" max="12" step="1" value="2"> <b id="brushVal">2</b></label>
   </div>
@@ -253,6 +261,7 @@
   window.mapTest = { state: S };                       // a handle for the automated browser tests
 
   const cell = () => S.W / S.squares;
+  S.wallUndo = []; S.wallSel = null; S.problems = []; S.problemIx = -1; S.setVersion = 0; S.stale = false;
   S.onlyUvtt = store.get('vtt.maptest.onlyUvtt', true) !== false;
   const testKey = () => `vtt.maptest.${S.url}`;
 
@@ -330,13 +339,17 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, wallDepth: S.wallDepth });
-    pendingSave = async () => {
+    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, wallDepth: S.wallDepth }));;
+    pendingSave = () => { saveChain = saveChain.then(sendSave, sendSave); return saveChain; };
+    const sendSave = async () => {
+      if (S.stale) { setSavedNote('Not saved: this map was changed elsewhere. Reload the page.'); return; }
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...fields, baseVersion: S.setVersion })
         });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'HTTP ' + res.status);
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) { if (res.status === 409) S.stale = true; throw new Error(out.error || 'HTTP ' + res.status); }
+        if (Number.isFinite(out.version)) S.setVersion = out.version;
         setSavedNote('Saved to the server');
       } catch (err) {
         setSavedNote('Not saved to the server: ' + err.message);
@@ -344,7 +357,7 @@
     };
     serverSaveTimer = setTimeout(() => { const run = pendingSave; pendingSave = null; if (run) run(); }, 500);
   }
-  let pendingSave = null;
+  let pendingSave = null, saveChain = Promise.resolve();
   // A change waiting for its half second is written now, so the next look of the same place reads it.
   async function flushSave() {
     clearTimeout(serverSaveTimer);
@@ -362,7 +375,10 @@
   async function fetchServerConfig(name) {
     try {
       const res = await fetch('/api/map-config?map=' + encodeURIComponent(name));
-      return res.ok ? (await res.json()).config : null;
+      if (!res.ok) return null;
+      const data = await res.json();
+      S.setVersion = data.setVersion || 0; S.stale = false;
+      return data.config;
     } catch { return null; }
   }
 
@@ -559,6 +575,7 @@
 
     drawTokenLight();
     if (S.showWalls) drawWalls(px);
+    if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
     if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }                 // the players never see the terrain shading, the pins or the start area
     drawTokens(px);
@@ -1048,6 +1065,7 @@
         S.squares = saved && saved.squares > 0 ? saved.squares : Math.max(5, Math.round(S.W / 50));
         S.walls = cleanWalls(saved && saved.walls);
         S.starts = [];
+        S.wallUndo = []; S.wallSel = null; S.problems = []; S.problemIx = -1;
         S.difficult = [];
         S.tokens = (saved && Array.isArray(saved.tokens) ? saved.tokens : [])
           .filter((t) => t && isFinite(t.x) && isFinite(t.y))
@@ -1243,6 +1261,10 @@
   function setTool(tool) {
     S.tool = tool;
     if (tool !== 'start') S.selected = null;
+    if (tool !== 'walls') { S.wallSel = null; S.wallPen = null; }
+    if (tool === 'walls' && !S.showWalls) { S.showWalls = true; $('#showWalls').checked = true; }
+    $('#wallBox').hidden = tool !== 'walls';
+    if (tool === 'walls') syncWallBox();
     positionPinCard();
     $('#brushBox').hidden = !isTerrainTool();
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
@@ -1318,6 +1340,188 @@
     revealFog();
   }
 
+  /* ---------------- wall editor (Walls tool) ---------------- */
+  const round1 = (v) => Math.round(v * 10) / 10;
+  function wallSnapshot() { S.wallUndo.push(JSON.stringify(S.walls)); if (S.wallUndo.length > 80) S.wallUndo.shift(); syncWallBox(); }
+  function afterWallEdit() { S.problems = []; S.problemIx = -1; wallsChanged(); syncWallBox(); requestRender(); }
+  function wallUndo() {
+    const snap = S.wallUndo.pop();
+    if (!snap) return;
+    S.walls = JSON.parse(snap); S.wallSel = null;
+    afterWallEdit();
+  }
+  function deleteWall() {
+    if (!S.wallSel) return;
+    wallSnapshot();
+    S.walls.splice(S.walls.indexOf(S.wallSel), 1); S.wallSel = null;
+    afterWallEdit();
+  }
+  function syncWallBox() {
+    const sel = S.wallSel;
+    $('#wallType').disabled = !sel; $('#wallDelete').disabled = !sel; $('#wallUndo').disabled = !S.wallUndo.length;
+    if (sel) $('#wallType').value = sel.type === 'door' ? 'door' : sel.type === 'fence' ? 'fence' : 'wall';
+    if (!S.problems.length) $('#wallInfo').textContent = sel ? Math.round(Math.hypot(sel.x2 - sel.x1, sel.y2 - sel.y1) / cell() * 5) + ' ft long' : S.walls.length + ' walls';
+  }
+  // The wall end under the pointer (within a few screen pixels), as {w, k} where k is 1 or 2.
+  function endpointAt(p) {
+    const tol = 9 / S.view.scale;
+    let best = null, bd = tol;
+    const order = S.wallSel ? [S.wallSel, ...S.walls] : S.walls;
+    for (const w of order) for (const k of [1, 2]) {
+      const d = Math.hypot(p.x - w['x' + k], p.y - w['y' + k]);
+      if (d < bd - 1e-6) { bd = d; best = { w, k }; }
+    }
+    return best;
+  }
+  // Snap a point to a nearby wall end (not one of the ends being moved), so corners meet exactly.
+  function snapToEnds(p, skip) {
+    const tol = 10 / S.view.scale;
+    let best = null, bd = tol;
+    for (const w of S.walls) for (const k of [1, 2]) {
+      if (skip && skip.some((g) => g.w === w && g.k === k)) continue;
+      const d = Math.hypot(p.x - w['x' + k], p.y - w['y' + k]);
+      if (d < bd) { bd = d; best = { x: w['x' + k], y: w['y' + k] }; }
+    }
+    return best || { x: round1(clamp(p.x, 0, S.W)), y: round1(clamp(p.y, 0, S.H)) };
+  }
+  // Click, then click again: a wall from the first point to the second; the second point starts the next wall, so a run of walls is a run of clicks (Esc, or a right-click, stops).
+  function penEnd(e, p) {
+    let t = snapToEnds(p, null);
+    if (e && e.shiftKey && S.wallPen) t = Math.abs(p.x - S.wallPen.x) > Math.abs(p.y - S.wallPen.y) ? { x: round1(p.x), y: S.wallPen.y } : { x: S.wallPen.x, y: round1(p.y) };
+    return t;
+  }
+  function wallDown(e, p) {
+    if (S.wallPen) {
+      const t = penEnd(e, p);
+      if (Math.hypot(t.x - S.wallPen.x, t.y - S.wallPen.y) >= 4 / S.view.scale) {
+        wallSnapshot();
+        const w = { x1: S.wallPen.x, y1: S.wallPen.y, x2: t.x, y2: t.y, type: 'wall', open: false };
+        S.walls.push(w); S.wallSel = w; S.wallPen = { x: t.x, y: t.y };
+        afterWallEdit();
+      }
+      return;
+    }
+    if (p.x < -20 || p.y < -20 || p.x > S.W + 20 || p.y > S.H + 20) return;
+    const ep = endpointAt(p);
+    if (ep) {
+      S.wallSel = ep.w;
+      const x = ep.w['x' + ep.k], y = ep.w['y' + ep.k];
+      const group = e.altKey ? [ep] : [];
+      if (!e.altKey) for (const w of S.walls) for (const k of [1, 2]) if (Math.hypot(w['x' + k] - x, w['y' + k] - y) < 0.6) group.push({ w, k });
+      S.drag = { kind: 'wallpt', group, snap: JSON.stringify(S.walls), moved: false };
+      syncWallBox(); requestRender(); return;
+    }
+    const w = nearestWall(p, false);
+    if (w) {
+      S.wallSel = w;
+      S.drag = { kind: 'wallmove', w, sx: p.x, sy: p.y, orig: { x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2 }, snap: JSON.stringify(S.walls), moved: false };
+      syncWallBox(); requestRender(); return;
+    }
+    const a = snapToEnds(p, null);
+    S.wallSel = null;
+    S.drag = { kind: 'wallnew', x1: a.x, y1: a.y, x2: a.x, y2: a.y, snap: JSON.stringify(S.walls), moved: false };
+    syncWallBox(); requestRender();
+  }
+  function wallMove(e, p) {
+    const d = S.drag;
+    if (d.kind === 'wallpt') {
+      let t = snapToEnds(p, d.group);
+      if (e.shiftKey) {                                                 // keep it straight: level or plumb with the far end of the first wall
+        const g = d.group[0], ox = g.w['x' + (g.k === 1 ? 2 : 1)], oy = g.w['y' + (g.k === 1 ? 2 : 1)];
+        t = Math.abs(p.x - ox) > Math.abs(p.y - oy) ? { x: round1(p.x), y: oy } : { x: ox, y: round1(p.y) };
+      }
+      for (const g of d.group) { g.w['x' + g.k] = t.x; g.w['y' + g.k] = t.y; }
+      d.moved = true; queueReveal();
+    } else if (d.kind === 'wallmove') {
+      const dx = round1(p.x - d.sx), dy = round1(p.y - d.sy);
+      if (Math.abs(dx) + Math.abs(dy) < 0.5) return;
+      const w = d.w; w.x1 = round1(d.orig.x1 + dx); w.y1 = round1(d.orig.y1 + dy); w.x2 = round1(d.orig.x2 + dx); w.y2 = round1(d.orig.y2 + dy);
+      d.moved = true; queueReveal();
+    } else {
+      let t = snapToEnds(p, null);
+      if (e.shiftKey) t = Math.abs(p.x - d.x1) > Math.abs(p.y - d.y1) ? { x: round1(p.x), y: d.y1 } : { x: d.x1, y: round1(p.y) };
+      d.x2 = t.x; d.y2 = t.y; d.moved = true;
+    }
+  }
+  function wallUp(d) {
+    if (!d.moved && d.kind !== 'wallnew') { syncWallBox(); return; }
+    if (d.kind === 'wallnew') {
+      if (Math.hypot(d.x2 - d.x1, d.y2 - d.y1) < 4 / S.view.scale) { S.wallPen = { x: d.x1, y: d.y1 }; $('#wallInfo').textContent = 'Click where the wall ends (Esc stops)'; requestRender(); return; }
+      S.wallUndo.push(d.snap);
+      const w = { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, type: 'wall', open: false };
+      S.walls.push(w); S.wallSel = w;
+    } else S.wallUndo.push(d.snap);
+    S.walls = S.walls.filter((w) => Math.hypot(w.x2 - w.x1, w.y2 - w.y1) > 0.5);       // a wall dragged down to nothing is gone
+    if (S.wallSel && !S.walls.includes(S.wallSel)) S.wallSel = null;
+    afterWallEdit();
+  }
+  function drawWallEditor(px) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const w of S.walls) for (const k of [1, 2]) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillRect(w['x' + k] - 2.5 * px, w['y' + k] - 2.5 * px, 5 * px, 5 * px);
+    }
+    const hov = S.hover && !S.drag ? nearestWall(S.hover, false) : null;
+    if (hov && hov !== S.wallSel) { ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 7 * px; ctx.beginPath(); ctx.moveTo(hov.x1, hov.y1); ctx.lineTo(hov.x2, hov.y2); ctx.stroke(); }
+    const sel = S.wallSel;
+    if (sel) {
+      ctx.strokeStyle = 'rgba(80,200,255,0.9)'; ctx.lineWidth = 7 * px; ctx.beginPath(); ctx.moveTo(sel.x1, sel.y1); ctx.lineTo(sel.x2, sel.y2); ctx.stroke();
+      ctx.fillStyle = '#50c8ff'; for (const k of [1, 2]) { ctx.beginPath(); ctx.arc(sel['x' + k], sel['y' + k], 6 * px, 0, Math.PI * 2); ctx.fill(); }
+    }
+    if (S.wallPen && S.hover) { const t = penEnd(null, S.hover); ctx.setLineDash([8 * px, 6 * px]); ctx.strokeStyle = 'rgba(80,200,255,0.9)'; ctx.lineWidth = 4 * px; ctx.beginPath(); ctx.moveTo(S.wallPen.x, S.wallPen.y); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#50c8ff'; ctx.beginPath(); ctx.arc(S.wallPen.x, S.wallPen.y, 5 * px, 0, Math.PI * 2); ctx.fill(); }
+    const nw = S.drag && S.drag.kind === 'wallnew' ? S.drag : null;
+    if (nw) { ctx.setLineDash([8 * px, 6 * px]); ctx.strokeStyle = 'rgba(80,200,255,0.9)'; ctx.lineWidth = 4 * px; ctx.beginPath(); ctx.moveTo(nw.x1, nw.y1); ctx.lineTo(nw.x2, nw.y2); ctx.stroke(); ctx.setLineDash([]); }
+    (S.problems || []).forEach((pr, i) => { ctx.strokeStyle = i === S.problemIx ? '#ffd23c' : '#ff5b5b'; ctx.lineWidth = (i === S.problemIx ? 4 : 2.5) * px; ctx.beginPath(); ctx.arc(pr.x, pr.y, 12 * px, 0, Math.PI * 2); ctx.stroke(); });
+    ctx.restore();
+  }
+  // Walls that cross, walls that end close to another wall without touching it, and walls too short to see.
+  function findWallProblems() {
+    const W = S.walls, out = [], tol = Math.max(6, cell() * 0.35), eps = 0.6;
+    const seen = new Set();
+    const add = (x, y, kind) => { const key = Math.round(x / 4) + ',' + Math.round(y / 4) + kind; if (!seen.has(key)) { seen.add(key); out.push({ x, y, kind }); } };
+    for (let i = 0; i < W.length; i++) for (let j = i + 1; j < W.length; j++) {
+      const a = W[i], b = W[j];
+      const d1 = a.x2 - a.x1, e1 = a.y2 - a.y1, d2 = b.x2 - b.x1, e2 = b.y2 - b.y1, den = d1 * e2 - e1 * d2;
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((b.x1 - a.x1) * e2 - (b.y1 - a.y1) * d2) / den, u = ((b.x1 - a.x1) * e1 - (b.y1 - a.y1) * d1) / den;
+      const ea = eps / Math.hypot(d1, e1), eb = eps / Math.hypot(d2, e2);
+      if (t > ea && t < 1 - ea && u > eb && u < 1 - eb) add(a.x1 + t * d1, a.y1 + t * e1, 'cross');
+    }
+    for (const w of W) {
+      if (Math.hypot(w.x2 - w.x1, w.y2 - w.y1) < 3) add(w.x1, w.y1, 'tiny');
+      for (const k of [1, 2]) {
+        const x = w['x' + k], y = w['y' + k];
+        for (const o of W) {
+          if (o === w) continue;
+          const d = pointSegmentDistance(x, y, o);
+          if (d > eps && d <= tol) add(x, y, 'gap');
+        }
+      }
+    }
+    return out;
+  }
+  const PROBLEM_TEXT = { cross: 'two walls cross', gap: 'a wall ends close to another without touching it', tiny: 'a very short wall' };
+  function nextProblem() {
+    if (!S.problems.length || S.problemIx < 0) { S.problems = findWallProblems(); S.problemIx = -1; }
+    if (!S.problems.length) { $('#wallInfo').textContent = 'No problems found'; requestRender(); return; }
+    S.problemIx = (S.problemIx + 1) % S.problems.length;
+    const pr = S.problems[S.problemIx];
+    S.view.ox = $('#stage').clientWidth / 2 - pr.x * S.view.scale; S.view.oy = $('#stage').clientHeight / 2 - pr.y * S.view.scale;
+    $('#wallInfo').textContent = 'Problem ' + (S.problemIx + 1) + ' of ' + S.problems.length + ': ' + PROBLEM_TEXT[pr.kind];
+    requestRender();
+  }
+  $('#wallProblems').addEventListener('click', nextProblem);
+  $('#wallDelete').addEventListener('click', deleteWall);
+  $('#wallUndo').addEventListener('click', wallUndo);
+  $('#wallType').addEventListener('change', (e) => {
+    const w = S.wallSel; if (!w) return;
+    wallSnapshot();
+    w.type = e.target.value;
+    if (w.type !== 'door') { w.open = false; delete w.locked; delete w.secret; delete w.dc; }
+    afterWallEdit();
+  });
+
   /* ---------------- pointer input ---------------- */
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -1334,6 +1538,8 @@
 
     if (e.button === 2) {
       if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
+      if (S.tool === 'walls' && S.wallPen) { S.wallPen = null; syncWallBox(); requestRender(); return; }
+      if (S.tool === 'walls') { const w = nearestWall(p, false); if (w) { wallSnapshot(); S.walls.splice(S.walls.indexOf(w), 1); if (S.wallSel === w) S.wallSel = null; afterWallEdit(); } return; }
       if (isTerrainTool()) {
         try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
         S.drag = { kind: 'brush', erase: true, last: p, cells: cellsOfRects() };
@@ -1379,6 +1585,8 @@
       parkAtStart(); revealFog();
       save();
       selectPin(pin, true);
+    } else if (S.tool === 'walls') {
+      wallDown(e, p);
     } else if (isTerrainTool()) {
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
@@ -1388,7 +1596,7 @@
   }
 
   // Clicking a door opens or closes it, whichever tool is chosen (the terrain brush excepted); a locked door stays shut and a secret door is a wall until it is revealed.
-  const doorUnder = (p) => (isTerrainTool() ? null : nearestWall(p, true));
+  const doorUnder = (p) => (isTerrainTool() || S.tool === 'walls' ? null : nearestWall(p, true));
   function clickDoor(w) {
     if (w.secret) { if (S.viewAs === 'dm') setSavedNote('That is a secret door: it stays a wall until it is revealed (Doors list).'); return; }
     if (w.locked && !w.open) { setSavedNote('That door is locked: unlock it in the Doors list first.'); return; }
@@ -1419,6 +1627,8 @@
     } else if (S.drag && S.drag.kind === 'brush') {
       brushStroke(S.drag.last, p, S.drag.erase);
       S.drag.last = p;
+    } else if (S.drag && ['wallpt', 'wallmove', 'wallnew'].includes(S.drag.kind)) {
+      wallMove(e, p);
     } else if (S.drag && S.drag.kind === 'start') {
       S.drag.spot.x = Math.round(clamp(p.x, 0, S.W));
       S.drag.spot.y = Math.round(clamp(p.y, 0, S.H));
@@ -1441,6 +1651,7 @@
     if (kind === 'token') save();
     if (kind === 'start') { if (drag.spot.name === 'start') parkAtStart(); save(); renderStartList(); revealFog(); requestRender(); }
     if (kind === 'brush') { S.difficultSquares = null; save(); }
+    if (['wallpt', 'wallmove', 'wallnew'].includes(kind)) wallUp(drag);
     setTool(S.tool);
   }
   cv.addEventListener('pointerup', endDrag);
@@ -1464,6 +1675,11 @@
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.key === ' ') { S.spaceDown = true; e.preventDefault(); }
     if ((e.key === 'Delete' || e.key === 'Backspace') && S.tool === 'start' && S.selected) { e.preventDefault(); removePin(S.selected); }
+    if (S.tool === 'walls') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && S.wallSel) { e.preventDefault(); deleteWall(); }
+      else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); wallUndo(); }
+      else if (e.key === 'Escape') { S.wallSel = null; S.wallPen = null; syncWallBox(); requestRender(); }
+    }
   });
   window.addEventListener('keyup', (e) => { if (e.key === ' ') S.spaceDown = false; });
 
@@ -1740,7 +1956,8 @@
     // The player view has no editing of pins or terrain: those buttons go away, and a tool that is no longer there gives way to the Token tool.
     const player = v === 'player';
     document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player;
-    if (player && ['start', 'terrain', 'eraser'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
+    document.querySelectorAll('button.tool[data-tool="walls"]').forEach((b) => { b.hidden = player; });
+    if (player && ['start', 'terrain', 'eraser', 'walls'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
     if (player) $('#brushBox').hidden = true;
     updateViewUi(); resetFog(); requestRender();
   }

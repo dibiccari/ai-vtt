@@ -229,3 +229,56 @@ test('the Publisher filter narrows the map list, and switching Day to Night keep
 });
 
 test('no page errors in Map Test', opts, () => { assert.deepEqual(page.problems, []); });
+
+// The Walls tool: draw, select and move an end, Find problems, undo, delete; and a stale page cannot overwrite a newer copy.
+const wallDrag = (x0, y0, x1, y1, opts = '{}') => `(async () => {
+  document.querySelector('button.tool[data-tool="walls"]').click();
+  const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect(), o = ${opts};
+  const ev = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { clientX: b.left + x, clientY: b.top + y, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 7, bubbles: true, shiftKey: !!o.shift, altKey: !!o.alt }));
+  ev('pointerdown', ${x0}, ${y0});
+  for (let i = 1; i <= 8; i++) ev('pointermove', ${x0} + (${x1} - ${x0}) * i / 8, ${y0} + (${y1} - ${y0}) * i / 8);
+  ev('pointerup', ${x1}, ${y1});
+  await new Promise((r) => setTimeout(r, 100));
+  const S = window.mapTest.state;
+  return { n: S.walls.length, sel: S.wallSel ? [S.wallSel.x1, S.wallSel.y1, S.wallSel.x2, S.wallSel.y2] : null, undo: S.wallUndo.length };
+})()`;
+
+test('the Walls tool draws a wall, finds crossings, moves an end and undoes', opts, async () => {
+  await page.eval(`(() => { const S = window.mapTest.state; S.walls = []; S.wallUndo = []; document.querySelector('button.tool[data-tool="walls"]').click(); })()`);
+  const base = await page.eval(`window.mapTest.state.walls.length`);
+  assert.equal(base, 0);
+  const a = await page.eval(wallDrag(300, 300, 500, 300));
+  assert.equal(a.n, 1, 'a drag on empty ground draws a wall'); assert.ok(a.sel, 'the new wall is selected');
+  const b = await page.eval(wallDrag(400, 200, 400, 400));
+  assert.equal(b.n, 2);
+  const probs = await page.eval(`(() => { document.querySelector('#wallProblems').click(); const S = window.mapTest.state; return { n: S.problems.length, kinds: S.problems.map((p) => p.kind), info: document.querySelector('#wallInfo').textContent }; })()`);
+  assert.deepEqual(probs.kinds, ['cross'], 'two walls that cross are found: ' + JSON.stringify(probs));
+  const end = await page.eval(`(() => { const S = window.mapTest.state, w = S.walls[0], r = document.querySelector('canvas').getBoundingClientRect(); return { sx: S.view.ox + w.x2 * S.view.scale, sy: S.view.oy + w.y2 * S.view.scale, x2: w.x2, y2: w.y2 }; })()`);
+  const moved = await page.eval(wallDrag(end.sx, end.sy, end.sx + 60, end.sy + 40));
+  const after = await page.eval(`(() => { const w = window.mapTest.state.walls[0]; return [w.x2, w.y2]; })()`);
+  assert.ok(after[0] > end.x2 && after[1] > end.y2, 'dragging a wall end moves it: ' + JSON.stringify({ end, after, moved }));
+  const undone = await page.eval(`(() => { for (let i = 0; i < 3; i++) document.querySelector('#wallUndo').click(); return window.mapTest.state.walls.length; })()`);
+  assert.equal(undone, 0, 'undo takes the drawn walls back out');
+});
+
+test('a page that loaded an older version of the map cannot save over a newer one', opts, async () => {
+  const res = await page.eval(`(async () => {
+    const get = await (await fetch('/api/map-config?map=${MAP}')).json();
+    const put = (v) => fetch('/api/map-config?map=${MAP}', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...get.config, baseVersion: v }) }).then((r) => r.status);
+    const fresh = await put(get.setVersion), stale = await put(get.setVersion);
+    return { fresh, stale, version: get.setVersion };
+  })()`);
+  assert.equal(res.fresh, 200); assert.equal(res.stale, 409, 'the second save from the same old version is refused');
+});
+
+test('the Walls tool also draws by clicking one point and then another, and carries on from the last point', opts, async () => {
+  const click = (x, y) => `(() => { const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect(); for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { clientX: b.left + ${x}, clientY: b.top + ${y}, button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 9, bubbles: true })); return window.mapTest.state.walls.length; })()`;
+  await page.eval(`(() => { const S = window.mapTest.state; S.walls = []; S.wallUndo = []; S.wallPen = null; document.querySelector('button.tool[data-tool="walls"]').click(); })()`);
+  assert.equal(await page.eval(click(300, 300)), 0, 'the first click only marks the start');
+  assert.equal(await page.eval(click(500, 300)), 1, 'the second click makes the wall');
+  assert.equal(await page.eval(click(500, 450)), 2, 'the next click carries on from the last point');
+  const joined = await page.eval(`(() => { const [a, b] = window.mapTest.state.walls; return a.x2 === b.x1 && a.y2 === b.y1; })()`);
+  assert.ok(joined, 'the second wall starts exactly where the first ended');
+  await page.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+  assert.equal(await page.eval(`window.mapTest.state.wallPen`), null, 'Escape stops the run');
+});
