@@ -4,8 +4,8 @@
   "starts": [
     {
       "name": "start",
-      "x": 245,
-      "y": 735,
+      "x": 145,
+      "y": 610,
       "radius": 2
     },
     {
@@ -35,6 +35,7 @@
   ],
   "light": "bright",
   "ambience": "forest",
+  "kind": "battle",
   "source": "dd2vtt",
   "lights": [
     {

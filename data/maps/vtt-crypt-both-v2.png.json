@@ -1333,14 +1333,15 @@
   "starts": [
     {
       "name": "start",
-      "x": 380,
-      "y": 420,
+      "x": 341,
+      "y": 221,
       "radius": 2
     }
   ],
   "light": "dark",
   "ambience": "dungeon",
   "mood": "dungeon",
+  "kind": "battle",
   "source": "dd2vtt",
   "lights": [
     {

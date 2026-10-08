@@ -33,7 +33,6 @@
   <p class="lead">The ChatGPT brief says "strictly overhead, orthographic, no perspective" (below), and the three ChatGPT versions were redone. Claude's own map is unchanged, since it was already drawn from straight above. Same size, 1536 x 1024, 30 x 20 squares. Pick a version and try it: Token tool, click in a room, watch the fog and the line of sight; untick "DM view" to see what a player sees.</p>
 
   <div class="tabs" id="tabs" role="group" aria-label="Which map">
-    <button data-m="vtt-crypt-chatgpt-v2" aria-pressed="false">2. ChatGPT (picture and its own walls)</button>
     <button data-m="vtt-crypt-both-v2" aria-pressed="false">3. Both (ChatGPT's picture, Claude's walls)</button>
     <button data-m="vtt-crypt-repaint-v2" aria-pressed="true">4. Claude's walls + ChatGPT repaint</button>
     <button id="open" aria-pressed="false">Open this one full page ↗</button>
@@ -49,15 +48,12 @@
 
   <h2>Walls, doors and lights on each picture (red walls, green doors, blue lights)</h2>
   <div class="grid">
-    <figure><img src="crypt-chatgpt-v2-walls.png" alt=""><figcaption><b>2. ChatGPT alone.</b> 56 wall segments, 7 doors, 3 lights read by its vision model: boxes of the right sort but in the wrong places, with big rooms drawn over rock and rooms left open.</figcaption></figure>
     <figure><img src="crypt-both-v2-walls.png" alt=""><figcaption><b>3. Both.</b> 160 wall segments, 6 doors, 3 lights read off the picture by Claude with a pixel ruler: rooms, doors, altar, pillars, tombs, crates and barrels follow the painting closely. The painter's layout is irregular, so a few spots (the small door stubs in the south) are best guesses.</figcaption></figure>
     <figure><img src="crypt-repaint-v2-walls.png" alt=""><figcaption><b>4. Repaint.</b> Claude's original walls on the repaint. Room outlines line up well; loose objects (pillars, tombs, crates) drifted about half a square from where they were drawn, so their blocking shapes are slightly off.</figcaption></figure>
   </div>
 
   <h2>Line of sight: a token in the entry hall, and in the chamber</h2>
   <div class="grid">
-    <figure><img src="crypt-chatgpt-v2-los-hall.png" alt=""><figcaption><b>2. ChatGPT alone, hall.</b></figcaption></figure>
-    <figure><img src="crypt-chatgpt-v2-los-chamber.png" alt=""><figcaption><b>2. ChatGPT alone, chamber.</b> The walls it read do not enclose the room, so sight leaks.</figcaption></figure>
     <figure><img src="crypt-both-v2-los-hall.png" alt=""><figcaption><b>3. Both, hall.</b></figcaption></figure>
     <figure><img src="crypt-both-v2-los-chamber.png" alt=""><figcaption><b>3. Both, chamber.</b></figcaption></figure>
     <figure><img src="crypt-repaint-v2-los-hall.png" alt=""><figcaption><b>4. Repaint, hall.</b></figcaption></figure>

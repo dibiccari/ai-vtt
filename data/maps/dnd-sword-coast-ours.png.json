@@ -91,5 +91,5 @@
   "ambience": "wind",
   "kind": "regional",
   "tiles": "hex",
-  "hexSize": 62
+  "hexSize": 125
 }

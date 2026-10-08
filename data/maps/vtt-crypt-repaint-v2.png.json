@@ -1351,7 +1351,7 @@
       "x2": 512,
       "y2": 358.4,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 665.6,
@@ -1421,6 +1421,7 @@
   "light": "dark",
   "ambience": "dungeon",
   "mood": "dungeon",
+  "kind": "battle",
   "source": "dd2vtt",
   "lights": [
     {
