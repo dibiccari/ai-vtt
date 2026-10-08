@@ -45,17 +45,17 @@
     },
     {
       "id": "cragmaw-castle",
-      "file": "lmop-cragmaw-castle-day.png",
+      "file": "vtt-cragmaw-castle-day.png",
       "name": "Cragmaw Castle (day)",
       "kind": "battle",
-      "description": "The ruined castle that serves as King Grol's stronghold: towers, halls, rubble, and a path leading up to it."
+      "description": "Cragmaw Castle by day: a ruined, goblin-held stone castle in a forest clearing. A crumbled curtain wall with five round towers (the large north-east tower holds the king's quarters), a courtyard and banquet hall in the west, a shrine in the small round tower, storerooms, barracks and a dark hall inside, the main gate and its stair on the south-west, and a postern gate in the east wall. Use it for the approach and the whole assault."
     },
     {
       "id": "cragmaw-castle-night",
-      "file": "lmop-cragmaw-castle-night.png",
+      "file": "vtt-cragmaw-castle-night.png",
       "name": "Cragmaw Castle (night)",
       "kind": "battle",
-      "description": "The same ruined castle at night, dark except for torchlight. Use it instead of the day map when the party arrives or fights after dark."
+      "description": "The same Cragmaw Castle at night: dark, with torchlight in the shrine tower, the banquet hall, the king's quarters and the gate. Use it instead of the day map when the party arrives or fights after dark."
     },
     {
       "id": "camp-day",
