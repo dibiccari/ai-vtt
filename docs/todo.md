@@ -1,0 +1,34 @@
+# To do (kept by the assistant; the user adds items in chat)
+
+## In progress
+- Goblin Ambush pilot (Method A: ChatGPT paints, Claude traces with the Walls tool), then swap it into the Lost Mine campaign (map id triboar-ambush). Pictures and prompts: public/scenarios/compare/goblin-ambush/.
+- Lost Mine on Explorer maps: Sword Coast and Phandalin done. Still to re-create from the Map Adventurer pack (never send the originals to the image tool): Cragmaw Hideout, Redbrand Hideout, Thundertree, Cragmaw Castle (day and night), Wave Echo Cave, Agatha's Lair, Old Owl Well, Wyvern Tor.
+
+## Tabletop
+- Party section (the Party tab): make each character's info accordions (collapsible sections), user request.
+- Bring the tabletop's light rule in line with Map Test (range is always the Vision setting, light only changes how well) and let map lights clear fog there.
+
+## Light and vision
+- Map Test: darkvision setting for the test token (60 or 120 ft), awaiting the user's answer.
+- Lights tool in Map Test (place, move, light and snuff lights such as a brazier) and a "light the brazier" player action.
+- Torch from gear: an equipped torch sets the token's light; swapping back to a weapon costs an action.
+- DM prompt rule for improvised fire hazards (a lantern thrown into a fire).
+
+## Map sets
+- Fog per level (one layer per set today).
+- Pin visibility (known and discoverable pins, revealPin, a Show discovered places toggle): docs/map-set-format.md section 6c.
+- Campaigns, the tabletop and the DM's changeMap to use GUIDs.
+- Remove the Group and This version is called fields from Map Test.
+- The .vttmap container and the Market.
+- Import and trace scripts still write the old per-picture files in data/maps.
+
+## Characters
+- The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.
+- No way to give a saved character a new spell or weapon except through the DM.
+
+## Known problems
+- Flaky browser test: a campaign built from scratch opens on its first map (about one run in four).
+- Voices and sounds need the user's ears. A live DM check is due after the next prompt change.
+
+## On hold
+- Multiplayer (keep it in mind).
