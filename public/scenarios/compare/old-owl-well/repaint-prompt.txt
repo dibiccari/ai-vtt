@@ -1,0 +1,5 @@
+Repaint this flat layout drawing as a richly detailed, hand-painted STRICTLY OVERHEAD (bird's-eye, orthographic, looking straight down, no perspective, no side views, no 3D) fantasy battle map. KEEP THE LAYOUT EXACTLY: every line and outline stays precisely where it is, the same shapes and sizes; do not move, add, remove, resize or redraw any wall or opening. The dark grey lines are walls (or crumbled walls or cliff edges, see below): paint them exactly along the lines as stone blocks or rock seen from above.
+
+The scene is the ruins of Old Owl Well on a rugged dry hilltop in daylight: the dark lines are crumbled, waist-high rubble walls (paint them as low piles of broken stone blocks) and the broken round stump of a watchtower (a thick flat ring of stone), plus a stone well. A teal canvas tent stands west of the well. Dry scrubby grass, bare tan earth, boulders, a few small trees and worn footpaths.
+
+Art style: hand-painted fantasy battle map with confident dark ink outlines and soft painted shading, warm earthy colours, gentle drop shadows, evenly bright and readable at tabletop scale. No grid lines, no graph paper, no text, no letters, no people, no animals.

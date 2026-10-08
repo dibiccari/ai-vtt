@@ -1,0 +1,837 @@
+{
+  "format": "vttmapset",
+  "version": 2,
+  "id": "047bb64b-4810-4d36-acc2-b1892f5d8927",
+  "slug": "vtt-wyvern-tor-b",
+  "name": "Wyvern Tor B",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T17:50:07.211Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 45,
+      "walls": [
+        {
+          "x1": 0,
+          "y1": 500.4,
+          "x2": 68.3,
+          "y2": 495.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 68.3,
+          "y1": 495.1,
+          "x2": 136.5,
+          "y2": 480.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 136.5,
+          "y1": 480.8,
+          "x2": 196.3,
+          "y2": 452.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 196.3,
+          "y1": 452.2,
+          "x2": 290.3,
+          "y2": 423.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 290.3,
+          "y1": 423.9,
+          "x2": 352.7,
+          "y2": 406.7,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 352.7,
+          "y1": 406.7,
+          "x2": 415.5,
+          "y2": 389.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 415.5,
+          "y1": 389.8,
+          "x2": 452.2,
+          "y2": 352.7,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 452.2,
+          "y1": 352.7,
+          "x2": 466.5,
+          "y2": 307.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 466.5,
+          "y1": 307.2,
+          "x2": 463.6,
+          "y2": 267.5,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 463.6,
+          "y1": 267.5,
+          "x2": 446.7,
+          "y2": 236,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 446.7,
+          "y1": 236,
+          "x2": 421,
+          "y2": 219.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 421,
+          "y1": 219.1,
+          "x2": 398.2,
+          "y2": 210.7,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 398.2,
+          "y1": 210.7,
+          "x2": 375.5,
+          "y2": 216.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 375.5,
+          "y1": 216.2,
+          "x2": 367,
+          "y2": 247.4,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 367,
+          "y1": 247.4,
+          "x2": 378.4,
+          "y2": 273.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 378.4,
+          "y1": 273.1,
+          "x2": 383.9,
+          "y2": 313.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 383.9,
+          "y1": 313.1,
+          "x2": 372.5,
+          "y2": 344.3,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 372.5,
+          "y1": 344.3,
+          "x2": 349.8,
+          "y2": 355.6,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 349.8,
+          "y1": 355.6,
+          "x2": 295.8,
+          "y2": 355.6,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 295.8,
+          "y1": 355.6,
+          "x2": 247.4,
+          "y2": 355.6,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 247.4,
+          "y1": 355.6,
+          "x2": 216.2,
+          "y2": 352.7,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 216.2,
+          "y1": 352.7,
+          "x2": 201.9,
+          "y2": 338.4,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 201.9,
+          "y1": 338.4,
+          "x2": 193.4,
+          "y2": 332.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 193.4,
+          "y1": 332.9,
+          "x2": 185,
+          "y2": 367,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 185,
+          "y1": 367,
+          "x2": 159.3,
+          "y2": 401.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 159.3,
+          "y1": 401.1,
+          "x2": 125.2,
+          "y2": 406.7,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 125.2,
+          "y1": 406.7,
+          "x2": 125.2,
+          "y2": 435.3,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 125.2,
+          "y1": 435.3,
+          "x2": 110.9,
+          "y2": 452.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 110.9,
+          "y1": 452.2,
+          "x2": 85.5,
+          "y2": 463.6,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 85.5,
+          "y1": 463.6,
+          "x2": 71.2,
+          "y2": 455.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 71.2,
+          "y1": 455.1,
+          "x2": 51.4,
+          "y2": 458,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 51.4,
+          "y1": 458,
+          "x2": 34.1,
+          "y2": 455.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 34.1,
+          "y1": 455.1,
+          "x2": 22.8,
+          "y2": 455.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 22.8,
+          "y1": 455.1,
+          "x2": 17.2,
+          "y2": 438.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 17.2,
+          "y1": 438.2,
+          "x2": 5.9,
+          "y2": 395.3,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 5.9,
+          "y1": 395.3,
+          "x2": 8.5,
+          "y2": 367,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 8.5,
+          "y1": 367,
+          "x2": 5.9,
+          "y2": 304.3,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 5.9,
+          "y1": 304.3,
+          "x2": 14.3,
+          "y2": 267.5,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 14.3,
+          "y1": 267.5,
+          "x2": 22.8,
+          "y2": 241.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 22.8,
+          "y1": 241.9,
+          "x2": 14.3,
+          "y2": 187.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 14.3,
+          "y1": 187.9,
+          "x2": 19.8,
+          "y2": 142.4,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 19.8,
+          "y1": 142.4,
+          "x2": 42.6,
+          "y2": 119.6,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 42.6,
+          "y1": 119.6,
+          "x2": 59.8,
+          "y2": 145,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 59.8,
+          "y1": 145,
+          "x2": 76.7,
+          "y2": 142.4,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 76.7,
+          "y1": 142.4,
+          "x2": 79.6,
+          "y2": 128.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 79.6,
+          "y1": 128.1,
+          "x2": 88.1,
+          "y2": 79.6,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 88.1,
+          "y1": 79.6,
+          "x2": 201.9,
+          "y2": 31.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 201.9,
+          "y1": 31.2,
+          "x2": 241.9,
+          "y2": 34.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 241.9,
+          "y1": 34.1,
+          "x2": 278.9,
+          "y2": 17.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 278.9,
+          "y1": 17.2,
+          "x2": 304.3,
+          "y2": 31.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 304.3,
+          "y1": 31.2,
+          "x2": 313.1,
+          "y2": 37.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 313.1,
+          "y1": 37.1,
+          "x2": 338.4,
+          "y2": 37.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 338.4,
+          "y1": 37.1,
+          "x2": 355.6,
+          "y2": 5.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 355.6,
+          "y1": 5.9,
+          "x2": 392.7,
+          "y2": 19.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 392.7,
+          "y1": 19.8,
+          "x2": 438.2,
+          "y2": 11.4,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 438.2,
+          "y1": 11.4,
+          "x2": 500.6,
+          "y2": 19.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 500.6,
+          "y1": 19.8,
+          "x2": 506.5,
+          "y2": 45.5,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 506.5,
+          "y1": 45.5,
+          "x2": 517.9,
+          "y2": 54,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 517.9,
+          "y1": 54,
+          "x2": 540.6,
+          "y2": 96.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 540.6,
+          "y1": 96.9,
+          "x2": 534.8,
+          "y2": 131,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 534.8,
+          "y1": 131,
+          "x2": 509.1,
+          "y2": 147.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 509.1,
+          "y1": 147.9,
+          "x2": 509.1,
+          "y2": 187.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 509.1,
+          "y1": 187.9,
+          "x2": 540.6,
+          "y2": 187.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 540.6,
+          "y1": 187.9,
+          "x2": 586.1,
+          "y2": 165.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 586.1,
+          "y1": 165.1,
+          "x2": 614.4,
+          "y2": 102.4,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 614.4,
+          "y1": 102.4,
+          "x2": 617.3,
+          "y2": 45.5,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 617.3,
+          "y1": 45.5,
+          "x2": 605.9,
+          "y2": 19.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 605.9,
+          "y1": 19.8,
+          "x2": 593.9,
+          "y2": 0,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 446.7,
+          "y1": 236,
+          "x2": 509.1,
+          "y2": 187.9,
+          "type": "wall",
+          "open": false
+        }
+      ],
+      "starts": [
+        {
+          "name": "start",
+          "x": 964.5,
+          "y": 983.4,
+          "radius": 2
+        },
+        {
+          "name": "orc-sentry",
+          "x": 508.1,
+          "y": 377.1,
+          "desc": "A single orc keeps watch by a boulder 20 yards outside the cave; if it spots intruders it retreats to warn the others."
+        },
+        {
+          "name": "cave-mouth",
+          "x": 470.1,
+          "y": 195.4,
+          "desc": "The cave mouth at the bottom of a ravine, 50 yards from the ridge."
+        },
+        {
+          "name": "orc-camp",
+          "x": 171.6,
+          "y": 328.7,
+          "desc": "Inside the cave: Brughor Axe-Biter, six orcs and the ogre Gog; an unlocked treasure chest."
+        }
+      ],
+      "difficult": [],
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-wyvern-tor-b.png",
+          "dm": null,
+          "light": "bright",
+          "lights": [
+            {
+              "x": 68,
+              "y": 351.9,
+              "range": 4.5,
+              "intensity": 1.6,
+              "color": "ffffad58"
+            },
+            {
+              "x": 286.4,
+              "y": 280.1,
+              "range": 4.5,
+              "intensity": 1.6,
+              "color": "ffffad58"
+            },
+            {
+              "x": 453.6,
+              "y": 653.4,
+              "range": 8,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 890.3,
+              "y": 960.9,
+              "range": 8,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 243.3,
+              "y": 834.9,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 699.2,
+              "y": 801.8,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 943.7,
+              "y": 568,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 952.2,
+              "y": 319.2,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 592.4,
+              "y": 324.5,
+              "range": 8.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 486.5,
+              "y": 632.1,
+              "range": 2,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 56.1,
+              "y": 751.1,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 704,
+              "y": 562.4,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 664.1,
+              "y": 584.5,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 555.7,
+              "y": 335.6,
+              "range": 2,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 983.5,
+              "y": 915.2,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 843.1,
+              "y": 994.9,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 829,
+              "y": 157.4,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 635.6,
+              "y": 601.1,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 538.9,
+              "y": 617.7,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 402.8,
+              "y": 630.5,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 463.5,
+              "y": 764.2,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 51.6,
+              "y": 800.2,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 18.4,
+              "y": 762.8,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 55.8,
+              "y": 778.9,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 164.9,
+              "y": 1014,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 544.6,
+              "y": 987.9,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 821.9,
+              "y": 1017.3,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 930.5,
+              "y": 934.4,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1026.2,
+              "y": 888.4,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 465.9,
+              "y": 672,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 483.7,
+              "y": 680.5,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            }
+          ],
+          "ambient": "ffffffff",
+          "ambience": "",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": [],
+  "publisher": "Explorer Remakes"
+}
