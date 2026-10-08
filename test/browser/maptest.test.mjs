@@ -96,7 +96,7 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     const S = window.mapTest.state, out = {};
     out.start = [S.viewAs, S.dm];
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
-    out.player = [S.viewAs, S.dm, document.querySelector('#dm').checked, document.querySelector('#viewNote').textContent];
+    out.player = [S.viewAs, S.dm, document.querySelector('#dm').checked, document.querySelector('#viewSwitch').title];
     const vis = (t) => { const e = document.querySelector('button.tool[data-tool="' + t + '"]'); return Boolean(e) && !e.hidden && e.offsetParent !== null; };
     out.toolsPlayer = ['start', 'terrain', 'eraser', 'token', 'toggle', 'pan'].map(vis);
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
@@ -107,9 +107,9 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     document.querySelector('#makeDmBtn').click(); await wait(2500);
     const after = await fetch('/api/dm-map?map=vtt-terrain-test.png');
     out.dmMap = [before, after.status, after.headers.get('content-type'), (await after.blob()).size > 5000];
-    out.status = document.querySelector('#dmStatus').textContent; out.noteDm = document.querySelector('#viewNote').textContent;
+    out.status = document.querySelector('#dmStatus').textContent; out.noteDm = document.querySelector('#viewSwitch').title;
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(300);
-    out.notePlayer = document.querySelector('#viewNote').textContent;
+    out.notePlayer = document.querySelector('#viewSwitch').title;
     window.confirm = () => true; document.querySelector('#dropDmBtn').click(); await wait(800);
     out.dropped = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
     return out;

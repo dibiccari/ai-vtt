@@ -207,7 +207,7 @@
       <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
       <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
     </span>
-    <span class="vnote" id="viewNote"></span>
+    <label class="vnote" id="lightBox" title="The light the test token carries. In a dark place it sees only as far as its light reaches (dim radius); in bright or dim places it makes no difference.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
     <span class="tool-sep" aria-hidden="true"></span>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
@@ -389,13 +389,18 @@
     revealFog();
   }
 
+  // The test token's light: dimmest to brightest by the book (candle 5/10 ft, torch 20/40, lantern 30/60). In the dark it sees as far as the dim radius; otherwise the Vision slider decides.
+  const LIGHT_TEST = [['none', 5], ['candle', 10], ['torch', 40], ['lantern', 60]];
+  S.testLight = 2;
+  const visionNow = () => (S.light === 'dark' ? LIGHT_TEST[S.testLight][1] : S.visionFt);
+  function showTestLight() { $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (only matters in the dark)'); }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
     vctx.clearRect(0, 0, S.W, S.H);
     vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
     vctx.fillRect(0, 0, S.W, S.H);
-    const radius = (S.visionFt / FT_PER_SQUARE) * cell();
+    const radius = (visionNow() / FT_PER_SQUARE) * cell();
     const walls = sightWalls(S.walls);
     S.polys = [];
     S.polyOwners = [];
@@ -950,7 +955,7 @@
 
   function drawTokens(px) {
     const r = Math.max(cell() * 0.4, 8 * px);
-    const range = (S.visionFt / FT_PER_SQUARE) * cell();
+    const range = (visionNow() / FT_PER_SQUARE) * cell();
     ctx.save();
     S.tokens.forEach((t, i) => {
       if (S.showPoly) {                                  // the dashed vision-range ring only shows with the Show sight outline box
@@ -1174,7 +1179,7 @@
     $('#visionVal').textContent = S.visionFt;
     renderStartList();
     fillCopyTargets();
-    $('#lightLevel').value = S.light;
+    $('#lightLevel').value = S.light; showTestLight();
     $('#ambienceKind').value = S.ambience;
     $('#moodSel').value = S.mood;
     $('#wallDepth').value = S.wallDepth || 0; $('#wallDepthVal').textContent = S.wallDepth || 0;
@@ -1537,7 +1542,7 @@
     // The server file is written a moment after save(); refresh the switch once it is there.
     setTimeout(refreshVariants, 900);
   };
-  $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; save(); });
+  $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; showTestLight(); revealFog(); save(); });
   $('#ambienceKind').addEventListener('change', (e) => { S.ambience = e.target.value; save(); });
   // Moods (from the Market's list): picking one also sets the light level and the ambient sound that go with it.
   let MOODS = [];
@@ -1609,6 +1614,8 @@
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; applyKindUi(); requestRender(); });
   $('#mapKind').addEventListener('change', (e) => { S.kind = e.target.value; S.tiles = tilesOf(S.kind); applyKindUi(); save(); requestRender(); });
   $('#wallDepth').addEventListener('input', (e) => { S.wallDepth = Number(e.target.value); $('#wallDepthVal').textContent = S.wallDepth; save(); queueReveal(); });
+  $('#testLight').addEventListener('input', (e) => { S.testLight = Number(e.target.value); showTestLight(); revealFog(); });
+  showTestLight();
   $('#hexSize').addEventListener('input', (e) => { S.hexSize = Number(e.target.value); $('#hexVal').textContent = S.hexSize; updateScaleNote(); save(); requestRender(); });
 
   $('#resetFogBtn').addEventListener('click', resetFog);
@@ -1701,7 +1708,7 @@
   }
   function updateViewUi() {
     document.querySelectorAll('#viewSwitch button[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.viewAs)));
-    $('#viewNote').textContent = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
+    $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
     $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
     $('#dropDmBtn').hidden = !S.dmImg;
   }
