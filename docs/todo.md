@@ -6,6 +6,10 @@
 
 ## Tabletop
 - Party section (the Party tab): make each character's info accordions (collapsible sections), user request.
+- Party in the tabletop: make it expandable / a modal pop-out.
+- Level-up wizard: walks the player through a level-up and updates the character sheet (today level-up is a conversation with the DM).
+- Inventory wizard: change gear step by step, and update the character sheet.
+- Journal: remove the clear journal button.
 - Bring the tabletop's light rule in line with Map Test (range is always the Vision setting, light only changes how well) and let map lights clear fog there.
 
 ## Light and vision
