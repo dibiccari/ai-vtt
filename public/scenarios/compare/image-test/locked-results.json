@@ -1,0 +1,28 @@
+{
+  "model": "gpt-image-1",
+  "size": "1536x1024",
+  "at": "2026-10-08T19:29:43.155Z",
+  "runs": [
+    {
+      "quality": "low",
+      "ok": true,
+      "seconds": 16,
+      "log": "gpt-image-1 edit 1536x1024 low: saved /Users/dibiccari/repos/ai-vtt/public/scenarios/compare/image-test/locked-low.png in 15 s, about 0.03 at list prices",
+      "bytes": 1988489
+    },
+    {
+      "quality": "medium",
+      "ok": true,
+      "seconds": 22,
+      "log": "gpt-image-1 edit 1536x1024 medium: saved /Users/dibiccari/repos/ai-vtt/public/scenarios/compare/image-test/locked-medium.png in 22 s, about 0.07 at list prices",
+      "bytes": 2317358
+    },
+    {
+      "quality": "high",
+      "ok": true,
+      "seconds": 52,
+      "log": "gpt-image-1 edit 1536x1024 high: saved /Users/dibiccari/repos/ai-vtt/public/scenarios/compare/image-test/locked-high.png in 52 s, about 0.25 at list prices",
+      "bytes": 2861960
+    }
+  ]
+}
