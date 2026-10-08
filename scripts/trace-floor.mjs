@@ -1,6 +1,7 @@
 // Traces the walls of a painted map by finding where the floor ends: every pixel brighter than --lum (luminance 0-255) counts as floor, the rest as rock, and the outline of each floor
 // area becomes wall segments (simplified so a straight wall is one piece). Meant for maps painted as light floor inside near-black rock (caves, dungeons, ruins). It is a first pass: look at
 // the result with scripts/pixel-grid.mjs ... --config and fix it in Map Test with the Walls tool.
+// --green    grass and leaves (green-dominant pixels brighter than --green-lum, default 55) count as floor too, for a meadow beside a cave
 // Usage: node scripts/trace-floor.mjs --in <picture> --out <walls.json> --lum 60 [--cell 6] [--eps 3.5] [--min-area 900] [--hole-area 600] [--blur 1] [--invert] [--clip x0,y0,x1,y1]
 //   --cell     size in pixels of one mask cell (default 6)      --eps    how far a simplified wall may stray from the outline, in pixels (default 3.5)
 //   --min-area floor areas smaller than this many square pixels are ignored (specks)    --hole-area  rock islands (pillars) smaller than this are ignored
@@ -15,6 +16,7 @@ const opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i
 const input = opt('in'), out = opt('out');
 if (!input || !out) { console.error('usage: node scripts/trace-floor.mjs --in <picture> --out <walls.json> --lum 60 [--cell 6] [--eps 3.5] [--min-area 900] [--hole-area 600] [--invert] [--clip x0,y0,x1,y1]'); process.exit(1); }
 const LUM = Number(opt('lum', 60)), CELL = Number(opt('cell', 6)), EPS = Number(opt('eps', 3.5));
+const GREEN = args.includes('--green'), GREEN_LUM = Number(opt('green-lum', 55));
 const MIN_AREA = Number(opt('min-area', 900)), HOLE_AREA = Number(opt('hole-area', 600)), BLUR = Number(opt('blur', 1)), INVERT = args.includes('--invert');
 const img = await readPicture(path.resolve(input));
 const clip = opt('clip', '') ? opt('clip', '').split(',').map(Number) : [0, 0, img.w, img.h];
@@ -23,11 +25,12 @@ const cw = Math.ceil(img.w / CELL), ch = Math.ceil(img.h / CELL);
 // 1. the mask: the average luminance of each cell against the threshold
 let mask = new Uint8Array(cw * ch);
 for (let cy = 0; cy < ch; cy++) for (let cx = 0; cx < cw; cx++) {
-  let sum = 0, n = 0;
-  for (let y = cy * CELL; y < Math.min(img.h, (cy + 1) * CELL); y++) for (let x = cx * CELL; x < Math.min(img.w, (cx + 1) * CELL); x++) { sum += img.lum[y * img.w + x]; n++; }
+  let sum = 0, n = 0, R = 0, G = 0, B = 0;
+  for (let y = cy * CELL; y < Math.min(img.h, (cy + 1) * CELL); y++) for (let x = cx * CELL; x < Math.min(img.w, (cx + 1) * CELL); x++) { const i = y * img.w + x; sum += img.lum[i]; R += img.rgb[i * 3]; G += img.rgb[i * 3 + 1]; B += img.rgb[i * 3 + 2]; n++; }
+  const green = GREEN && G / n > R / n + 8 && G / n > B / n + 15 && sum / n > GREEN_LUM;
   const px = cx * CELL + CELL / 2, py = cy * CELL + CELL / 2;
   const inside = px >= clip[0] && px <= clip[2] && py >= clip[1] && py <= clip[3];
-  mask[cy * cw + cx] = inside && (INVERT ? sum / n < LUM : sum / n > LUM) ? 1 : 0;
+  mask[cy * cw + cx] = inside && (green || (INVERT ? sum / n < LUM : sum / n > LUM)) ? 1 : 0;
 }
 // 2. smooth: a cell becomes floor when most of its neighbours are (repeated BLUR times), which drops single-cell noise
 for (let pass = 0; pass < BLUR; pass++) {

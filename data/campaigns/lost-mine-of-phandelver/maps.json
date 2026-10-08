@@ -24,10 +24,10 @@
     },
     {
       "id": "cragmaw-hideout",
-      "file": "lmop-cragmaw-hideout.png",
+      "file": "vtt-cragmaw-hideout.png",
       "name": "Cragmaw Hideout (goblin cave)",
       "kind": "battle",
-      "description": "The goblin cave beside a stream: briar-screened cave mouth, kennel, steep passage, bridge, the goblin den, twin pools and Klarg's cave."
+      "description": "The goblin cave beside a stream: the briar-screened cave mouth at the bottom left, the kennel pen, a steep winding passage, a plank bridge over the stream near the top (the overpass), the goblin den in the north-west with tents and a firepit, the twin pools cave in the north-east, and Klarg's cave in the south-east with a campfire, crates and furs. The stream runs south through the middle and can be waded."
     },
     {
       "id": "redbrand-hideout",
