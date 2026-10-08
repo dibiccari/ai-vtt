@@ -1,0 +1,3 @@
+Art style: hand-painted fantasy battle map with confident dark ink outlines and soft painted shading, warm earthy natural colours (fresh grass greens, warm brown earth and trail, grey stones), gentle drop shadows under bushes, boulders and trees, crisp and readable at tabletop scale.
+
+IMPORTANT (without this the model draws graph paper): the ground is plain painted terrain with absolutely NO grid, NO squares, NO graph paper, NO ruled lines, NO paper texture lines anywhere; no text, no letters, no people, no animals, no tokens.
