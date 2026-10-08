@@ -1,0 +1,808 @@
+{
+  "format": "vttmapset",
+  "version": 3,
+  "id": "9452159a-ba41-492d-84be-162492d95fb1",
+  "slug": "vtt-old-owl-well",
+  "name": "Old Owl Well",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T08:22:42.091Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [
+        {
+          "x1": 890,
+          "y1": 215,
+          "x2": 882,
+          "y2": 255.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 882,
+          "y1": 255.2,
+          "x2": 859.2,
+          "y2": 289.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 859.2,
+          "y1": 289.2,
+          "x2": 825.2,
+          "y2": 312,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 825.2,
+          "y1": 312,
+          "x2": 785,
+          "y2": 320,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 785,
+          "y1": 320,
+          "x2": 744.8,
+          "y2": 312,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 744.8,
+          "y1": 312,
+          "x2": 710.8,
+          "y2": 289.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 710.8,
+          "y1": 289.2,
+          "x2": 688,
+          "y2": 255.2,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 688,
+          "y1": 255.2,
+          "x2": 680,
+          "y2": 215,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 680,
+          "y1": 215,
+          "x2": 688,
+          "y2": 174.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 688,
+          "y1": 174.8,
+          "x2": 710.8,
+          "y2": 140.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 710.8,
+          "y1": 140.8,
+          "x2": 744.8,
+          "y2": 118,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 744.8,
+          "y1": 118,
+          "x2": 785,
+          "y2": 110,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 785,
+          "y1": 110,
+          "x2": 825.2,
+          "y2": 118,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 825.2,
+          "y1": 118,
+          "x2": 859.2,
+          "y2": 140.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 859.2,
+          "y1": 140.8,
+          "x2": 882,
+          "y2": 174.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 882,
+          "y1": 174.8,
+          "x2": 890,
+          "y2": 215,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 827,
+          "y1": 692,
+          "x2": 800.1,
+          "y2": 757.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 800.1,
+          "y1": 757.1,
+          "x2": 735,
+          "y2": 784,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 735,
+          "y1": 784,
+          "x2": 669.9,
+          "y2": 757.1,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 669.9,
+          "y1": 757.1,
+          "x2": 643,
+          "y2": 692,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 643,
+          "y1": 692,
+          "x2": 669.9,
+          "y2": 626.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 669.9,
+          "y1": 626.9,
+          "x2": 735,
+          "y2": 600,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 735,
+          "y1": 600,
+          "x2": 800.1,
+          "y2": 626.9,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 800.1,
+          "y1": 626.9,
+          "x2": 827,
+          "y2": 692,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1082,
+          "y1": 505,
+          "x2": 1072.1,
+          "y2": 535.6,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1072.1,
+          "y1": 535.6,
+          "x2": 1046.1,
+          "y2": 554.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1046.1,
+          "y1": 554.5,
+          "x2": 1013.9,
+          "y2": 554.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1013.9,
+          "y1": 554.5,
+          "x2": 987.9,
+          "y2": 535.6,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 987.9,
+          "y1": 535.6,
+          "x2": 978,
+          "y2": 505,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 978,
+          "y1": 505,
+          "x2": 987.9,
+          "y2": 474.4,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 987.9,
+          "y1": 474.4,
+          "x2": 1013.9,
+          "y2": 455.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1013.9,
+          "y1": 455.5,
+          "x2": 1046.1,
+          "y2": 455.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1046.1,
+          "y1": 455.5,
+          "x2": 1072.1,
+          "y2": 474.4,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1072.1,
+          "y1": 474.4,
+          "x2": 1082,
+          "y2": 505,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 355,
+          "y1": 410,
+          "x2": 355,
+          "y2": 332,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 355,
+          "y1": 332,
+          "x2": 432,
+          "y2": 332,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 462,
+          "y1": 330,
+          "x2": 605,
+          "y2": 330,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 605,
+          "y1": 330,
+          "x2": 605,
+          "y2": 387,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 605,
+          "y1": 387,
+          "x2": 668,
+          "y2": 387,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 668,
+          "y1": 387,
+          "x2": 668,
+          "y2": 548,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 668,
+          "y1": 548,
+          "x2": 620,
+          "y2": 548,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 560,
+          "y1": 546,
+          "x2": 512,
+          "y2": 546,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 358,
+          "y1": 436,
+          "x2": 358,
+          "y2": 548,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 358,
+          "y1": 548,
+          "x2": 470,
+          "y2": 548,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 800,
+          "y1": 412,
+          "x2": 872,
+          "y2": 412,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 872,
+          "y1": 412,
+          "x2": 900,
+          "y2": 376,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 900,
+          "y1": 376,
+          "x2": 942,
+          "y2": 376,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 942,
+          "y1": 376,
+          "x2": 962,
+          "y2": 330,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 962,
+          "y1": 330,
+          "x2": 1012,
+          "y2": 330,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1062,
+          "y1": 328,
+          "x2": 1190,
+          "y2": 328,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1190,
+          "y1": 328,
+          "x2": 1190,
+          "y2": 528,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1128,
+          "y1": 468,
+          "x2": 1128,
+          "y2": 440,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1128,
+          "y1": 440,
+          "x2": 1190,
+          "y2": 440,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1190,
+          "y1": 556,
+          "x2": 1190,
+          "y2": 625,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1190,
+          "y1": 625,
+          "x2": 1035,
+          "y2": 625,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 872,
+          "y1": 476,
+          "x2": 872,
+          "y2": 562,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 872,
+          "y1": 562,
+          "x2": 915,
+          "y2": 592,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 915,
+          "y1": 592,
+          "x2": 915,
+          "y2": 640,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 915,
+          "y1": 640,
+          "x2": 995,
+          "y2": 640,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1368,
+          "y1": 455,
+          "x2": 1358.9,
+          "y2": 524.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1358.9,
+          "y1": 524.5,
+          "x2": 1331.9,
+          "y2": 591.8,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1331.9,
+          "y1": 591.8,
+          "x2": 1287.9,
+          "y2": 655,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1287.9,
+          "y1": 655,
+          "x2": 1228.1,
+          "y2": 712.1,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1228.1,
+          "y1": 712.1,
+          "x2": 1154.4,
+          "y2": 761.4,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1154.4,
+          "y1": 761.4,
+          "x2": 1069,
+          "y2": 801.4,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1069,
+          "y1": 801.4,
+          "x2": 974.5,
+          "y2": 830.9,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 974.5,
+          "y1": 830.9,
+          "x2": 873.8,
+          "y2": 848.9,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 565.5,
+          "y1": 830.9,
+          "x2": 471,
+          "y2": 801.4,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 471,
+          "y1": 801.4,
+          "x2": 385.6,
+          "y2": 761.4,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 385.6,
+          "y1": 761.4,
+          "x2": 311.9,
+          "y2": 712.1,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 311.9,
+          "y1": 712.1,
+          "x2": 252.1,
+          "y2": 655,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 252.1,
+          "y1": 655,
+          "x2": 208.1,
+          "y2": 591.8,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 208.1,
+          "y1": 591.8,
+          "x2": 181.1,
+          "y2": 524.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 181.1,
+          "y1": 524.5,
+          "x2": 172,
+          "y2": 455,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 172,
+          "y1": 455,
+          "x2": 181.1,
+          "y2": 385.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 181.1,
+          "y1": 385.5,
+          "x2": 208.1,
+          "y2": 318.2,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 208.1,
+          "y1": 318.2,
+          "x2": 252.1,
+          "y2": 255,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 252.1,
+          "y1": 255,
+          "x2": 311.9,
+          "y2": 197.9,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 311.9,
+          "y1": 197.9,
+          "x2": 385.6,
+          "y2": 148.6,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 385.6,
+          "y1": 148.6,
+          "x2": 471,
+          "y2": 108.6,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 471,
+          "y1": 108.6,
+          "x2": 565.5,
+          "y2": 79.1,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 565.5,
+          "y1": 79.1,
+          "x2": 666.2,
+          "y2": 61.1,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 666.2,
+          "y1": 61.1,
+          "x2": 770,
+          "y2": 55,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 770,
+          "y1": 55,
+          "x2": 873.8,
+          "y2": 61.1,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 873.8,
+          "y1": 61.1,
+          "x2": 974.5,
+          "y2": 79.1,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 974.5,
+          "y1": 79.1,
+          "x2": 1069,
+          "y2": 108.6,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1069,
+          "y1": 108.6,
+          "x2": 1154.4,
+          "y2": 148.6,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1154.4,
+          "y1": 148.6,
+          "x2": 1228.1,
+          "y2": 197.9,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1228.1,
+          "y1": 197.9,
+          "x2": 1287.9,
+          "y2": 255,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1287.9,
+          "y1": 255,
+          "x2": 1331.9,
+          "y2": 318.2,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1331.9,
+          "y1": 318.2,
+          "x2": 1358.9,
+          "y2": 385.5,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1358.9,
+          "y1": 385.5,
+          "x2": 1368,
+          "y2": 455,
+          "type": "fence",
+          "open": false
+        }
+      ],
+      "starts": [
+        {
+          "name": "start",
+          "x": 770,
+          "y": 970,
+          "radius": 2
+        },
+        {
+          "name": "tower-ruin",
+          "x": 785,
+          "y": 215,
+          "desc": "The broken stump of the tower: twelve zombies lurk inside its crumbled shell; they shamble out when the tower or tent is approached."
+        },
+        {
+          "name": "kost-tent",
+          "x": 735,
+          "y": 692,
+          "desc": "The colourful tent in the courtyard: Hamun Kost, an evil Red Wizard, camps here with his treasure chest."
+        },
+        {
+          "name": "old-well",
+          "x": 1030,
+          "y": 505,
+          "desc": "The old well in the courtyard, still giving clean fresh water."
+        },
+        {
+          "name": "wall-gaps",
+          "x": 560,
+          "y": 450,
+          "desc": "The ruined walls are rubble mounds: the party can enter the courtyard from any direction."
+        }
+      ],
+      "difficult": [],
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-old-owl-well.png",
+          "dm": null,
+          "light": "bright",
+          "lights": [],
+          "ambient": "",
+          "ambience": "wind",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}
