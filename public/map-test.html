@@ -25,6 +25,7 @@
   button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
   select, input[type=number], label.field textarea { background:var(--bg); border:1px solid #3a4558; color:var(--text); border-radius:6px; padding:6px; font:inherit; width:100%; }
   input[type=range] { width:100%; accent-color:var(--accent); }
+  [hidden] { display:none !important; }       /* a hidden control is really hidden, whatever display its class gives it */
   label.field { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
   label.field b { color:var(--text); }
   label.check { display:flex; gap:8px; align-items:center; font-size:13px; cursor:pointer; }
@@ -76,6 +77,7 @@
 
   <div class="group">
     <h2>Map</h2>
+    <label class="field"><span>Publisher</span><select id="publisher" aria-label="Publisher"><option value="">All publishers</option><option>Explorer</option><option>Wizards of the Coast</option><option>Map Adventurer</option><option>Market</option><option>Other</option></select></label>
     <select id="mapSelect" aria-label="Map"></select>
     <label class="field"><span>Type of map</span><select id="mapKind" aria-label="Type of map"><option value="battle">Battle map (squares)</option><option value="camp">Camp (squares)</option><option value="town">Town map (no tiles)</option><option value="regional">Regional map (hexagons, 5 miles)</option></select></label>
     <p class="hint" id="scaleNote"></p>
@@ -93,14 +95,13 @@
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
-    <label class="check"><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
+    <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token: 30 ft (walls block, difficult terrain costs double)</label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
-    <p class="hint">Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again.</p>
   </div>
 
   <div class="group">
@@ -217,7 +218,6 @@
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
-    <button class="tool" data-tool="toggle" aria-pressed="false" title="Click a door to open or close it">Open/Close</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
     <span class="view-switch" id="terrainPair">
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
@@ -772,7 +772,7 @@
     const url = '/uploads/' + mate.map;
     if (url === S.url) return;
     const keep = { ...S.view };
-    $('#mapSelect').value = url;
+    $('#mapSelect').value = (S.placeOf && S.placeOf.get(url)) || url;         // the list holds one entry for the place (its day look), whichever look is showing
     await loadMap(url);
     S.view = keep;                      // keep the same zoom and position so the looks line up
     requestRender();
@@ -1075,6 +1075,8 @@
     const lookUrl = (set, time) => { const lk = set.levels[0].looks.find((l) => l.time === time) || set.levels[0].looks[0]; return '/uploads/' + lk.player; };
     const maps = places.map((p) => lookUrl(p, 'day'));
     const nameOf = new Map(); const dupes = new Set(); for (const p of places) { if (nameOf.has(p.name)) dupes.add(p.name); nameOf.set(p.name, true); }
+    S.placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) S.placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));       // any look of a place -> the entry that stands for it
+    S.placeOrigin = new Map(places.map((p) => [lookUrl(p, 'day'), p.origin]));
     S.placeKinds = new Map(places.map((p) => [lookUrl(p, 'day'), p.kind]));
     S.placeNames = new Map(places.map((p) => [lookUrl(p, 'day'), p.name + (dupes.has(p.name) ? ' (' + p.origin + ')' : '')]));                                   // the day look (or the only one) stands for the place
     const placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));
@@ -1090,7 +1092,10 @@
       return;
     }
     const wanted = new URLSearchParams(location.search).get('map');
-    let shown = maps;
+    const publisher = $('#publisher').value;
+    let shown = publisher ? maps.filter((u) => S.placeOrigin.get(u) === publisher) : maps;       // the Publisher filter above the list
+    if (!shown.length) shown = maps;
+    if (initial && wanted && placeOf.has(wanted) && !shown.includes(placeOf.get(wanted))) { $('#publisher').value = ''; store.set('vtt.maptest.publisher', ''); shown = maps; }       // a map asked for by address is always shown
     shown = shown.slice().sort((a, b) => (b.endsWith('/vtt-terrain-test.png') ? 1 : 0) - (a.endsWith('/vtt-terrain-test.png') ? 1 : 0));     // the Terrain Test Grounds map always comes first
     for (const url of shown) {
       const opt = document.createElement('option');
@@ -1099,7 +1104,8 @@
       select.appendChild(opt);
     }
     const last = store.get('vtt.maptest.lastMap', null);
-    const asked = wanted && placeOf.has(wanted) ? wanted : last && placeOf.has(last) ? last : shown[0];       // a night look asked for by name opens as itself
+    const inList = (u) => u && placeOf.has(u) && shown.includes(placeOf.get(u));
+    const asked = inList(wanted) ? wanted : inList(last) ? last : shown[0];       // a night look asked for by name opens as itself
     select.value = placeOf.get(asked) || shown[0];
     await loadMap(asked);
   }
@@ -1182,7 +1188,7 @@
     positionPinCard();
     $('#brushBox').hidden = !isTerrainTool();
     document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
-    cv.style.cursor = tool === 'toggle' ? 'pointer' : 'crosshair';
+    cv.style.cursor = 'crosshair';
     requestRender();
   }
 
@@ -1279,6 +1285,10 @@
       return;
     }
     if (e.button !== 0) return;
+    {                                                                    // a pin or the token under the pointer wins; otherwise a door is clicked open or shut
+      const door = doorUnder(p);
+      if (door && !(S.tool === 'start' && startAt(p)) && tokenAt(p) < 0 && !(S.tool === 'start' && S.viewAs === 'dm' && startAt(p))) { clickDoor(door); return; }
+    }
 
     if (S.tool === 'token') {
       const i = tokenAt(p);
@@ -1316,19 +1326,22 @@
       try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
       S.drag = { kind: 'brush', erase: S.tool === 'eraser', last: p, cells: cellsOfRects() };
       brushStroke(p, p, S.drag.erase); requestRender();
-    } else if (S.tool === 'toggle') {
-      const w = nearestWall(p, true);
-      if (w && w.secret) { setSavedNote('That is a secret door: it stays a wall until it is revealed (Doors list).'); }
-      else if (w && w.locked && !w.open) { setSavedNote('That door is locked: unlock it in the Doors list first.'); }
-      else if (w) { w.open = !w.open; wallsChanged(); }
     }
   }
 
-  // Click and drag on empty ground pans the map in the Pins, Token and Open/Close tools: a press on empty ground waits to see whether it becomes a drag (pan) or stays a click (the tool's own action).
+  // Clicking a door opens or closes it, whichever tool is chosen (the terrain brush excepted); a locked door stays shut and a secret door is a wall until it is revealed.
+  const doorUnder = (p) => (isTerrainTool() ? null : nearestWall(p, true));
+  function clickDoor(w) {
+    if (w.secret) { if (S.viewAs === 'dm') setSavedNote('That is a secret door: it stays a wall until it is revealed (Doors list).'); return; }
+    if (w.locked && !w.open) { setSavedNote('That door is locked: unlock it in the Doors list first.'); return; }
+    w.open = !w.open; wallsChanged();
+  }
+
+  // Click and drag on empty ground pans the map in the Pins and Token tools: a press on empty ground waits to see whether it becomes a drag (pan) or stays a click (the tool's own action).
   cv.addEventListener('pointerdown', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
-    const empty = e.button === 0 && !S.spaceDown && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'toggle' ? !nearestWall(p, true) : false);
+    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : false);
     if (!empty) { handleDown(e); return; }
     try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     S.drag = { kind: 'pending', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy, press: { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, shiftKey: e.shiftKey } };
@@ -1481,6 +1494,8 @@
   /* ---------------- sidebar wiring ---------------- */
   document.querySelectorAll('button.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
   $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
+  $('#publisher').value = store.get('vtt.maptest.publisher', '') || '';
+  $('#publisher').addEventListener('change', (e) => { store.set('vtt.maptest.publisher', e.target.value); loadMapList(); });
   $('#copyPinsBtn').addEventListener('click', copyPins);
   const groupChanged = () => {
     S.group = $('#groupName').value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');

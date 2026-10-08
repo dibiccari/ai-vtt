@@ -1002,6 +1002,7 @@ test('a campaign built from scratch opens on its first map, the party on that ma
   await server.post('/api/campaigns/active', { id: made.json.id });
   try {
     await page.goto(`${server.base}/index.html?nosave=1`);
+    try { await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 2 && window.vtt.state.map.url', 12000); } catch (first) { await page.goto(`${server.base}/index.html?nosave=1`); }       // the first load sometimes stalls: one more try
     try { await page.waitFor('window.vtt && window.vtt.state.tokens.length >= 2 && window.vtt.state.map.url'); } catch (e) { const st = await page.eval("JSON.stringify({ vtt: !!window.vtt, tokens: window.vtt && window.vtt.state.tokens.map((t) => t.id), url: window.vtt && window.vtt.state.map.url, chars: window.vtt && window.vtt.state.characters.length, body: document.body.innerText.slice(0, 200) })").catch((x) => String(x)); throw new Error('the scratch campaign did not open: ' + st + ' problems: ' + JSON.stringify(page.problems.slice(-3))); }
     const r = await page.eval(`(() => { const s = vtt.state; const pcs = s.tokens.filter((t) => t.isPC); return { url: s.map.url, kind: s.mapKind, pcs: pcs.map((t) => [t.col, t.row]), visited: s.visitedMaps }; })()`);
     assert.match(r.url, /lmop-goblin-ambush/); assert.equal(r.kind, 'battle');

@@ -71,7 +71,7 @@
       "x2": 471,
       "y2": 325,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 276,
@@ -95,7 +95,7 @@
       "x2": 376,
       "y2": 502,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 268,
@@ -759,7 +759,7 @@
       "x2": 1057,
       "y2": 931,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 1090,
@@ -1338,7 +1338,6 @@
       "radius": 2
     }
   ],
-  "light": "dark",
   "ambience": "dungeon",
   "mood": "dungeon",
   "kind": "battle",
@@ -1372,5 +1371,6 @@
       "flicker": true
     }
   ],
-  "ambient": "ff2a2630"
+  "ambient": "ff2a2630",
+  "light": "bright"
 }

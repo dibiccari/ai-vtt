@@ -9931,6 +9931,7 @@
     }
   ],
   "light": "dark",
+  "kind": "battle",
   "source": "dd2vtt",
   "group": "camp",
   "variant": "night",

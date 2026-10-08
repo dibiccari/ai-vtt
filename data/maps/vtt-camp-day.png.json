@@ -9926,10 +9926,12 @@
     {
       "name": "start",
       "x": 760,
-      "y": 1030
+      "y": 1030,
+      "radius": 2
     }
   ],
   "light": "bright",
+  "kind": "camp",
   "source": "dd2vtt",
   "group": "camp",
   "variant": "day",

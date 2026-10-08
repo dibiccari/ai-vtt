@@ -1303,7 +1303,7 @@
       "x2": 1250,
       "y2": 650,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 300,
@@ -1311,7 +1311,7 @@
       "x2": 400,
       "y2": 600,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 850,
@@ -1319,7 +1319,7 @@
       "x2": 850,
       "y2": 1100,
       "type": "door",
-      "open": false
+      "open": true
     },
     {
       "x1": 600,
@@ -1327,16 +1327,20 @@
       "x2": 600,
       "y2": 1100,
       "type": "door",
-      "open": false
+      "open": true
     }
   ],
   "starts": [
     {
       "name": "start",
-      "x": 375,
-      "y": 325
+      "x": 213,
+      "y": 267,
+      "radius": 2
     }
   ],
+  "light": "dark",
+  "ambience": "dungeon",
+  "kind": "battle",
   "source": "dd2vtt",
   "lights": [
     {
@@ -1466,7 +1470,5 @@
       "flicker": true
     }
   ],
-  "ambient": "ff2a2630",
-  "light": "dark",
-  "ambience": "dungeon"
+  "ambient": "ff2a2630"
 }

@@ -115,8 +115,8 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     return out;
   })()`);
   assert.deepEqual(r.start, ['dm', true]); assert.deepEqual(r.player, ['player', false, false, 'What the table sees']); assert.deepEqual(r.dm, ['dm', true]);
-  assert.deepEqual(r.toolsPlayer, [false, false, false, true, true, false], 'in the player view the Pins, Terrain and Eraser buttons are gone, Token and Open/Close stay, and there is no Pan');
-  assert.deepEqual(r.toolsDm, [true, true, true, true, true, false], 'the DM view has them all, and still no Pan'); assert.equal(r.firstInBar, 'viewSwitch', 'the DM | Player switch is first in the line');
+  assert.deepEqual(r.toolsPlayer, [false, false, false, true, false, false], 'in the player view the Pins, Terrain and Eraser buttons are gone, Token stays, and there is no Open/Close or Pan button');
+  assert.deepEqual(r.toolsDm, [true, true, true, true, false, false], 'the DM view has Pins, Terrain, Eraser and Token; doors are clicked directly, so there is no Open/Close or Pan button'); assert.equal(r.firstInBar, 'viewSwitch', 'the DM | Player switch is first in the line');
   assert.equal(r.dmMap[0], 404, 'no DM version before'); assert.equal(r.dmMap[1], 200); assert.match(r.dmMap[2], /image\/jpeg/); assert.equal(r.dmMap[3], true);
   assert.match(r.status, /Saved the DM version/); assert.match(r.noteDm, /DM version of the picture/); assert.equal(r.notePlayer, 'What the table sees');
   assert.equal(r.dropped, 404, 'it can be removed again');
@@ -128,9 +128,9 @@ test('tiles: a regional map shows hexagons, a battle map squares, and one Show t
     await page.waitFor('document.querySelector("#mapKind") && document.querySelector("#banner").textContent.includes("px")');
     return page.eval(`(async () => { const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const S = window.mapTest.state, box = document.querySelector('#showGrid');
       await wait(900);       // the picture and the first draw are done before the pixels are counted
-      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRowBefore: !document.querySelector('#hexRow').hidden, order: [...document.querySelectorAll('#showTilesRow, #hexRow, #vision')].map((e) => e.id || 'vision'), showRow: !document.querySelector('#showTilesRow').hidden, squaresRow: !document.querySelector('#squares').closest('label').hidden, label: document.querySelector('#showTilesText').textContent, scale: document.querySelector('#scaleNote').textContent, size: document.querySelector('#sizeNote').textContent, kindAfterSelect: !!document.querySelector('#mapSelect').nextElementSibling.querySelector('#mapKind'), showing: box.checked };
+      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRowBefore: document.querySelector('#hexRow').offsetParent !== null, order: [...document.querySelectorAll('#showTilesRow, #hexRow, #vision')].map((e) => e.id || 'vision'), showRow: document.querySelector('#showTilesRow').offsetParent !== null, squaresRow: document.querySelector('#squares').closest('label').offsetParent !== null, label: document.querySelector('#showTilesText').textContent, scale: document.querySelector('#scaleNote').textContent, size: document.querySelector('#sizeNote').textContent, kindAfterSelect: !!document.querySelector('#mapSelect').nextElementSibling.querySelector('#mapKind'), showing: box.checked };
       const count = () => { const cv = document.querySelector('canvas'), x = cv.getContext('2d'), d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) n += d[i] + d[i + 1] + d[i + 2]; return n; };       // the picture's total brightness: lines drawn over it change it
-      box.checked = true; box.dispatchEvent(new Event('change')); await wait(300); out.on = count(); out.hexRow = !document.querySelector('#hexRow').hidden;
+      box.checked = true; box.dispatchEvent(new Event('change')); await wait(300); out.on = count(); out.hexRow = document.querySelector('#hexRow').offsetParent !== null;
       box.checked = false; box.dispatchEvent(new Event('change')); await wait(300); out.off = count();
       return out; })()`);
   };
@@ -172,6 +172,60 @@ test('Fit to width sits under Fit to height and makes the map as wide as the vie
   })()`);
   assert.ok(r.below && r.sameColumn, 'the button is under the fit-to-height button');
   assert.ok(r.wide > 0.95 && r.wide <= 1.0, 'the map is as wide as the view: ' + r.wide); assert.ok(r.widthScale >= r.heightScale, 'it is at least as large as the whole-map fit'); assert.equal(r.top, 12);
+});
+
+test('clicking a door opens or closes it with any tool; locked doors stay shut, secret doors are walls, a pin under the pointer wins', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#viewSwitch") && document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, cv = document.querySelector('canvas'), b = cv.getBoundingClientRect(), out = {};
+    S.walls = [{ x1: 400, y1: 400, x2: 450, y2: 400, type: 'door', open: false }, { x1: 600, y1: 400, x2: 650, y2: 400, type: 'door', open: false, locked: true, dc: 12 }, { x1: 800, y1: 400, x2: 850, y2: 400, type: 'door', open: false, secret: true }];
+    S.starts = S.starts.filter((p) => p.name === 'start'); S.view = { scale: 1, ox: 0, oy: 0 };
+    const click = (x, y) => { const ev = (t) => cv.dispatchEvent(new PointerEvent(t, { clientX: b.left + x, clientY: b.top + y, button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 5, bubbles: true })); ev('pointerdown'); ev('pointerup'); };
+    for (const tool of ['token', 'start']) {
+      document.querySelector('button.tool[data-tool="' + tool + '"]').click();
+      const before = S.starts.length;
+      click(425, 400); await wait(150); out[tool + 'Open'] = S.walls[0].open;
+      click(425, 400); await wait(150); out[tool + 'Shut'] = S.walls[0].open;
+      out[tool + 'NoPin'] = S.starts.length === before;
+    }
+    click(625, 400); await wait(150); out.locked = S.walls[1].open;
+    click(825, 400); await wait(150); out.secret = S.walls[2].open;
+    document.querySelector('button.tool[data-tool="terrain"]').click();
+    const area = S.difficult.length; click(425, 400); await wait(150); out.brushLeavesDoor = S.walls[0].open === false;
+    // a pin on the door wins in the Pins tool: the click selects the pin
+    document.querySelector('button.tool[data-tool="start"]').click(); S.starts.push({ name: 'on-door', x: 425, y: 400 }); click(425, 400); await wait(150);
+    out.pinWins = [S.walls[0].open, S.selected && S.selected.name];
+    return out;
+  })()`);
+  assert.equal(r.tokenOpen, true, 'a click on a door opens it with the Token tool'); assert.equal(r.tokenShut, false, 'and a second click shuts it');
+  assert.equal(r.startOpen, true, 'and with the Pins tool'); assert.equal(r.startShut, false); assert.ok(r.tokenNoPin && r.startNoPin, 'a click on a door adds no pin');
+  assert.equal(r.locked, false, 'a locked door stays shut'); assert.equal(r.secret, false, 'a secret door is a wall'); assert.equal(r.brushLeavesDoor, true, 'the terrain brush does not work doors');
+  assert.deepEqual(r.pinWins, [false, 'on-door'], 'a pin on the door is selected instead of the door being clicked');
+});
+
+test('the Publisher filter narrows the map list, and switching Day to Night keeps the place selected', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#publisher") && document.querySelector("#banner").textContent.includes("px")');
+  await page.eval('new Promise((r) => setTimeout(r, 800))');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms)), sel = document.querySelector('#mapSelect'), out = {};
+    const label = () => sel.options[sel.selectedIndex] && sel.options[sel.selectedIndex].textContent;
+    out.before = [label(), sel.options.length];
+    document.querySelector('#timeSwitch button[data-time="night"]').click(); await wait(1500);
+    out.night = [label(), window.mapTest.state.url.split('/').pop()];
+    document.querySelector('#timeSwitch button[data-time="day"]').click(); await wait(1500);
+    out.day = [label(), window.mapTest.state.url.split('/').pop()];
+    const pub = document.querySelector('#publisher'); pub.value = 'Map Adventurer'; pub.dispatchEvent(new Event('change')); await wait(1500);
+    out.map = [sel.options.length, [...sel.options].every((o) => /lmop-/.test(o.value))];
+    pub.value = ''; pub.dispatchEvent(new Event('change')); await wait(1200);
+    out.all = sel.options.length;
+    return out;
+  })()`);
+  assert.equal(r.night[0], r.before[0], 'the entry stays selected on Night'); assert.equal(r.night[1], 'vtt-camp-night.png');
+  assert.equal(r.day[0], r.before[0], 'and back on Day'); assert.equal(r.day[1], 'vtt-camp-day.png');
+  assert.ok(r.map[0] > 1 && r.map[0] < r.before[1] && r.map[1], 'the Map Adventurer filter keeps only that publisher\'s maps: ' + JSON.stringify(r.map)); assert.equal(r.all, r.before[1], 'All publishers brings the list back');
 });
 
 test('no page errors in Map Test', opts, () => { assert.deepEqual(page.problems, []); });
