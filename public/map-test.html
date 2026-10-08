@@ -958,7 +958,7 @@
   // In a dark place the test token's light warms the ground it reaches (brighter for a lantern than a candle), only where its line of sight goes.
   function drawTokenLight() {
     if (S.light !== 'dark' || S.testLight < 1 || !S.polys.length) return;
-    const strength = [0, 0.16, 0.3, 0.42][S.testLight], reach = (visionNow() / FT_PER_SQUARE) * cell();
+    const strength = [0, 0.12, 0.24, 0.5][S.testLight], reach = (visionNow() / FT_PER_SQUARE) * cell();
     S.polys.forEach((poly, i) => {
       const t = S.polyOwners[i];
       ctx.save();
@@ -969,6 +969,9 @@
       const g = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, reach);
       g.addColorStop(0, 'rgba(255,190,100,' + strength + ')'); g.addColorStop(0.5, 'rgba(255,160,70,' + strength * 0.55 + ')'); g.addColorStop(1, 'rgba(255,140,50,0)');
       ctx.fillStyle = g; ctx.fillRect(t.x - reach, t.y - reach, reach * 2, reach * 2);
+      // Two faint rings mark where bright light ends (half the reach) and where dim light ends, so a torch (20/40 ft) and a lantern (30/60 ft) can be told apart even in a small room.
+      ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = 'rgba(255,200,120,0.55)'; ctx.lineWidth = Math.max(1, cell() * 0.04); ctx.setLineDash([cell() * 0.3, cell() * 0.2]);
+      for (const rr of [reach / 2, reach]) { ctx.beginPath(); ctx.arc(t.x, t.y, rr, 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
     });
   }
