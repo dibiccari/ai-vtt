@@ -80,10 +80,10 @@
     },
     {
       "id": "wave-echo-cave",
-      "file": "lmop-wave-echo-cave.png",
+      "file": "vtt-wave-echo-cave.png",
       "name": "Wave Echo Cave (the lost mine)",
       "kind": "battle",
-      "description": "The great cavern complex of the Phandelver Pact: the Forge of Spells, tunnels, an underground lake, and the shrine. Use it for everything inside the mine."
+      "description": "Wave Echo Cave, the lost dwarven mine of Phandelver: a vast network of winding cave tunnels and caverns with mine-cart rails, entered at the bottom left. Going north: mine tunnels, old stone guardroom and assayers' office, a fungi cavern, the great cavern with a ruined dwarven bridge, a dark pool, a smelter cavern, a glittering starry cavern, the wizards' quarters and forge of spells in the east, a huge lake cavern (the booming cavern) in the north-east, an old streambed, and the temple of Dumathoin in the north-west."
     },
     {
       "id": "agathas-lair",
