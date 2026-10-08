@@ -434,3 +434,18 @@ test('map config: animated effects are saved with the set, cleaned, and kept whe
   c = (await s.get('/api/map-config?map=vtt-eff-test.png')).json.config;
   assert.equal(c.effects.length, 1, 'effects survive a save that does not mention them');
 });
+
+test('map sets: a night look is added to a place with its own picture, light and sound; a second night is refused; the walls stay shared', async () => {
+  const sets = (await s.get('/api/mapsets')).json.sets;
+  const flagon = sets.find((x) => x.id === 'vtt-rusty-flagon-mutfjjbo');
+  const pic = (await s.get('/api/maps')).json.maps.map((u) => u.replace('/uploads/', '')).find((f) => f.startsWith('vtt-camp-day'));
+  assert.ok(flagon && pic);
+  const r = await s.post('/api/mapsets/' + flagon.guid + '/looks', { time: 'night', picture: pic, light: 'dark', ambient: 'ff1a2240', ambience: 'night' });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.deepEqual(r.json.looks.map((l) => l.time), ['day', 'night'], 'a lone main look becomes the day look');
+  assert.equal((await s.post('/api/mapsets/' + flagon.guid + '/looks', { time: 'night', picture: pic })).status, 409);
+  assert.equal((await s.post('/api/mapsets/' + flagon.guid + '/looks', { time: 'main', picture: pic })).status, 400);
+  const sum = (await s.get('/api/mapsets')).json.sets.find((x) => x.guid === flagon.guid);
+  assert.deepEqual(sum.times, ['day', 'night']); assert.equal(sum.levels[0].walls, flagon.levels[0].walls, 'the walls are the level\'s, shared by both looks');
+  assert.equal(sum.levels[0].looks.find((l) => l.time === 'night').light, 'dark');
+});

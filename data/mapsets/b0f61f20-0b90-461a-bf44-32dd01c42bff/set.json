@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 7,
+  "version": 10,
   "id": "b0f61f20-0b90-461a-bf44-32dd01c42bff",
   "slug": "vtt-terrain-test",
   "name": "Terrain Test",
@@ -1385,8 +1385,8 @@
         },
         {
           "name": "brazier",
-          "x": 1560,
-          "y": 350,
+          "x": 1615,
+          "y": 363,
           "desc": "An iron brazier of cold coals beside the cabin. It can be lit."
         }
       ],
@@ -1648,8 +1648,8 @@
       "isRevealed": false,
       "looks": [
         {
-          "id": "main",
-          "time": "main",
+          "id": "day",
+          "time": "day",
           "player": "vtt-terrain-test.png",
           "dm": null,
           "light": "bright",
@@ -1687,6 +1687,48 @@
           ],
           "ambient": "ffffffff",
           "ambience": "forest",
+          "mood": ""
+        },
+        {
+          "id": "night",
+          "time": "night",
+          "player": "vtt-terrain-test-night.png",
+          "dm": null,
+          "light": "dark",
+          "lights": [
+            {
+              "x": 1510,
+              "y": 150,
+              "range": 5,
+              "intensity": 1,
+              "color": "ffffc070",
+              "kind": "lantern",
+              "name": "lantern"
+            },
+            {
+              "x": 350,
+              "y": 625,
+              "range": 9,
+              "intensity": 1,
+              "color": "ffff9a3c",
+              "flicker": true,
+              "kind": "campfire",
+              "name": "campfire"
+            },
+            {
+              "x": 1560,
+              "y": 420,
+              "range": 8,
+              "intensity": 1,
+              "color": "ffff9a3c",
+              "flicker": true,
+              "on": false,
+              "kind": "brazier",
+              "name": "brazier"
+            }
+          ],
+          "ambient": "ff1a2240",
+          "ambience": "night",
           "mood": ""
         }
       ],

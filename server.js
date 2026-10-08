@@ -557,6 +557,36 @@ app.get('/api/mapsets/:guid/blueprint.svg', asyncRoute(async (req, res) => {
   await writeBlueprint(doc);
   res.type('image/svg+xml').sendFile(path.join(packetDir(doc.id), 'blueprint.svg'));
 }));
+// Add a look (a time of day: night, dusk, rain...) to a place: its picture must already be uploaded (public/uploads) or in the packet; the walls, doors, pins and terrain stay shared, the look gets its own light level, lights and sound.
+app.post('/api/mapsets/:guid/looks', localOnly, asyncRoute(async (req, res) => {
+  const { docs } = await ensureSets();
+  const doc = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
+  if (!doc) return res.status(404).json({ error: 'No such map set' });
+  const time = String(req.body?.time ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 20);
+  const picture = path.basename(String(req.body?.picture ?? ''));
+  if (!time || time === 'main') return res.status(400).json({ error: 'Give the look a time, such as night, dusk or rain.' });
+  const inPacket = existsSync(path.join(packetDir(doc.id), picture));
+  if (!inPacket && !(await pictureFiles()).includes(picture)) return res.status(404).json({ error: 'That picture is not uploaded.' });
+  const level = doc.levels[0];
+  // A picture that a place of its own was already made for (a new upload is adopted by the next set built) is moved into this packet, and that stray place goes.
+  const elsewhere = PACKET_FILES.get(picture);
+  if (elsewhere && path.dirname(elsewhere) !== packetDir(doc.id)) {
+    const stray = SETS.index.get(picture)?.set;
+    await rename(elsewhere, path.join(packetDir(doc.id), picture));
+    if (stray && stray.id !== doc.id && stray.levels.every((lv) => lv.looks.every((l) => l.player === picture))) await rm(packetDir(stray.id), { recursive: true, force: true });
+  }
+  if (level.looks.some((l) => l.time === time)) return res.status(409).json({ error: 'This place already has a ' + time + ' look.' });
+  const first = level.looks[0];
+  if (first.time === 'main') { first.time = 'day'; first.id = 'day'; }
+  level.looks.push({ id: time, time, player: picture, dm: null, light: ['bright', 'dim', 'dark'].includes(req.body?.light) ? req.body.light : first.light, lights: Array.isArray(req.body?.lights) ? normalizeMapConfig({ lights: req.body.lights }).lights || [] : JSON.parse(JSON.stringify(first.lights || [])), ambient: /^[0-9a-f]{6,8}$/i.test(String(req.body?.ambient ?? '')) ? String(req.body.ambient).toLowerCase() : '', ambience: ['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(req.body?.ambience) ? req.body.ambience : first.ambience || '', mood: first.mood || '' });
+  doc.version = (doc.version || 1) + 1;
+  await saveSet(doc);
+  for (const other of [...docs.values()]) {        // a place that was built on its own for this very picture (an upload is adopted by the next set built) has nothing left
+    if (other.id !== doc.id && other.levels.every((lv) => lv.looks.every((l) => l.player === picture))) await rm(packetDir(other.id), { recursive: true, force: true });
+  }
+  await loadSets();
+  res.json({ ok: true, looks: level.looks.map((l) => ({ time: l.time, player: l.player })) });
+}));
 app.post('/api/mapsets/:guid/clone', localOnly, asyncRoute(async (req, res) => {
   const { docs } = await ensureSets();
   const src = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
