@@ -1,0 +1,39 @@
+{
+  "maps": [
+    {
+      "id": "marker-camp-night",
+      "file": "vtt-camp-night.png",
+      "name": "Roadside camp (night)",
+      "kind": "camp",
+      "description": "The same wagon camp at night, lit by a campfire and a few torches. Use it for Marker Nine at dusk and night, and any roadside camp after dark."
+    },
+    {
+      "id": "marker-camp-day",
+      "file": "vtt-camp-day.png",
+      "name": "Roadside camp (day)",
+      "kind": "camp",
+      "description": "A wagon camp beside the Lantern Road in daylight: a campfire ring, tents, logs and a few trees. Use it for Marker Nine, any roadside camp or a rest stop, in daylight."
+    },
+    {
+      "id": "thornwood-trail",
+      "file": "vtt-goblin-ambush.png",
+      "name": "Thornwood trail (roadside)",
+      "kind": "battle",
+      "description": "A winding dirt road through woods and meadow with a steep earth bank on each side, thickets of dense bushes that hide creatures, boulders and a fallen log. Use it for a roadside ambush, a bandit toll, a wrecked wagon or a meeting in the trees."
+    },
+    {
+      "id": "old-tollhouse-cellars",
+      "file": "vtt-dungeon-cellars.png",
+      "name": "Old Tollhouse cellars",
+      "kind": "battle",
+      "description": "A torch-lit stone cellar complex under an abandoned tollhouse: an entry hall with stairs up, a pillared chamber with a brazier, storerooms, a flagstone corridor and doors. Use it for the tollhouse, any old cellar, a vault or a hideout under a building."
+    },
+    {
+      "id": "sunken-chapel",
+      "file": "vtt-crypt-method-a.png",
+      "name": "The Sunken Chapel (crypt)",
+      "kind": "battle",
+      "description": "A torch-lit stone crypt under a ruined chapel: an entry hall with a staircase and pillars, a large pillared chamber with an altar and a brazier, a sarcophagus room with four tombs and a wooden storeroom with crates. Use it for the Sunken Chapel and any old crypt or shrine vault."
+    }
+  ]
+}

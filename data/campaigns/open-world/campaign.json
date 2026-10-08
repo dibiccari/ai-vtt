@@ -1,0 +1,14 @@
+{
+  "name": "Open World",
+  "template": "open-world",
+  "system": "D&D 5th Edition",
+  "levels": "1+",
+  "description": "OPEN WORLD is a sandbox campaign for a party of 1st-level characters, written to be improvised. It has a starting scene, a handful of live threads that lead into one another, a map of rumours and plac",
+  "party": [
+    "tamsin-ashgrove",
+    "borrin-keg",
+    "nessa-wickham",
+    "fizzwick-orrery"
+  ],
+  "custom": true
+}
