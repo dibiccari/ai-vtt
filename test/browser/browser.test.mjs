@@ -32,7 +32,7 @@ test('travelTo puts the party on the map\'s start pin (image pixels turned into 
   const places = (await server.get('/api/maps/available')).json.maps;
   const hideout = places.find((m) => m.id === 'cragmaw-hideout');
   assert.ok(hideout && hideout.startPx, 'the map has a saved start pin');
-  const cfg = (await server.get('/api/map-config?map=lmop-cragmaw-hideout.png')).json.config;
+  const cfg = (await server.get('/api/map-config?map=' + hideout.url.split('/').pop() + '')).json.config;
   const pin = cfg.starts.find((p) => p.name === 'start');
   const r = await page.eval(`(async () => {
     await vtt.travelTo(${JSON.stringify({ mapUrl: hideout.url, mapName: hideout.name, kind: hideout.kind, col: hideout.start.col, row: hideout.start.row, px: hideout.startPx })});

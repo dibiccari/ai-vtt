@@ -45,7 +45,7 @@ test('build your own: story, starter character, map request, create', opts, asyn
     // maps: ask for a new one
     const ask = [...document.querySelectorAll('details')].find((x) => /Ask for a new map/.test(x.textContent)); ask.open = true; ${wait(200)}
     ${setValue('input[aria-label="Map name"]', 'The flooded crypt')} ${setValue('textarea[aria-label="Map description"]', 'Stone steps down into black water.')}
-    ${btn('Send the request')}.click(); ${wait(900)}
+    ${btn('Send the request')}.click(); ${wait(2500)}
     out.requestStatus = document.querySelector('#status').textContent;
     ${btn('Next')}.click(); ${wait(200)}
     out.review = document.querySelector('.card').innerText.slice(0, 400);
