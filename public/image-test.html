@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Test</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; --accent:#4f9dff; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width:1700px; margin:0 auto; padding:18px 16px 40px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  .lead { color:var(--muted); margin:0 0 16px; }
+  .prompt { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:18px; }
+  .prompt h2 { margin:0 0 6px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); }
+  .prompt p { margin:0; white-space:pre-wrap; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+  figure img { display:block; width:100%; height:auto; background:#05070a; }
+  figcaption { padding:10px 12px; font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:2px; }
+  figcaption b { color:var(--text); font-size:16px; text-transform:capitalize; }
+  .missing { padding:60px 12px; text-align:center; color:var(--muted); }
+  a.open { color:var(--accent); text-decoration:none; font-weight:600; }
+  @media (max-width: 1000px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Image <span>Test</span></h1>
+  <p class="lead" id="lead">One prompt, painted at low, medium and high quality, to compare. This is a one-time test: nothing here can be changed or sent.</p>
+  <section class="prompt"><h2>The prompt used</h2><p id="prompt">Loading…</p></section>
+  <div class="grid" id="grid"></div>
+</main>
+<script src="/nav.js"></script>
+<script>
+(async function () {
+  'use strict';
+  const dir = '/scenarios/compare/image-test/';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  try { document.getElementById('prompt').textContent = (await (await fetch(dir + 'prompt.txt')).text()).trim(); } catch { document.getElementById('prompt').textContent = 'The prompt file is missing.'; }
+  let results = null;
+  try { results = await (await fetch(dir + 'results.json')).json(); } catch { /* not run yet */ }
+  if (results) document.getElementById('lead').textContent = 'One prompt, painted at low, medium and high quality with ' + results.model + ' at ' + results.size + ', to compare. This is a one-time test: nothing here can be changed or sent.';
+  const price = { low: 'about $0.02', medium: 'about $0.05', high: 'about $0.20' };
+  const grid = document.getElementById('grid');
+  for (const q of ['low', 'medium', 'high']) {
+    const run = results && results.runs.find((r) => r.quality === q);
+    const fig = el('figure');
+    if (run && run.ok) { const img = el('img'); img.src = dir + q + '.png'; img.alt = 'The same prompt painted at ' + q + ' quality'; img.loading = 'lazy'; fig.appendChild(img); }
+    else fig.appendChild(el('div', 'missing', run ? 'This one failed: ' + run.log : 'Not made yet.'));
+    const cap = el('figcaption');
+    cap.appendChild(el('b', '', q));
+    cap.appendChild(el('span', '', price[q] + ' at list prices' + (run && run.ok ? ' · ' + run.seconds + ' s · ' + (run.bytes / 1e6).toFixed(1) + ' MB' : '')));
+    if (run && run.ok) { const a = el('a', 'open', 'Open full size'); a.href = dir + q + '.png'; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
+    fig.appendChild(cap); grid.appendChild(fig);
+  }
+})();
+</script>
+</body>
+</html>

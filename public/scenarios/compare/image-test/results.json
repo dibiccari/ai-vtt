@@ -1,0 +1,28 @@
+{
+  "model": "gpt-image-1",
+  "size": "1536x1024",
+  "at": "2026-10-08T19:21:32.298Z",
+  "runs": [
+    {
+      "quality": "low",
+      "ok": true,
+      "seconds": 24,
+      "log": "gpt-image-1 1536x1024 low: saved /Users/dibiccari/repos/ai-vtt/public/scenarios/compare/image-test/low.png (2.1 MB) in 24 s, about 0.02 at list prices",
+      "bytes": 2066964
+    },
+    {
+      "quality": "medium",
+      "ok": true,
+      "seconds": 22,
+      "log": "gpt-image-1 1536x1024 medium: saved /Users/dibiccari/repos/ai-vtt/public/scenarios/compare/image-test/medium.png (2.3 MB) in 22 s, about 0.05 at list prices",
+      "bytes": 2338948
+    },
+    {
+      "quality": "high",
+      "ok": true,
+      "seconds": 56,
+      "log": "gpt-image-1 1536x1024 high: saved /Users/dibiccari/repos/ai-vtt/public/scenarios/compare/image-test/high.png (3.0 MB) in 56 s, about 0.20 at list prices",
+      "bytes": 3037150
+    }
+  ]
+}

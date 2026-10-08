@@ -18,7 +18,8 @@
       { href: '/test-lab.html', label: '🧪 Test Lab' },
       { href: '/voice-test.html', label: '🔊 Voice Test' },
       { href: '/sound-test.html', label: '🎵 Sound Test' },
-      { href: '/conditions-test.html', label: '🎭 Character conditions' }
+      { href: '/conditions-test.html', label: '🎭 Character conditions' },
+      { href: '/image-test.html', label: '🖼 Image Test' }
     ] },
     { href: '/settings.html', label: '⚙ Settings' }
   ];
