@@ -9,7 +9,7 @@ import { imageSettings } from '../lib/image-settings.js';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'public', 'scenarios', 'compare', 'image-test');
 const KINDS = {
-  town: { name: 'town', source: 'town/phandalin-prompt.txt', aspect: '3:2' },
+  town: { name: 'town', source: 'town/phandalin-player-full-prompt.txt', aspect: '3:2' },
   region: { name: 'region', source: 'coast/coast-atlas-prompt.txt', aspect: '2:3' }
 };
 const kind = KINDS[process.argv[2] || 'town'];

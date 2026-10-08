@@ -28,7 +28,9 @@
   .shot { position:relative; }
   .shot svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; }
   .showwalls .shot svg { display:block; }
-  #grid3 figcaption b { text-transform:none; }
+  #grid3 figcaption b, #grid4 figcaption b, #grid5 figcaption b { text-transform:none; }
+  .grid2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; max-width:1500px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns:1fr; } }
   .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
   @media (max-width: 1100px) { .grid3 { grid-template-columns:1fr 1fr; } } @media (max-width: 700px) { .grid3 { grid-template-columns:1fr; } }
   .good { color:var(--ok, #3fd27f); } .meh { color:var(--gold); } .poor { color:#ff8b8b; }
@@ -57,14 +59,14 @@
   <div class="grid3" id="grid3"></div>
 
   <h2 class="sec">FLUX Kontext paints <span>Phandalin</span></h2>
-  <p class="lead">A town map made by FLUX Kontext on fal.ai from a text description only (no drawing sent). The same description was used for our ChatGPT version of Phandalin. Walls do not apply to a town map, so there is no overlay here.</p>
+  <p class="lead">The same description of Phandalin, word for word, given to ChatGPT (gpt-image-1, high, the picture our campaign uses) and to FLUX Kontext on fal.ai. Text only, no drawing sent to either. Walls do not apply to a town map, so there is no overlay here.</p>
   <section class="prompt"><h2>The prompt used</h2><p id="prompt3">Loading…</p></section>
-  <div class="grid3" id="grid4"></div>
+  <div class="grid2" id="grid4"></div>
 
   <h2 class="sec">FLUX Kontext paints <span>a regional map</span></h2>
-  <p class="lead">A regional map made by FLUX Kontext on fal.ai from a text description only (no drawing sent): the same atlas description we gave ChatGPT for the Sword Coast-style map. It is a portrait picture, 2:3.</p>
+  <p class="lead">The same atlas description, word for word, given to ChatGPT (gpt-image-1) and to FLUX Kontext on fal.ai, text only, portrait 2:3. This is ChatGPT's first picture from the text. Our campaign's Sword Coast was later made from a drawn layout, so it follows the real geography more closely.</p>
   <section class="prompt"><h2>The prompt used</h2><p id="prompt4">Loading…</p></section>
-  <div class="grid3" id="grid5"></div>
+  <div class="grid2" id="grid5"></div>
 </main>
 <script src="/nav.js"></script>
 <script>
@@ -132,10 +134,15 @@
     fig.appendChild(cap); grid3.appendChild(fig);
   }
   // ---- the town and the region (FLUX Kontext from text only)
-  const textOnly = async (name, promptId, gridId, title, verdict) => {
+  const textOnly = async (name, promptId, gridId, title, verdict, chat) => {
     try { document.getElementById(promptId).textContent = (await (await fetch(dir + name + '-prompt.txt')).text()).trim(); } catch { document.getElementById(promptId).textContent = 'Not made yet.'; }
     let res = null;
     try { res = await (await fetch(dir + name + '-results.json')).json(); } catch { /* not made yet */ }
+    if (chat) {
+      const cf = el('figure'); const cs = el('div', 'shot'); const ci = el('img'); ci.src = dir + chat.file; ci.alt = chat.title; ci.loading = 'lazy'; cs.appendChild(ci); cf.appendChild(cs);
+      const cc = el('figcaption'); cc.appendChild(el('b', '', chat.title)); cc.appendChild(el('span', '', chat.model)); cc.appendChild(el('span', '', chat.verdict));
+      const ca = el('a', 'open', 'Open full size'); ca.href = dir + chat.file; ca.target = '_blank'; ca.rel = 'noopener'; cc.appendChild(ca); cf.appendChild(cc); document.getElementById(gridId).appendChild(cf);
+    }
     const fig = el('figure');
     if (res && res.ok) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + res.file; img.alt = title; img.loading = 'lazy'; shot.appendChild(img); fig.appendChild(shot); }
     else fig.appendChild(el('div', 'missing', res ? 'Failed: ' + res.error : 'Not made yet.'));
@@ -143,8 +150,8 @@
     if (res && res.ok) { cap.appendChild(el('span', '', verdict)); const a = el('a', 'open', 'Open full size'); a.href = dir + res.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
     fig.appendChild(cap); document.getElementById(gridId).appendChild(fig);
   };
-  await textOnly('town', 'prompt3', 'grid4', 'FLUX Kontext on fal.ai', 'Top-down enough for a town: a green, roads, about forty buildings and the gorge, but it wrote its own title and a garbled legend into the picture, which a map for the table must not have.');
-  await textOnly('region', 'prompt4', 'grid5', 'FLUX Kontext on fal.ai', 'Reads as an atlas: a sea down the west side, a coast with a walled port, a great forest, a volcano, rivers and trails. It added clouds and a decorated border, which a map should not have, and the sea is far too dominant.');
+  await textOnly('town', 'prompt3', 'grid4', 'FLUX Kontext on fal.ai', 'Top-down enough for a town: a green, roads, about forty buildings and the gorge, but it wrote its own title and a garbled legend into the picture, which a map for the table must not have.', { file: 'town-chatgpt.png', title: 'ChatGPT (OpenAI) gpt-image-1', model: 'the Phandalin our campaign uses · high quality · about $0.20', verdict: 'No title, no legend, no writing in the picture, and richer painted art. But it shows only part of the town, close up and a little slanted: the whole layout the text describes (the green, the inn, the gorge, the ruined manor) is not all there, which FLUX gets closer to.' });
+  await textOnly('region', 'prompt4', 'grid5', 'FLUX Kontext on fal.ai', 'Reads as an atlas: a sea down the west side, a coast with a walled port, a great forest, a volcano, rivers and trails. It added clouds and a decorated border, which a map should not have, and the sea is far too dominant.', { file: 'region-chatgpt.png', title: 'ChatGPT (OpenAI) gpt-image-1', model: 'the first atlas picture from this text · about $0.05 to $0.20', verdict: 'No clouds, no border, no writing. Land fills most of the picture with the sea as a strip down the west, a walled port on the coast, one great forest with ruins in clearings, a smoking volcano, a river, mountains along the east: much closer to the description than the FLUX version.' });
   const box = document.getElementById('showWalls');
   box.addEventListener('change', () => document.body.classList.toggle('showwalls', box.checked));
 })();
