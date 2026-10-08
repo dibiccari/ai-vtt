@@ -94,10 +94,7 @@
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check"><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
-    <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token (walls block, difficult terrain costs double)</label>
-    <label class="field"><span>Speed: <b id="moveFtVal">30</b> ft</span>
-      <input type="range" id="moveFt" min="10" max="120" step="5" value="30">
-    </label>
+    <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token: 30 ft (walls block, difficult terrain costs double)</label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
@@ -1550,7 +1547,6 @@
     revealFog();
   });
   $('#moveTest').addEventListener('change', (e) => { S.moveTest = e.target.checked; requestRender(); });
-  $('#moveFt').addEventListener('input', (e) => { S.moveFt = Number(e.target.value); $('#moveFtVal').textContent = S.moveFt; requestRender(); });
   $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; requestRender(); updateReadout(); });
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
