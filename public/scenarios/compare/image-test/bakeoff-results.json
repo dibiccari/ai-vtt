@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-08T20:17:30.248Z",
+  "at": "2026-10-08T20:27:02.853Z",
   "layout": "layout.png",
   "runs": [
     {
@@ -71,8 +71,8 @@
       "price": "a few cents",
       "file": "fal-canny.png",
       "ok": false,
-      "noKey": true,
-      "error": "No key saved yet. Add one in Settings > Image Generator."
+      "seconds": 1,
+      "error": "fal.ai 403: \"User is locked. Reason: TOP_UP.\""
     },
     {
       "id": "fal-kontext",
@@ -83,8 +83,8 @@
       "price": "a few cents",
       "file": "fal-kontext.png",
       "ok": false,
-      "noKey": true,
-      "error": "No key saved yet. Add one in Settings > Image Generator."
+      "seconds": 0,
+      "error": "fal.ai 403: \"User is locked. Reason: TOP_UP.\""
     }
   ]
 }
