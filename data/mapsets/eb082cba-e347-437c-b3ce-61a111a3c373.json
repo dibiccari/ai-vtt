@@ -1,0 +1,672 @@
+{
+  "format": "vttmapset",
+  "version": 2,
+  "id": "eb082cba-e347-437c-b3ce-61a111a3c373",
+  "slug": "vtt-redbrand-hideout",
+  "name": "Redbrand Hideout",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T08:43:25.624Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [
+        {
+          "x1": 62,
+          "y1": 72,
+          "x2": 62,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 62,
+          "y1": 72,
+          "x2": 475,
+          "y2": 72,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 475,
+          "y1": 72,
+          "x2": 475,
+          "y2": 385,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 475,
+          "y1": 385,
+          "x2": 475,
+          "y2": 440,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 475,
+          "y1": 440,
+          "x2": 475,
+          "y2": 518,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 62,
+          "y1": 318,
+          "x2": 308,
+          "y2": 318,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 308,
+          "y1": 318,
+          "x2": 365,
+          "y2": 318,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 365,
+          "y1": 318,
+          "x2": 475,
+          "y2": 318,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 62,
+          "y1": 530,
+          "x2": 308,
+          "y2": 530,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 308,
+          "y1": 530,
+          "x2": 365,
+          "y2": 530,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 365,
+          "y1": 530,
+          "x2": 545,
+          "y2": 530,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 475,
+          "y1": 518,
+          "x2": 545,
+          "y2": 518,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 545,
+          "y1": 530,
+          "x2": 545,
+          "y2": 590,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 545,
+          "y1": 590,
+          "x2": 545,
+          "y2": 625,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 545,
+          "y1": 625,
+          "x2": 545,
+          "y2": 758,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 545,
+          "y1": 758,
+          "x2": 545,
+          "y2": 785,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 545,
+          "y1": 785,
+          "x2": 545,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 62,
+          "y1": 940,
+          "x2": 545,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 480,
+          "y1": 310,
+          "x2": 645,
+          "y2": 310,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 645,
+          "y1": 310,
+          "x2": 645,
+          "y2": 355,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 645,
+          "y1": 420,
+          "x2": 645,
+          "y2": 598,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 645,
+          "y1": 618,
+          "x2": 645,
+          "y2": 752,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 645,
+          "y1": 778,
+          "x2": 645,
+          "y2": 940,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 856,
+          "y1": 52,
+          "x2": 1452,
+          "y2": 52,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 856,
+          "y1": 52,
+          "x2": 856,
+          "y2": 350,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 856,
+          "y1": 425,
+          "x2": 856,
+          "y2": 462,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 856,
+          "y1": 462,
+          "x2": 1030,
+          "y2": 462,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1030,
+          "y1": 462,
+          "x2": 1030,
+          "y2": 600,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 835,
+          "y1": 600,
+          "x2": 1030,
+          "y2": 600,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 822,
+          "y1": 625,
+          "x2": 822,
+          "y2": 752,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 822,
+          "y1": 785,
+          "x2": 822,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 822,
+          "y1": 940,
+          "x2": 1452,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 835,
+          "y1": 618,
+          "x2": 1005,
+          "y2": 618,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1018,
+          "y1": 65,
+          "x2": 1018,
+          "y2": 262,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1018,
+          "y1": 740,
+          "x2": 1018,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 856,
+          "y1": 276,
+          "x2": 1050,
+          "y2": 276,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1050,
+          "y1": 276,
+          "x2": 1115,
+          "y2": 276,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 1115,
+          "y1": 276,
+          "x2": 1215,
+          "y2": 276,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1280,
+          "y1": 276,
+          "x2": 1452,
+          "y2": 276,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1152,
+          "y1": 52,
+          "x2": 1152,
+          "y2": 300,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1152,
+          "y1": 300,
+          "x2": 1152,
+          "y2": 370,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 1152,
+          "y1": 370,
+          "x2": 1152,
+          "y2": 640,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1152,
+          "y1": 668,
+          "x2": 1152,
+          "y2": 740,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1152,
+          "y1": 790,
+          "x2": 1152,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1452,
+          "y1": 52,
+          "x2": 1452,
+          "y2": 850,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1452,
+          "y1": 850,
+          "x2": 1452,
+          "y2": 925,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 1452,
+          "y1": 925,
+          "x2": 1452,
+          "y2": 940,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1165,
+          "y1": 448,
+          "x2": 1452,
+          "y2": 448,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1165,
+          "y1": 655,
+          "x2": 1452,
+          "y2": 655,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 900,
+          "y1": 485,
+          "x2": 1000,
+          "y2": 485,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1000,
+          "y1": 485,
+          "x2": 1000,
+          "y2": 590,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1000,
+          "y1": 590,
+          "x2": 900,
+          "y2": 590,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 900,
+          "y1": 590,
+          "x2": 900,
+          "y2": 485,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1195,
+          "y1": 105,
+          "x2": 1250,
+          "y2": 105,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1250,
+          "y1": 105,
+          "x2": 1250,
+          "y2": 220,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1250,
+          "y1": 220,
+          "x2": 1195,
+          "y2": 220,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1195,
+          "y1": 220,
+          "x2": 1195,
+          "y2": 105,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1280,
+          "y1": 105,
+          "x2": 1335,
+          "y2": 105,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1335,
+          "y1": 105,
+          "x2": 1335,
+          "y2": 220,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1335,
+          "y1": 220,
+          "x2": 1280,
+          "y2": 220,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1280,
+          "y1": 220,
+          "x2": 1280,
+          "y2": 105,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1357,
+          "y1": 105,
+          "x2": 1412,
+          "y2": 105,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1412,
+          "y1": 105,
+          "x2": 1412,
+          "y2": 220,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1412,
+          "y1": 220,
+          "x2": 1357,
+          "y2": 220,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1357,
+          "y1": 220,
+          "x2": 1357,
+          "y2": 105,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1255,
+          "y1": 790,
+          "x2": 1375,
+          "y2": 790,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1375,
+          "y1": 790,
+          "x2": 1375,
+          "y2": 885,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1375,
+          "y1": 885,
+          "x2": 1255,
+          "y2": 885,
+          "type": "fence",
+          "open": false
+        },
+        {
+          "x1": 1255,
+          "y1": 885,
+          "x2": 1255,
+          "y2": 790,
+          "type": "fence",
+          "open": false
+        }
+      ],
+      "starts": [
+        {
+          "name": "start",
+          "x": 1415,
+          "y": 895,
+          "radius": 2
+        },
+        {
+          "name": "area-1",
+          "x": 1300,
+          "y": 820,
+          "desc": "Cellar"
+        },
+        {
+          "name": "area-2",
+          "x": 1290,
+          "y": 370,
+          "desc": "Barracks"
+        },
+        {
+          "name": "area-3",
+          "x": 1090,
+          "y": 450,
+          "desc": "Trapped Hall"
+        },
+        {
+          "name": "area-4",
+          "x": 1300,
+          "y": 160,
+          "desc": "Tresendar Crypts"
+        },
+        {
+          "name": "area-5",
+          "x": 1300,
+          "y": 540,
+          "desc": "Slave Pens"
+        },
+        {
+          "name": "area-6",
+          "x": 940,
+          "y": 160,
+          "desc": "Armory"
+        },
+        {
+          "name": "area-7",
+          "x": 950,
+          "y": 380,
+          "desc": "Storeroom and Work Area"
+        },
+        {
+          "name": "area-8",
+          "x": 730,
+          "y": 500,
+          "desc": "Crevasse"
+        },
+        {
+          "name": "area-9",
+          "x": 440,
+          "y": 720,
+          "desc": "Guard Barracks"
+        },
+        {
+          "name": "area-10",
+          "x": 180,
+          "y": 720,
+          "desc": "Common Room"
+        },
+        {
+          "name": "area-11",
+          "x": 250,
+          "y": 420,
+          "desc": "Wizard's Workshop"
+        },
+        {
+          "name": "area-12",
+          "x": 250,
+          "y": 180,
+          "desc": "Glasstaff's Quarters"
+        }
+      ],
+      "difficult": [],
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-redbrand-hideout.png",
+          "dm": null,
+          "light": "dim",
+          "lights": [],
+          "ambient": "",
+          "ambience": "dungeon",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}

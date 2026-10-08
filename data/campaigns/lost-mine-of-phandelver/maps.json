@@ -31,10 +31,10 @@
     },
     {
       "id": "redbrand-hideout",
-      "file": "lmop-redbrand-hideout.png",
+      "file": "vtt-redbrand-hideout.png",
       "name": "Redbrand Hideout (cellars under Tresendar Manor)",
       "kind": "battle",
-      "description": "The Redbrand ruffians' tunnels and cellars beneath the ruined Tresendar Manor: guard rooms, crypt, a chasm with bridges, a pool and the lair of Glasstaff."
+      "description": "The Redbrand Hideout under the ruined Tresendar Manor: a dungeon of well-built stone chambers with flagstone floors. The eastern end (stairs down from the cellar with its cistern and barrels) is higher; going west: the barracks, a trapped hall with a red carpet, the Tresendar crypts with sarcophagi, the slave pens (cells with iron bars), an armory and a storeroom. A deep crevasse runs north to south through the middle (three rope bridges; the eye monster lurks here), and beyond it the western end holds the guard barracks, common room, the wizard's workshop and Glasstaff's quarters."
     },
     {
       "id": "thundertree",
