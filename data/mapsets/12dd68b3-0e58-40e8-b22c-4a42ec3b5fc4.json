@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 32,
+  "version": 36,
   "id": "12dd68b3-0e58-40e8-b22c-4a42ec3b5fc4",
   "slug": "vtt-agathas-lair",
   "name": "Agatha's Lair",
@@ -1099,22 +1099,6 @@
           "open": false
         },
         {
-          "x1": -30.9,
-          "y1": 942.5,
-          "x2": -45,
-          "y2": 890,
-          "type": "wall",
-          "open": false
-        },
-        {
-          "x1": -45,
-          "y1": 890,
-          "x2": -30.9,
-          "y2": 837.5,
-          "type": "wall",
-          "open": false
-        },
-        {
           "x1": 1478,
           "y1": 830,
           "x2": 1458.2,
@@ -1769,5 +1753,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "publisher": "Explorer Remakes"
 }

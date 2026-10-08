@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 2,
+  "version": 3,
   "id": "dacfeb3b-ed34-4911-8db0-cf1753a24ea3",
   "slug": "vtt-thundertree",
   "name": "Thundertree",
@@ -816,5 +816,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "publisher": "Explorer Remakes"
 }

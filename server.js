@@ -393,6 +393,7 @@ function normalizeMapConfig(body) {
   const secrets = [];
   for (const sc of Array.isArray(body?.secrets) ? body.secrets.slice(0, 100) : []) { const [x1, y1, x2, y2] = [num(sc?.x1), num(sc?.y1), num(sc?.x2), num(sc?.y2)]; if (![x1, y1, x2, y2].includes(null)) secrets.push({ name: String(sc?.name ?? '').slice(0, 80), x1, y1, x2, y2, type: 'wall', open: false }); }
   const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
+  if (typeof body?.publisher === 'string') config.publisher = body.publisher.trim().slice(0, 40);
   if (rooms.length) config.rooms = rooms;
   if (secrets.length) config.secrets = secrets;
   if (difficult.length) config.difficult = difficult;
@@ -459,7 +460,7 @@ app.get('/api/map-library', asyncRoute(async (_req, res) => {
   for (const f of files) {
     const c = await readMapConfig(f);
     const stem = f.replace(/\.[^.]+$/, '');
-    const origin = originOf(f);
+    const origin = c?.publisher || originOf(f);
     const kind = kinds.get(f) || (c?.tiles === 'hex' || /coast|region|world/i.test(f) ? 'regional' : /phandalin|town|village/i.test(f) ? 'town' : 'battle');       // pictures no campaign lists are guessed from their set-up and name
     out.push({ file: f, url: '/uploads/' + f, kind, origin, tiles: c?.tiles === 'hex' ? 'hex' : 'square', setUp: Boolean(c), walls: (c?.walls || []).filter((w) => w.type !== 'door').length, doors: (c?.walls || []).filter((w) => w.type === 'door').length, lights: (c?.lights || []).length, pins: (c?.starts || []).length, hasStart: Boolean((c?.starts || []).find((s) => s.name === 'start')), difficult: (c?.difficult || []).length, mood: c?.mood || '', group: c?.group || '', variant: c?.variant || '', dmVersion: dmFiles.has(stem), campaigns: used.get(f) || [] });
   }
@@ -549,6 +550,7 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.mood && !config.mood && req.body?.mood === undefined) config.mood = old.mood;
       if (old.tiles === 'hex' && req.body?.tiles === undefined) { config.tiles = 'hex'; config.hexSize = old.hexSize; }
       if (old.kind && req.body?.kind === undefined) config.kind = old.kind;
+      if (old.publisher && req.body?.publisher === undefined) config.publisher = old.publisher;
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
   }

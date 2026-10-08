@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 2,
+  "version": 3,
   "id": "f117f00b-e8a3-43d5-81c2-104989ffdb71",
   "slug": "vtt-cragmaw-hideout",
   "name": "Cragmaw Hideout",
@@ -8458,5 +8458,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "publisher": "Explorer Remakes"
 }
