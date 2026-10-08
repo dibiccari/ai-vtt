@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 33,
+  "version": 36,
   "id": "406a08bc-086d-4533-8631-d575938170a2",
   "slug": "camp",
   "name": "Camp",
@@ -9942,8 +9942,8 @@
       "starts": [
         {
           "name": "start",
-          "x": 154,
-          "y": 719,
+          "x": 162,
+          "y": 694,
           "radius": 2
         },
         {
