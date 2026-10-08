@@ -3,10 +3,10 @@
   "maps": [
     {
       "id": "sword-coast",
-      "file": "dnd-northswordcoast-playerversion.jpg",
+      "file": "dnd-sword-coast-ours.png",
       "name": "The Sword Coast (regional map)",
       "kind": "regional",
-      "description": "Regional map around Neverwinter. Use it for travel between places: the High Road, the Triboar Trail, Neverwinter, Phandalin, Thundertree, Conyberry, Old Owl Well and Leilon. This is only a regional map: the party tokens are not shown on it and there is no fog or movement limit."
+      "description": "Regional map around Neverwinter, drawn in hexagons of 5 miles. Use it for travel between places: the High Road, the Triboar Trail, Neverwinter, Phandalin, Thundertree, Conyberry, Old Owl Well, Leilon, Cragmaw Castle, Wave Echo Cave and the rest of the region. This is only a regional map: the party tokens are not shown on it and there is no fog or movement limit."
     },
     {
       "id": "triboar-ambush",
@@ -17,7 +17,7 @@
     },
     {
       "id": "phandalin",
-      "file": "lmop-phandalin-player-version.jpg",
+      "file": "vtt-phandalin.png",
       "name": "Phandalin (town map)",
       "kind": "town",
       "description": "The frontier town of Phandalin: the Stonehill Inn, Barthen's Provisions, Lionshield Coster, the Shrine of Luck, the Sleeping Giant tap house, the Townmaster's Hall, the Miner's Exchange, farms, and the ruins of Tresendar Manor on the eastern hillside. Use it for any scene inside the town. This is a town map: the party tokens are not shown on it and there is no fog or movement limit."

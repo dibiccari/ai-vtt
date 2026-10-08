@@ -73,7 +73,7 @@
   // a half-day's march from Phandalin (where the Goblin Arrows chapter begins). Returns null if the map is not installed.
   async function createLostMine(opts, id) {
     var maps = (await getJson('/api/maps')).maps || [];
-    var url = maps.filter(function (u) { return /\/dnd-northswordcoast-playerversion\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /northswordcoast/.test(u); })[0] || null;
+    var url = maps.filter(function (u) { return /\/dnd-sword-coast-ours\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /\/dnd-northswordcoast-playerversion\.[a-z]+$/.test(u); })[0] || maps.filter(function (u) { return /northswordcoast/.test(u); })[0] || null;
     if (!url) return null;
     var chars = await getJson('/api/characters?campaign=' + (id || LOST_MINE));
     var spots = [[31, 49], [32, 49], [31, 50], [32, 50], [33, 49], [33, 50]];
