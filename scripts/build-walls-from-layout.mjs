@@ -130,7 +130,7 @@ for (const f of layout.fences || []) {
 const file = path.join(root, 'data', 'maps', layout.picture + '.json');
 let cfg = {};
 try { cfg = JSON.parse(await readFile(file, 'utf8')); } catch { /* new map */ }
-const width = layout.width || Number(execFileSync('sips', ['-g', 'pixelWidth', path.join(root, 'public', 'uploads', layout.picture)]).toString().match(/pixelWidth: (\d+)/)[1]);
+const width = layout.width || Number(execFileSync('sips', ['-g', 'pixelWidth', (await import('../lib/pictures.js')).picturePath(root, layout.picture)]).toString().match(/pixelWidth: (\d+)/)[1]);
 // the rooms as rectangles in picture pixels: the table's 'small closed wall loop = object whose top shows' rule must not treat a room as an object (see public/wallobjects.js)
 const roomRects = Object.values(layout.rooms).map(([x0, y0, x1, y1]) => [px(x0, ox), px(y0, oy), px(x1, ox), px(y1, oy)]);
 // arrival spots (layout.starts: name -> [column,row] in cell units, the middle of that cell) are written only when the config has none yet: pins placed on Map Test win

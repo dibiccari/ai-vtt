@@ -11,6 +11,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { encodePng } from '../lib/mapkit.js';
 import { readPicture } from '../lib/bmpread.js';
+import { picturePath, readSets } from '../lib/pictures.js';
+import { readFileSync } from 'node:fs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -18,13 +20,10 @@ const opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i
 const picture = opt('picture'), out = opt('out');
 if (!picture || !out) { console.error('usage: node scripts/make-wall-layout.mjs --picture <file> --out <layout.png> [--width 1536 | --canvas 1536x1024] [--seeds a,b] [--pins] [--floor r,g,b] [--rock r,g,b]'); process.exit(1); }
 let set = null;
-for (const f of await readdir(path.join(root, 'data', 'mapsets'))) {
-  const d = JSON.parse(await readFile(path.join(root, 'data', 'mapsets', f), 'utf8'));
-  if (d.levels.some((lv) => lv.looks.some((l) => l.player === picture))) { set = d; break; }
-}
+for (const d of readSets(root, readFileSync)) if (d.levels.some((lv) => lv.looks.some((l) => l.player === picture))) { set = d; break; }
 if (!set) { console.error('no map set holds ' + picture); process.exit(1); }
 const level = set.levels.find((lv) => lv.looks.some((l) => l.player === picture));
-const src = await readPicture(path.join(root, 'public', 'uploads', picture)).then((p) => ({ w: p.w, h: p.h }));      // only the size of the picture is used
+const src = await readPicture(picturePath(root, picture)).then((p) => ({ w: p.w, h: p.h }));      // only the size of the picture is used
 let W, H, k, ox = 0, oy = 0;
 if (opt('canvas')) { [W, H] = opt('canvas').split('x').map(Number); k = Math.min(W / src.w, H / src.h); ox = Math.round((W - src.w * k) / 2); oy = Math.round((H - src.h * k) / 2); }
 else { W = Number(opt('width', 1536)); k = W / src.w; H = Math.round(src.h * k); }

@@ -1,8 +1,8 @@
 {
   "format": "vttmapset",
   "version": 1,
-  "id": "b6d7f805-3799-4fa8-a340-f853cb42be55",
-  "slug": "lmop-phandalin",
+  "id": "5923b3b8-1126-4343-b758-0d54917da5ca",
+  "slug": "dnd-phandalin",
   "name": "Phandalin",
   "kind": "town",
   "tiles": "none",
@@ -25,8 +25,8 @@
         {
           "id": "main",
           "time": "main",
-          "player": "lmop-phandalin-player-version.jpg",
-          "dm": "lmop-phandalin-dm-version.jpg",
+          "player": "dnd-phandalin-playerversion.jpg",
+          "dm": "dnd-dm-phandalin.jpg",
           "light": "bright",
           "lights": [],
           "ambient": "",

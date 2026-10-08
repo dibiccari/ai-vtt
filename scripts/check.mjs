@@ -1,4 +1,5 @@
 // Syntax-checks server.js and the inline <script> of public/index.html, map-test.html, tokens.html, characters.html, campaigns.html and test-lab.html.
+import { readFileSync } from 'node:fs';
 import { readFile, writeFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -22,9 +23,9 @@ check('server.js', path.join(root, 'server.js'));
 
 // Every installed battle map must have a saved start spot (data/maps/<image>.json, starts[name 'start']).
 const { CAMPAIGN_MAPS, mapsFor } = await import(path.join(root, 'lib', 'campaign-maps.js'));
-const uploads = await readdir(path.join(root, 'public', 'uploads'));
-const sets = [];
-for (const f of await readdir(path.join(root, 'data', 'mapsets')).catch(() => [])) { try { sets.push(JSON.parse(await readFile(path.join(root, 'data', 'mapsets', f), 'utf8'))); } catch { /* unreadable set file */ } }
+const { listPictures, readSets } = await import(path.join(root, 'lib', 'pictures.js'));
+const uploads = listPictures(root);
+const sets = readSets(root, readFileSync);
 for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
   for (const m of mapsFor(campaign, uploads).filter((x) => x.kind === 'battle' || x.kind === 'camp')) {
     // The set-up lives in the map set file of the place (data/mapsets/<guid>.json) that holds the picture.

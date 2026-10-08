@@ -1,16 +1,17 @@
 // Copies a pack map's set-up (walls, doors, pins, lights, difficult terrain, light level, sound) onto a remake of it, scaled by the ratio of the two pictures' widths, through the running server so
 // the stale-save guard and the set files stay consistent. The remake must have the same shape as the pack picture (the layout was drawn from the pack's own walls).
-// Usage: node scripts/copy-pack-setup.mjs --from lmop-cragmaw-hideout.png --to vtt-cragmaw-hideout-b.png [--publisher "Explorer Remakes"] [--server http://localhost:3000]
+// Usage: node scripts/copy-pack-setup.mjs --from lmop-cragmaw-hideout.png --to vtt-cragmaw-hideout-b.png [--publisher Explorer] [--server http://localhost:3000]
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readPicture } from '../lib/bmpread.js';
+import { picturePath } from '../lib/pictures.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : d; };
-const from = opt('from'), to = opt('to'), base = opt('server', 'http://localhost:3000'), publisher = opt('publisher', 'Explorer Remakes');
+const from = opt('from'), to = opt('to'), base = opt('server', 'http://localhost:3000'), publisher = opt('publisher', 'Explorer');
 if (!from || !to) { console.error('usage: node scripts/copy-pack-setup.mjs --from <pack picture> --to <remake picture> [--publisher name]'); process.exit(1); }
-const size = async (f) => { const p = await readPicture(path.join(root, 'public', 'uploads', f)); return { w: p.w, h: p.h }; };
+const size = async (f) => { const p = await readPicture(picturePath(root, f)); return { w: p.w, h: p.h }; };
 const [a, b] = [await size(from), await size(to)];
 const f = b.w / a.w;
 const shapeOff = Math.abs((b.h / a.h) / f - 1);

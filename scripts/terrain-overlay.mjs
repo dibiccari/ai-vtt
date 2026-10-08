@@ -10,7 +10,7 @@ import { ROOT } from '../lib/gridprint.js';
 const [file, outArg, scaleArg, rangeArg] = process.argv.slice(2);
 if (!file || !outArg) { console.error('usage: node scripts/terrain-overlay.mjs <picture> <out.png> [scale]'); process.exit(1); }
 const config = JSON.parse(await readFile(path.join(ROOT, 'data', 'maps', file + '.json'), 'utf8'));
-const pic = await readPicture(path.join(ROOT, 'public', 'uploads', file));
+const pic = await readPicture((await import('../lib/pictures.js')).picturePath(ROOT, file));
 const cell = pic.w / config.squares, S = Number(scaleArg) || 0.5;
 const cols = config.squares, rows = Math.round(pic.h / cell);
 const range = rangeArg ? rangeArg.split(',').map(Number) : [0, 0, cols, rows];

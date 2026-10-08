@@ -6,15 +6,16 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ROOT } from './helpers/sandbox.mjs';
+import { listPictures } from '../lib/pictures.js';
 import { CAMPAIGN_MAPS, mapsFor, mapsForPrompt, resolveChangeMap, cleanMapList, entriesToList, mapsFromList, MAP_KINDS } from '../lib/campaign-maps.js';
 
 const json = async (...p) => JSON.parse(await readFile(path.join(ROOT, ...p), 'utf8'));
-const uploads = await readdir(path.join(ROOT, 'public', 'uploads'));
+const uploads = listPictures(ROOT);
 const configs = {};
 for (const f of await readdir(path.join(ROOT, 'data', 'maps'))) if (f.endsWith('.json')) configs[f.slice(0, -5)] = await json('data', 'maps', f);
 // Pictures that belong to a map set (data/mapsets/<guid>.json) take their walls, doors and pins from it: the old per-picture files are no longer read.
 for (const f of await readdir(path.join(ROOT, 'data', 'mapsets'))) {
-  const set = await json('data', 'mapsets', f);
+  const set = await json('data', 'mapsets', f.endsWith('.json') ? f : path.join(f, 'set.json'));
   for (const lv of set.levels || []) for (const look of lv.looks || []) configs[look.player] = { ...(configs[look.player] || {}), ...(lv.squares ? { squares: lv.squares } : {}), walls: lv.walls || [], starts: lv.starts || [], difficult: lv.difficult || [] };
 }
 
@@ -112,3 +113,21 @@ test('start pins lie inside their picture (image size from the config walls and 
   for (const [name, c] of Object.entries(configs)) for (const s of c.starts || []) assert.ok(s.x >= 0 && s.y >= 0, `${name}: pin ${s.name} is off the picture`);
 });
 
+
+test('map sets are packets: every set lives in data/mapsets/<guid>/ with its set.json and every picture it names, and no picture is left loose', async () => {
+  const dir = path.join(ROOT, 'data', 'mapsets');
+  let sets = 0;
+  for (const ent of await readdir(dir, { withFileTypes: true })) {
+    assert.ok(ent.isDirectory(), `${ent.name}: a flat set file is left over (the server turns it into a packet)`);
+    const set = await json('data', 'mapsets', path.join(ent.name, 'set.json'));
+    assert.equal(set.id, ent.name, 'the folder is named by the set id');
+    for (const lv of set.levels) for (const look of lv.looks) {
+      const files = [look.player, look.dm && !String(look.dm).startsWith('data/dm-maps:') ? look.dm : null].filter(Boolean);
+      for (const f of files) assert.ok((await readdir(path.join(dir, ent.name))).includes(f), `${set.slug}: ${f} is not in its packet`);
+    }
+    sets++;
+  }
+  assert.ok(sets >= 20);
+  const loose = (await readdir(path.join(ROOT, 'public', 'uploads'))).filter((f) => /\.(png|jpe?g|webp|gif)$/i.test(f));
+  assert.deepEqual(loose, [], 'pictures wait in public/uploads only until a set adopts them');
+});

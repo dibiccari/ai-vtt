@@ -173,6 +173,7 @@ const OLD_MAP_NAMES = {
 };
 const currentMapName = (name) => { const base = path.basename(String(name ?? '')); return OLD_MAP_NAMES[base] || (/^rusty-flagon-[^/]+\.png$/.test(base) ? 'vtt-' + base : base); };
 app.use('/uploads/:file', (req, res, next) => { const now = currentMapName(req.params.file); if (now !== req.params.file) return res.redirect(301, '/uploads/' + now); next(); });
+app.get('/uploads/:file', (req, res, next) => { const p = PACKET_FILES.get(path.basename(req.params.file)); if (!p) return next(); res.sendFile(p); });     // pictures that live in a map set's packet
 app.use(express.static(PUBLIC_DIR));
 
 const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
@@ -279,7 +280,7 @@ app.post('/api/upload', upload.single('map'), (req, res) => {
 });
 
 app.get('/api/maps', asyncRoute(async (_req, res) => {
-  const files = (await readdir(UPLOAD_DIR)).filter((f) => IMAGE_EXT.has(path.extname(f).toLowerCase()));
+  const files = await pictureFiles();
   res.json({ maps: files.map((f) => `/uploads/${f}`) });
 }));
 
@@ -305,13 +306,45 @@ function mapConfigFile(name) {
 // ---- Map set files: data/mapsets/<guid>.json hold everything about a place (lib/mapsetstore.js). The per-picture set-up of old (data/maps/<picture>.json) is read when a picture is not in a set yet.
 const SETS_DIR = path.join(__dirname, 'data', 'mapsets');
 await mkdir(SETS_DIR, { recursive: true });
+// A map set is a PACKET: the folder data/mapsets/<guid>/ holds set.json and every picture of the place, so copying, sharing or deleting a map is one folder. Pictures are still addressed as /uploads/<file>:
+// the server looks the file name up in the packets (PACKET_FILES) and serves it from there; public/uploads only holds a picture until a set adopts it (a new upload, a Market install).
 let SETS = null, setsBusy = Promise.resolve();
+let PACKET_FILES = new Map();                                    // picture file name -> absolute path inside its packet
+const packetDir = (id) => path.join(SETS_DIR, id);
+const picturePath = (file) => PACKET_FILES.get(file) || path.join(UPLOAD_DIR, file);
+const setPictureFiles = (doc) => [...new Set(doc.levels.flatMap((lv) => lv.looks.flatMap((l) => [l.player, l.dm && !String(l.dm).startsWith('data/dm-maps:') ? l.dm : null].filter(Boolean))))];
+// Move the pictures of a set that are still loose in public/uploads into its packet.
+async function adoptPictures(doc) {
+  for (const f of setPictureFiles(doc)) {
+    const from = path.join(UPLOAD_DIR, f), to = path.join(packetDir(doc.id), f);
+    try { await stat(from); } catch { continue; }
+    try { await rename(from, to); } catch { await copyFile(from, to); await unlink(from).catch(() => {}); }
+  }
+}
+async function saveSet(doc) {
+  await mkdir(packetDir(doc.id), { recursive: true });
+  await writeFile(path.join(packetDir(doc.id), 'set.json'), JSON.stringify(doc, null, 2));
+  await adoptPictures(doc);
+}
 async function loadSets() {
-  const docs = [];
-  for (const f of await readdir(SETS_DIR).catch(() => [])) { if (!f.endsWith('.json')) continue; try { const d = JSON.parse(await readFile(path.join(SETS_DIR, f), 'utf8')); if (!checkSetDoc(d).length) docs.push(d); } catch { /* unreadable set file */ } }
+  // old flat files (data/mapsets/<guid>.json) become packets the first time they are seen
+  for (const ent of await readdir(SETS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!ent.isFile() || !ent.name.endsWith('.json')) continue;
+    try { const d = JSON.parse(await readFile(path.join(SETS_DIR, ent.name), 'utf8')); if (!checkSetDoc(d).length) { await saveSet(d); await unlink(path.join(SETS_DIR, ent.name)); } } catch { /* unreadable set file */ }
+  }
+  const docs = [], files = new Map();
+  for (const ent of await readdir(SETS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!ent.isDirectory()) continue;
+    try {
+      const d = JSON.parse(await readFile(path.join(SETS_DIR, ent.name, 'set.json'), 'utf8'));
+      if (checkSetDoc(d).length) continue;
+      docs.push(d);
+      for (const f of await readdir(path.join(SETS_DIR, ent.name))) if (IMAGE_EXT.has(path.extname(f).toLowerCase())) files.set(f, path.join(SETS_DIR, ent.name, f));
+    } catch { /* not a packet */ }
+  }
+  PACKET_FILES = files;
   SETS = { docs: new Map(docs.map((d) => [d.id, d])), index: indexSets(docs) };
 }
-const saveSet = (doc) => writeFile(path.join(SETS_DIR, doc.id + '.json'), JSON.stringify(doc, null, 2));
 // Every picture is in a set: pictures that are not yet (new uploads, a Market install) get one built from their old set-up. Runs one at a time.
 function ensureSets() {
   const run = setsBusy.then(async () => {
@@ -478,7 +511,7 @@ async function setSummaries() {
   }
   const dmPictures = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
   const sizes = {};
-  for (const doc of docs.values()) for (const lv of doc.levels) for (const l of lv.looks) { try { const fh = await open(path.join(UPLOAD_DIR, l.player)); const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close(); const sz = imageSize(b.subarray(0, bytesRead)); if (sz) sizes[l.player] = sz; } catch { /* unreadable picture */ } }
+  for (const doc of docs.values()) for (const lv of doc.levels) for (const l of lv.looks) { try { const fh = await open(picturePath(l.player)); const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close(); const sz = imageSize(b.subarray(0, bytesRead)); if (sz) sizes[l.player] = sz; } catch { /* unreadable picture */ } }
   return [...docs.values()].map((d) => summarizeSet(d, { sizes, listed, dmPictures })).sort((a, b) => a.name.localeCompare(b.name));
 }
 app.get('/api/mapsets', asyncRoute(async (req, res) => { const all = await setSummaries(); res.json({ sets: req.query.archived === '1' ? all : all.filter((s) => !s.archived), archivedCount: all.filter((s) => s.archived).length }); }));
@@ -499,9 +532,11 @@ app.post('/api/mapsets/:guid/clone', localOnly, asyncRoute(async (req, res) => {
   const src = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
   if (!src) return res.status(404).json({ error: 'No such map set' });
   const doc = JSON.parse(JSON.stringify(src));
+  doc.id = newGuid();
+  await mkdir(packetDir(doc.id), { recursive: true });
   const sourceOrigin = src.publisher || originOf(src.levels[0].looks[0].player);
   const fromPack = sourceOrigin === 'Map Adventurer' || sourceOrigin === 'Wizards of the Coast' || Boolean(src.derivedFrom);
-  const taken = new Set(await readdir(UPLOAD_DIR));
+  const taken = new Set(await pictureFiles());
   const rename = new Map();
   const copyPicture = async (file) => {
     if (rename.has(file)) return rename.get(file);
@@ -509,7 +544,7 @@ app.post('/api/mapsets/:guid/clone', localOnly, asyncRoute(async (req, res) => {
     let n = 1, name;
     do { name = (fromPack ? 'vtt-pack-' : 'vtt-') + stem + (n > 1 ? '-' + n : '-copy') + ext; n++; } while (taken.has(name));
     taken.add(name);
-    await copyFile(path.join(UPLOAD_DIR, file), path.join(UPLOAD_DIR, name));
+    await copyFile(picturePath(file), path.join(packetDir(doc.id), name));
     rename.set(file, name);
     return name;
   };
@@ -521,7 +556,7 @@ app.post('/api/mapsets/:guid/clone', localOnly, asyncRoute(async (req, res) => {
       for (const ext of ['.png', '.jpg', '.jpeg', '.webp']) { try { await copyFile(path.join(DM_MAP_DIR, stem + ext), path.join(DM_MAP_DIR, path.basename(l.player, path.extname(l.player)) + ext)); l.dm = 'data/dm-maps:' + path.basename(l.player, path.extname(l.player)); break; } catch { /* not this extension */ } }
     }
   }
-  doc.id = newGuid(); doc.slug = path.basename(doc.levels[0].looks[0].player, path.extname(doc.levels[0].looks[0].player)); doc.version = 1; doc.createdAt = new Date().toISOString(); delete doc.archived;
+  doc.slug = path.basename(doc.levels[0].looks[0].player, path.extname(doc.levels[0].looks[0].player)); doc.version = 1; doc.createdAt = new Date().toISOString(); delete doc.archived;
   const wanted = String(req.body?.publisher ?? '').trim().slice(0, 40);
   if (fromPack) doc.derivedFrom = src.derivedFrom || sourceOrigin;
   if (wanted) doc.publisher = wanted; else if (src.publisher) doc.publisher = src.publisher; else delete doc.publisher;
@@ -540,7 +575,7 @@ app.delete('/api/mapsets/:guid', localOnly, asyncRoute(async (req, res) => {
     try { for (const m of await mapsForCampaign(dirent.name)) if (files.includes(m.url.split('/').pop())) users.push(dirent.name); } catch { /* unreadable campaign */ }
   }
   if (users.length) return res.status(409).json({ error: 'A campaign still lists this map (' + [...new Set(users)].join(', ') + '). Remove it from the campaign first, or archive it instead.' });
-  await rm(path.join(SETS_DIR, doc.id + '.json'), { force: true });
+  await rm(packetDir(doc.id), { recursive: true, force: true });           // the whole packet: the set file and every picture
   for (const f of files) { await rm(path.join(UPLOAD_DIR, f), { force: true }); await rm(mapConfigFile(f), { force: true }).catch(() => {}); }
   await loadSets();
   res.json({ ok: true, removed: files });
@@ -659,7 +694,7 @@ app.post('/api/market/maps', localOnly, asyncRoute(async (req, res) => {
   const taken = new Set(await marketIds());
   const id = packId(meta.name, taken);
   await mkdir(path.join(MARKET_DIR, id), { recursive: true });
-  await copyFile(path.join(UPLOAD_DIR, picture), path.join(MARKET_DIR, id, meta.picture));
+  await copyFile(picturePath(picture), path.join(MARKET_DIR, id, meta.picture));
   if (meta.mood) config.mood = meta.mood;
   await writeFile(path.join(MARKET_DIR, id, 'pack.json'), JSON.stringify({ ...meta, config }, null, 2));
   res.json({ ok: true, id, pack: summary(id, { ...meta, config }) });
@@ -725,7 +760,7 @@ app.post('/api/market/import', localOnly, express.json({ limit: '80mb' }), async
 
 // The places the active campaign can move the table to (only maps that are installed).
 // The maps a campaign can use: the list saved on the Campaigns page (maps.json), or the built-in registry for the shipped campaigns.
-const pictureFiles = async () => (await readdir(UPLOAD_DIR)).filter((f) => IMAGE_EXT.has(path.extname(f).toLowerCase()));
+const pictureFiles = async () => { if (!SETS) await loadSets(); return [...new Set([...(await readdir(UPLOAD_DIR)).filter((f) => IMAGE_EXT.has(path.extname(f).toLowerCase())), ...PACKET_FILES.keys()])]; };
 async function savedMapList(id) {
   try { return JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, safeCampaignId(id), 'maps.json'), 'utf8')).maps; } catch { return null; }
 }

@@ -13,7 +13,12 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
   const dir = await mkdtemp(path.join(tmpdir(), prefix));
   for (const f of ['server.js', 'package.json']) await cp(path.join(ROOT, f), path.join(dir, f));
   await cp(path.join(ROOT, 'lib'), path.join(dir, 'lib'), { recursive: true });
-  await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true });
+  // data is copied, except the map packets (data/mapsets/<guid>/): their pictures are linked, only set.json is copied, so a test that edits a set never touches the real one
+  await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true, filter: (src) => !src.startsWith(path.join(ROOT, 'data', 'mapsets') + path.sep) || src.endsWith('set.json') || (src.split(path.sep).length === path.join(ROOT, 'data', 'mapsets').split(path.sep).length + 1) });
+  for (const ent of await readdir(path.join(ROOT, 'data', 'mapsets'), { withFileTypes: true })) {
+    if (!ent.isDirectory()) continue;
+    for (const f of await readdir(path.join(ROOT, 'data', 'mapsets', ent.name))) if (f !== 'set.json') await symlink(path.join(ROOT, 'data', 'mapsets', ent.name, f), path.join(dir, 'data', 'mapsets', ent.name, f));
+  }
   await symlink(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'));
   await mkdir(path.join(dir, 'public'));
   const BIG = new Set(['uploads', 'tokens', 'audio', 'scenarios', 'vendor']);
