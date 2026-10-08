@@ -206,7 +206,7 @@
       <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
       <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
     </span>
-    <label class="vnote" id="lightBox" title="The light the test token carries. In a dark place it sees only as far as its light reaches (dim radius); in bright or dim places it makes no difference.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
+    <label class="vnote" id="lightBox" title="The light the test token carries. In a dark place a light that reaches farther than the Vision range extends how far the token sees, and warms the ground; in bright or dim places it makes no difference.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
     <span class="tool-sep" aria-hidden="true"></span>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
@@ -407,14 +407,14 @@
   // The test token's light: dimmest to brightest by the book (candle 5/10 ft, torch 20/40, lantern 30/60). In the dark it sees as far as the dim radius; otherwise the Vision slider decides.
   const LIGHT_TEST = [['none', 5], ['candle', 10], ['torch', 40], ['lantern', 60]];
   S.testLight = [0, 1, 2, 3].includes(Number(store.get('vtt.maptest.light', 2))) ? Number(store.get('vtt.maptest.light', 2)) : 2;
-  const visionNow = () => (S.light === 'dark' ? LIGHT_TEST[S.testLight][1] : S.visionFt);
-  function showTestLight() { $('#testLight').value = String(S.testLight); $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (only matters in the dark)'); }
+  const visionNow = () => (S.light === 'dark' ? Math.max(S.visionFt, LIGHT_TEST[S.testLight][1]) : S.visionFt);       // the Vision slider is always what the token sees; a carried light only adds to it in the dark
+  function showTestLight() { $('#testLight').value = String(S.testLight); $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (adds to the Vision range in the dark)'); }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
     vctx.clearRect(0, 0, S.W, S.H);
     const darkPlace = S.light === 'dark';
-    vctx.fillStyle = darkPlace ? 'rgba(2, 3, 5, 0.93)' : 'rgba(4, 5, 8, 0.55)';       // in a dark place what is out of the light is nearly black, so the light's reach shows
+    vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
     vctx.fillRect(0, 0, S.W, S.H);
     const radius = (visionNow() / FT_PER_SQUARE) * cell();
     const walls = sightWalls(S.walls);
@@ -429,9 +429,8 @@
       for (const c of [sctx, vctx]) {
         c.save();
         c.globalCompositeOperation = 'destination-out';
-        const grad = c.createRadialGradient(t.x, t.y, darkPlace ? radius * 0.45 : radius * 0.65, t.x, t.y, radius);
-        if (darkPlace) { grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(0.35, 'rgba(0,0,0,0.55)'); grad.addColorStop(1, 'rgba(0,0,0,0)'); }       // bright light to half the reach, then dim light fading out
-        else { grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)'); }
+        const grad = c.createRadialGradient(t.x, t.y, radius * 0.65, t.x, t.y, radius);
+        grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
         c.fillStyle = grad;
         c.beginPath();
         c.moveTo(poly[0].x, poly[0].y);
