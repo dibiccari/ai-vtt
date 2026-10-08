@@ -46,6 +46,7 @@
   <div class="bar">
     <label>Search <input type="text" id="q" placeholder="name" aria-label="Search"></label>
     <label>Publisher <select id="origin" aria-label="Publisher"><option value="">All</option><option>Explorer</option><option>Test</option><option>Wizards of the Coast</option><option>Map Adventurer</option><option>Market</option><option>Other</option></select></label>
+    <label>Campaign <select id="campaign" aria-label="Campaign"><option value="">All</option><option value="__none">Not in any campaign</option></select></label>
     <label>Kind <select id="kind" aria-label="Kind"><option value="">All</option><option value="battle">Battle</option><option value="camp">Camp</option><option value="town">Town</option><option value="regional">Regional</option></select></label>
     <label><input type="checkbox" id="needsDm"> Missing a DM version</label>
     <label><input type="checkbox" id="needsStart"> Missing a start spot (battle and camp)</label>
@@ -64,9 +65,9 @@
   const chip = (text, cls) => el('span', 'chip' + (cls ? ' ' + cls : ''), text);
   const player = (set) => set.levels[0].looks[0].player;
   function render() {
-    const q = document.getElementById('q').value.trim().toLowerCase(), kind = document.getElementById('kind').value, origin = document.getElementById('origin').value;
+    const q = document.getElementById('q').value.trim().toLowerCase(), kind = document.getElementById('kind').value, origin = document.getElementById('origin').value, campaign = document.getElementById('campaign').value;
     const needsDm = document.getElementById('needsDm').checked, needsStart = document.getElementById('needsStart').checked;
-    const list = sets.filter((s) => (!q || (s.id + ' ' + s.name).toLowerCase().includes(q)) && (!kind || s.kind === kind) && (!origin || s.origin === origin) && (!needsDm || !s.hasDm) && (!needsStart || s.needsStart));
+    const list = sets.filter((s) => (!q || (s.id + ' ' + s.name).toLowerCase().includes(q)) && (!kind || s.kind === kind) && (!origin || s.origin === origin) && (!campaign || (campaign === '__none' ? !s.campaigns.length : s.campaigns.includes(campaign))) && (!needsDm || !s.hasDm) && (!needsStart || s.needsStart));
     document.getElementById('count').textContent = list.length + ' of ' + sets.length + ' places';
     const root = document.getElementById('list'); root.innerHTML = '';
     if (!list.length) { root.appendChild(el('div', 'empty', 'No map matches.')); return; }
@@ -106,7 +107,8 @@
     }
     root.appendChild(grid);
   }
-  for (const id of ['q', 'kind', 'origin', 'needsDm', 'needsStart']) document.getElementById(id).addEventListener('input', render);
+  for (const id of ['q', 'kind', 'origin', 'campaign', 'needsDm', 'needsStart']) document.getElementById(id).addEventListener('input', render);
+  fetch('/api/campaigns').then((r) => r.json()).then((d) => { const sel = document.getElementById('campaign'); for (const c of d.campaigns || []) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name || c.id; sel.appendChild(o); } }).catch(() => {});
   document.getElementById('showArchived').addEventListener('change', () => load());
   function load() {
     const withArchived = document.getElementById('showArchived').checked;

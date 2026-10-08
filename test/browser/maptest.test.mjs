@@ -348,3 +348,25 @@ test('a wall that lies off the map can still be picked, found by Find problems a
   assert.ok(/off the map/.test(out.info), 'Find problems names it: ' + JSON.stringify(out));
   assert.equal(out.picked, true, 'it can be selected: ' + JSON.stringify(out)); assert.equal(out.left, 1, 'and deleted');
 });
+
+test('the Campaign filter under Publisher lists campaigns and narrows the map list to the places a campaign uses', opts, async () => {
+  await page.goto(`${server.base}/map-test.html`);
+  await page.waitFor('document.querySelector("#campaignFilter") && document.querySelectorAll("#campaignFilter option").length > 3 && document.querySelector("#mapSelect").options.length > 3');
+  const out = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const sel = document.querySelector('#campaignFilter'), list = document.querySelector('#mapSelect');
+    const all = list.options.length;
+    const opts = [...sel.options].map((o) => o.value);
+    sel.value = 'tavern-brawl-test'; sel.dispatchEvent(new Event('change', { bubbles: true })); await wait(1500);
+    const tavern = [...list.options].map((o) => o.textContent);
+    sel.value = '__none'; sel.dispatchEvent(new Event('change', { bubbles: true })); await wait(1500);
+    const none = list.options.length;
+    sel.value = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); await wait(1500);
+    return { all, opts, tavern, none, back: list.options.length, after: [...document.querySelectorAll('.field > span')].map((s) => s.textContent).filter((t) => /Publisher|Campaign/.test(t)) };
+  })()`);
+  assert.ok(out.opts.includes('tavern-brawl-test') && out.opts.includes('lost-mine-of-phandelver') && out.opts.includes('__none'), JSON.stringify(out.opts));
+  assert.ok(out.tavern.length > 0 && out.tavern.length < out.all, 'the tavern campaign narrows the list: ' + JSON.stringify(out));
+  assert.ok(out.none < out.all, 'maps no campaign uses are a smaller list');
+  assert.equal(out.back, out.all, 'All campaigns brings the whole list back');
+  assert.deepEqual(out.after, ['Publisher', 'Campaign'], 'Campaign sits under Publisher');
+});

@@ -78,6 +78,7 @@
   <div class="group">
     <h2>Map</h2>
     <label class="field"><span>Publisher</span><select id="publisher" aria-label="Publisher"><option value="">All publishers</option><option>Explorer</option><option>Test</option><option>Wizards of the Coast</option><option>Map Adventurer</option><option>Market</option><option>Other</option></select></label>
+    <label class="field"><span>Campaign</span><select id="campaignFilter" aria-label="Campaign"><option value="">All campaigns</option><option value="__none">Not in any campaign</option></select></label>
     <select id="mapSelect" aria-label="Map"></select>
     <label class="field"><span>Type of map</span><select id="mapKind" aria-label="Type of map"><option value="battle">Battle map (squares)</option><option value="camp">Camp (squares)</option><option value="town">Town map (no tiles)</option><option value="regional">Regional map (hexagons, 5 miles)</option></select></label>
     <p class="hint" id="scaleNote"></p>
@@ -1177,6 +1178,8 @@
     S.placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) S.placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));       // any look of a place -> the entry that stands for it
     S.guidOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) S.guidOf.set('/uploads/' + l.player, { guid: p.guid, time: l.time });
     S.placeOrigin = new Map(places.map((p) => [lookUrl(p, 'day'), p.origin]));
+    S.placeCampaigns = new Map(places.map((p) => [lookUrl(p, 'day'), p.campaigns || []]));
+    await fillCampaignFilter();
     S.placeKinds = new Map(places.map((p) => [lookUrl(p, 'day'), p.kind]));
     S.placeNames = new Map(places.map((p) => [lookUrl(p, 'day'), p.name]));                                   // the day look (or the only one) stands for the place
     const placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));
@@ -1198,9 +1201,11 @@
       if (place) wanted = lookUrl(place, q.get('time') || 'day');
     }
     const publisher = $('#publisher').value;
+    const campaign = $('#campaignFilter').value;
     let shown = publisher ? maps.filter((u) => S.placeOrigin.get(u) === publisher) : maps;       // the Publisher filter above the list
+    if (campaign) shown = shown.filter((u) => campaign === '__none' ? !(S.placeCampaigns.get(u) || []).length : (S.placeCampaigns.get(u) || []).includes(campaign));       // and the Campaign filter under it
     if (!shown.length) shown = maps;
-    if (initial && wanted && placeOf.has(wanted) && !shown.includes(placeOf.get(wanted))) { $('#publisher').value = ''; store.set('vtt.maptest.publisher', ''); shown = maps; }       // a map asked for by address is always shown
+    if (initial && wanted && placeOf.has(wanted) && !shown.includes(placeOf.get(wanted))) { $('#publisher').value = ''; store.set('vtt.maptest.publisher', ''); $('#campaignFilter').value = ''; store.set('vtt.maptest.campaign', ''); shown = maps; }       // a map asked for by address is always shown
     shown = shown.slice().sort((a, b) => (b.endsWith('/vtt-terrain-test.png') ? 1 : 0) - (a.endsWith('/vtt-terrain-test.png') ? 1 : 0));     // the Terrain Test Grounds map always comes first
     for (const url of shown) {
       const opt = document.createElement('option');
@@ -1805,6 +1810,19 @@
     setTool(b.dataset.tool);
   }));
   $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
+  $('#campaignFilter').addEventListener('change', (e) => { store.set('vtt.maptest.campaign', e.target.value); loadMapList(); });
+  // The Campaign filter lists every campaign; it keeps the choice you made last.
+  async function fillCampaignFilter() {
+    const sel = $('#campaignFilter');
+    if (sel.dataset.filled) return;
+    sel.dataset.filled = '1';
+    try {
+      const list = (await (await fetch('/api/campaigns')).json()).campaigns || [];
+      for (const c of list) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name || c.id; sel.appendChild(o); }
+    } catch { /* no campaign list: the filter offers only All and None */ }
+    sel.value = store.get('vtt.maptest.campaign', '') || '';
+    if (sel.value !== (store.get('vtt.maptest.campaign', '') || '')) sel.value = '';
+  }
   $('#publisher').value = store.get('vtt.maptest.publisher', '') || '';
   $('#publisher').addEventListener('change', (e) => { store.set('vtt.maptest.publisher', e.target.value); loadMapList(); });
   $('#copyPinsBtn').addEventListener('click', copyPins);
