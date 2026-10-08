@@ -406,9 +406,9 @@
 
   // The test token's light: dimmest to brightest by the book (candle 5/10 ft, torch 20/40, lantern 30/60). In the dark it sees as far as the dim radius; otherwise the Vision slider decides.
   const LIGHT_TEST = [['none', 5], ['candle', 10], ['torch', 40], ['lantern', 60]];
-  S.testLight = 2;
+  S.testLight = [0, 1, 2, 3].includes(Number(store.get('vtt.maptest.light', 2))) ? Number(store.get('vtt.maptest.light', 2)) : 2;
   const visionNow = () => (S.light === 'dark' ? LIGHT_TEST[S.testLight][1] : S.visionFt);
-  function showTestLight() { $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (only matters in the dark)'); }
+  function showTestLight() { $('#testLight').value = String(S.testLight); $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (only matters in the dark)'); }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
@@ -1859,7 +1859,7 @@
   $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; applyKindUi(); requestRender(); });
   $('#mapKind').addEventListener('change', (e) => { S.kind = e.target.value; S.tiles = tilesOf(S.kind); applyKindUi(); save(); requestRender(); });
-  $('#testLight').addEventListener('input', (e) => { S.testLight = Number(e.target.value); showTestLight(); revealFog(); });
+  $('#testLight').addEventListener('input', (e) => { S.testLight = Number(e.target.value); store.set('vtt.maptest.light', S.testLight); showTestLight(); revealFog(); });
   showTestLight();
   $('#hexSize').addEventListener('input', (e) => { S.hexSize = Number(e.target.value); $('#hexVal').textContent = S.hexSize; updateScaleNote(); save(); requestRender(); });
 
