@@ -403,7 +403,7 @@
     }
     sctx.fillStyle = '#040508';
     sctx.fillRect(0, 0, S.W, S.H);
-    if (keep && keep.width && keep.height) { sctx.clearRect(0, 0, S.W, S.H); sctx.drawImage(keep, 0, 0, S.W, S.H); }
+    if (keep instanceof HTMLCanvasElement && keep.width && keep.height) { sctx.clearRect(0, 0, S.W, S.H); sctx.drawImage(keep, 0, 0, S.W, S.H); }
     revealFog();
   }
 

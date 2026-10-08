@@ -300,3 +300,17 @@ test('what the token explored stays explored when switching Day to Night', opts,
   assert.ok(out.url.includes('night'), 'the night look is showing');
   assert.equal(out.after, 'explored', 'the explored ground is still explored at night: ' + JSON.stringify(out));
 });
+
+test('Reset explored covers the map in fog again', opts, async () => {
+  const out = await page.eval(`(async () => {
+    const S = window.mapTest.state;
+    S.tokens = [{ x: 300, y: 700 }]; window.mapTest.revealFog();
+    S.tokens = [{ x: 1800, y: 100 }]; window.mapTest.revealFog();
+    const before = window.mapTest.fogStateAt(300, 700);
+    document.querySelector('#resetFogBtn').click();
+    await new Promise((r) => setTimeout(r, 300));
+    return { before, after: window.mapTest.fogStateAt(300, 700) };
+  })()`);
+  assert.equal(out.before, 'explored', JSON.stringify(out));
+  assert.equal(out.after, 'unseen', 'the explored ground is forgotten: ' + JSON.stringify(out));
+});
