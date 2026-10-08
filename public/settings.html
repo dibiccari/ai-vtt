@@ -100,7 +100,10 @@
 
 <div class="card">
   <h2>ChatGPT images (OpenAI) <span class="badge" id="imBadge">checking…</span></h2>
-  <p>ChatGPT's image model paints the map pictures (battle maps, towns, regions) that I trace walls onto. It uses the <b>same OpenAI key</b> as the voices above, so there is no second key to paste. Each picture is charged to that account when it is made.</p>
+  <p>ChatGPT's image model paints the map pictures (battle maps, towns, regions) that I trace walls onto. By default it uses the <b>same OpenAI key</b> as the voices above, so there is nothing to paste. If you ever want the pictures billed to a different OpenAI account, paste that key here. Each picture is charged to the account whose key is used when it is made.</p>
+  <label>Image key (optional) <span class="help" id="imKeyHint"></span>
+    <div class="inline"><input type="password" id="imKey" placeholder="blank = use the voices key above" autocomplete="off" spellcheck="false"><button type="button" data-show="imKey">Show</button></div>
+  </label>
   <label>Image model
     <select id="imModel">
       <option value="gpt-image-1">gpt-image-1 (recommended: the one the maps were made with; about $0.05 a picture at medium, $0.20 at high)</option>
@@ -117,6 +120,7 @@
   <div class="row">
     <button class="primary" id="imSave">Save</button>
     <button id="imTest">Check this model</button>
+    <button class="danger" id="imClear">Remove the image key</button>
   </div>
   <div class="msg" id="imMsg"></div>
 </div>
@@ -163,7 +167,8 @@ async function load() {
     badge($('#oaBadge'), s.openai.set);
     $('#oaHint').textContent = s.openai.set ? `(saved, ${s.openai.hint}; leave blank to keep it)` : '(not set)';
     $('#oaModel').value = s.openai.ttsModel;
-    badge($('#imBadge'), s.openai.set);
+    badge($('#imBadge'), s.openai.imageKey.usable);
+    $('#imKeyHint').textContent = s.openai.imageKey.own ? `(own key saved, ${s.openai.imageKey.hint}; leave blank to keep it)` : s.openai.set ? '(not set: the voices key is used)' : '(not set)';
     for (const [id, value] of [['#imModel', s.openai.imageModel], ['#imQuality', s.openai.imageQuality]]) {
       if (![...$(id).options].some((o) => o.value === value)) { const o = document.createElement('option'); o.value = o.textContent = value; $(id).appendChild(o); }
       $(id).value = value;
@@ -205,7 +210,8 @@ $('#anTest').addEventListener('click', () => test('anthropic', $('#anMsg')));
 $('#anClear').addEventListener('click', () => { if (confirm('Remove the Claude key? The AI DM will go offline.')) save({ clear: ['ANTHROPIC_API_KEY'] }, $('#anMsg'), ['#anKey']); });
 $('#oaSave').addEventListener('click', () => save({ OPENAI_API_KEY: $('#oaKey').value, TTS_MODEL: $('#oaModel').value }, $('#oaMsg'), ['#oaKey']));
 $('#oaTest').addEventListener('click', () => test('openai', $('#oaMsg')));
-$('#imSave').addEventListener('click', () => save({ IMAGE_MODEL: $('#imModel').value, IMAGE_QUALITY: $('#imQuality').value }, $('#imMsg'), []));
+$('#imSave').addEventListener('click', () => save({ OPENAI_IMAGE_API_KEY: $('#imKey').value, IMAGE_MODEL: $('#imModel').value, IMAGE_QUALITY: $('#imQuality').value }, $('#imMsg'), ['#imKey']));
+$('#imClear').addEventListener('click', () => { if (confirm('Remove the separate image key? The pictures will use the voices key again.')) save({ clear: ['OPENAI_IMAGE_API_KEY'] }, $('#imMsg'), ['#imKey']); });
 $('#imTest').addEventListener('click', () => test('images', $('#imMsg')));
 $('#oaClear').addEventListener('click', () => { if (confirm('Remove the OpenAI key? ChatGPT voices will turn off.')) save({ clear: ['OPENAI_API_KEY'] }, $('#oaMsg'), ['#oaKey']); });
 

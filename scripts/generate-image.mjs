@@ -11,7 +11,7 @@ const opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i
 const promptFile = opt('prompt-file'), out = opt('out');
 if (!promptFile || !out) { console.error('usage: node scripts/generate-image.mjs --prompt-file <file> --out <file.png> [--size 1536x1024] [--quality medium]'); process.exit(1); }
 const env = await readFile(path.join(root, '.env'), 'utf8').catch(() => '');
-const key = process.env.OPENAI_API_KEY || (/^OPENAI_API_KEY=(.+)$/m.exec(env) || [])[1]?.trim();
+const key = (await import(path.join(root, 'lib', 'image-settings.js'))).imageSettings(root).key;
 if (!key) { console.error('No OPENAI_API_KEY in .env'); process.exit(1); }
 const { imageSettings } = await import(path.join(root, 'lib', 'image-settings.js'));
 const chosen = imageSettings(root);

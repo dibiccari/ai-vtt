@@ -1301,6 +1301,7 @@ app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, r
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
 let IMAGE_MODEL = process.env.IMAGE_MODEL || 'gpt-image-1';
+let IMAGE_KEY = process.env.OPENAI_IMAGE_API_KEY || '';          // optional own key for the pictures; blank means the voices key is used
 let IMAGE_QUALITY = ['low', 'medium', 'high'].includes(process.env.IMAGE_QUALITY) ? process.env.IMAGE_QUALITY : 'medium';
 
 // Each DM voice tag maps to a few OpenAI voices plus an acting direction.
@@ -2034,6 +2035,7 @@ const SETTINGS = {
   OPENAI_API_KEY: { secret: true },
   ANTHROPIC_MODEL: { secret: false },
   TTS_MODEL: { secret: false },
+  OPENAI_IMAGE_API_KEY: { secret: true },
   IMAGE_MODEL: { secret: false },
   IMAGE_QUALITY: { secret: false }
 };
@@ -2059,6 +2061,7 @@ function applySettings() {
   MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
   TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
   IMAGE_MODEL = process.env.IMAGE_MODEL || 'gpt-image-1';
+  IMAGE_KEY = process.env.OPENAI_IMAGE_API_KEY || '';
   IMAGE_QUALITY = ['low', 'medium', 'high'].includes(process.env.IMAGE_QUALITY) ? process.env.IMAGE_QUALITY : 'medium';
   OPENAI_KEY = process.env.OPENAI_API_KEY || '';
   const key = process.env.ANTHROPIC_API_KEY || '';
@@ -2082,7 +2085,7 @@ async function updateEnvFile(updates) {
 app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
-    openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY }
+    openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) } }
   });
 });
 
@@ -2127,11 +2130,12 @@ app.post('/api/settings/test', localOnly, asyncRoute(async (req, res) => {
       return res.json({ ok: true, message: 'OpenAI key accepted. Use "Hear a sample" to confirm your credit balance works.' });
     }
     if (which === 'images') {
-      if (!OPENAI_KEY) return res.json({ ok: false, error: 'No OpenAI key saved yet (the images use the same key as the voices).' });
-      const r = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(IMAGE_MODEL)}`, { headers: { Authorization: `Bearer ${OPENAI_KEY}` } });
+      const imageKey = IMAGE_KEY || OPENAI_KEY;
+      if (!imageKey) return res.json({ ok: false, error: 'No OpenAI key saved yet (the images use the same key as the voices unless you give them their own).' });
+      const r = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(IMAGE_MODEL)}`, { headers: { Authorization: `Bearer ${imageKey}` } });
       if (r.status === 404) return res.json({ ok: false, error: `This key cannot use ${IMAGE_MODEL} (not found). Image models may need a verified OpenAI organization.` });
       if (!r.ok) return res.json({ ok: false, error: r.status === 401 ? 'OpenAI rejected the key (401).' : `OpenAI returned ${r.status}.` });
-      return res.json({ ok: true, message: `${IMAGE_MODEL} is available to this key. Pictures are only charged when one is made, so the credit balance is not checked here.` });
+      return res.json({ ok: true, message: `${IMAGE_MODEL} is available to ${IMAGE_KEY ? 'the image key' : 'the shared OpenAI key'}. Pictures are only charged when one is made, so the credit balance is not checked here.` });
     }
     res.status(400).json({ error: 'which must be "anthropic", "openai" or "images"' });
   } catch (err) {
