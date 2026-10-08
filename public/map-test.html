@@ -990,6 +990,7 @@
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = async () => {
+        const sameSpot = S.url && S.img && S.tokens && S.tokens[0] && S.placeOf && S.placeOf.get(S.url) && S.placeOf.get(S.url) === S.placeOf.get(url) ? { fx: S.tokens[0].x / S.W, fy: S.tokens[0].y / S.H } : null;       // day to night of one place: the token stays where it stands
         S.url = url;
         S.img = img;
         S.W = img.naturalWidth;
@@ -1024,7 +1025,7 @@
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
         S.starts = (remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [])
           .map((s) => ({ ...s, radius: Number.isFinite(s.radius) ? s.radius : (s.name === 'start' ? 2 : 0) }));       // the party arrives anywhere inside the start circle (2 squares unless set)
-        parkAtStart();
+        if (sameSpot) S.tokens = [{ x: clamp(sameSpot.fx * S.W, 0, S.W), y: clamp(sameSpot.fy * S.H, 0, S.H) }]; else parkAtStart();
         refreshMapLabels();
         loadAreas();
         loadDmVersion();
