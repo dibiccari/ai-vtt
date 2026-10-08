@@ -31,14 +31,14 @@
     },
     {
       "id": "redbrand-hideout",
-      "file": "vtt-redbrand-hideout-b.png",
+      "file": "vtt-redbrand-hideout.png",
       "name": "Redbrand Hideout (cellars under Tresendar Manor)",
       "kind": "battle",
       "description": "The Redbrand Hideout under the ruined Tresendar Manor: a dungeon of well-built stone chambers with flagstone floors. The eastern end (stairs down from the cellar with its cistern and barrels) is higher; going west: the barracks, a trapped hall with a red carpet, the Tresendar crypts with sarcophagi, the slave pens (cells with iron bars), an armory and a storeroom. A deep crevasse runs north to south through the middle (three rope bridges; the eye monster lurks here), and beyond it the western end holds the guard barracks, common room, the wizard's workshop and Glasstaff's quarters."
     },
     {
       "id": "thundertree",
-      "file": "vtt-thundertree-b.png",
+      "file": "vtt-thundertree.png",
       "name": "Ruins of Thundertree",
       "kind": "battle",
       "description": "The ruins of Thundertree, a village destroyed long ago by a volcano and now overgrown by forest: about a dozen roofless, crumbling stone buildings with broken walls and rubble scattered round a cobbled town square with a toppled statue plinth, the broken stump of a round tower in the north (the dragon's tower), a large ruined garrison in the north-east, an old smithy in the south, a farmhouse and a herbalist's shop, with thick forest all round. Overgrown lanes wind between the ruins from the west."
@@ -87,21 +87,21 @@
     },
     {
       "id": "agathas-lair",
-      "file": "vtt-agathas-lair-b.png",
+      "file": "vtt-agathas-lair.png",
       "name": "Agatha's Lair",
       "kind": "battle",
       "description": "Agatha's hidden lair in the dark, mossy Neverwinter Wood near Conyberry: a domelike shelter of warped, woven branches in a small clearing, a low doorway on the south side where an old trail ends, and inside old elven chests, a shelf, a table and a reclined couch. Large trees and boulders crowd the clearing. Use it for the approach and the scene inside; the banshee manifests shortly after the party enters."
     },
     {
       "id": "old-owl-well",
-      "file": "vtt-old-owl-well-b.png",
+      "file": "vtt-old-owl-well.png",
       "name": "Old Owl Well",
       "kind": "battle",
       "description": "The ruins of Old Owl Well on a rugged hilltop south of the Triboar Trail: the broken stump of an ancient watchtower in the north (twelve zombies lurk inside), a courtyard of crumbled, waist-high rubble walls, an old stone well in the middle with clean water, and Hamun Kost's teal canvas tent just west of the well. A rim of piled boulders is a steep edge round the hill; footpaths climb the slope from the south and the west."
     },
     {
       "id": "wyvern-tor",
-      "file": "vtt-wyvern-tor-b.png",
+      "file": "vtt-wyvern-tor.png",
       "name": "Wyvern Tor",
       "kind": "battle",
       "description": "Wyvern Tor: the rugged lower slopes of a hill in wild country. A shallow turquoise stream with a small waterfall runs from the north through a ravine and south-west across the map; a long cliff ridge in the north-west holds the hidden cave mouth of the orc camp, with ragged tents, a firepit and stakes outside it and a lone orc sentry by a boulder twenty yards away; large rocky plateaus stand to the east and south-west, with worn dirt trails between them."
