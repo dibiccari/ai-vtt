@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI-VTT Character Sheets</title>
 <style>
-  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; --field:#0d1117; color-scheme: dark; }
   * { box-sizing: border-box; }
   html, body { height:100%; }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 "Segoe UI", system-ui, sans-serif; display:grid; grid-template-columns:260px 1fr; grid-template-rows:auto 1fr; overflow:hidden; }
@@ -41,17 +41,55 @@
   .logentry ul { margin:4px 0 0; padding-left:18px; color:var(--muted); }
   .pages { overflow:auto; padding:16px; flex:1; background:#0d1117; }
   .empty { margin:40px auto; max-width:480px; text-align:center; color:var(--muted); }
-  .paper { position:relative; margin:0 auto 18px; box-shadow:0 4px 24px rgba(0,0,0,.6); background:#fff; }
-  .paper canvas { display:block; width:100%; height:100%; }
-  .paper .lbl { position:absolute; left:8px; top:-1px; transform:translateY(-100%); font-size:11px; color:var(--muted); }
-  .fld { position:absolute; margin:0; padding:0 2px; border:1px solid transparent; background:transparent; color:#10131a; font-family:"Segoe UI", Arial, sans-serif; line-height:1.15; border-radius:2px; }
-  .fld:hover { border-color:rgba(79,157,255,.55); }
-  .fld:focus { background:rgba(79,157,255,.14); border-color:var(--accent); outline:none; }
-  textarea.fld { resize:none; padding:2px 3px; overflow:auto; }
-  input.chk { appearance:none; -webkit-appearance:none; cursor:pointer; border:1px solid rgba(16,19,26,.55); background:rgba(255,255,255,.55); }
-  input.chk:checked { background:#10131a; box-shadow:0 0 0 2px rgba(255,255,255,.8) inset; }
-  .imgbox { position:absolute; display:grid; place-items:center; border:2px dashed rgba(79,157,255,.7); background:rgba(79,157,255,.08); cursor:pointer; overflow:hidden; color:#33415c; font:600 12px "Segoe UI", sans-serif; text-align:center; }
-  .imgbox img { width:100%; height:100%; object-fit:contain; display:block; }
+  .note { font-size:12px; color:var(--muted); }
+
+  /* ---- the sheet itself ---- */
+  .sheet { max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+  .page { display:grid; gap:12px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
+  .page > h2 { margin:0; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .head { display:grid; grid-template-columns:96px 1fr; gap:14px; align-items:center; }
+  .imgbox { width:96px; height:96px; border-radius:50%; border:3px solid var(--gold); background:var(--c, #4f9dff); display:grid; place-items:center; cursor:pointer; overflow:hidden; color:#04101f; font:600 11px "Segoe UI", sans-serif; text-align:center; padding:6px; }
+  .imgbox img { width:100%; height:100%; object-fit:cover; display:block; }
+  .grid { display:grid; gap:10px; }
+  .g3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  .g4 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+  .cols { display:grid; grid-template-columns:minmax(210px, 1fr) minmax(250px, 1.25fr) minmax(250px, 1.25fr); gap:12px; align-items:start; }
+  .col { display:flex; flex-direction:column; gap:12px; }
+  .card { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .card > h3 { margin:0; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); }
+  .fld { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .fld > span { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .fld input, .fld textarea, .fld select { width:100%; font:inherit; color:var(--text); background:var(--field); border:1px solid #2f394b; border-radius:6px; padding:5px 8px; min-width:0; }
+  .fld textarea { resize:vertical; line-height:1.35; }
+  .fld input:hover, .fld textarea:hover { border-color:#4a5a75; }
+  .fld input[readonly] { color:var(--muted); background:transparent; border-style:dashed; }
+  .big input { text-align:center; font:700 22px "Segoe UI", system-ui, sans-serif; padding:6px 4px; }
+  .abil { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .abil .box { background:var(--field); border:1px solid #2f394b; border-radius:10px; padding:6px; text-align:center; display:flex; flex-direction:column; gap:3px; }
+  .abil .box b { font-size:10.5px; letter-spacing:.08em; color:var(--gold); }
+  .abil .box input { text-align:center; background:transparent; border:1px solid transparent; color:var(--text); font:700 16px "Segoe UI", sans-serif; width:100%; padding:2px; border-radius:6px; }
+  .abil .box input.score { border-color:#2f394b; background:#10151d; }
+  .abil .box input.mod { font-size:20px; color:var(--text); }
+  .rows { display:flex; flex-direction:column; gap:3px; }
+  .row { display:grid; grid-template-columns:20px 20px 52px 1fr; gap:6px; align-items:center; font-size:13px; }
+  .row.save { grid-template-columns:20px 52px 1fr; }
+  .row input.val { text-align:center; width:100%; background:var(--field); border:1px solid #2f394b; border-radius:5px; color:var(--text); font:inherit; padding:2px 4px; }
+  .row small { color:var(--muted); }
+  input[type=checkbox] { width:16px; height:16px; accent-color:var(--gold); margin:0; cursor:pointer; }
+  .row input.exp { accent-color:var(--accent); }
+  .wpn { display:grid; grid-template-columns:1.4fr .6fr 1fr; gap:6px; }
+  .wpn input { width:100%; font:inherit; color:var(--text); background:var(--field); border:1px solid #2f394b; border-radius:6px; padding:4px 7px; }
+  .wpn.h { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .coins { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; }
+  .coins .fld input { text-align:center; padding:4px 2px; }
+  .lvl { display:grid; gap:6px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px; align-content:start; }
+  .lvl h3 { margin:0; font-size:12px; color:var(--gold); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .lvl .slots { display:flex; gap:6px; align-items:center; font-size:11px; color:var(--muted); font-weight:500; margin-left:auto; }
+  .lvl .slots input { width:44px; text-align:center; background:var(--field); border:1px solid #2f394b; border-radius:5px; color:var(--text); font:inherit; padding:2px; }
+  .lvl .line { width:100%; font:inherit; color:var(--text); background:var(--field); border:1px solid #2f394b; border-radius:5px; padding:3px 7px; }
+  .spells { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; }
+  .printbar { display:none; }
+
   .modal { position:fixed; inset:0; background:rgba(5,7,10,.88); display:none; align-items:center; justify-content:center; z-index:60; padding:20px; }
   .modal.open { display:flex; }
   .modal .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; width:min(1000px, 96vw); max-height:92vh; display:flex; flex-direction:column; gap:12px; }
@@ -62,7 +100,35 @@
   .modal .tile img { width:100%; aspect-ratio:1; object-fit:contain; display:block; }
   .modal .tile.sel { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
   .modal .count { margin-left:auto; color:var(--muted); font-size:13px; }
-  .note { font-size:12px; color:var(--muted); }
+
+  @media (max-width: 1000px) {
+    body { grid-template-columns:1fr; grid-template-rows:auto 1fr; overflow:auto; }
+    aside { border-right:0; border-bottom:1px solid var(--border); }
+    .cols, .spells { grid-template-columns:1fr; }
+    .g4 { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  }
+
+  /* Print / Save as PDF: a plain black-on-white sheet, three pages, no screens around it. */
+  @media print {
+    @page { margin:12mm; }
+    html, body { height:auto; overflow:visible; background:#fff; color:#000; display:block; }
+    aside, .toolbar, details.log, .modal, #nav, nav, .note, .empty { display:none !important; }
+    main { display:block; }
+    .pages { overflow:visible; padding:0; background:#fff; }
+    .sheet { max-width:none; gap:0; }
+    .page { background:#fff; border:0; border-radius:0; padding:0; break-after:page; page-break-after:always; color:#000; }
+    .page:last-child { break-after:auto; page-break-after:auto; }
+    .page > h2, .card > h3, .lvl h3, .abil .box b, .fld > span { color:#444; }
+    .card, .lvl, .abil .box { background:#fff; border:1px solid #777; }
+    .fld input, .fld textarea, .row input.val, .wpn input, .lvl .line, .lvl .slots input, .abil .box input.score { background:#fff; color:#000; border:1px solid #999; }
+    .abil .box input, .abil .box input.mod { color:#000; }
+    .imgbox { border-color:#000; }
+    input[type=checkbox] { accent-color:#000; }
+    textarea { resize:none; overflow:visible; }
+    .cols { grid-template-columns:1fr 1.2fr 1.2fr; }
+    .spells { grid-template-columns:repeat(3, 1fr); }
+    .card, .lvl { break-inside:avoid; }
+  }
 </style>
 </head>
 <body>
@@ -70,7 +136,7 @@
   <h1>Character <span>Sheets</span></h1>
   <button class="primary" id="newBtn">+ New character</button>
   <div id="list" style="display:flex; flex-direction:column; gap:8px;"></div>
-  <p class="note">The sheet is the official D&amp;D 5E fillable character sheet from Wizards of the Coast. Click a box and type. Saving also updates the name, class, level, HP, AC, speed and ability scores the tabletop uses.</p>
+  <p class="note">Click a box and type. Saving also updates the name, class, level, HP, AC, speed and ability scores the tabletop uses. Modifiers, saves, skills, initiative and passive Perception follow the ability scores, level and proficiency boxes. Print / Save as PDF gives a printable copy.</p>
 </aside>
 
 <main>
@@ -81,7 +147,7 @@
     <button id="clearTokBtn">Use color only</button>
     <label>Color <input type="color" id="color" value="#4f9dff"></label>
     <button class="primary" id="saveBtn">Save</button>
-    <button id="pdfBtn" title="Download the filled sheet as a PDF">Download PDF</button>
+    <button id="pdfBtn" title="Print the sheet, or choose Save as PDF in the print dialog">Print / Save as PDF</button>
     <button class="danger" id="delBtn">Delete</button>
     <span class="status" id="status" role="status" aria-live="polite"></span>
   </div>
@@ -108,18 +174,15 @@
 </div>
 
 <script src="/nav.js"></script>
-<script src="/vendor/pdf.min.js"></script>
-<script src="/vendor/pdf-lib.min.js"></script>
 <script>
 (function () {
   'use strict';
 
-  const SHEET_URL = '/sheets/5E_CharacterSheet_Fillable.pdf';
   const ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-  // Exact PDF field names (some carry a trailing space in the official file).
+  const ABIL_NAME = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+  // Exact sheet field names (some carry a trailing space, as in the official sheet the server stores them for).
   const SCORE_FIELD = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' };
   const MOD_FIELD = { str: 'STRmod', dex: 'DEXmod ', con: 'CONmod', int: 'INTmod', wis: 'WISmod', cha: 'CHamod' };
-  const IMAGE_FIELD = 'CHARACTER IMAGE';
 
   const $ = (sel) => document.querySelector(sel);
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -137,16 +200,19 @@
   const S = {
     chars: [],            // everything the server has
     cur: null,            // the character being edited (working copy)
-    sheet: {},            // working copy of the PDF field values
+    sheet: {},            // working copy of the sheet field values
     dirty: false,
     tokens: [], meta: {}, // token library
     fields: new Map(),    // field name -> [elements]
-    pdf: null, rendering: 0, lastWidth: 0
+    layout: null          // which sheet field is which skill, save, spell line and slot row (GET /api/sheet-layout)
   };
 
   /* ---------------- character <-> sheet fields ---------------- */
-  const modText = (score) => { const m = Math.floor((clamp(Number(score) || 10, 1, 30) - 10) / 2); return (m >= 0 ? '+' : '') + m; };
-  const profFor = (level) => '+' + (2 + Math.floor((clamp(level, 1, 20) - 1) / 4));
+  const signed = (n) => (n >= 0 ? '+' : '') + n;
+  const modOf = (score) => Math.floor((clamp(Number(score) || 10, 1, 30) - 10) / 2);
+  const modText = (score) => signed(modOf(score));
+  const profOf = (level) => 2 + Math.floor((clamp(level, 1, 20) - 1) / 4);
+  const profFor = (level) => '+' + profOf(level);
 
   const levelOfText = (text) => { const nums = [...String(text || '').matchAll(/\d+/g)].map((m) => Number(m[0])); return nums.length ? clamp(nums.reduce((a, b) => a + b, 0), 1, 20) : null; };
   const classOfText = (text) => String(text || '').replace(/\d+/g, '').replace(/[\s\/,+]+$/, '').replace(/^[\s\/,+]+/, '').replace(/\s{2,}/g, ' ').trim();
@@ -224,7 +290,7 @@
     const list = $('#logList');
     list.innerHTML = '';
     $('#logSummary').textContent = 'Recent changes by the DM (' + log.length + ')';
-    log.forEach((entry, i) => {
+    log.forEach((entry) => {
       const row = document.createElement('div');
       row.className = 'logentry';
       const left = document.createElement('div');
@@ -311,131 +377,229 @@
     renderSheet();
   }
 
-  /* ---------------- sheet rendering ---------------- */
-  async function loadPdf() {
-    if (S.pdf) return S.pdf;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
-    S.pdf = await pdfjsLib.getDocument(SHEET_URL).promise;
-    return S.pdf;
-  }
-
-  async function renderSheet() {
-    const token = ++S.rendering;
-    const host = $('#pages');
-    host.innerHTML = '';
-    S.fields = new Map();
-    let pdf;
-    try {
-      pdf = await loadPdf();
-    } catch (err) {
-      host.innerHTML = '';
-      const d = document.createElement('div');
-      d.className = 'empty';
-      d.textContent = 'Could not load the character sheet PDF (' + err.message + '). It should be at public/sheets/5E_CharacterSheet_Fillable.pdf.';
-      host.appendChild(d);
-      return;
-    }
-    const width = clamp(host.clientWidth - 32, 480, 980);
-    S.lastWidth = host.clientWidth;
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      if (token !== S.rendering) return;
-      const base = page.getViewport({ scale: 1 });
-      const scale = width / base.width;
-      const vp = page.getViewport({ scale });
-      const paper = document.createElement('div');
-      paper.className = 'paper';
-      paper.style.width = vp.width + 'px';
-      paper.style.height = vp.height + 'px';
-      const canvas = document.createElement('canvas');
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.round(vp.width * dpr);
-      canvas.height = Math.round(vp.height * dpr);
-      paper.appendChild(canvas);
-      host.appendChild(paper);
-      await page.render({
-        canvasContext: canvas.getContext('2d'),
-        viewport: page.getViewport({ scale: scale * dpr }),
-        annotationMode: pdfjsLib.AnnotationMode.DISABLE
-      }).promise;
-      if (token !== S.rendering) return;
-      const annots = await page.getAnnotations({ intent: 'display' });
-      for (const a of annots) {
-        if (a.subtype !== 'Widget') continue;
-        addField(paper, vp, a);
-      }
-    }
-  }
-
-  function box(vp, a) {
-    const r = vp.convertToViewportRectangle(a.rect);
-    return { x: Math.min(r[0], r[2]), y: Math.min(r[1], r[3]), w: Math.abs(r[2] - r[0]), h: Math.abs(r[3] - r[1]) };
-  }
-
-  function place(el, b) {
-    el.style.left = b.x + 'px';
-    el.style.top = b.y + 'px';
-    el.style.width = b.w + 'px';
-    el.style.height = b.h + 'px';
-  }
-
+  /* ---------------- the sheet (plain HTML and CSS) ---------------- */
   function register(name, el) {
     if (!S.fields.has(name)) S.fields.set(name, []);
     S.fields.get(name).push(el);
   }
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
-  function addField(paper, vp, a) {
-    const name = a.fieldName;
-    if (!name) return;
-    const b = box(vp, a);
-    if (b.w < 3 || b.h < 3) return;
+  // A labelled one-line box (or a taller one with rows) bound to a sheet field.
+  function field(name, label, opts = {}) {
+    const wrap = el('label', 'fld' + (opts.cls ? ' ' + opts.cls : ''));
+    if (label) wrap.appendChild(el('span', '', label));
+    const multi = opts.rows > 1;
+    const input = document.createElement(multi ? 'textarea' : 'input');
+    if (multi) input.rows = opts.rows; else input.type = 'text';
+    input.setAttribute('aria-label', label || name.trim());
+    if (opts.max) input.maxLength = opts.max;
+    if (opts.readonly) input.readOnly = true;
+    if (opts.placeholder) input.placeholder = opts.placeholder;
+    input.value = S.sheet[name] == null ? '' : String(S.sheet[name]);
+    input.addEventListener('input', () => setValue(name, input.value, input));
+    wrap.appendChild(input);
+    register(name, input);
+    return wrap;
+  }
+  function plainInput(name, cls, label, opts = {}) {
+    const input = el('input', cls);
+    input.type = 'text';
+    input.setAttribute('aria-label', label);
+    if (opts.readonly) input.readOnly = true;
+    if (opts.max) input.maxLength = opts.max;
+    input.value = S.sheet[name] == null ? '' : String(S.sheet[name]);
+    input.addEventListener('input', () => setValue(name, input.value, input));
+    register(name, input);
+    return input;
+  }
+  function checkBox(name, label, cls) {
+    const cb = el('input', cls || '');
+    cb.type = 'checkbox';
+    cb.setAttribute('aria-label', label);
+    cb.checked = S.sheet[name] === true;
+    cb.addEventListener('change', () => setValue(name, cb.checked, cb));
+    register(name, cb);
+    return cb;
+  }
+  const card = (title) => { const c = el('section', 'card'); if (title) c.appendChild(el('h3', '', title)); return c; };
 
-    if (name === IMAGE_FIELD) {
-      if (paper.querySelector('.imgbox')) return; // the sheet repeats this field; draw it once
-      const ib = document.createElement('div');
-      ib.className = 'imgbox';
-      ib.tabIndex = 0;
-      ib.setAttribute('role', 'button');
-      ib.setAttribute('aria-label', 'Choose the character token');
-      place(ib, b);
-      ib.addEventListener('click', openPicker);
-      ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
-      paper.appendChild(ib);
-      registerImageBox(ib);
-      return;
+  function renderSheet() {
+    const host = $('#pages');
+    host.innerHTML = '';
+    S.fields = new Map();
+    imageBoxes = [];
+    if (!S.layout) { host.appendChild(el('div', 'empty', 'Could not load the sheet layout from the server.')); return; }
+    const sheet = el('div', 'sheet');
+    sheet.append(pageOne(), pageTwo(), pageThree());
+    host.appendChild(sheet);
+    paintImageBoxes();
+  }
+
+  function pageOne() {
+    const page = el('div', 'page');
+    const head = el('div', 'head');
+    const ib = el('div', 'imgbox'); ib.tabIndex = 0; ib.setAttribute('role', 'button'); ib.setAttribute('aria-label', 'Choose the character token');
+    ib.addEventListener('click', openPicker);
+    ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
+    registerImageBox(ib);
+    const idGrid = el('div', 'grid g3');
+    idGrid.append(
+      field('CharacterName', 'Character name', { max: 60 }), field('ClassLevel', 'Class and level', { max: 60 }), field('Background', 'Background'),
+      field('PlayerName', 'Player name'), field('Race ', 'Race'), field('Alignment', 'Alignment'), field('XP', 'Experience points')
+    );
+    head.append(ib, idGrid);
+    page.appendChild(head);
+
+    const cols = el('div', 'cols');
+
+    // left: abilities, inspiration, proficiency, saves, skills, other proficiencies
+    const left = el('div', 'col');
+    const ab = card('Abilities');
+    const abil = el('div', 'abil');
+    for (const k of ABIL) {
+      const box = el('div', 'box');
+      box.appendChild(el('b', '', k.toUpperCase()));
+      box.appendChild(plainInput(MOD_FIELD[k], 'mod', ABIL_NAME[k] + ' modifier', { readonly: true }));
+      box.appendChild(plainInput(SCORE_FIELD[k], 'score', ABIL_NAME[k] + ' score', { max: 2 }));
+      abil.appendChild(box);
     }
-    if (a.fieldType === 'Btn' && !a.checkBox) return;
+    ab.appendChild(abil);
+    const two = el('div', 'grid g3');
+    two.append(field('Inspiration', 'Inspiration', { cls: 'big' }), field('ProfBonus', 'Proficiency', { cls: 'big', readonly: true }), field('Passive', 'Passive Perception', { cls: 'big', readonly: true }));
+    ab.appendChild(two);
+    left.appendChild(ab);
 
-    if (a.fieldType === 'Btn' && a.checkBox) {
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'fld chk';
-      cb.setAttribute('aria-label', name.trim());
-      place(cb, b);
-      cb.checked = S.sheet[name] === true;
-      cb.addEventListener('change', () => setValue(name, cb.checked, cb));
-      paper.appendChild(cb);
-      register(name, cb);
-      return;
+    const saves = card('Saving throws');
+    const sr = el('div', 'rows');
+    for (const k of ABIL) {
+      const sv = S.layout.saves[k];
+      const row = el('div', 'row save');
+      row.append(checkBox(sv.box, ABIL_NAME[k] + ' saving throw proficiency'), plainInput(sv.field, 'val', ABIL_NAME[k] + ' saving throw', { readonly: true }), el('span', '', ABIL_NAME[k]));
+      sr.appendChild(row);
     }
-    if (a.fieldType !== 'Tx') return;
+    saves.appendChild(sr);
+    left.appendChild(saves);
 
-    const multi = Boolean(a.multiLine);
-    const el = document.createElement(multi ? 'textarea' : 'input');
-    if (!multi) el.type = 'text';
-    el.className = 'fld';
-    el.setAttribute('aria-label', name.trim());
-    if (a.maxLen) el.maxLength = a.maxLen;
-    if (a.readOnly) el.readOnly = true;
-    place(el, b);
-    const declared = a.defaultAppearanceData && a.defaultAppearanceData.fontSize;
-    const pt = declared > 0 ? declared : (multi ? 9 : Math.min(b.h / vp.scale * 0.62, 12));
-    el.style.fontSize = Math.max(8, pt * vp.scale) + 'px';
-    el.style.textAlign = a.textAlignment === 1 ? 'center' : a.textAlignment === 2 ? 'right' : 'left';
-    el.value = S.sheet[name] == null ? '' : String(S.sheet[name]);
-    el.addEventListener('input', () => setValue(name, el.value, el));
-    paper.appendChild(el);
-    register(name, el);
+    const skills = card('Skills');
+    skills.appendChild(el('small', 'note', 'Left box: proficient. Blue box: expertise (double).'));
+    const kr = el('div', 'rows');
+    for (const name of Object.keys(S.layout.skills)) {
+      const sk = S.layout.skills[name];
+      const row = el('div', 'row');
+      const ex = el('input', 'exp'); ex.type = 'checkbox'; ex.title = 'Expertise'; ex.setAttribute('aria-label', name + ' expertise');
+      ex.checked = (S.cur.expertise || []).includes(name);
+      ex.addEventListener('change', () => {
+        const list = new Set(S.cur.expertise || []);
+        if (ex.checked) list.add(name); else list.delete(name);
+        S.cur.expertise = [...list];
+        recalc(); markDirty();
+      });
+      ex.dataset.skill = name;
+      row.append(checkBox(sk.box, name + ' proficiency'), ex, plainInput(sk.field, 'val', name, { readonly: true }), el('span', '', name + ' '));
+      row.lastChild.appendChild(el('small', '', '(' + sk.ability.toUpperCase() + ')'));
+      kr.appendChild(row);
+    }
+    skills.appendChild(kr);
+    left.appendChild(skills);
+    left.appendChild(Object.assign(card('Proficiencies and languages'), {}).appendChild(field('ProficienciesLang', '', { rows: 6 })).parentElement);
+    cols.appendChild(left);
+
+    // middle: combat, attacks, coins, equipment
+    const mid = el('div', 'col');
+    const combat = card('Combat');
+    const c1 = el('div', 'grid g3');
+    c1.append(field('AC', 'Armor class', { cls: 'big' }), field('Initiative', 'Initiative', { cls: 'big', readonly: true }), field('Speed', 'Speed', { cls: 'big' }));
+    const c2 = el('div', 'grid g3');
+    c2.append(field('HPMax', 'Hit point maximum', { cls: 'big' }), field('HPCurrent', 'Current hit points', { cls: 'big' }), field('HPTemp', 'Temporary hit points', { cls: 'big' }));
+    const c3 = el('div', 'grid g3');
+    c3.append(field('HDTotal', 'Hit dice total'), field('HD', 'Hit die'), darkvisionField());
+    combat.append(c1, c2, c3);
+    mid.appendChild(combat);
+
+    const atk = card('Attacks and spellcasting');
+    const head3 = el('div', 'wpn h'); head3.append(el('span', '', 'Name'), el('span', '', 'Atk'), el('span', '', 'Damage'));
+    atk.appendChild(head3);
+    for (const [n, a, d] of [['Wpn Name', 'Wpn1 AtkBonus', 'Wpn1 Damage'], ['Wpn Name 2', 'Wpn2 AtkBonus ', 'Wpn2 Damage '], ['Wpn Name 3', 'Wpn3 AtkBonus  ', 'Wpn3 Damage ']]) {
+      const row = el('div', 'wpn');
+      row.append(plainInput(n, '', 'Attack name'), plainInput(a, '', 'Attack bonus'), plainInput(d, '', 'Damage and type'));
+      atk.appendChild(row);
+    }
+    atk.appendChild(field('AttacksSpellcasting', '', { rows: 5 }));
+    mid.appendChild(atk);
+
+    const money = card('Coins');
+    const coins = el('div', 'coins');
+    for (const c of ['CP', 'SP', 'EP', 'GP', 'PP']) coins.appendChild(field(c, c));
+    money.appendChild(coins);
+    mid.appendChild(money);
+    const eq = card('Equipment');
+    eq.appendChild(field('Equipment', '', { rows: 10 }));
+    mid.appendChild(eq);
+    cols.appendChild(mid);
+
+    // right: personality and features
+    const right = el('div', 'col');
+    for (const [name, label, rows] of [['PersonalityTraits ', 'Personality traits', 3], ['Ideals', 'Ideals', 3], ['Bonds', 'Bonds', 3], ['Flaws', 'Flaws', 3]]) {
+      const c = card(label); c.appendChild(field(name, '', { rows })); right.appendChild(c);
+    }
+    const feats = card('Features and traits'); feats.appendChild(field('Features and Traits', '', { rows: 14 })); right.appendChild(feats);
+    cols.appendChild(right);
+
+    page.appendChild(cols);
+    return page;
+  }
+
+  function pageTwo() {
+    const page = el('div', 'page');
+    page.appendChild(el('h2', '', 'About the character'));
+    const ap = el('div', 'grid g4');
+    for (const [n, l] of [['Age', 'Age'], ['Height', 'Height'], ['Weight', 'Weight'], ['Eyes', 'Eyes'], ['Skin', 'Skin'], ['Hair', 'Hair']]) ap.appendChild(field(n, l));
+    page.appendChild(ap);
+    const two = el('div', 'grid g3');
+    const allies = card('Allies and organizations'); allies.append(field('FactionName', 'Organization'), field('Allies', '', { rows: 8 }));
+    const back = card('Character backstory'); back.appendChild(field('Backstory', '', { rows: 12 }));
+    const extra = card('Additional features and traits'); extra.appendChild(field('Feat+Traits', '', { rows: 12 }));
+    two.append(allies, back, extra);
+    page.appendChild(two);
+    const treasure = card('Treasure'); treasure.appendChild(field('Treasure', '', { rows: 5 }));
+    page.appendChild(treasure);
+    return page;
+  }
+
+  function pageThree() {
+    const page = el('div', 'page');
+    page.appendChild(el('h2', '', 'Spellcasting'));
+    const top = el('div', 'grid g4');
+    top.append(field('Spellcasting Class 2', 'Spellcasting class'), field('SpellcastingAbility 2', 'Spellcasting ability'), field('SpellSaveDC  2', 'Spell save DC', { readonly: true }), field('SpellAtkBonus 2', 'Spell attack bonus', { readonly: true }));
+    page.appendChild(top);
+    const grid = el('div', 'spells');
+    for (let lvl = 0; lvl <= 9; lvl++) {
+      const box = el('section', 'lvl');
+      const h = el('h3', '', lvl === 0 ? 'Cantrips' : 'Level ' + lvl);
+      if (lvl > 0) {
+        const sl = S.layout.slots[lvl];
+        const slots = el('span', 'slots');
+        slots.append(document.createTextNode('Slots '), plainInput(sl.total, '', 'Level ' + lvl + ' spell slots total'), document.createTextNode(' left '), plainInput(sl.remaining, '', 'Level ' + lvl + ' spell slots remaining'));
+        h.appendChild(slots);
+      }
+      box.appendChild(h);
+      for (const f of S.layout.spellLines[lvl] || []) box.appendChild(plainInput(f, 'line', (lvl === 0 ? 'Cantrip' : 'Level ' + lvl + ' spell')));
+      grid.appendChild(box);
+    }
+    page.appendChild(grid);
+    return page;
+  }
+
+  // Darkvision is kept on the character record (the tabletop reads it), not in the sheet fields.
+  function darkvisionField() {
+    const wrap = el('label', 'fld');
+    wrap.appendChild(el('span', '', 'Darkvision (ft)'));
+    const input = el('input'); input.type = 'number'; input.min = '0'; input.max = '120'; input.step = '10';
+    input.setAttribute('aria-label', 'Darkvision in feet');
+    input.value = S.cur && S.cur.darkvision ? String(S.cur.darkvision) : '0';
+    input.addEventListener('input', () => { if (S.cur) { S.cur.darkvision = clamp(parseInt(input.value, 10) || 0, 0, 120); markDirty(); } });
+    wrap.appendChild(input);
+    return wrap;
   }
 
   let imageBoxes = [];
@@ -445,13 +609,14 @@
   }
   function paintImageBox(ib) {
     ib.innerHTML = '';
+    ib.style.setProperty('--c', S.cur ? S.cur.color : '#4f9dff');
     if (S.cur && S.cur.image) {
       const img = document.createElement('img');
       img.src = S.cur.image;
       img.alt = 'Character token';
       ib.appendChild(img);
     } else {
-      ib.textContent = 'Click to choose the character token';
+      ib.textContent = 'Choose a token';
     }
   }
   function paintImageBoxes() {
@@ -459,30 +624,46 @@
     imageBoxes.forEach(paintImageBox);
   }
 
-  // Set one field's value, mirror it to any twin field, and keep the ability modifiers in step.
+  // Quietly set a derived field (no dirty mark, no recursion) and show it.
+  function put(name, value) {
+    S.sheet[name] = value;
+    for (const e of S.fields.get(name) || []) { if (e.type === 'checkbox') e.checked = value === true; else e.value = value; }
+  }
+
+  // Everything that follows from the scores, the level and the proficiency boxes: modifiers, saves, skills, initiative, passive Perception, spell numbers.
+  function recalc() {
+    const level = levelOfText(S.sheet.ClassLevel) || (S.cur && S.cur.level) || 1;
+    const prof = profOf(level);
+    put('ProfBonus', '+' + prof);
+    const mods = {};
+    for (const k of ABIL) { mods[k] = modOf(S.sheet[SCORE_FIELD[k]]); put(MOD_FIELD[k], signed(mods[k])); }
+    for (const k of ABIL) { const sv = S.layout.saves[k]; put(sv.field, signed(mods[k] + (S.sheet[sv.box] === true ? prof : 0))); }
+    const expertise = new Set((S.cur && S.cur.expertise) || []);
+    let perception = 0;
+    for (const name of Object.keys(S.layout.skills)) {
+      const sk = S.layout.skills[name];
+      const total = mods[sk.ability] + (S.sheet[sk.box] === true ? prof * (expertise.has(name) ? 2 : 1) : 0);
+      put(sk.field, signed(total));
+      if (name === 'Perception') perception = total;
+    }
+    put('Initiative', signed(mods.dex));
+    put('Passive', String(10 + perception));
+    const ab = String(S.sheet['SpellcastingAbility 2'] || '').trim().toLowerCase().slice(0, 3);
+    if (ABIL.includes(ab)) { put('SpellSaveDC  2', String(8 + prof + mods[ab])); put('SpellAtkBonus 2', signed(prof + mods[ab])); }
+  }
+
+  // Set one field's value, mirror it to any twin field, and keep what follows from it in step.
   function setValue(name, value, source) {
     S.sheet[name] = value;
-    for (const el of S.fields.get(name) || []) {
-      if (el === source) continue;
-      if (el.type === 'checkbox') el.checked = value === true; else el.value = value;
+    for (const e of S.fields.get(name) || []) {
+      if (e === source) continue;
+      if (e.type === 'checkbox') e.checked = value === true; else e.value = value;
     }
     if (name === 'CharacterName') setValue('CharacterName 2', value, null);
     if (name === 'CharacterName 2' && source) setValue('CharacterName', value, null);
-    for (const k of ABIL) {
-      if (name === SCORE_FIELD[k]) {
-        const mod = MOD_FIELD[k];
-        S.sheet[mod] = modText(value);
-        for (const el of S.fields.get(mod) || []) el.value = S.sheet[mod];
-      }
-    }
-    if (name === 'ClassLevel') {
-      const nums = [...String(value).matchAll(/\d+/g)].map((m) => Number(m[0]));
-      if (nums.length) {
-        const level = clamp(nums.reduce((a, b) => a + b, 0), 1, 20);
-        S.sheet.ProfBonus = profFor(level);
-        for (const el of S.fields.get('ProfBonus') || []) el.value = S.sheet.ProfBonus;
-      }
-    }
+    const saveBoxes = ABIL.map((k) => S.layout.saves[k].box);
+    const skillBoxes = Object.values(S.layout.skills).map((s) => s.box);
+    if (ABIL.some((k) => name === SCORE_FIELD[k]) || name === 'ClassLevel' || name === 'SpellcastingAbility 2' || saveBoxes.includes(name) || skillBoxes.includes(name)) recalc();
     updateWho();
     markDirty();
   }
@@ -532,44 +713,13 @@
     }
   }
 
-  /* ---------------- PDF download (fills the official sheet) ---------------- */
-  async function downloadPdf() {
+  /* ---------------- print / save as PDF ---------------- */
+  function printSheet() {
     if (!S.cur) return;
-    if (!window.PDFLib) { setStatus('The PDF library did not load (public/vendor/pdf-lib.min.js is missing).', 'bad'); return; }
-    setStatus('Building the PDF...', '');
-    try {
-      const { PDFDocument } = PDFLib;
-      const bytes = await (await fetch(SHEET_URL)).arrayBuffer();
-      const doc = await PDFDocument.load(bytes);
-      const form = doc.getForm();
-      for (const [name, value] of Object.entries(S.sheet)) {
-        try {
-          const field = form.getField(name);
-          if (typeof value === 'boolean') { if (value) field.check(); else field.uncheck(); }
-          else if (field.setText) field.setText(String(value));
-        } catch { /* a field this PDF does not have */ }
-      }
-      if (S.cur.image) {
-        try {
-          const res = await fetch(S.cur.image);
-          const buf = await res.arrayBuffer();
-          const img = S.cur.image.endsWith('.png') ? await doc.embedPng(buf) : await doc.embedJpg(buf);
-          form.getButton(IMAGE_FIELD).setImage(img);
-        } catch { /* the sheet is still useful without the picture */ }
-      }
-      const out = await doc.save();
-      const url = URL.createObjectURL(new Blob([out], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = ((S.sheet.CharacterName || 'character').trim().replace(/[^\w.-]+/g, '-') || 'character') + '-sheet.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      setStatus('PDF downloaded', 'ok');
-    } catch (err) {
-      setStatus('Could not build the PDF: ' + err.message, 'bad');
-    }
+    const old = document.title;
+    document.title = ((S.sheet.CharacterName || 'character').trim().replace(/[^\w.-]+/g, '-') || 'character') + '-sheet';       // the print dialog suggests this as the file name
+    window.print();
+    setTimeout(() => { document.title = old; }, 1000);
   }
 
   /* ---------------- token picker ---------------- */
@@ -646,18 +796,18 @@
   $('#newBtn').addEventListener('click', () => {
     if (!confirmLeave()) return;
     open(blankChar());
-    setTimeout(() => { const f = (S.fields.get('CharacterName') || [])[0]; if (f) f.focus(); }, 600);
+    setTimeout(() => { const f = (S.fields.get('CharacterName') || [])[0]; if (f) f.focus(); }, 100);
   });
   $('#nameInput').addEventListener('input', (e) => { if (S.cur) setValue('CharacterName', e.target.value, null); });
   $('#nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
   $('#saveBtn').addEventListener('click', save);
   $('#delBtn').addEventListener('click', remove);
-  $('#pdfBtn').addEventListener('click', downloadPdf);
+  $('#pdfBtn').addEventListener('click', printSheet);
   $('#pickBtn').addEventListener('click', openPicker);
   $('#tokImg').addEventListener('click', openPicker);
   $('#tokImg').addEventListener('keydown', (e) => { if (e.key === 'Enter') openPicker(); });
   $('#clearTokBtn').addEventListener('click', () => { if (S.cur) { S.cur.image = ''; updateWho(); paintImageBoxes(); markDirty(); } });
-  $('#color').addEventListener('input', (e) => { if (S.cur) { S.cur.color = e.target.value; updateWho(); markDirty(); } });
+  $('#color').addEventListener('input', (e) => { if (S.cur) { S.cur.color = e.target.value; updateWho(); paintImageBoxes(); markDirty(); } });
   $('#mClose').addEventListener('click', closePicker);
   $('#modal').addEventListener('click', (e) => { if (e.target === $('#modal')) closePicker(); });
   $('#mFind').addEventListener('input', renderPicker);
@@ -667,13 +817,9 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   });
   window.addEventListener('beforeunload', (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
-  let resizeTimer = null;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (S.cur && Math.abs($('#pages').clientWidth - S.lastWidth) > 40) renderSheet(); }, 250);
-  });
 
   async function start() {
+    try { S.layout = await api('/api/sheet-layout'); } catch (err) { setStatus('Could not load the sheet layout: ' + err.message, 'bad'); }
     await loadTokens();
     try { S.chars = await api('/api/characters'); } catch (err) { setStatus('Could not load characters: ' + err.message, 'bad'); S.chars = []; }
     S.chars.sort((a, b) => a.name.localeCompare(b.name));
@@ -683,7 +829,7 @@
     if (c) open(JSON.parse(JSON.stringify(c)));
   }
   window.addEventListener('pagehide', () => { if (S.cur && S.cur.id) store.set('vtt.sheets.last', S.cur.id); });
-  window.sheetPage = { state: S, charFromSheet, sheetFromChar, setValue };
+  window.sheetPage = { state: S, charFromSheet, sheetFromChar, setValue, recalc };
   start();
 })();
 </script>

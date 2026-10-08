@@ -7,7 +7,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { SKILLS, processCharacterUpdates } from './lib/sheet-edit.js';
+import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
@@ -174,6 +174,10 @@ app.use('/uploads/:file', (req, res, next) => { const now = currentMapName(req.p
 app.use(express.static(PUBLIC_DIR));
 
 const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
+
+// What the character sheet page needs to lay itself out: which sheet field is which skill, save, spell line and slot row.
+const SHEET_FIELDS = JSON.parse(await readFile(path.join(__dirname, 'lib', 'sheet-fields.json'), 'utf8'));
+app.get('/api/sheet-layout', (_req, res) => res.json({ skills: SKILLS, saves: SAVES, spellLines: SHEET_FIELDS.spellLines, slots: SHEET_FIELDS.slots }));
 
 app.get('/api/characters', asyncRoute(async (req, res) => {
   const rules = (await readSettings(path.join(CAMPAIGNS_DIR, await getActiveCampaignId()))).rules === '2024' ? '2024' : '2014';
