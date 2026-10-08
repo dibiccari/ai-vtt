@@ -605,7 +605,9 @@ const mapKey = () => state.map.url || 'default';
 const boardKey = () => `vtt.board.${state.campaignId || 'default'}`;
 const chatKey = () => `vtt.chat.${state.campaignId || 'default'}`;
 const wallsKey = () => `vtt.walls.${mapKey()}`;
-const fogKey = () => `vtt.fog.${mapKey()}`;
+// One explored-fog layer per map set (every look of a place, day and night, shares it); a picture that belongs to no set keeps its own.
+const fogId = () => (state.map.setId ? `set-${state.map.setId}` : mapKey());
+const fogKey = () => `vtt.fog.${fogId()}`;
 
 /* =====================================================================
    DOM HELPERS
@@ -1682,7 +1684,7 @@ function scheduleFogSave() {
     try {
       const data = shroud.toDataURL('image/png');
       if (!store.setRaw(key, data)) console.info('Fog not persisted (storage full or unavailable)');
-      serverSave.fog(state.map.url, data);
+      serverSave.fog(fogId(), data);
     } catch (err) {
       console.info('Fog not persisted:', err.message);
     }
@@ -1691,14 +1693,14 @@ function scheduleFogSave() {
 
 function loadFog() {
   return new Promise((resolve) => {
-    const data = store.getRaw(fogKey());
+    const data = store.getRaw(fogKey()) || store.getRaw(`vtt.fog.${mapKey()}`);       // fog saved before sets existed was kept per picture
     if (!data) { revealFog(); resolve(); return; }
     const img = new Image();
     img.onload = () => {
-      if (img.naturalWidth === shroud.width && img.naturalHeight === shroud.height) {
+      if (img.naturalWidth && img.naturalHeight) {
         sctx.globalCompositeOperation = 'source-over';
         sctx.clearRect(0, 0, shroud.width, shroud.height);
-        sctx.drawImage(img, 0, 0);
+        sctx.drawImage(img, 0, 0, shroud.width, shroud.height);       // another look of the same place may be a different size
       }
       revealFog();
       resolve();
@@ -1735,10 +1737,12 @@ function setMap(url) {
         const c = res.ok ? (await res.json()).config : null;
         if (c && c.squares >= 5 && c.squares <= 400) squares = c.squares;
       } catch { /* no calibration: use the natural size */ }
+      let setId = '';
+      try { const r = await fetch('/api/mapsets/by-picture?file=' + encodeURIComponent(url.split('/').pop())); if (r.ok) setId = (await r.json()).guid || ''; } catch { /* no set: the picture keeps its own fog */ }
       const factor = squares ? (squares * GRID) / img.naturalWidth : Math.max(1, (12 * GRID) / Math.min(img.naturalWidth, img.naturalHeight));
       const drawW = img.naturalWidth * factor;
       const drawH = img.naturalHeight * factor;
-      state.map = { url, img, width: Math.ceil(drawW / GRID) * GRID, height: Math.ceil(drawH / GRID) * GRID, drawW, drawH };
+      state.map = { url, img, width: Math.ceil(drawW / GRID) * GRID, height: Math.ceil(drawH / GRID) * GRID, drawW, drawH, setId };
       onMapChanged().then(resolve);
     };
     img.onerror = () => {
@@ -4649,7 +4653,7 @@ async function init() {
   if (!board && window.Scenes && Scenes.has(state.campaignId, active && active.template)) {
     try {
       board = await Scenes.create(state.campaignId, { template: active && active.template });
-      if (board && board.mapUrl) store.remove('vtt.fog.' + board.mapUrl);
+      if (board && board.mapUrl) { try { Object.keys(localStorage).filter((k) => k.startsWith('vtt.fog.')).forEach((k) => localStorage.removeItem(k)); } catch { /* storage blocked */ } }
     } catch (err) { toast(`Could not build the starting scene: ${err.message}`, 'error', 6000); }
   }
   state.dmView = store.get('vtt.dmView', false) === true;

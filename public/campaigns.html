@@ -518,7 +518,7 @@
       // Forget the explored fog of the map that campaign was on, along with its board and chat.
       try {
         const saved = JSON.parse(localStorage.getItem('vtt.board.' + c.id) || 'null');
-        if (saved && saved.mapUrl) localStorage.removeItem('vtt.fog.' + saved.mapUrl);
+        Object.keys(localStorage).filter((k) => k.startsWith('vtt.fog.')).forEach((k) => localStorage.removeItem(k));       // explored fog is kept per map set now, so forget all of it
       } catch { /* nothing saved */ }
       try { await fetch('/api/campaigns/' + c.id + '/start-over', { method: 'POST' }); } catch { /* nothing saved on the server */ }       // saved game, journal and the shared stash
       for (const key of ['vtt.board.' + c.id, 'vtt.chat.' + c.id, 'vtt.savedAt.' + c.id]) { try { localStorage.removeItem(key); } catch { /* storage blocked */ } }

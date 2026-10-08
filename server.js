@@ -945,7 +945,7 @@ app.put('/api/campaigns/:id/game/fog', asyncRoute(async (req, res) => {
   const id = await gameCampaign(req, res); if (!id) return;
   const mapUrl = String(req.body?.mapUrl ?? '');
   const data = String(req.body?.data ?? '');
-  if (!/^\/uploads\/[A-Za-z0-9._-]{1,120}$/.test(mapUrl) || !data.startsWith('data:image/png;base64,') || data.length > 8_000_000) return res.status(400).json({ error: 'Not a fog image' });
+  if (!/^(\/uploads\/[A-Za-z0-9._-]{1,120}|set-[0-9a-f-]{36})$/i.test(mapUrl) || !data.startsWith('data:image/png;base64,') || data.length > 8_000_000) return res.status(400).json({ error: 'Not a fog image' });
   const p = gamePaths(id);
   const fog = await readJsonOr(p.fog, {});
   fog[mapUrl] = data;

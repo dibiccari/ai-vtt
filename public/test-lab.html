@@ -230,12 +230,12 @@
 
       li = step('Building the scene: map, walls, your party and the NPCs');
       const board = await Scenes.create(TEST_CAMPAIGN, { fog: $('#optFog').checked });
-      localStorage.removeItem('vtt.fog.' + board.mapUrl);
+      Object.keys(localStorage).filter((k) => k.startsWith('vtt.fog.')).forEach((k) => localStorage.removeItem(k));
       localStorage.setItem(boardKeyFor(TEST_CAMPAIGN), JSON.stringify(board));
       localStorage.setItem('vtt.savedAt.' + TEST_CAMPAIGN, String(Date.now()));
       // Forget old walls and explored fog for this map so the saved walls load fresh.
       localStorage.removeItem('vtt.walls.' + board.mapUrl);
-      localStorage.removeItem('vtt.fog.' + board.mapUrl);
+      Object.keys(localStorage).filter((k) => k.startsWith('vtt.fog.')).forEach((k) => localStorage.removeItem(k));
       localStorage.setItem('vtt.dmView', JSON.stringify($('#optDm').checked));
       if ($('#optChat').checked) localStorage.removeItem(chatKeyFor(TEST_CAMPAIGN));
       li.className = 'done';

@@ -282,3 +282,21 @@ test('the Walls tool also draws by clicking one point and then another, and carr
   await page.eval(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
   assert.equal(await page.eval(`window.mapTest.state.wallPen`), null, 'Escape stops the run');
 });
+
+test('what the token explored stays explored when switching Day to Night', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#timeSwitch") && document.querySelector("#banner").textContent.includes("px")');
+  const out = await page.eval(`(async () => {
+    const S = window.mapTest.state;
+    S.tokens = [{ x: 300, y: 700 }]; window.mapTest.revealFog();
+    S.tokens = [{ x: 900, y: 700 }]; window.mapTest.revealFog();
+    S.tokens = [{ x: 1800, y: 100 }]; window.mapTest.revealFog();
+    const before = window.mapTest.fogStateAt(300, 700);
+    document.querySelector('#timeSwitch button[data-time="night"]').click();
+    await new Promise((r) => setTimeout(r, 1500));
+    return { before, after: window.mapTest.fogStateAt(300, 700), url: S.url };
+  })()`);
+  assert.equal(out.before, 'explored', JSON.stringify(out));
+  assert.ok(out.url.includes('night'), 'the night look is showing');
+  assert.equal(out.after, 'explored', 'the explored ground is still explored at night: ' + JSON.stringify(out));
+});

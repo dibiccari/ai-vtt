@@ -393,7 +393,9 @@
   }
 
   /* ---------------- fog ---------------- */
-  function resetFog() {
+  // keep: an earlier copy of the explored layer (a canvas) to carry over, scaled if the picture is a different size: the day and night looks of a place share one fog layer.
+  function copyFog() { const c = document.createElement('canvas'); c.width = shroud.width; c.height = shroud.height; if (c.width && c.height) c.getContext('2d').drawImage(shroud, 0, 0); return c; }
+  function resetFog(keep) {
     for (const [c, cx] of [[shroud, sctx], [vision, vctx]]) {
       c.width = S.W;
       c.height = S.H;
@@ -401,6 +403,7 @@
     }
     sctx.fillStyle = '#040508';
     sctx.fillRect(0, 0, S.W, S.H);
+    if (keep && keep.width && keep.height) { sctx.clearRect(0, 0, S.W, S.H); sctx.drawImage(keep, 0, 0, S.W, S.H); }
     revealFog();
   }
 
@@ -1003,7 +1006,7 @@
   // In a dark place the test token's light warms the ground it reaches (brighter for a lantern than a candle), only where its line of sight goes.
   function drawTokenLight() {
     if (S.light !== 'dark' || !S.polys.length) return;
-    const strength = [0.12, 0.12, 0.24, 0.5][S.testLight], reach = (lightReachFt() / FT_PER_SQUARE) * cell();
+    const strength = [0.12, 0.19, 0.24, 0.5][S.testLight], reach = (lightReachFt() / FT_PER_SQUARE) * cell();
     S.polys.forEach((poly, i) => {
       const t = S.polyOwners[i];
       ctx.save();
@@ -1081,6 +1084,7 @@
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = async () => {
+        const keptFog = S.url && S.img && S.placeOf && S.placeOf.get(S.url) && S.placeOf.get(S.url) === S.placeOf.get(url) && shroud.width ? copyFog() : null;       // switching day and night keeps what was explored
         const sameSpot = S.url && S.img && S.tokens && S.tokens[0] && S.placeOf && S.placeOf.get(S.url) && S.placeOf.get(S.url) === S.placeOf.get(url) ? { fx: S.tokens[0].x / S.W, fy: S.tokens[0].y / S.H } : null;       // day to night of one place: the token stays where it stands
         S.url = url;
         S.img = img;
@@ -1124,7 +1128,7 @@
         loadAreas();
         loadDmVersion();
         syncControls();
-        resetFog();
+        resetFog(keptFog);
         fitView();
         updateStats();
         store.set('vtt.maptest.lastMap', url);
@@ -1982,7 +1986,8 @@
     document.querySelectorAll('button.tool[data-tool="walls"]').forEach((b) => { b.hidden = player; });
     if (player && ['start', 'terrain', 'eraser', 'walls'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
     if (player) $('#brushBox').hidden = true;
-    updateViewUi(); resetFog(); requestRender();
+    const keptFog = copyFog();
+    updateViewUi(); resetFog(keptFog); requestRender();
   }
   // Draw the DM version from the set-up: the player picture, then terrain, pins with their names, the start area, secret and locked doors, lights; saved for the AI DM (jpeg, at most 2400 px wide).
   async function makeDmVersion() {
