@@ -28,6 +28,11 @@
   .shot { position:relative; }
   .shot svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; }
   .showwalls .shot svg { display:block; }
+  #grid3 figcaption b { text-transform:none; }
+  .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+  @media (max-width: 1100px) { .grid3 { grid-template-columns:1fr 1fr; } } @media (max-width: 700px) { .grid3 { grid-template-columns:1fr; } }
+  .good { color:var(--ok, #3fd27f); } .meh { color:var(--gold); } .poor { color:#ff8b8b; }
+  .note { max-width:1100px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin:0 0 14px; font-size:13px; color:var(--muted); }
   .grid4 { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; }
   @media (max-width: 1000px) { .grid4 { grid-template-columns:1fr; } }
   @media (max-width: 1000px) { .grid { grid-template-columns:1fr; } }
@@ -45,6 +50,11 @@
   <section class="prompt"><h2>The prompt used</h2><p id="prompt2">Loading…</p></section>
   <div class="tools"><label><input type="checkbox" id="showWalls"> Show walls and doors</label></div>
   <div class="grid4" id="grid2"></div>
+
+  <h2 class="sec">Bake-off: <span>other image services</span></h2>
+  <p class="lead">The same drawing and the same prompt sent to other image services, to see which keeps the walls and doors where the layout has them. The drift number is how far the painted walls sit from the lines, in pixels of a 1536 wide picture (lower is better; the drawing itself measures about 2). The checkbox above draws the saved walls over these pictures too.</p>
+  <div class="note" id="bakeNote">Loading…</div>
+  <div class="grid3" id="grid3"></div>
 </main>
 <script src="/nav.js"></script>
 <script>
@@ -92,6 +102,22 @@
     cap.appendChild(el('span', '', c.note || editPrice[c.name] + ' at list prices' + (c.run && c.run.ok ? ' · ' + c.run.seconds + ' s · ' + (c.run.bytes / 1e6).toFixed(1) + ' MB' : '')));
     if (!c.note && c.run && c.run.ok) { const a = el('a', 'open', 'Open full size'); a.href = dir + c.src; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
     fig.appendChild(cap); grid2.appendChild(fig);
+  }
+  // ---- the bake-off
+  let bake = null;
+  try { bake = await (await fetch(dir + 'bakeoff-results.json')).json(); } catch { /* not run yet */ }
+  const grid3 = document.getElementById('grid3');
+  const grade = (m) => (m <= 10 ? 'good' : m <= 22 ? 'meh' : 'poor');
+  const done = bake ? bake.runs.filter((r) => r.ok).length : 0;
+  document.getElementById('bakeNote').textContent = bake ? done + ' of ' + bake.runs.length + ' contenders have a picture. The others wait for a key with credit: add it in Settings > Image Generator, then the bake-off is run again (node scripts/image-bakeoff.mjs). The drift figure is an estimate read off the picture, so judge with the overlay too.' : 'The bake-off has not been run yet.';
+  for (const r of (bake ? bake.runs : [])) {
+    const fig = el('figure');
+    if (r.ok && layout) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + r.file; img.alt = r.label; img.loading = 'lazy'; shot.append(img, overlay()); fig.appendChild(shot); }
+    else fig.appendChild(el('div', 'missing', r.noKey ? 'No key yet. Add one in Settings > Image Generator.' : 'Failed: ' + r.error));
+    const cap = el('figcaption'); cap.appendChild(el('b', '', r.label));
+    if (r.ok) { const sc = el('span'); sc.append('Drift: median ', Object.assign(el('b', grade(r.drift.medianPx)), { textContent: r.drift.medianPx + ' px' }), ', worst ' + r.drift.worstPx + ' px, ' + Math.round(r.drift.within8 * 100) + '% of walls within 8 px'); cap.appendChild(sc); cap.appendChild(el('span', '', r.model + ' · ' + r.quality + ' · about ' + r.price + (r.seconds ? ' · ' + r.seconds + ' s' : ' · from the test above') + (r.note ? ' · ' + r.note : ''))); const a = el('a', 'open', 'Open full size'); a.href = dir + r.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
+    else cap.appendChild(el('span', '', r.model));
+    fig.appendChild(cap); grid3.appendChild(fig);
   }
   const box = document.getElementById('showWalls');
   box.addEventListener('change', () => document.body.classList.toggle('showwalls', box.checked));

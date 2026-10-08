@@ -39,7 +39,7 @@ for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
 for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/compendium.js', 'lib/safety.js', 'public/scenes.js', 'public/wallobjects.js', 'public/flicker.js', 'public/ambience.js', 'public/uvtt.js', 'public/pdf-extract.js', 'public/nav.js', 'public/voice-fx.js']) check(file, path.join(root, file));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
-for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html', 'sound-test.html', 'maps.html', 'image-test.html', 'image-bakeoff.html', 'market.html', 'coast.html', 'map-maker.html', 'conditions-test.html', 'voice-test.html', 'settings.html']) {
+for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html', 'sound-test.html', 'maps.html', 'image-test.html', 'market.html', 'coast.html', 'map-maker.html', 'conditions-test.html', 'voice-test.html', 'settings.html']) {
   const html = await readFile(path.join(root, 'public', page), 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   if (!scripts.length) {
