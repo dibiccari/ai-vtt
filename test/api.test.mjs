@@ -353,7 +353,7 @@ test('map library: every picture with its kind, tiles, counts and whether it has
   const lib = (await s.get('/api/map-library')).json.maps;
   assert.ok(lib.length > 10);
   const m = (f) => lib.find((x) => x.file === f);
-  assert.equal(m('vtt-terrain-test.png').origin, 'Explorer'); assert.equal(m('vtt-terrain-test.png').tiles, 'square');
+  assert.equal(m('vtt-terrain-test.png').origin, 'Test'); assert.equal(m('vtt-terrain-test.png').tiles, 'square');
   assert.ok(m('lmop-cragmaw-hideout.png').origin === 'Map Adventurer' && m('lmop-cragmaw-hideout.png').kind === 'battle');
   assert.equal(m('dnd-sword-coast-ours.png').tiles, 'hex'); assert.equal(m('dnd-sword-coast-ours.png').kind, 'regional'); assert.ok(m('dnd-sword-coast-ours.png').pins >= 14);
   assert.equal(m('vtt-phandalin.png').dmVersion, true, 'the Phandalin DM version is saved');
@@ -371,4 +371,17 @@ test('map sets: the real pictures gather into places (day and night together, DM
   const coast = by['dnd-northswordcoast']; assert.ok(coast && !by['dnd-northswordcoast-playerversion'], 'the plain and the player version of the Sword Coast are one place'); assert.equal(coast.levels[0].looks[0].player, 'dnd-northswordcoast-playerversion.jpg'); assert.equal(coast.levels[0].looks[0].dm, 'dnd-northswordcoast.jpg'); assert.equal(by['dnd-phandalin'].origin, 'Wizards of the Coast'); assert.ok(by['vtt-phandalin'].hasDm);
   assert.ok(by.camp.levels[0].px && by.camp.levels[0].px.w > 100, 'the picture size is read'); assert.equal(by.camp.levels[0].game.unit, 'ft'); assert.equal(by['dnd-sword-coast-ours'].levels[0].game.unit, 'miles'); assert.equal(by['lmop-phandalin'].levels[0].game, null, 'a town has no tile units');
   assert.equal((await s.post('/api/mapsets', {})).status, 404, 'nothing writes to sets yet');
+});
+
+test('map sets: archive hides a place from the list and restores it; delete is refused while a campaign lists the place', async () => {
+  const sets = (await s.get('/api/mapsets')).json.sets;
+  const one = sets.find((x) => x.id === 'vtt-terrain-test') || sets[0];
+  assert.equal((await s.post('/api/mapsets/' + one.guid + '/archive', { archived: true })).status, 200);
+  assert.ok(!(await s.get('/api/mapsets')).json.sets.some((x) => x.guid === one.guid), 'archived places leave the list');
+  assert.ok((await s.get('/api/mapsets?archived=1')).json.sets.some((x) => x.guid === one.guid && x.archived), 'and show with ?archived=1');
+  assert.equal((await s.post('/api/mapsets/' + one.guid + '/archive', { archived: false })).status, 200);
+  assert.ok((await s.get('/api/mapsets')).json.sets.some((x) => x.guid === one.guid));
+  const used = sets.find((x) => x.campaigns.length);
+  const res = await fetch(s.base + '/api/mapsets/' + used.guid, { method: 'DELETE' });
+  assert.equal(res.status, 409, 'a map a campaign lists cannot be deleted');
 });

@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 4,
+  "version": 5,
   "id": "cb52b212-1442-4d8a-a9e7-5aa1b8864ccf",
   "slug": "vtt-wyvern-tor",
   "name": "Wyvern Tor",
@@ -1534,6 +1534,5 @@
       ]
     }
   ],
-  "links": [],
-  "publisher": "Explorer Remakes"
+  "links": []
 }

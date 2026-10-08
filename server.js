@@ -393,6 +393,7 @@ function normalizeMapConfig(body) {
   const secrets = [];
   for (const sc of Array.isArray(body?.secrets) ? body.secrets.slice(0, 100) : []) { const [x1, y1, x2, y2] = [num(sc?.x1), num(sc?.y1), num(sc?.x2), num(sc?.y2)]; if (![x1, y1, x2, y2].includes(null)) secrets.push({ name: String(sc?.name ?? '').slice(0, 80), x1, y1, x2, y2, type: 'wall', open: false }); }
   const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
+  if (typeof body?.name === 'string') config.name = body.name.trim().slice(0, 80);
   if (typeof body?.publisher === 'string') config.publisher = body.publisher.trim().slice(0, 40);
   if (rooms.length) config.rooms = rooms;
   if (secrets.length) config.secrets = secrets;
@@ -480,7 +481,33 @@ async function setSummaries() {
   for (const doc of docs.values()) for (const lv of doc.levels) for (const l of lv.looks) { try { const fh = await open(path.join(UPLOAD_DIR, l.player)); const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close(); const sz = imageSize(b.subarray(0, bytesRead)); if (sz) sizes[l.player] = sz; } catch { /* unreadable picture */ } }
   return [...docs.values()].map((d) => summarizeSet(d, { sizes, listed, dmPictures })).sort((a, b) => a.name.localeCompare(b.name));
 }
-app.get('/api/mapsets', asyncRoute(async (_req, res) => { res.json({ sets: await setSummaries() }); }));
+app.get('/api/mapsets', asyncRoute(async (req, res) => { const all = await setSummaries(); res.json({ sets: req.query.archived === '1' ? all : all.filter((s) => !s.archived), archivedCount: all.filter((s) => s.archived).length }); }));
+// Archive hides a place from the lists (Map Test, Maps) without deleting anything; Delete removes the set file and its pictures for good, and is refused while a campaign still lists the place.
+app.post('/api/mapsets/:guid/archive', localOnly, asyncRoute(async (req, res) => {
+  const { docs } = await ensureSets();
+  const doc = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
+  if (!doc) return res.status(404).json({ error: 'No such map set' });
+  if (req.body?.archived === false) delete doc.archived; else doc.archived = true;
+  doc.version = (doc.version || 1) + 1;
+  await saveSet(doc); await loadSets();
+  res.json({ ok: true, archived: Boolean(doc.archived) });
+}));
+app.delete('/api/mapsets/:guid', localOnly, asyncRoute(async (req, res) => {
+  const { docs } = await ensureSets();
+  const doc = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
+  if (!doc) return res.status(404).json({ error: 'No such map set' });
+  const files = [...new Set(doc.levels.flatMap((lv) => lv.looks.flatMap((l) => [l.player, l.dm && !String(l.dm).startsWith('data/dm-maps:') ? l.dm : null].filter(Boolean))))];
+  const users = [];
+  for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+    if (!dirent.isDirectory()) continue;
+    try { for (const m of await mapsForCampaign(dirent.name)) if (files.includes(m.url.split('/').pop())) users.push(dirent.name); } catch { /* unreadable campaign */ }
+  }
+  if (users.length) return res.status(409).json({ error: 'A campaign still lists this map (' + [...new Set(users)].join(', ') + '). Remove it from the campaign first, or archive it instead.' });
+  await rm(path.join(SETS_DIR, doc.id + '.json'), { force: true });
+  for (const f of files) { await rm(path.join(UPLOAD_DIR, f), { force: true }); await rm(mapConfigFile(f), { force: true }).catch(() => {}); }
+  await loadSets();
+  res.json({ ok: true, removed: files });
+}));
 app.get('/api/mapsets/by-picture', asyncRoute(async (req, res) => {
   const { index } = await ensureSets();
   const hit = index.get(path.basename(String(req.query.file ?? '')));

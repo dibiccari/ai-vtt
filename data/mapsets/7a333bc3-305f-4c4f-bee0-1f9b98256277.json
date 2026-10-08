@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 4,
+  "version": 5,
   "id": "7a333bc3-305f-4c4f-bee0-1f9b98256277",
   "slug": "vtt-dungeon-cellars",
   "name": "Dungeon Cellars",
@@ -1372,8 +1372,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-1",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-1"
             },
             {
               "x": 500,
@@ -1381,8 +1381,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-2",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-2"
             },
             {
               "x": 647.5,
@@ -1390,8 +1390,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-3",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-3"
             },
             {
               "x": 1200,
@@ -1399,8 +1399,8 @@
               "range": 8,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "brazier",
-              "flicker": true
+              "flicker": true,
+              "name": "brazier"
             },
             {
               "x": 902.5,
@@ -1408,8 +1408,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-5",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-5"
             },
             {
               "x": 1547.5,
@@ -1417,8 +1417,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-6",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-6"
             },
             {
               "x": 1547.5,
@@ -1426,8 +1426,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-7",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-7"
             },
             {
               "x": 1000,
@@ -1435,8 +1435,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-8",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-8"
             },
             {
               "x": 1400,
@@ -1444,8 +1444,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-9",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-9"
             },
             {
               "x": 1200,
@@ -1453,8 +1453,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-10",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-10"
             },
             {
               "x": 102.5,
@@ -1462,8 +1462,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-11",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-11"
             },
             {
               "x": 597.5,
@@ -1471,8 +1471,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-12",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-12"
             },
             {
               "x": 325,
@@ -1480,8 +1480,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-13",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-13"
             },
             {
               "x": 750,
@@ -1489,8 +1489,8 @@
               "range": 6,
               "intensity": 1,
               "color": "ffffa24d",
-              "name": "torch-14",
-              "flicker": true
+              "flicker": true,
+              "name": "torch-14"
             }
           ],
           "ambient": "ff2a2630",
@@ -1500,5 +1500,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "publisher": "Test"
 }

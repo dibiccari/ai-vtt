@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 3,
+  "version": 4,
   "id": "eb082cba-e347-437c-b3ce-61a111a3c373",
   "slug": "vtt-redbrand-hideout",
   "name": "Redbrand Hideout",
@@ -668,6 +668,5 @@
       ]
     }
   ],
-  "links": [],
-  "publisher": "Explorer Remakes"
+  "links": []
 }

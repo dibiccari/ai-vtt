@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 3,
+  "version": 4,
   "id": "b0f61f20-0b90-461a-bf44-32dd01c42bff",
   "slug": "vtt-terrain-test",
   "name": "Terrain Test",
@@ -1582,8 +1582,8 @@
               "range": 9,
               "intensity": 1,
               "color": "ffff9a3c",
-              "name": "campfire",
-              "flicker": true
+              "flicker": true,
+              "name": "campfire"
             }
           ],
           "ambient": "ffffffff",
@@ -1593,5 +1593,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "publisher": "Test"
 }

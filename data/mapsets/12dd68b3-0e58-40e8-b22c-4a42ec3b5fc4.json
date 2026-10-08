@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 36,
+  "version": 37,
   "id": "12dd68b3-0e58-40e8-b22c-4a42ec3b5fc4",
   "slug": "vtt-agathas-lair",
   "name": "Agatha's Lair",
@@ -1753,6 +1753,5 @@
       ]
     }
   ],
-  "links": [],
-  "publisher": "Explorer Remakes"
+  "links": []
 }
