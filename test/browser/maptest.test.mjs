@@ -136,7 +136,7 @@ test('tiles: a regional map shows hexagons, a battle map squares, and one Show t
   };
   const hex = await shot('/uploads/dnd-sword-coast-ours.png');
   assert.equal(hex.tiles, 'hex'); assert.equal(hex.select, 'regional', 'the label says it is a regional map'); assert.equal(hex.squaresRow, false, 'no squares control on a hexagon map'); assert.match(hex.label, /hexagons/); assert.match(hex.scale, /One hexagon = 5 miles/); assert.match(hex.size, /Size: \d+ x \d+ px \(height x width\)\s+\d+ x \d+ miles/); assert.equal(hex.kindAfterSelect, true, 'the type of map sits right below the Map picker'); assert.equal(hex.hexRowBefore, false, 'the hexagon width is hidden while the tiles are hidden'); assert.equal(hex.hexRow, true, 'and shows once Show hexagons is ticked'); assert.deepEqual(hex.order, ['vision', 'showTilesRow', 'hexRow'], 'Show tiles comes last in the section, the width right under it');
-  assert.notEqual(hex.on, hex.off, 'ticking Show tiles draws the hexagons');
+  assert.notEqual(hex.on, hex.off, 'ticking Show tiles draws the hexagons: ' + JSON.stringify(hex));
   const sq = await shot('/uploads/vtt-terrain-test.png');
   assert.equal(sq.tiles, 'square'); assert.equal(sq.select, 'battle'); assert.equal(sq.hexRow, false, 'no hexagon slider on a battle map'); assert.equal(sq.squaresRow, true); assert.match(sq.label, /squares/); assert.match(sq.scale, /One square = 5 ft\. This map is \d+ x \d+ squares/); assert.match(sq.size, /Size: 1500 x 2000 px \(height x width\)\s+150 x 200 ft/); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
 });
