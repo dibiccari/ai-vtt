@@ -412,7 +412,12 @@ test('settings: the image model and quality are saved next to the voices, valida
   const after = (await s.get('/api/settings')).json.openai;
   assert.equal(after.imageModel, 'gpt-image-1-mini'); assert.equal(after.imageQuality, 'high');
   assert.equal((await s.post('/api/settings', { IMAGE_MODEL: 'bad model!' })).status, 400, 'a model name with spaces or symbols is refused');
+  assert.equal((await s.post('/api/settings', { IMAGE_PROVIDER: 'gemini', IMAGE_MODEL: 'gemini-nano-banana-2.1', IMAGE_QUALITY: '1K' })).status, 200);
+  const g = (await s.get('/api/settings')).json.openai;
+  assert.equal(g.imageProvider, 'gemini'); assert.equal(g.imageQuality, '1K'); assert.equal(g.imageKeys.gemini.set, false);
+  assert.match((await s.post('/api/settings/test', { which: 'images' })).json.error, /No Google Gemini key/, 'the check follows the chosen provider');
+  await s.post('/api/settings', { IMAGE_PROVIDER: 'openai', IMAGE_MODEL: 'gpt-image-1', IMAGE_QUALITY: 'medium' });
   const t = await s.post('/api/settings/test', { which: 'images' });
-  assert.equal(t.json.ok, false); assert.match(t.json.error, /same key as the voices/);
+  assert.equal(t.json.ok, false); assert.match(t.json.error, /same key as the voices|No OpenAI key/);
   await s.post('/api/settings', { IMAGE_MODEL: 'gpt-image-1', IMAGE_QUALITY: 'medium' });
 });
