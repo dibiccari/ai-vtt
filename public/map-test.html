@@ -774,8 +774,8 @@
     const fogged = S.fog && S.tokens.length > 0 && !S.dm;
     for (const s of S.starts) {
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
-      if (seen === null) continue;
-      ctx.globalAlpha = seen === 'in sight' ? 1 : 0.6;       // Show pins ticked means every pin shows; ones out of the token's sight are a little fainter
+      if (seen === null || (seen === 'unseen' && !editing)) continue;
+      ctx.globalAlpha = seen === 'in sight' ? 1 : 0.5;
       if (s.name === 'start' && s.radius > 0) {                             // the start's arrival area: a soft circle around the pin
         const isStart = s.name === 'start';
         ctx.save();
