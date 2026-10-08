@@ -338,7 +338,7 @@
     clearTimeout(serverSaveTimer);
     const name = mapName();
     const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind });
-    serverSaveTimer = setTimeout(async () => {
+    pendingSave = async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body
@@ -348,7 +348,15 @@
       } catch (err) {
         setSavedNote('Not saved to the server: ' + err.message);
       }
-    }, 500);
+    };
+    serverSaveTimer = setTimeout(() => { const run = pendingSave; pendingSave = null; if (run) run(); }, 500);
+  }
+  let pendingSave = null;
+  // A change waiting for its half second is written now, so the next look of the same place reads it.
+  async function flushSave() {
+    clearTimeout(serverSaveTimer);
+    const run = pendingSave; pendingSave = null;
+    if (run) await run();
   }
 
   let noteTimer = null;
@@ -1006,6 +1014,7 @@
           .map((t) => ({ x: clamp(t.x, 0, S.W), y: clamp(t.y, 0, S.H) }));
         S.visionFt = saved && saved.visionFt > 0 ? saved.visionFt : 60;
         // The server's copy of the walls and grid wins over this browser's copy.
+        await flushSave();
         const remote = await fetchServerConfig(mapName());
         S.source = remote && remote.source === 'dd2vtt' ? 'dd2vtt' : null;
         if (remote && Array.isArray(remote.walls)) {
