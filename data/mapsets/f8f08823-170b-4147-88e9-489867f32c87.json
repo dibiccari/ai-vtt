@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 86,
+  "version": 92,
   "id": "f8f08823-170b-4147-88e9-489867f32c87",
   "slug": "vtt-crypt-method-a",
   "name": "Crypt Method A",
@@ -1430,8 +1430,7 @@
           "ambience": "dungeon",
           "mood": "dungeon"
         }
-      ],
-      "wallDepth": 0.8
+      ]
     }
   ],
   "links": []
