@@ -87,10 +87,10 @@
     },
     {
       "id": "agathas-lair",
-      "file": "lmop-agathas-lair.png",
+      "file": "vtt-agathas-lair.png",
       "name": "Agatha's Lair",
       "kind": "battle",
-      "description": "The hidden lair of Agatha, the banshee who haunts the wilderness near Conyberry. Use it for the approach to her lair and the scene inside."
+      "description": "Agatha's hidden lair in the dark, mossy Neverwinter Wood near Conyberry: a domelike shelter of warped, woven branches in a small clearing, a low doorway on the south side where an old trail ends, and inside old elven chests, a shelf, a table and a reclined couch. Large trees and boulders crowd the clearing. Use it for the approach and the scene inside; the banshee manifests shortly after the party enters."
     },
     {
       "id": "old-owl-well",
