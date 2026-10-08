@@ -1033,7 +1033,7 @@
         fitView();
         updateStats();
         store.set('vtt.maptest.lastMap', url);
-        try { history.replaceState(null, '', `?map=${encodeURIComponent(url)}`); } catch { /* not critical */ }
+        try { const g = S.guidOf && S.guidOf.get(url); history.replaceState(null, '', g ? `?set=${g.guid}${g.time !== 'main' ? '&time=' + g.time : ''}` : `?map=${encodeURIComponent(url)}`); } catch { /* not critical */ }
         resolve();
       };
       img.onerror = () => { $('#banner').textContent = 'Could not load that map image.'; resolve(); };
@@ -1076,6 +1076,7 @@
     const maps = places.map((p) => lookUrl(p, 'day'));
     const nameOf = new Map(); const dupes = new Set(); for (const p of places) { if (nameOf.has(p.name)) dupes.add(p.name); nameOf.set(p.name, true); }
     S.placeOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) S.placeOf.set('/uploads/' + l.player, lookUrl(p, 'day'));       // any look of a place -> the entry that stands for it
+    S.guidOf = new Map(); for (const p of places) for (const l of p.levels[0].looks) S.guidOf.set('/uploads/' + l.player, { guid: p.guid, time: l.time });
     S.placeOrigin = new Map(places.map((p) => [lookUrl(p, 'day'), p.origin]));
     S.placeKinds = new Map(places.map((p) => [lookUrl(p, 'day'), p.kind]));
     S.placeNames = new Map(places.map((p) => [lookUrl(p, 'day'), p.name + (dupes.has(p.name) ? ' (' + p.origin + ')' : '')]));                                   // the day look (or the only one) stands for the place
@@ -1091,7 +1092,12 @@
       $('#banner').textContent = 'No maps found. Upload one on the Tabletop page first.';
       return;
     }
-    const wanted = new URLSearchParams(location.search).get('map');
+    const q = new URLSearchParams(location.search);
+    let wanted = q.get('map');
+    if (q.get('set')) {
+      const place = places.find((p) => p.guid === q.get('set'));
+      if (place) wanted = lookUrl(place, q.get('time') || 'day');
+    }
     const publisher = $('#publisher').value;
     let shown = publisher ? maps.filter((u) => S.placeOrigin.get(u) === publisher) : maps;       // the Publisher filter above the list
     if (!shown.length) shown = maps;

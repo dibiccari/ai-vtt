@@ -1,0 +1,125 @@
+{
+  "format": "vttmapset",
+  "version": 6,
+  "id": "56fa4388-81c9-4f67-a944-7e168c1b3a35",
+  "slug": "dnd-sword-coast-ours",
+  "name": "Sword Coast",
+  "kind": "regional",
+  "tiles": "hex",
+  "hexSize": 125,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T02:58:26.380Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [],
+      "starts": [
+        {
+          "name": "start",
+          "x": 319,
+          "y": 935,
+          "radius": 2
+        },
+        {
+          "name": "neverwinter",
+          "x": 289,
+          "y": 875,
+          "desc": "The great walled port city on the High Road, at the mouth of the Neverwinter River."
+        },
+        {
+          "name": "phandalin",
+          "x": 757,
+          "y": 1410,
+          "desc": "A frontier town of a few hundred people in the foothills of the Sword Mountains."
+        },
+        {
+          "name": "thundertree",
+          "x": 543,
+          "y": 845,
+          "desc": "A ruined village west of the Neverwinter Wood."
+        },
+        {
+          "name": "cragmaw-castle",
+          "x": 740,
+          "y": 1105,
+          "desc": "A ruined castle deep in the Neverwinter Wood."
+        },
+        {
+          "name": "conyberry",
+          "x": 1111,
+          "y": 963,
+          "desc": "The ruins of a sacked town on the Triboar Trail."
+        },
+        {
+          "name": "old-owl-well",
+          "x": 1165,
+          "y": 1100,
+          "desc": "A ruined watchtower and a well in the wastes east of the Triboar Trail."
+        },
+        {
+          "name": "leilon",
+          "x": 550,
+          "y": 1570,
+          "desc": "A ruined town on the High Road to the south."
+        },
+        {
+          "name": "cragmaw-hideout",
+          "x": 569,
+          "y": 1295,
+          "desc": "A goblin cave hideout in the grassland near the High Road."
+        },
+        {
+          "name": "wave-echo-cave",
+          "x": 900,
+          "y": 1400,
+          "desc": "A cave in the Sword Mountains, the lost mine of the Phandelver Pact."
+        },
+        {
+          "name": "wyvern-tor",
+          "x": 1231,
+          "y": 1235,
+          "desc": "A rocky hilltop in the highlands, home to an orc war camp."
+        },
+        {
+          "name": "agatha-s-lair",
+          "x": 1054,
+          "y": 948,
+          "desc": "The shelter of the banshee Agatha, a few miles northwest of Conyberry."
+        },
+        {
+          "name": "mount-hotenow",
+          "x": 450,
+          "y": 518,
+          "desc": "A tall mountain on the west side of the Neverwinter Wood."
+        },
+        {
+          "name": "icespire-peak",
+          "x": 1047,
+          "y": 1332,
+          "desc": "The tallest peak of the Sword Mountains."
+        }
+      ],
+      "difficult": [],
+      "isRevealed": true,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "dnd-sword-coast-ours.png",
+          "dm": null,
+          "light": "bright",
+          "lights": [],
+          "ambient": "",
+          "ambience": "wind",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}

@@ -1,0 +1,40 @@
+{
+  "format": "vttmapset",
+  "version": 1,
+  "id": "b6d7f805-3799-4fa8-a340-f853cb42be55",
+  "slug": "lmop-phandalin",
+  "name": "Phandalin",
+  "kind": "town",
+  "tiles": "none",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T02:58:26.378Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 0,
+      "walls": [],
+      "starts": [],
+      "difficult": [],
+      "isRevealed": true,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "lmop-phandalin-player-version.jpg",
+          "dm": "lmop-phandalin-dm-version.jpg",
+          "light": "bright",
+          "lights": [],
+          "ambient": "",
+          "ambience": "",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}

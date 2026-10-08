@@ -1,0 +1,40 @@
+{
+  "format": "vttmapset",
+  "version": 1,
+  "id": "c59bd7a4-68e1-4768-9f52-dfa80df8e6b1",
+  "slug": "dnd-northswordcoast",
+  "name": "Sword Coast",
+  "kind": "regional",
+  "tiles": "hex",
+  "hexSize": 125,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T02:58:26.380Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 53,
+      "walls": [],
+      "starts": [],
+      "difficult": [],
+      "isRevealed": true,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "dnd-northswordcoast-playerversion.jpg",
+          "dm": "dnd-northswordcoast.jpg",
+          "light": "bright",
+          "lights": [],
+          "ambient": "",
+          "ambience": "",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}

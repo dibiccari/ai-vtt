@@ -337,7 +337,7 @@ test('map config keeps the map type (battle, camp, town, regional) and the sets 
   ok(await s.put('/api/map-config?map=vtt-kind-test.png', { squares: 30, walls: [], starts: [], kind: 'town' }));
   assert.equal((await s.get('/api/map-config?map=vtt-kind-test.png')).json.config.kind, 'town');
   ok(await s.put('/api/map-config?map=vtt-kind-test.png', { squares: 30, walls: [], starts: [], kind: 'nonsense' }));
-  assert.equal((await s.get('/api/map-config?map=vtt-kind-test.png')).json.config.kind, undefined);
+  assert.equal((await s.get('/api/map-config?map=vtt-kind-test.png')).json.config.kind, 'town', 'an unknown kind leaves the set as it was');
 });
 
 test('map config keeps the tile kind: hexagons with a size for regional maps, squares (nothing saved) otherwise', async () => {
@@ -345,7 +345,7 @@ test('map config keeps the tile kind: hexagons with a size for regional maps, sq
   let c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, 'hex'); assert.equal(c.hexSize, 62);
   ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'hex', hexSize: 9999 }));
   assert.equal((await s.get('/api/map-config?map=vtt-hex-test.png')).json.config.hexSize, 260, 'the size is clamped');
-  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], tiles: 'square' }));
+  ok(await s.put('/api/map-config?map=vtt-hex-test.png', { squares: 30, walls: [], starts: [], kind: 'battle' }));
   c = (await s.get('/api/map-config?map=vtt-hex-test.png')).json.config; assert.equal(c.tiles, undefined); assert.equal(c.hexSize, undefined);
 });
 

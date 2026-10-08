@@ -1,0 +1,40 @@
+{
+  "format": "vttmapset",
+  "version": 1,
+  "id": "5923b3b8-1126-4343-b758-0d54917da5ca",
+  "slug": "dnd-phandalin",
+  "name": "Phandalin",
+  "kind": "town",
+  "tiles": "none",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T02:58:26.378Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 0,
+      "walls": [],
+      "starts": [],
+      "difficult": [],
+      "isRevealed": true,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "dnd-phandalin-playerversion.jpg",
+          "dm": "dnd-dm-phandalin.jpg",
+          "light": "bright",
+          "lights": [],
+          "ambient": "",
+          "ambience": "",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}

@@ -12,6 +12,7 @@ import './public/token-size.js';                       // sets globalThis.TokenS
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
 import { buildSets, originOf, imageSize } from './lib/mapsets.js';
+import { docFromBuilt, configFromSet, applyConfigToSet, indexSets, summarizeSet, checkSetDoc, isGuid } from './lib/mapsetstore.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
@@ -277,6 +278,58 @@ function mapConfigFile(name) {
   return path.join(MAP_CONFIG_DIR, `${base}.json`);
 }
 
+// ---- Map set files: data/mapsets/<guid>.json hold everything about a place (lib/mapsetstore.js). The per-picture set-up of old (data/maps/<picture>.json) is read when a picture is not in a set yet.
+const SETS_DIR = path.join(__dirname, 'data', 'mapsets');
+await mkdir(SETS_DIR, { recursive: true });
+let SETS = null, setsBusy = Promise.resolve();
+async function loadSets() {
+  const docs = [];
+  for (const f of await readdir(SETS_DIR).catch(() => [])) { if (!f.endsWith('.json')) continue; try { const d = JSON.parse(await readFile(path.join(SETS_DIR, f), 'utf8')); if (!checkSetDoc(d).length) docs.push(d); } catch { /* unreadable set file */ } }
+  SETS = { docs: new Map(docs.map((d) => [d.id, d])), index: indexSets(docs) };
+}
+const saveSet = (doc) => writeFile(path.join(SETS_DIR, doc.id + '.json'), JSON.stringify(doc, null, 2));
+// Every picture is in a set: pictures that are not yet (new uploads, a Market install) get one built from their old set-up. Runs one at a time.
+function ensureSets() {
+  const run = setsBusy.then(async () => {
+    if (!SETS) await loadSets();
+    const missing = (await pictureFiles()).filter((f) => !SETS.index.has(f));
+    if (!missing.length) return SETS;
+    const configs = {};
+    for (const f of missing) { try { configs[f] = JSON.parse(await readFile(mapConfigFile(f), 'utf8')); } catch { configs[f] = null; } }
+    const listed = {};
+    for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
+      if (!dirent.isDirectory()) continue;
+      try { for (const m of await mapsForCampaign(dirent.name)) { const f = m.url.split('/').pop(); listed[f] = { kind: listed[f]?.kind || m.kind, campaigns: [] }; } } catch { /* unreadable campaign */ }
+    }
+    const dmPictures = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
+    for (const built of buildSets({ pictures: missing, configs, dmPictures, listed })) await saveSet(docFromBuilt(built, configs));
+    await loadSets();
+    return SETS;
+  });
+  setsBusy = run.catch(() => {});
+  return run;
+}
+// The set-up of one picture in the shape the pages use (walls, pins, terrain, lights...), from its set; null when the picture is unknown.
+async function readMapConfig(name) {
+  mapConfigFile(name);                                           // checks the name
+  const { index } = await ensureSets();
+  const hit = index.get(currentMapName(name));
+  return hit ? configFromSet(hit.set, currentMapName(name)) : null;
+}
+async function writeMapConfig(name, config) {
+  mapConfigFile(name);
+  const { index } = await ensureSets();
+  const file = currentMapName(name), hit = index.get(file);
+  if (!hit) {                                                    // a set-up for a picture that is not uploaded (yet): a set of its own is made for it
+    const stem = file.replace(/\.[^.]+$/, '');
+    const doc = docFromBuilt({ id: stem, name: stem, kind: ['battle', 'camp', 'town', 'regional'].includes(config.kind) ? config.kind : config.tiles === 'hex' ? 'regional' : 'battle', levels: [{ looks: [{ player: file, time: 'main', dm: null }] }] }, { [file]: config });
+    await saveSet(doc); await loadSets();
+    return;
+  }
+  applyConfigToSet(hit.set, file, config);
+  await saveSet(hit.set);
+}
+
 function normalizeMapConfig(body) {
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
   const walls = [];
@@ -339,7 +392,7 @@ function normalizeMapConfig(body) {
 
 app.get('/api/map-config', asyncRoute(async (req, res) => {
   try {
-    res.json({ config: JSON.parse(await readFile(mapConfigFile(req.query.map), 'utf8')) });
+    res.json({ config: await readMapConfig(req.query.map) });
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
     res.json({ config: null });
@@ -355,14 +408,13 @@ app.get('/api/map-configs', asyncRoute(async (_req, res) => {
     if (!dirent.isDirectory()) continue;
     try { for (const m of await mapsForCampaign(dirent.name)) if (m.kind === 'battle' || m.kind === 'camp') needsPin.add(m.url.split('/').pop()); } catch { /* unreadable campaign */ }
   }
-  for (const f of await readdir(MAP_CONFIG_DIR)) {
-    if (!f.endsWith('.json')) continue;
-    try {
-      const c = JSON.parse(await readFile(path.join(MAP_CONFIG_DIR, f), 'utf8'));
-      const start = (Array.isArray(c.starts) ? c.starts : []).find((s) => s && s.name === 'start');
-      out.push({ map: f.slice(0, -5), source: c.source || null, walls: Array.isArray(c.walls) ? c.walls.length : 0, group: c.group || null, variant: c.variant || null,
-        squares: Number(c.squares) || 0, light: c.light || 'bright', ambience: c.ambience || '', startPin: start ? { x: start.x, y: start.y } : null, needsStart: needsPin.has(f.slice(0, -5)), missingStart: needsPin.has(f.slice(0, -5)) && !start, pins: Array.isArray(c.starts) ? c.starts.length : 0 });
-    } catch { /* skip unreadable config */ }
+  const { index } = await ensureSets();
+  for (const [file] of [...index].sort((x, y) => x[0].localeCompare(y[0]))) {
+    const c = configFromSet(index.get(file).set, file);
+    if (!c) continue;
+    const start = (c.starts || []).find((s) => s && s.name === 'start');
+    out.push({ map: file, source: c.source || null, walls: (c.walls || []).length, group: c.group || null, variant: c.variant || null, squares: Number(c.squares) || 0, light: c.light || 'bright', ambience: c.ambience || '', startPin: start ? { x: start.x, y: start.y } : null,
+      needsStart: needsPin.has(file), missingStart: needsPin.has(file) && !start, pins: (c.starts || []).length });
   }
   res.json({ configs: out });
 }));
@@ -378,7 +430,7 @@ app.get('/api/map-library', asyncRoute(async (_req, res) => {
   const dmFiles = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
   const out = [];
   for (const f of files) {
-    let c = null; try { c = JSON.parse(await readFile(mapConfigFile(f), 'utf8')); } catch { /* no set-up */ }
+    const c = await readMapConfig(f);
     const stem = f.replace(/\.[^.]+$/, '');
     const origin = originOf(f);
     const kind = kinds.get(f) || (c?.tiles === 'hex' || /coast|region|world/i.test(f) ? 'regional' : /phandalin|town|village/i.test(f) ? 'town' : 'battle');       // pictures no campaign lists are guessed from their set-up and name
@@ -387,11 +439,9 @@ app.get('/api/map-library', asyncRoute(async (_req, res) => {
   res.json({ maps: out });
 }));
 
-// Map sets (docs/map-set-format.md, step 1): the current pictures and set-ups gathered into one entry per place, read-only; nothing on disk is moved.
-app.get('/api/mapsets', asyncRoute(async (_req, res) => {
-  const pictures = await pictureFiles();
-  const configs = {};
-  for (const f of pictures) { try { configs[f] = JSON.parse(await readFile(mapConfigFile(f), 'utf8')); } catch { configs[f] = null; } }
+// Map sets: one entry per place, from the set files (data/mapsets/<guid>.json). GET /api/mapsets lists summaries, GET /api/mapsets/:guid returns the whole file, GET /api/mapsets/by-picture?file= finds the set of a picture.
+async function setSummaries() {
+  const { docs } = await ensureSets();
   const listed = {};
   for (const dirent of await readdir(CAMPAIGNS_DIR, { withFileTypes: true }).catch(() => [])) {
     if (!dirent.isDirectory()) continue;
@@ -399,8 +449,21 @@ app.get('/api/mapsets', asyncRoute(async (_req, res) => {
   }
   const dmPictures = new Set((await readdir(DM_MAP_DIR).catch(() => [])).map((f) => f.replace(/\.[^.]+$/, '')));
   const sizes = {};
-  for (const f of pictures) { try { const fh = await open(path.join(UPLOAD_DIR, f)); const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close(); const sz = imageSize(b.subarray(0, bytesRead)); if (sz) sizes[f] = sz; } catch { /* unreadable picture */ } }
-  res.json({ sets: buildSets({ pictures, configs, dmPictures, listed, sizes }) });
+  for (const doc of docs.values()) for (const lv of doc.levels) for (const l of lv.looks) { try { const fh = await open(path.join(UPLOAD_DIR, l.player)); const b = Buffer.alloc(65536); const { bytesRead } = await fh.read(b, 0, 65536, 0); await fh.close(); const sz = imageSize(b.subarray(0, bytesRead)); if (sz) sizes[l.player] = sz; } catch { /* unreadable picture */ } }
+  return [...docs.values()].map((d) => summarizeSet(d, { sizes, listed, dmPictures })).sort((a, b) => a.name.localeCompare(b.name));
+}
+app.get('/api/mapsets', asyncRoute(async (_req, res) => { res.json({ sets: await setSummaries() }); }));
+app.get('/api/mapsets/by-picture', asyncRoute(async (req, res) => {
+  const { index } = await ensureSets();
+  const hit = index.get(path.basename(String(req.query.file ?? '')));
+  if (!hit) return res.status(404).json({ error: 'No map set holds that picture' });
+  res.json({ guid: hit.set.id, time: hit.look.time, level: hit.level.n });
+}));
+app.get('/api/mapsets/:guid', asyncRoute(async (req, res) => {
+  const { docs } = await ensureSets();
+  const doc = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
+  if (!doc) return res.status(404).json({ error: 'No such map set' });
+  res.json({ set: doc });
 }));
 
 // The numbered areas of the adventure module on a map (data/campaigns/<campaign>/areas.json: picture file -> [{n, name}]); Map Test turns them into pins.
@@ -441,11 +504,11 @@ app.get('/api/map-areas', asyncRoute(async (req, res) => {
 
 app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   const config = normalizeMapConfig(req.body);
-  const file = mapConfigFile(req.query.map);
+  const file = req.query.map;
   // The Map Test page does not know about lights: keep the ones already saved.
   if (!config.lights) {
     try {
-      const old = JSON.parse(await readFile(file, 'utf8'));
+      const old = await readMapConfig(file); if (!old) throw new Error('none');
       if (Array.isArray(old.lights) && old.lights.length) config.lights = old.lights;
       if (old.ambient && !config.ambient) config.ambient = old.ambient;
       if (old.light && !config.light) config.light = old.light;
@@ -458,12 +521,12 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   }
   if (!config.rooms || !config.secrets) {       // Map Test does not send these: keep what the wall builder saved
     try {
-      const old = JSON.parse(await readFile(file, 'utf8'));
+      const old = await readMapConfig(file); if (!old) throw new Error('none');
       if (Array.isArray(old.rooms) && !config.rooms) config.rooms = old.rooms;
       if (Array.isArray(old.secrets) && !config.secrets) config.secrets = old.secrets;
     } catch { /* no earlier config */ }
   }
-  await writeFile(file, JSON.stringify(config, null, 2));
+  await writeMapConfig(file, config);
   res.json({ ok: true, walls: config.walls.length });
 }));
 
@@ -491,7 +554,7 @@ app.post('/api/market/maps', localOnly, asyncRoute(async (req, res) => {
   const meta = cleanMeta(req.body, 'picture' + path.extname(picture).toLowerCase());
   if (meta.licence !== LICENCES[LICENCES.length - 1] && req.body?.rights !== true) return res.status(400).json({ error: 'Confirm that you made this map or have the right to share it (or choose the Private licence).' });
   let config = {};
-  try { config = JSON.parse(await readFile(mapConfigFile(picture), 'utf8')); } catch { /* no set-up yet: the pack still holds the picture */ }
+  config = (await readMapConfig(picture)) || {};
   const taken = new Set(await marketIds());
   const id = packId(meta.name, taken);
   await mkdir(path.join(MARKET_DIR, id), { recursive: true });
@@ -521,9 +584,9 @@ app.post('/api/market/:id/install', localOnly, asyncRoute(async (req, res) => {
   const cid = safeCampaignId(req.body?.campaign);
   if (!cid || !(await campaignIds()).includes(cid)) return res.status(404).json({ error: 'Pick a campaign to add it to.' });
   const file = `mkt-${id}${path.extname(p.picture)}`;
-  if (!(await pictureFiles()).includes(file)) await copyFile(path.join(MARKET_DIR, id, p.picture), path.join(UPLOAD_DIR, file));
-  const cfgFile = mapConfigFile(file);
-  try { await readFile(cfgFile, 'utf8'); } catch { await writeFile(cfgFile, JSON.stringify({ ...normalizeMapConfig(p.config || {}), source: p.config?.source || 'market' }, null, 2)); }
+  const isNewPicture = !(await pictureFiles()).includes(file);
+  if (isNewPicture) await copyFile(path.join(MARKET_DIR, id, p.picture), path.join(UPLOAD_DIR, file));
+  if (isNewPicture) await writeMapConfig(file, { ...normalizeMapConfig(p.config || {}), source: p.config?.source || 'market' });
   const files = await pictureFiles();
   const current = (await savedMapList(cid)) ?? entriesToList(mapsFor(await templateOfCampaign(cid), files));
   if (current.some((m) => m.file === file)) return res.json({ ok: true, already: true, file });
@@ -597,7 +660,7 @@ async function withSavedStarts(maps) {
   const out = [];
   for (const m of maps) {
     let starts = [];
-    try { starts = JSON.parse(await readFile(mapConfigFile(m.url.split('/').pop()), 'utf8')).starts || []; } catch { /* no saved config */ }
+    try { starts = (await readMapConfig(m.url.split('/').pop()))?.starts || []; } catch { /* no saved config */ }
     out.push({ ...m, startPx: starts.find((s) => s.name === 'start') || null, spotsPx: Object.fromEntries(starts.filter((s, i) => s.name !== 'start' && starts.findIndex((o) => o.name === s.name) === i).map((s) => [s.name, { x: s.x, y: s.y }])), spotNotes: Object.fromEntries(starts.filter((s, i) => s.desc && starts.findIndex((o) => o.name === s.name && o.desc) === i).map((s) => [s.name, s.desc])) });
   }
   return out;
@@ -779,7 +842,7 @@ app.get('/api/map-maker', asyncRoute(async (_req, res) => {
     const picture = pictures.find((f) => new RegExp(`^${stem.replace(/[^a-z0-9-]/gi, '')}(-[a-z0-9]{6,10})?\\.png$`, 'i').test(f));
     if (!picture) { maps.push({ stem, picture: '', imported: false }); continue; }
     let c = {};
-    try { c = JSON.parse(await readFile(mapConfigFile(picture), 'utf8')); } catch { /* no config yet */ }
+    c = (await readMapConfig(picture)) || {};
     maps.push({
       stem, picture, imported: true, squares: Number(c.squares) || 0,
       walls: (c.walls || []).filter((w) => w.type !== 'door').length, doors: (c.walls || []).filter((w) => w.type === 'door').length,
@@ -1604,6 +1667,7 @@ function cleanVoiceLines(lines) {
 // The DM's own version of a map (labels, secret rooms, hidden creatures and traps marked): data/dm-maps/<picture name>.png|jpg|webp. When the
 // current map has one it is shown to the AI with the message; players never see it on the table.
 const DM_MAP_DIR = path.join(__dirname, 'data', 'dm-maps');
+await ensureSets();          // every picture is in a set from the start (new ones get a set built from their old set-up)
 const DM_MEDIA = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 const dmStem = (mapFile) => currentMapName(mapFile).replace(/\.[^.]+$/, '');
 async function dmMapFor(mapFile) {

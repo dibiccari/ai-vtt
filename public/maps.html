@@ -85,7 +85,7 @@
       body.appendChild(el('div', 'stats', (bits.join(' · ') || 'no walls, pins or lights yet') + (s.campaigns.length ? ' · used by ' + s.campaigns.join(', ') : '')));
       const links = el('div', 'links');
       for (const l of lv.looks) {
-        const open = el('a', '', s.times.length > 1 ? 'Open ' + l.time + ' in Map Test' : 'Open in Map Test'); open.href = '/map-test.html?map=' + encodeURIComponent('/uploads/' + l.player); links.appendChild(open);
+        const open = el('a', '', s.times.length > 1 ? 'Open ' + l.time + ' in Map Test' : 'Open in Map Test'); open.href = '/map-test.html?set=' + s.guid + (l.time !== 'main' ? '&time=' + l.time : ''); links.appendChild(open);
       }
       const dm = lv.looks.find((l) => l.dm);
       if (dm) { const a = el('a', '', 'See the DM version'); a.href = dm.dm.startsWith('data/dm-maps:') ? '/api/dm-map?map=' + encodeURIComponent(dm.player) : '/uploads/' + dm.dm; a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a); }

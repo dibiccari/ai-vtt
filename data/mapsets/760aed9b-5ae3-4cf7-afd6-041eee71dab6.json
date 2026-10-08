@@ -1,0 +1,257 @@
+{
+  "format": "vttmapset",
+  "version": 2,
+  "id": "760aed9b-5ae3-4cf7-afd6-041eee71dab6",
+  "slug": "vtt-rusty-flagon-mutfjjbo",
+  "name": "Rusty Flagon",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T02:58:26.380Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [
+        {
+          "x1": 50,
+          "y1": 50,
+          "x2": 1300,
+          "y2": 50,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1350,
+          "y1": 50,
+          "x2": 1450,
+          "y2": 50,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1450,
+          "y1": 50,
+          "x2": 1450,
+          "y2": 950,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1450,
+          "y1": 950,
+          "x2": 800,
+          "y2": 950,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 700,
+          "y1": 950,
+          "x2": 50,
+          "y2": 950,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 50,
+          "y1": 950,
+          "x2": 50,
+          "y2": 50,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1100,
+          "y1": 50,
+          "x2": 1100,
+          "y2": 250,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1100,
+          "y1": 300,
+          "x2": 1100,
+          "y2": 700,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1100,
+          "y1": 750,
+          "x2": 1100,
+          "y2": 950,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1100,
+          "y1": 500,
+          "x2": 1450,
+          "y2": 500,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 405,
+          "y1": 305,
+          "x2": 445,
+          "y2": 305,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 445,
+          "y1": 305,
+          "x2": 445,
+          "y2": 345,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 445,
+          "y1": 345,
+          "x2": 405,
+          "y2": 345,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 405,
+          "y1": 345,
+          "x2": 405,
+          "y2": 305,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 705,
+          "y1": 305,
+          "x2": 745,
+          "y2": 305,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 745,
+          "y1": 305,
+          "x2": 745,
+          "y2": 345,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 745,
+          "y1": 345,
+          "x2": 705,
+          "y2": 345,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 705,
+          "y1": 345,
+          "x2": 705,
+          "y2": 305,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 955,
+          "y1": 580,
+          "x2": 995,
+          "y2": 580,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 995,
+          "y1": 580,
+          "x2": 995,
+          "y2": 620,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 995,
+          "y1": 620,
+          "x2": 955,
+          "y2": 620,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 955,
+          "y1": 620,
+          "x2": 955,
+          "y2": 580,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 700,
+          "y1": 950,
+          "x2": 800,
+          "y2": 950,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 1300,
+          "y1": 50,
+          "x2": 1350,
+          "y2": 50,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 1100,
+          "y1": 250,
+          "x2": 1100,
+          "y2": 300,
+          "type": "door",
+          "open": true
+        },
+        {
+          "x1": 1100,
+          "y1": 700,
+          "x2": 1100,
+          "y2": 750,
+          "type": "door",
+          "open": false
+        }
+      ],
+      "starts": [
+        {
+          "name": "start",
+          "x": 725,
+          "y": 825,
+          "radius": 2
+        }
+      ],
+      "difficult": [],
+      "source": "dd2vtt",
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-rusty-flagon-mutfjjbo.png",
+          "dm": null,
+          "light": "dim",
+          "lights": [],
+          "ambient": "",
+          "ambience": "tavern",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": []
+}

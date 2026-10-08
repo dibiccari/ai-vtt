@@ -1,0 +1,187 @@
+{
+  "format": "vttmapset",
+  "version": 2,
+  "id": "c197d904-7588-4413-aa9a-40b7dc23ef15",
+  "slug": "vtt-phandalin",
+  "name": "Phandalin",
+  "kind": "town",
+  "tiles": "none",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "town",
+  "createdAt": "2026-10-08T02:58:26.378Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [],
+      "starts": [
+        {
+          "name": "start",
+          "x": 565,
+          "y": 565,
+          "radius": 2
+        },
+        {
+          "name": "town-green",
+          "x": 565,
+          "y": 545,
+          "desc": "The open green where the roads meet: markets, gossip and a good place to pitch a camp.",
+          "label": "Town Green"
+        },
+        {
+          "name": "shrine-of-luck",
+          "x": 372,
+          "y": 225,
+          "desc": "A small shrine to Tymora, goddess of luck, cared for by Sister Garaele.",
+          "label": "Shrine of Luck"
+        },
+        {
+          "name": "sister-garaeles-home",
+          "x": 465,
+          "y": 270,
+          "desc": "Sister Garaele's cottage beside the shrine.",
+          "label": "Sister Garaele's Home"
+        },
+        {
+          "name": "smithy",
+          "x": 675,
+          "y": 360,
+          "desc": "The town smithy: a forge, tools and a harried smith.",
+          "label": "Smithy"
+        },
+        {
+          "name": "stonehill-inn",
+          "x": 845,
+          "y": 375,
+          "desc": "A large, newly built roadhouse of fieldstone and timber in the middle of town. Toblen Stonehill keeps it; six rooms for rent.",
+          "label": "Stonehill Inn"
+        },
+        {
+          "name": "barthens-provisions",
+          "x": 1090,
+          "y": 375,
+          "desc": "Barthen's Provisions: the trading post for food, tools and everyday gear.",
+          "label": "Barthen's Provisions"
+        },
+        {
+          "name": "barthens-home",
+          "x": 975,
+          "y": 290,
+          "desc": "Elmar Barthen's house next to his shop.",
+          "label": "Barthen's Home"
+        },
+        {
+          "name": "sleeping-giant",
+          "x": 1030,
+          "y": 495,
+          "desc": "The Sleeping Giant tap house, a rough place where the Redbrand ruffians drink.",
+          "label": "Sleeping Giant"
+        },
+        {
+          "name": "townmasters-hall",
+          "x": 790,
+          "y": 610,
+          "desc": "The town master's hall: Harbin Wester's seat of (limited) authority and notice board for jobs.",
+          "label": "Townmaster's Hall"
+        },
+        {
+          "name": "lionshield-coster",
+          "x": 725,
+          "y": 478,
+          "desc": "The Lionshield Coster: a trading post that sells to caravans on the Triboar Trail.",
+          "label": "Lionshield Coster"
+        },
+        {
+          "name": "phandalin-miners-exchange",
+          "x": 320,
+          "y": 645,
+          "desc": "The Phandalin Miner's Exchange: a trading post for prospectors, run by Halia Thornton.",
+          "label": "Phandalin Miner's Exchange"
+        },
+        {
+          "name": "woodworker",
+          "x": 460,
+          "y": 795,
+          "desc": "A woodworker's shop and yard.",
+          "label": "Woodworker"
+        },
+        {
+          "name": "harbin-westers-home",
+          "x": 590,
+          "y": 740,
+          "desc": "The home of Harbin Wester, the timid town master.",
+          "label": "Harbin Wester's Home"
+        },
+        {
+          "name": "halias-home",
+          "x": 565,
+          "y": 838,
+          "desc": "Halia Thornton's house, close to the Miner's Exchange.",
+          "label": "Halia's Home"
+        },
+        {
+          "name": "lineness-home",
+          "x": 150,
+          "y": 450,
+          "desc": "Linene Graywind's home. She runs the Lionshield Coster.",
+          "label": "Linene's Home"
+        },
+        {
+          "name": "edermath-orchard",
+          "x": 115,
+          "y": 575,
+          "desc": "Daran Edermath's apple orchard and tidy cottage; the retired adventurer lives here.",
+          "label": "Edermath Orchard"
+        },
+        {
+          "name": "alderleaf-farm",
+          "x": 1170,
+          "y": 755,
+          "desc": "Qelline Alderleaf's farm of terraced fields; the halfling will put guests up in her hayloft.",
+          "label": "Alderleaf Farm"
+        },
+        {
+          "name": "tresendar-manor",
+          "x": 1390,
+          "y": 350,
+          "desc": "The ruined Tresendar Manor on the ridge above the gorge: the Redbrands' hideout is under it.",
+          "label": "Tresendar Manor"
+        },
+        {
+          "name": "to-triboar-trail",
+          "x": 850,
+          "y": 35,
+          "desc": "The road north out of town: it leads to the Triboar Trail.",
+          "label": "To Triboar Trail"
+        },
+        {
+          "name": "miners-trail",
+          "x": 60,
+          "y": 985,
+          "desc": "The trail leaving the south-west corner of town toward the mines.",
+          "label": "Miners' Trail"
+        }
+      ],
+      "difficult": [],
+      "isRevealed": true,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-phandalin.png",
+          "dm": "data/dm-maps:vtt-phandalin",
+          "light": "bright",
+          "lights": [],
+          "ambient": "",
+          "ambience": "town",
+          "mood": "town"
+        }
+      ]
+    }
+  ],
+  "links": []
+}
