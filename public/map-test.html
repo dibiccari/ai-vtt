@@ -448,13 +448,15 @@
 
   // In a dark place the map's own lights (wall torches, braziers) light the ground they reach: what a token can see AND a light reaches is shown, bright to half the light's range, dim out to the range.
   function revealMapLights(walls) {
-    if (!S.mapLights || !S.mapLights.length || !S.polys.length) return;
+    if (!S.mapLights || !S.mapLights.length || !S.tokens.length) return;
+    // The token's whole line of sight (not the short-range one used for its own light, which ignores far walls).
+    const sights = S.tokens.map((t) => visibilityPolygon(t.x, t.y, walls, S.W, S.H)).filter((p) => p.length >= 3);
     for (const L of S.mapLights) {
       const r = L.range * cell();
       const near = walls.filter((w) => pointSegmentDistance(L.x, L.y, w) <= r * 1.1);
       const lp = visibilityPolygon(L.x, L.y, near, S.W, S.H);
       if (lp.length < 3) continue;
-      for (const tp of S.polys) for (const c of [sctx, vctx]) {
+      for (const tp of sights) for (const c of [sctx, vctx]) {
         c.save();
         c.beginPath(); c.moveTo(tp[0].x, tp[0].y);
         for (let i = 1; i < tp.length; i++) c.lineTo(tp[i].x, tp[i].y);
