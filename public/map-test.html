@@ -206,7 +206,7 @@
       <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
       <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
     </span>
-    <label class="vnote" id="lightBox" title="The light the test token carries. In a dark place a light that reaches farther than the Vision range extends how far the token sees, and warms the ground; in bright or dim places it makes no difference.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
+    <label class="vnote" id="lightBox" title="The light the test token carries. In a dark place the token sees as far as its light reaches (none counts as a candle: 5 ft bright, 10 ft dim); in bright or dim places the Vision range decides.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
     <span class="tool-sep" aria-hidden="true"></span>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
@@ -405,10 +405,10 @@
   }
 
   // The test token's light: dimmest to brightest by the book (candle 5/10 ft, torch 20/40, lantern 30/60). In the dark it sees as far as the dim radius; otherwise the Vision slider decides.
-  const LIGHT_TEST = [['none', 5], ['candle', 10], ['torch', 40], ['lantern', 60]];
+  const LIGHT_TEST = [['none', 10], ['candle', 10], ['torch', 40], ['lantern', 60]];       // with no light the token still sees as by a candle (5 ft bright, 10 ft dim)
   S.testLight = [0, 1, 2, 3].includes(Number(store.get('vtt.maptest.light', 2))) ? Number(store.get('vtt.maptest.light', 2)) : 2;
-  const visionNow = () => (S.light === 'dark' ? Math.max(S.visionFt, LIGHT_TEST[S.testLight][1]) : S.visionFt);       // the Vision slider is always what the token sees; a carried light only adds to it in the dark
-  function showTestLight() { $('#testLight').value = String(S.testLight); $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (adds to the Vision range in the dark)'); }
+  const visionNow = () => (S.light === 'dark' ? LIGHT_TEST[S.testLight][1] : S.visionFt);       // in the dark the token sees as far as its light (none counts as a candle); bright and dim places use the Vision slider
+  function showTestLight() { $('#testLight').value = String(S.testLight); $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (none still sees as by a candle)'); }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
@@ -981,8 +981,8 @@
 
   // In a dark place the test token's light warms the ground it reaches (brighter for a lantern than a candle), only where its line of sight goes.
   function drawTokenLight() {
-    if (S.light !== 'dark' || S.testLight < 1 || !S.polys.length) return;
-    const strength = [0, 0.12, 0.24, 0.5][S.testLight], reach = (visionNow() / FT_PER_SQUARE) * cell();
+    if (S.light !== 'dark' || !S.polys.length) return;
+    const strength = [0.12, 0.12, 0.24, 0.5][S.testLight], reach = (visionNow() / FT_PER_SQUARE) * cell();
     S.polys.forEach((poly, i) => {
       const t = S.polyOwners[i];
       ctx.save();
