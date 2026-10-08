@@ -1,0 +1,103 @@
+{
+  "format": "vttmapset",
+  "version": 1,
+  "id": "1425666d-2a54-416b-b706-da05698e3133",
+  "slug": "vtt-pack-goblin-ambush-copy",
+  "name": "Goblin Ambush",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T18:40:01.728Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [],
+      "starts": [
+        {
+          "name": "start",
+          "x": 145,
+          "y": 610,
+          "radius": 2
+        },
+        {
+          "name": "dead-horses",
+          "x": 1027,
+          "y": 1107,
+          "desc": "About 50 ft along the trail: two dead horses with black-feathered arrows, blocking the path (Gundren and Sildar's)."
+        },
+        {
+          "name": "goblins-one-side",
+          "x": 1230,
+          "y": 803,
+          "desc": "Two goblins hide in the thickets on one side of the trail and shoot when someone examines the horses."
+        },
+        {
+          "name": "goblins-other-side",
+          "x": 1078,
+          "y": 1328,
+          "desc": "Two more goblins hide on the other side of the trail."
+        },
+        {
+          "name": "goblin-trail",
+          "x": 1811,
+          "y": 292,
+          "desc": "The goblins' trail leads away from the ambush toward the Cragmaw hideout."
+        }
+      ],
+      "difficult": [],
+      "source": "dd2vtt",
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-pack-goblin-ambush-copy.png",
+          "dm": null,
+          "light": "bright",
+          "lights": [
+            {
+              "x": 851.45,
+              "y": 832.28,
+              "range": 20,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1358.99,
+              "y": 1162.88,
+              "range": 6.7,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 983.54,
+              "y": 1722.2,
+              "range": 5.7,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1138.86,
+              "y": 466.58,
+              "range": 5.7,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            }
+          ],
+          "ambient": "ffffffff",
+          "ambience": "forest",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": [],
+  "derivedFrom": "Map Adventurer",
+  "publisher": "Explorer"
+}

@@ -96,9 +96,11 @@
       if (dm) { const a = el('a', '', 'See the DM version'); a.href = dm.dm.startsWith('data/dm-maps:') ? '/api/dm-map?map=' + encodeURIComponent(dm.player) : '/uploads/' + dm.dm; a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a); }
       const arch = el('button', '', s.archived ? 'Restore' : 'Archive'); arch.title = s.archived ? 'Show this map in the lists again' : 'Hide this map from the lists (nothing is deleted)';
       arch.addEventListener('click', async () => { arch.disabled = true; const r = await fetch('/api/mapsets/' + s.guid + '/archive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: !s.archived }) }); if (!r.ok) alert((await r.json().catch(() => ({}))).error || 'Could not do that'); load(); });
+      const clone = el('button', '', 'Clone'); clone.title = 'Make an independent copy with its own pictures';
+      clone.addEventListener('click', async () => { const pub = prompt('Publisher for the copy of ' + s.name + ':', s.origin); if (pub === null) return; clone.disabled = true; const r = await fetch('/api/mapsets/' + s.guid + '/clone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ publisher: pub }) }); if (!r.ok) alert((await r.json().catch(() => ({}))).error || 'Could not clone it'); load(); });
       const del = el('button', 'del', 'Delete'); del.title = 'Delete this map and its pictures for good';
       del.addEventListener('click', async () => { if (!confirm('Delete ' + s.name + ' (' + s.origin + ') and its picture files for good? This cannot be undone. Archive hides it instead.')) return; del.disabled = true; const r = await fetch('/api/mapsets/' + s.guid, { method: 'DELETE' }); if (!r.ok) alert((await r.json().catch(() => ({}))).error || 'Could not delete it'); load(); });
-      links.append(arch, del);
+      links.append(clone, arch, del);
       body.appendChild(links);
       card.append(img, body); grid.appendChild(card);
     }

@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 6,
+  "version": 7,
   "id": "25f32cf0-aedc-4b71-b0c9-4e6467b32439",
   "slug": "vtt-goblin-ambush",
   "name": "Goblin Ambush",
@@ -1441,5 +1441,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "archived": true
 }

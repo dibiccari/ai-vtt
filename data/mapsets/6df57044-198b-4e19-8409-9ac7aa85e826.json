@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 4,
+  "version": 5,
   "id": "6df57044-198b-4e19-8409-9ac7aa85e826",
   "slug": "vtt-cragmaw-hideout-b",
   "name": "Cragmaw Hideout",
@@ -1826,5 +1826,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "archived": true
 }

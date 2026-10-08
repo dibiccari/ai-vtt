@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 5,
+  "version": 6,
   "id": "9452159a-ba41-492d-84be-162492d95fb1",
   "slug": "vtt-old-owl-well",
   "name": "Old Owl Well",
@@ -804,5 +804,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "archived": true
 }

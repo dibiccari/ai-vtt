@@ -1,0 +1,439 @@
+{
+  "format": "vttmapset",
+  "version": 1,
+  "id": "43116342-592e-4b8b-bd49-7b34ef1f5a5a",
+  "slug": "vtt-pack-agathas-lair-copy",
+  "name": "Agatha's Lair",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T18:40:01.619Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 30,
+      "walls": [
+        {
+          "x1": 819.23,
+          "y1": 861.03,
+          "x2": 806.81,
+          "y2": 873.32,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 806.81,
+          "y1": 873.32,
+          "x2": 855.67,
+          "y2": 969.57,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 855.67,
+          "y1": 969.57,
+          "x2": 844,
+          "y2": 1006.75,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 844,
+          "y1": 1006.75,
+          "x2": 841.81,
+          "y2": 1051.96,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 841.81,
+          "y1": 1051.96,
+          "x2": 841.81,
+          "y2": 1078.94,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 841.81,
+          "y1": 1078.94,
+          "x2": 806.81,
+          "y2": 1151.86,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 806.81,
+          "y1": 1151.86,
+          "x2": 806.08,
+          "y2": 1191.23,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 806.08,
+          "y1": 1191.23,
+          "x2": 840.35,
+          "y2": 1224.05,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 840.35,
+          "y1": 1224.05,
+          "x2": 884.1,
+          "y2": 1226.96,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 884.1,
+          "y1": 1226.96,
+          "x2": 920.56,
+          "y2": 1216.75,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 920.56,
+          "y1": 1216.75,
+          "x2": 970.88,
+          "y2": 1246.65,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 970.88,
+          "y1": 1246.65,
+          "x2": 982.54,
+          "y2": 1292.59,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 982.54,
+          "y1": 1292.59,
+          "x2": 1016.53,
+          "y2": 1292.94,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1086.53,
+          "y1": 1293.66,
+          "x2": 1124,
+          "y2": 1294.05,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1124,
+          "y1": 1294.05,
+          "x2": 1129.83,
+          "y2": 1244.46,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1129.83,
+          "y1": 1244.46,
+          "x2": 1185.98,
+          "y2": 1221.86,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1185.98,
+          "y1": 1221.86,
+          "x2": 1223.17,
+          "y2": 1223.32,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1223.17,
+          "y1": 1223.32,
+          "x2": 1261.81,
+          "y2": 1187.59,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1261.81,
+          "y1": 1187.59,
+          "x2": 1261.08,
+          "y2": 1118.32,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1261.08,
+          "y1": 1118.32,
+          "x2": 1331.08,
+          "y2": 1119.05,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1331.08,
+          "y1": 1119.05,
+          "x2": 1399.63,
+          "y2": 1047.59,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1399.63,
+          "y1": 1047.59,
+          "x2": 1400.35,
+          "y2": 946.96,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1400.35,
+          "y1": 946.96,
+          "x2": 1331.81,
+          "y2": 911.23,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1331.81,
+          "y1": 911.23,
+          "x2": 1190.35,
+          "y2": 908.32,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1190.35,
+          "y1": 908.32,
+          "x2": 1153.17,
+          "y2": 839.77,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1153.17,
+          "y1": 839.77,
+          "x2": 1119.63,
+          "y2": 804.05,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1119.63,
+          "y1": 804.05,
+          "x2": 1051.08,
+          "y2": 804.05,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1051.08,
+          "y1": 804.05,
+          "x2": 982.54,
+          "y2": 838.32,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 982.54,
+          "y1": 838.32,
+          "x2": 945.35,
+          "y2": 839.77,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 945.35,
+          "y1": 839.77,
+          "x2": 868.99,
+          "y2": 811.8,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1016.53,
+          "y1": 1292.94,
+          "x2": 1086.53,
+          "y2": 1293.66,
+          "type": "door",
+          "open": false
+        },
+        {
+          "x1": 868.99,
+          "y1": 811.8,
+          "x2": 819.23,
+          "y2": 861.03,
+          "type": "door",
+          "open": false
+        }
+      ],
+      "starts": [
+        {
+          "name": "start",
+          "x": 688,
+          "y": 1942,
+          "radius": 2
+        },
+        {
+          "name": "lair-door",
+          "x": 1043,
+          "y": 1314,
+          "desc": "A low doorway in a screen of warped, interwoven branches: the entrance to Agatha's domelike shelter."
+        },
+        {
+          "name": "agathas-home",
+          "x": 1064,
+          "y": 1038,
+          "desc": "Inside: old elven chests, shelves, a table and a reclined couch. Agatha the banshee manifests shortly after the party enters."
+        }
+      ],
+      "difficult": [],
+      "source": "dd2vtt",
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-pack-agathas-lair-copy.png",
+          "dm": null,
+          "light": "dim",
+          "lights": [
+            {
+              "x": 976.84,
+              "y": 1209.94,
+              "range": 2,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 998.72,
+              "y": 1255.14,
+              "range": 2,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1102.26,
+              "y": 1258.06,
+              "range": 2,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1156.22,
+              "y": 1206.29,
+              "range": 2,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1237.88,
+              "y": 1123.89,
+              "range": 2,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1052.68,
+              "y": 972.23,
+              "range": 2,
+              "intensity": 0.8,
+              "color": "ffffad58"
+            },
+            {
+              "x": 963.06,
+              "y": 1209.94,
+              "range": 0.5,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1001.71,
+              "y": 1266.08,
+              "range": 0.5,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1102.33,
+              "y": 1264.62,
+              "range": 0.5,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1133.69,
+              "y": 1220.87,
+              "range": 0.5,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1237.96,
+              "y": 1118.06,
+              "range": 0.5,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1056.39,
+              "y": 980.25,
+              "range": 0.5,
+              "intensity": 0.5,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1455.02,
+              "y": 219.85,
+              "range": 7.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1893.98,
+              "y": 1059.85,
+              "range": 7.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 905.23,
+              "y": 1818.19,
+              "range": 7.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 273.77,
+              "y": 1027.77,
+              "range": 7.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 661.43,
+              "y": 517.86,
+              "range": 7.5,
+              "intensity": 0.5,
+              "color": "ff0b0905"
+            }
+          ],
+          "ambient": "ffffffff",
+          "ambience": "forest",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": [],
+  "derivedFrom": "Map Adventurer",
+  "publisher": "Explorer"
+}

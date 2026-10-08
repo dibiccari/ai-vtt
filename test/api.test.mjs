@@ -385,3 +385,22 @@ test('map sets: archive hides a place from the list and restores it; delete is r
   const res = await fetch(s.base + '/api/mapsets/' + used.guid, { method: 'DELETE' });
   assert.equal(res.status, 409, 'a map a campaign lists cannot be deleted');
 });
+
+test('map sets: a clone has its own id and pictures, deleting it leaves the original alone, and a copy of a purchased map stays out of the Market', async () => {
+  const sets = (await s.get('/api/mapsets')).json.sets;
+  const src = sets.find((x) => x.id === 'lmop-agathas-lair');
+  assert.ok(src, 'the purchased Agatha set exists');
+  const c = await s.post('/api/mapsets/' + src.guid + '/clone', { publisher: 'Explorer' });
+  assert.equal(c.status, 200, JSON.stringify(c.json));
+  assert.notEqual(c.json.guid, src.guid); assert.ok(c.json.pictures.every((p) => p.startsWith('vtt-pack-')), 'copies of purchased pictures are named vtt-pack-');
+  const copy = (await s.get('/api/mapsets')).json.sets.find((x) => x.guid === c.json.guid);
+  assert.equal(copy.origin, 'Explorer'); assert.equal(copy.derivedFrom, 'Map Adventurer'); assert.equal(copy.levels[0].walls, src.levels[0].walls, 'the walls came along');
+  assert.equal((await fetch(s.base + '/uploads/' + c.json.pictures[0])).status, 200, 'the copied picture is served');
+  const save = await s.post('/api/market/maps', { name: 'Nope', picture: c.json.pictures[0], rights: true });
+  assert.notEqual(save.status, 200, 'the Market refuses a copy of a purchased map');
+  const del = await fetch(s.base + '/api/mapsets/' + c.json.guid, { method: 'DELETE' });
+  assert.equal(del.status, 200, await del.text());
+  assert.equal((await fetch(s.base + '/uploads/' + c.json.pictures[0])).status, 404, 'the copy is gone');
+  assert.equal((await fetch(s.base + '/uploads/lmop-agathas-lair.png')).status, 200, 'the original picture is untouched');
+  assert.ok((await s.get('/api/mapsets')).json.sets.some((x) => x.guid === src.guid), 'and its set');
+});

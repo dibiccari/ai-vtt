@@ -12,7 +12,7 @@ import './public/token-size.js';                       // sets globalThis.TokenS
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
 import { buildSets, originOf, imageSize } from './lib/mapsets.js';
-import { docFromBuilt, configFromSet, applyConfigToSet, indexSets, summarizeSet, checkSetDoc, isGuid } from './lib/mapsetstore.js';
+import { newGuid, docFromBuilt, configFromSet, applyConfigToSet, indexSets, summarizeSet, checkSetDoc, isGuid } from './lib/mapsetstore.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
@@ -491,6 +491,43 @@ app.post('/api/mapsets/:guid/archive', localOnly, asyncRoute(async (req, res) =>
   doc.version = (doc.version || 1) + 1;
   await saveSet(doc); await loadSets();
   res.json({ ok: true, archived: Boolean(doc.archived) });
+}));
+// Clone: a full, independent copy of a place: new id, its pictures copied to new file names (vtt-pack- for a copy of a purchased map, vtt- otherwise), walls, doors, pins, lights and terrain copied.
+// Deleting either one never touches the other's files. A copy of a purchased or Wizards of the Coast map keeps `derivedFrom` and its picture names start with vtt-pack-, so the Market still refuses it.
+app.post('/api/mapsets/:guid/clone', localOnly, asyncRoute(async (req, res) => {
+  const { docs } = await ensureSets();
+  const src = isGuid(req.params.guid) ? docs.get(req.params.guid.toLowerCase()) : null;
+  if (!src) return res.status(404).json({ error: 'No such map set' });
+  const doc = JSON.parse(JSON.stringify(src));
+  const sourceOrigin = src.publisher || originOf(src.levels[0].looks[0].player);
+  const fromPack = sourceOrigin === 'Map Adventurer' || sourceOrigin === 'Wizards of the Coast' || Boolean(src.derivedFrom);
+  const taken = new Set(await readdir(UPLOAD_DIR));
+  const rename = new Map();
+  const copyPicture = async (file) => {
+    if (rename.has(file)) return rename.get(file);
+    const ext = path.extname(file), stem = path.basename(file, ext).replace(/^(lmop|dnd|vtt|vtt-pack)-/, '');
+    let n = 1, name;
+    do { name = (fromPack ? 'vtt-pack-' : 'vtt-') + stem + (n > 1 ? '-' + n : '-copy') + ext; n++; } while (taken.has(name));
+    taken.add(name);
+    await copyFile(path.join(UPLOAD_DIR, file), path.join(UPLOAD_DIR, name));
+    rename.set(file, name);
+    return name;
+  };
+  for (const lv of doc.levels) for (const l of lv.looks) {
+    l.player = await copyPicture(l.player);
+    if (l.dm && !String(l.dm).startsWith('data/dm-maps:')) l.dm = await copyPicture(l.dm);
+    else if (l.dm) {                       // a DM picture kept in data/dm-maps follows the new picture name
+      const stem = String(l.dm).slice('data/dm-maps:'.length);
+      for (const ext of ['.png', '.jpg', '.jpeg', '.webp']) { try { await copyFile(path.join(DM_MAP_DIR, stem + ext), path.join(DM_MAP_DIR, path.basename(l.player, path.extname(l.player)) + ext)); l.dm = 'data/dm-maps:' + path.basename(l.player, path.extname(l.player)); break; } catch { /* not this extension */ } }
+    }
+  }
+  doc.id = newGuid(); doc.slug = path.basename(doc.levels[0].looks[0].player, path.extname(doc.levels[0].looks[0].player)); doc.version = 1; doc.createdAt = new Date().toISOString(); delete doc.archived;
+  const wanted = String(req.body?.publisher ?? '').trim().slice(0, 40);
+  if (fromPack) doc.derivedFrom = src.derivedFrom || sourceOrigin;
+  if (wanted) doc.publisher = wanted; else if (src.publisher) doc.publisher = src.publisher; else delete doc.publisher;
+  if (typeof req.body?.name === 'string' && req.body.name.trim()) doc.name = req.body.name.trim().slice(0, 80);
+  await saveSet(doc); await loadSets();
+  res.json({ ok: true, guid: doc.id, pictures: [...rename.values()] });
 }));
 app.delete('/api/mapsets/:guid', localOnly, asyncRoute(async (req, res) => {
   const { docs } = await ensureSets();

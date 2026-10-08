@@ -1,0 +1,839 @@
+{
+  "format": "vttmapset",
+  "version": 1,
+  "id": "86e92aa3-a394-4a75-90ad-f0eb196222a5",
+  "slug": "vtt-pack-wyvern-tor-copy",
+  "name": "Wyvern Tor",
+  "kind": "battle",
+  "tiles": "square",
+  "hexSize": 0,
+  "description": "",
+  "theme": "",
+  "mood": "",
+  "createdAt": "2026-10-08T18:40:01.970Z",
+  "levels": [
+    {
+      "n": 1,
+      "id": "l1",
+      "name": "Main level",
+      "squares": 45,
+      "walls": [
+        {
+          "x1": 0,
+          "y1": 1539.3,
+          "x2": 210,
+          "y2": 1523,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 210,
+          "y1": 1523,
+          "x2": 420,
+          "y2": 1479,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 420,
+          "y1": 1479,
+          "x2": 604,
+          "y2": 1391,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 604,
+          "y1": 1391,
+          "x2": 893,
+          "y2": 1304,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 893,
+          "y1": 1304,
+          "x2": 1085,
+          "y2": 1251,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1085,
+          "y1": 1251,
+          "x2": 1278,
+          "y2": 1199,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1278,
+          "y1": 1199,
+          "x2": 1391,
+          "y2": 1085,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1391,
+          "y1": 1085,
+          "x2": 1435,
+          "y2": 945,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1435,
+          "y1": 945,
+          "x2": 1426,
+          "y2": 823,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1426,
+          "y1": 823,
+          "x2": 1374,
+          "y2": 726,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1374,
+          "y1": 726,
+          "x2": 1295,
+          "y2": 674,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1295,
+          "y1": 674,
+          "x2": 1225,
+          "y2": 648,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1225,
+          "y1": 648,
+          "x2": 1155,
+          "y2": 665,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1155,
+          "y1": 665,
+          "x2": 1129,
+          "y2": 761,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1129,
+          "y1": 761,
+          "x2": 1164,
+          "y2": 840,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1164,
+          "y1": 840,
+          "x2": 1181,
+          "y2": 963,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1181,
+          "y1": 963,
+          "x2": 1146,
+          "y2": 1059,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1146,
+          "y1": 1059,
+          "x2": 1076,
+          "y2": 1094,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1076,
+          "y1": 1094,
+          "x2": 910,
+          "y2": 1094,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 910,
+          "y1": 1094,
+          "x2": 761,
+          "y2": 1094,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 761,
+          "y1": 1094,
+          "x2": 665,
+          "y2": 1085,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 665,
+          "y1": 1085,
+          "x2": 621,
+          "y2": 1041,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 621,
+          "y1": 1041,
+          "x2": 595,
+          "y2": 1024,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 595,
+          "y1": 1024,
+          "x2": 569,
+          "y2": 1129,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 569,
+          "y1": 1129,
+          "x2": 490,
+          "y2": 1234,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 490,
+          "y1": 1234,
+          "x2": 385,
+          "y2": 1251,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 385,
+          "y1": 1251,
+          "x2": 385,
+          "y2": 1339,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 385,
+          "y1": 1339,
+          "x2": 341,
+          "y2": 1391,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 341,
+          "y1": 1391,
+          "x2": 263,
+          "y2": 1426,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 263,
+          "y1": 1426,
+          "x2": 219,
+          "y2": 1400,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 219,
+          "y1": 1400,
+          "x2": 158,
+          "y2": 1409,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 158,
+          "y1": 1409,
+          "x2": 105,
+          "y2": 1400,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 105,
+          "y1": 1400,
+          "x2": 70,
+          "y2": 1400,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 70,
+          "y1": 1400,
+          "x2": 53,
+          "y2": 1348,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 53,
+          "y1": 1348,
+          "x2": 18,
+          "y2": 1216,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 18,
+          "y1": 1216,
+          "x2": 26,
+          "y2": 1129,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 26,
+          "y1": 1129,
+          "x2": 18,
+          "y2": 936,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 18,
+          "y1": 936,
+          "x2": 44,
+          "y2": 823,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 44,
+          "y1": 823,
+          "x2": 70,
+          "y2": 744,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 70,
+          "y1": 744,
+          "x2": 44,
+          "y2": 578,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 44,
+          "y1": 578,
+          "x2": 61,
+          "y2": 438,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 61,
+          "y1": 438,
+          "x2": 131,
+          "y2": 368,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 131,
+          "y1": 368,
+          "x2": 184,
+          "y2": 446,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 184,
+          "y1": 446,
+          "x2": 236,
+          "y2": 438,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 236,
+          "y1": 438,
+          "x2": 245,
+          "y2": 394,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 245,
+          "y1": 394,
+          "x2": 271,
+          "y2": 245,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 271,
+          "y1": 245,
+          "x2": 621,
+          "y2": 96,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 621,
+          "y1": 96,
+          "x2": 744,
+          "y2": 105,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 744,
+          "y1": 105,
+          "x2": 858,
+          "y2": 53,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 858,
+          "y1": 53,
+          "x2": 936,
+          "y2": 96,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 936,
+          "y1": 96,
+          "x2": 963,
+          "y2": 114,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 963,
+          "y1": 114,
+          "x2": 1041,
+          "y2": 114,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1041,
+          "y1": 114,
+          "x2": 1094,
+          "y2": 18,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1094,
+          "y1": 18,
+          "x2": 1208,
+          "y2": 61,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1208,
+          "y1": 61,
+          "x2": 1348,
+          "y2": 35,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1348,
+          "y1": 35,
+          "x2": 1540,
+          "y2": 61,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1540,
+          "y1": 61,
+          "x2": 1558,
+          "y2": 140,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1558,
+          "y1": 140,
+          "x2": 1593,
+          "y2": 166,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1593,
+          "y1": 166,
+          "x2": 1663,
+          "y2": 298,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1663,
+          "y1": 298,
+          "x2": 1645,
+          "y2": 403,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1645,
+          "y1": 403,
+          "x2": 1566,
+          "y2": 455,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1566,
+          "y1": 455,
+          "x2": 1566,
+          "y2": 578,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1566,
+          "y1": 578,
+          "x2": 1663,
+          "y2": 578,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1663,
+          "y1": 578,
+          "x2": 1803,
+          "y2": 508,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1803,
+          "y1": 508,
+          "x2": 1890,
+          "y2": 315,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1890,
+          "y1": 315,
+          "x2": 1899,
+          "y2": 140,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1899,
+          "y1": 140,
+          "x2": 1864,
+          "y2": 61,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1864,
+          "y1": 61,
+          "x2": 1826.84,
+          "y2": 0,
+          "type": "wall",
+          "open": false
+        },
+        {
+          "x1": 1374,
+          "y1": 726,
+          "x2": 1566,
+          "y2": 578,
+          "type": "wall",
+          "open": false
+        }
+      ],
+      "starts": [
+        {
+          "name": "start",
+          "x": 2967,
+          "y": 3025,
+          "radius": 2
+        },
+        {
+          "name": "orc-sentry",
+          "x": 1563,
+          "y": 1160,
+          "desc": "A single orc keeps watch by a boulder 20 yards outside the cave; if it spots intruders it retreats to warn the others."
+        },
+        {
+          "name": "cave-mouth",
+          "x": 1446,
+          "y": 601,
+          "desc": "The cave mouth at the bottom of a ravine, 50 yards from the ridge."
+        },
+        {
+          "name": "orc-camp",
+          "x": 528,
+          "y": 1011,
+          "desc": "Inside the cave: Brughor Axe-Biter, six orcs and the ogre Gog; an unlocked treasure chest."
+        }
+      ],
+      "difficult": [],
+      "source": "dd2vtt",
+      "isRevealed": false,
+      "looks": [
+        {
+          "id": "main",
+          "time": "main",
+          "player": "vtt-pack-wyvern-tor-copy.png",
+          "dm": null,
+          "light": "bright",
+          "lights": [
+            {
+              "x": 209.23,
+              "y": 1082.37,
+              "range": 4.5,
+              "intensity": 1.6,
+              "color": "ffffad58"
+            },
+            {
+              "x": 880.94,
+              "y": 861.65,
+              "range": 4.5,
+              "intensity": 1.6,
+              "color": "ffffad58"
+            },
+            {
+              "x": 1395.39,
+              "y": 2010.01,
+              "range": 8,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2738.78,
+              "y": 2955.94,
+              "range": 8,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 748.34,
+              "y": 2568.38,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2150.83,
+              "y": 2466.56,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2903,
+              "y": 1747.24,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2929.28,
+              "y": 981.95,
+              "range": 5.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1822.38,
+              "y": 998.37,
+              "range": 8.5,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1496.43,
+              "y": 1944.39,
+              "range": 2,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 172.45,
+              "y": 2310.62,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2165.48,
+              "y": 1730.05,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2042.98,
+              "y": 1797.87,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1709.39,
+              "y": 1032.24,
+              "range": 2,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 3025.53,
+              "y": 2815.42,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2593.51,
+              "y": 3060.42,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2550.26,
+              "y": 484.1,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1955.26,
+              "y": 1849.1,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1657.76,
+              "y": 1900.14,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1239.22,
+              "y": 1939.52,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1425.89,
+              "y": 2350.77,
+              "range": 1.5,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 158.59,
+              "y": 2461.6,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 56.51,
+              "y": 2346.39,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 171.72,
+              "y": 2395.98,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 507.14,
+              "y": 3119.32,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1675.26,
+              "y": 3039.09,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2528.39,
+              "y": 3129.52,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2862.34,
+              "y": 2874.32,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 3156.92,
+              "y": 2732.85,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1433.18,
+              "y": 2067.12,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1487.86,
+              "y": 2093.37,
+              "range": 1,
+              "intensity": 1.1,
+              "color": "ffeccd8b"
+            }
+          ],
+          "ambient": "ffffffff",
+          "ambience": "",
+          "mood": ""
+        }
+      ]
+    }
+  ],
+  "links": [],
+  "derivedFrom": "Map Adventurer",
+  "publisher": "Explorer"
+}

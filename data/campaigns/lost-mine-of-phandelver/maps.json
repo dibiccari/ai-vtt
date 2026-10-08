@@ -24,38 +24,38 @@
     },
     {
       "id": "cragmaw-hideout",
-      "file": "vtt-cragmaw-hideout-b.png",
+      "file": "vtt-pack-cragmaw-hideout-copy.png",
       "name": "Cragmaw Hideout (goblin cave)",
       "kind": "battle",
-      "description": "The goblin cave beside a stream: the briar-screened cave mouth at the bottom left, the kennel pen, a steep winding passage, a plank bridge over the stream near the top (the overpass), the goblin den in the north-west with tents and a firepit, the twin pools cave in the north-east, and Klarg's cave in the south-east with a campfire, crates and furs. The stream runs south through the middle and can be waded."
+      "description": "The goblin cave beside a stream: briar-screened cave mouth, kennel, steep passage, bridge, the goblin den, twin pools and Klarg's cave."
     },
     {
       "id": "redbrand-hideout",
-      "file": "vtt-redbrand-hideout.png",
+      "file": "vtt-pack-redbrand-hideout-copy.png",
       "name": "Redbrand Hideout (cellars under Tresendar Manor)",
       "kind": "battle",
-      "description": "The Redbrand Hideout under the ruined Tresendar Manor: a dungeon of well-built stone chambers with flagstone floors. The eastern end (stairs down from the cellar with its cistern and barrels) is higher; going west: the barracks, a trapped hall with a red carpet, the Tresendar crypts with sarcophagi, the slave pens (cells with iron bars), an armory and a storeroom. A deep crevasse runs north to south through the middle (three rope bridges; the eye monster lurks here), and beyond it the western end holds the guard barracks, common room, the wizard's workshop and Glasstaff's quarters."
+      "description": "The Redbrand ruffians' tunnels and cellars beneath the ruined Tresendar Manor: guard rooms, crypt, a chasm with bridges, a pool and the lair of Glasstaff."
     },
     {
       "id": "thundertree",
-      "file": "vtt-thundertree.png",
+      "file": "vtt-pack-thundertree-copy.png",
       "name": "Ruins of Thundertree",
       "kind": "battle",
-      "description": "The ruins of Thundertree, a village destroyed long ago by a volcano and now overgrown by forest: about a dozen roofless, crumbling stone buildings with broken walls and rubble scattered round a cobbled town square with a toppled statue plinth, the broken stump of a round tower in the north (the dragon's tower), a large ruined garrison in the north-east, an old smithy in the south, a farmhouse and a herbalist's shop, with thick forest all round. Overgrown lanes wind between the ruins from the west."
+      "description": "The ruined village of Thundertree, overgrown with twig blights and haunted by zombies, with a ruined tower and a statue in the square. Use it for anything in the village."
     },
     {
       "id": "cragmaw-castle",
-      "file": "vtt-cragmaw-castle-day.png",
+      "file": "vtt-pack-cragmaw-castle-day-copy.png",
       "name": "Cragmaw Castle (day)",
       "kind": "battle",
-      "description": "Cragmaw Castle by day: a ruined, goblin-held stone castle in a forest clearing. A crumbled curtain wall with five round towers (the large north-east tower holds the king's quarters), a courtyard and banquet hall in the west, a shrine in the small round tower, storerooms, barracks and a dark hall inside, the main gate and its stair on the south-west, and a postern gate in the east wall. Use it for the approach and the whole assault."
+      "description": "The ruined castle that serves as King Grol's stronghold: towers, halls, rubble, and a path leading up to it."
     },
     {
       "id": "cragmaw-castle-night",
-      "file": "vtt-cragmaw-castle-night.png",
+      "file": "vtt-pack-cragmaw-castle-night-copy.png",
       "name": "Cragmaw Castle (night)",
       "kind": "battle",
-      "description": "The same Cragmaw Castle at night: dark, with torchlight in the shrine tower, the banquet hall, the king's quarters and the gate. Use it instead of the day map when the party arrives or fights after dark."
+      "description": "The same ruined castle at night, dark except for torchlight. Use it instead of the day map when the party arrives or fights after dark."
     },
     {
       "id": "camp-day",
@@ -80,31 +80,31 @@
     },
     {
       "id": "wave-echo-cave",
-      "file": "vtt-wave-echo-cave.png",
+      "file": "vtt-pack-wave-echo-cave-copy.png",
       "name": "Wave Echo Cave (the lost mine)",
       "kind": "battle",
-      "description": "Wave Echo Cave, the lost dwarven mine of Phandelver: a vast network of winding cave tunnels and caverns with mine-cart rails, entered at the bottom left. Going north: mine tunnels, old stone guardroom and assayers' office, a fungi cavern, the great cavern with a ruined dwarven bridge, a dark pool, a smelter cavern, a glittering starry cavern, the wizards' quarters and forge of spells in the east, a huge lake cavern (the booming cavern) in the north-east, an old streambed, and the temple of Dumathoin in the north-west."
+      "description": "The great cavern complex of the Phandelver Pact: the Forge of Spells, tunnels, an underground lake, and the shrine. Use it for everything inside the mine."
     },
     {
       "id": "agathas-lair",
-      "file": "vtt-agathas-lair.png",
+      "file": "vtt-pack-agathas-lair-copy.png",
       "name": "Agatha's Lair",
       "kind": "battle",
-      "description": "Agatha's hidden lair in the dark, mossy Neverwinter Wood near Conyberry: a domelike shelter of warped, woven branches in a small clearing, a low doorway on the south side where an old trail ends, and inside old elven chests, a shelf, a table and a reclined couch. Large trees and boulders crowd the clearing. Use it for the approach and the scene inside; the banshee manifests shortly after the party enters."
+      "description": "The hidden lair of Agatha, the banshee who haunts the wilderness near Conyberry. Use it for the approach to her lair and the scene inside."
     },
     {
       "id": "old-owl-well",
-      "file": "vtt-old-owl-well.png",
+      "file": "vtt-pack-old-owl-well-copy.png",
       "name": "Old Owl Well",
       "kind": "battle",
-      "description": "The ruins of Old Owl Well on a rugged hilltop south of the Triboar Trail: the broken stump of an ancient watchtower in the north (twelve zombies lurk inside), a courtyard of crumbled, waist-high rubble walls, an old stone well in the middle with clean water, and Hamun Kost's teal canvas tent just west of the well. A rim of piled boulders is a steep edge round the hill; footpaths climb the slope from the south and the west."
+      "description": "The ruined watchtower and old well in the wastes east of the Triboar Trail, where undead lurk and a Red Wizard of Thay is digging. Use it for everything at Old Owl Well."
     },
     {
       "id": "wyvern-tor",
-      "file": "vtt-wyvern-tor.png",
+      "file": "vtt-pack-wyvern-tor-copy.png",
       "name": "Wyvern Tor",
       "kind": "battle",
-      "description": "Wyvern Tor: the rugged lower slopes of a hill in wild country. A shallow turquoise stream with a small waterfall runs from the north through a ravine and south-west across the map; a long cliff ridge in the north-west holds the hidden cave mouth of the orc camp, with ragged tents, a firepit and stakes outside it and a lone orc sentry by a boulder twenty yards away; large rocky plateaus stand to the east and south-west, with worn dirt trails between them."
+      "description": "A rocky hilltop in the highlands, home to an orc war camp. Use it for the climb and anything fought on the tor."
     }
   ]
 }

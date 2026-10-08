@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 3,
+  "version": 4,
   "id": "5b32ab4b-6fa0-46b6-815b-1f322bcf6cf8",
   "slug": "vtt-wave-echo-cave",
   "name": "Wave Echo Cave",
@@ -9394,5 +9394,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "archived": true
 }

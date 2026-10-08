@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 6,
+  "version": 7,
   "id": "6cbdbea7-c383-4366-8ed3-87b3336c3360",
   "slug": "cragmaw-castle",
   "name": "Cragmaw Castle",
@@ -1190,5 +1190,6 @@
       ]
     }
   ],
-  "links": []
+  "links": [],
+  "archived": true
 }
