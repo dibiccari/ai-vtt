@@ -1,7 +1,7 @@
 # To do (kept by the assistant; the user adds items in chat)
 
 ## In progress
-- Goblin Ambush pilot (Method A: ChatGPT paints, Claude traces with the Walls tool), then swap it into the Lost Mine campaign (map id triboar-ambush). Pictures and prompts: public/scenarios/compare/goblin-ambush/.
+- Goblin Ambush pilot DONE (Method A, vtt-goblin-ambush.png, in the Lost Mine campaign as triboar-ambush; pictures and prompts in public/scenarios/compare/goblin-ambush/); the user has not reviewed it yet.
 - Lost Mine on Explorer maps: Sword Coast and Phandalin done. Still to re-create from the Map Adventurer pack (never send the originals to the image tool): Cragmaw Hideout, Redbrand Hideout, Thundertree, Cragmaw Castle (day and night), Wave Echo Cave, Agatha's Lair, Old Owl Well, Wyvern Tor.
 
 ## Tabletop
@@ -21,6 +21,8 @@
 - Remove the Group and This version is called fields from Map Test.
 - The .vttmap container and the Market.
 - Import and trace scripts still write the old per-picture files in data/maps.
+
+- Regional map: show the names of towns, cities and trails (roads) on it (our Sword Coast; public/coast.html already lays names over the picture, the tabletop and Map Test do not).
 
 ## Characters
 - The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.

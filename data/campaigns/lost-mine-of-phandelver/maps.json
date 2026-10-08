@@ -10,10 +10,10 @@
     },
     {
       "id": "triboar-ambush",
-      "file": "lmop-goblin-ambush.png",
+      "file": "vtt-goblin-ambush.png",
       "name": "Roadside trail in the hills (battle map)",
       "kind": "battle",
-      "description": "A winding dirt trail through scrubby hills with boulders and fallen logs. Use it for roadside encounters, such as the goblin ambush on the Triboar Trail."
+      "description": "A wide dirt trail winding through woods and meadow, with a steep earth embankment on each side (nobody crosses them on foot), thickets of dense bushes at their foot (difficult ground that hides creatures and blocks sight), boulders, a fallen log and big trees at the corners. Use it for roadside encounters, such as the goblin ambush on the Triboar Trail: the two dead horses lie on the trail 50 ft from the start, two goblins hide in the thickets on each side."
     },
     {
       "id": "phandalin",

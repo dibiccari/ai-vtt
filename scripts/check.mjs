@@ -23,10 +23,14 @@ check('server.js', path.join(root, 'server.js'));
 // Every installed battle map must have a saved start spot (data/maps/<image>.json, starts[name 'start']).
 const { CAMPAIGN_MAPS, mapsFor } = await import(path.join(root, 'lib', 'campaign-maps.js'));
 const uploads = await readdir(path.join(root, 'public', 'uploads'));
+const sets = [];
+for (const f of await readdir(path.join(root, 'data', 'mapsets')).catch(() => [])) { try { sets.push(JSON.parse(await readFile(path.join(root, 'data', 'mapsets', f), 'utf8'))); } catch { /* unreadable set file */ } }
 for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
   for (const m of mapsFor(campaign, uploads).filter((x) => x.kind === 'battle' || x.kind === 'camp')) {
-    let starts = [];
-    try { starts = JSON.parse(await readFile(path.join(root, 'data', 'maps', m.url.split('/').pop() + '.json'), 'utf8')).starts || []; } catch { /* no config */ }
+    // The set-up lives in the map set file of the place (data/mapsets/<guid>.json) that holds the picture.
+    const file = m.url.split('/').pop();
+    const hit = sets.find((set) => (set.levels || []).some((lv) => (lv.looks || []).some((l) => l.player === file)));
+    const starts = hit ? hit.levels.find((lv) => lv.looks.some((l) => l.player === file)).starts || [] : [];
     if (starts.some((s) => s.name === 'start')) console.log(`OK   start spot: ${campaign}/${m.id}`);
     else { failed = true; console.error(`FAIL ${campaign}/${m.id} has no start spot: open Map Test, choose Set start and click where the party arrives`); }
   }
