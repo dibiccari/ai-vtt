@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 14,
+  "version": 26,
   "id": "406a08bc-086d-4533-8631-d575938170a2",
   "slug": "camp",
   "name": "Camp",
@@ -9945,6 +9945,11 @@
           "x": 154,
           "y": 719,
           "radius": 2
+        },
+        {
+          "name": "pin-2",
+          "x": 235,
+          "y": 68
         }
       ],
       "difficult": [],

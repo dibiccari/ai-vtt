@@ -176,13 +176,6 @@
   </div>
 
   <div class="group">
-    <h2>Walls</h2>
-    <div class="row">
-      <button id="importNewBtn" title="Create a new map from a Universal VTT file: its picture, walls and doors">Import .dd2vtt as new map</button>
-      <button id="importWallsBtn" title="Replace this map's walls with the walls in a Universal VTT file">Import walls from .dd2vtt</button>
-    </div>
-    <input type="file" id="uvttNew" accept=".dd2vtt,.uvtt,.df2vtt,.json" hidden>
-    <input type="file" id="uvttWalls" accept=".dd2vtt,.uvtt,.df2vtt,.json" hidden>
     <div class="readout" id="stats"></div>
     <p class="hint" id="saved" aria-live="polite"></p>
     <p class="hint">Walls and the grid setting save to the server automatically (data/maps/).</p>
@@ -229,7 +222,6 @@
 </main>
 
 <script src="/nav.js"></script>
-<script src="/uvtt.js"></script>
 <script src="/wallobjects.js"></script>
 <script src="/flicker.js"></script>
 <script>
@@ -1611,50 +1603,6 @@
   $('#zoomInBtn').addEventListener('click', () => zoomStep(1.25));
   $('#zoomOutBtn').addEventListener('click', () => zoomStep(0.8));
 
-  /* ---------------- Universal VTT (.dd2vtt) import ---------------- */
-  const uvttToWalls = Uvtt.toWalls;
-  const readUvtt = async (file) => Uvtt.parse(await file.text());
-
-  async function importUvttAsNewMap(file) {
-    const u = await readUvtt(file);
-    const made = await Uvtt.importAsMap(u, file.name.replace(/\.[^.]+$/, '') || 'map');
-    store.set('vtt.maptest.lastMap', made.url);
-    try { history.replaceState(null, '', location.pathname); } catch { /* not critical */ }
-    await loadMapList();
-    $('#banner').textContent = 'Imported ' + made.walls + ' wall segments and doors from ' + file.name;
-  }
-
-  async function importUvttWalls(file) {
-    if (!S.url) throw new Error('Load a map first.');
-    const u = await readUvtt(file);
-    const res = u.resolution;
-    const fileWidthPx = Number(res.map_size && res.map_size.x) * Number(res.pixels_per_grid);
-    const scale = fileWidthPx > 0 ? S.W / fileWidthPx : 1;
-    const walls = cleanWalls(uvttToWalls(u, scale));
-    if (S.walls.length && !confirm('Replace the ' + S.walls.length + ' walls on this map with the ' + walls.length + ' from the file?')) return;
-    S.walls = walls;
-    const squares = Math.round(Number(res.map_size && res.map_size.x));
-    if (squares >= 5 && squares <= 400) S.squares = squares;
-    S.source = 'dd2vtt';
-    syncControls();
-    wallsChanged();
-    resetFog();
-    $('#banner').textContent = 'Imported ' + walls.length + ' wall segments and doors from ' + file.name;
-  }
-
-  function wireImport(buttonId, inputId, handler) {
-    $(buttonId).addEventListener('click', () => $(inputId).click());
-    $(inputId).addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      e.target.value = '';
-      if (!file) return;
-      $('#banner').textContent = 'Importing ' + file.name + '...';
-      try { await handler(file); } catch (err) { $('#banner').textContent = 'Import failed: ' + err.message; }
-    });
-  }
-  wireImport('#importNewBtn', '#uvttNew', importUvttAsNewMap);
-  wireImport('#importWallsBtn', '#uvttWalls', importUvttWalls);
-
   /* ---------------- self-test ---------------- */
   function inside(poly, x, y) {
     let c = false;
@@ -1779,7 +1727,7 @@
   setTool('start');
   loadMapList(true);
 
-  window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap, uvttToWalls, revealFog };
+  window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap, revealFog };
 })();
 </script>
 </body>
