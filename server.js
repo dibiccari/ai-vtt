@@ -424,7 +424,7 @@ function normalizeMapConfig(body) {
   for (const l of Array.isArray(body?.lights) ? body.lights.slice(0, 500) : []) {
     const [x, y, range, intensity] = [num(l?.x), num(l?.y), num(l?.range), num(l?.intensity)];
     if ([x, y, range].includes(null)) continue;
-    lights.push({ x, y, range, intensity: intensity ?? 1, color: /^[0-9a-f]{6,8}$/i.test(String(l?.color ?? '')) ? String(l.color).toLowerCase() : 'ffffff', ...(l?.flicker === true ? { flicker: true } : {}), ...(String(l?.name ?? '').trim() ? { name: String(l.name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) } : {}) });
+    lights.push({ x, y, range, intensity: intensity ?? 1, color: /^[0-9a-f]{6,8}$/i.test(String(l?.color ?? '')) ? String(l.color).toLowerCase() : 'ffffff', ...(l?.flicker === true ? { flicker: true } : {}), ...(l?.on === false ? { on: false } : {}), ...(['brazier', 'torch', 'campfire', 'lantern', 'crystal', 'candle', 'lava'].includes(l?.kind) ? { kind: l.kind } : {}), ...(String(l?.name ?? '').trim() ? { name: String(l.name).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) } : {}) });
   }
   // Difficult terrain: rectangles in image pixels. Moving into a square whose centre is inside one costs double.
   const difficult = [];
@@ -445,6 +445,16 @@ function normalizeMapConfig(body) {
   if (secrets.length) config.secrets = secrets;
   if (difficult.length) config.difficult = difficult;
   if (lights.length) config.lights = lights;
+  // Animated regions drawn over the picture (public/effects.js): a river or stream (a polygon, with the centre line it flows along), lava, standing water. Coordinates are image pixels.
+  const effects = [];
+  for (const e of Array.isArray(body?.effects) ? body.effects.slice(0, 60) : []) {
+    const type = ['river', 'lava', 'water'].includes(e?.type) ? e.type : null;
+    const pts = (list, max) => (Array.isArray(list) ? list.slice(0, max) : []).map((p) => ({ x: num(p?.x), y: num(p?.y) })).filter((p) => p.x !== null && p.y !== null);
+    const points = pts(e?.points, 600), path = pts(e?.path, 300);
+    if (!type || points.length < 3) continue;
+    effects.push({ id: String(e?.id ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `${type}-${effects.length + 1}`, type, points, ...(path.length >= 2 ? { path } : {}), speed: Math.max(0.1, Math.min(4, num(e?.speed) ?? 1)), ...(/^[0-9a-f]{6}$/i.test(String(e?.color ?? '')) ? { color: String(e.color).toLowerCase() } : {}), ...(e?.hazard === true ? { hazard: true } : {}) });
+  }
+  if (effects.length) config.effects = effects;
   // How bright the place is before any light source: daylight (bright), a lit room or dusk (dim), or darkness.
   if (['bright', 'dim', 'dark'].includes(body?.light)) config.light = body.light;
   if (['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(body?.ambience)) config.ambience = body.ambience;
@@ -672,6 +682,9 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.publisher && req.body?.publisher === undefined) config.publisher = old.publisher;
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
+  }
+  if (req.body?.effects === undefined) {         // Map Test does not send the animated regions: keep what the set has
+    try { const old = await readMapConfig(file); if (old && Array.isArray(old.effects) && old.effects.length) config.effects = old.effects; } catch { /* no earlier config */ }
   }
   if (!config.rooms || !config.secrets) {       // Map Test does not send these: keep what the wall builder saved
     try {

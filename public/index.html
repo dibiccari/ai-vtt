@@ -441,6 +441,7 @@
 <script src="/condition-rings.js"></script>
 <script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
+<script src="/effects.js"></script>
 <script src="/ambience.js"></script>
 <script>
 'use strict';
@@ -502,6 +503,7 @@ const state = {
   ambient: 'bright',                 // the map's light level: 'bright', 'dim' or 'dark' (from its config)
   ambientOverride: '',               // the table's own choice, '' = use the map's
   lights: [],                        // the map's own light sources
+  effects: [],                       // animated regions over the picture (rivers, lava)
   lightsOff: {},                     // per map: ids of map lights that were put out
   places: [],                 // the maps this campaign can move to
   dmView: false,
@@ -1953,14 +1955,21 @@ function drawBackground() {
 
 // Fires and torches marked "flicker" in the map config are animated over the picture (not when put out).
 function flickerLights() {
-  const off = state.lightsOff[state.map.url || ''] || [];
+  const off = lightsOffNow();
   return state.lights.filter((l) => l.flicker && !off.includes(l.id));
+}
+// Which map lights are out: what the saved game says for this map, or, before anything was saved, the lights the map starts unlit (an unlit brazier).
+function lightsOffNow() {
+  const url = state.map.url || '';
+  if (state.lightsOff[url] === undefined) state.lightsOff[url] = state.lights.filter((l) => l.on === false).map((l) => l.id);
+  return state.lightsOff[url];
 }
 function drawFlickeringLights() {
   const t = performance.now() / 1000;
+  if (state.effects.length) Effects.draw(ctx, state.effects, t, GRID);
   for (const L of flickerLights()) Flicker.draw(ctx, L.x, L.y, GRID * Math.min(1, Math.max(0.25, Math.pow(L.dim / GRID / 9, 2))), t);     // a torch burns smaller than a campfire
 }
-setInterval(() => { if (document.visibilityState === 'visible' && !plainMap() && flickerLights().length) requestRender(); }, 66);
+setInterval(() => { if (document.visibilityState === 'visible' && !plainMap() && (flickerLights().length || state.effects.length)) requestRender(); }, 66);
 
 function drawGrid() {
   const { width, height } = state.map;
@@ -2673,7 +2682,7 @@ const feetToPx = (ft) => (ft / FT_PER_SQUARE) * GRID;
 // Lights that are on: the map's own (campfire, wall torches) and the ones tokens carry. Sizes in board pixels.
 function allLights() {
   const out = [];
-  const off = state.lightsOff[state.map.url || ''] || [];
+  const off = lightsOffNow();
   for (const l of state.lights) if (!off.includes(l.id)) out.push(l);
   for (const t of state.tokens) {
     const k = LIGHT_KINDS[t.lightKind];
@@ -2797,6 +2806,7 @@ async function loadMapLighting() {
   state.ambience = '';
   state.ambient = 'bright';
   state.lights = [];
+  state.effects = [];
   state.difficult = [];
   state.areaPins = [];
   state.places = [];
@@ -2817,8 +2827,9 @@ async function loadMapLighting() {
     state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
+    state.effects = (Array.isArray(config.effects) ? config.effects : []).map((e) => ({ ...e, points: e.points.map((p) => ({ x: p.x * f, y: p.y * f })), ...(e.path ? { path: e.path.map((p) => ({ x: p.x * f, y: p.y * f })) } : {}) }));
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
-      id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2, flicker: l.flicker === true
+      on: l.on !== false, id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2, flicker: l.flicker === true
     }));
   } catch { /* no config: bright, no lights */ }
 }
@@ -2857,7 +2868,7 @@ function openLightPanel() {
     hint.className = 'hint';
     hint.textContent = state.lights.length ? 'Lights on this map (put one out and the dark returns):' : 'This map has no light sources of its own. Tokens can carry a torch or lantern (double-click a token).';
     panel.appendChild(hint);
-    const off = state.lightsOff[state.map.url || ''] || [];
+    const off = lightsOffNow();
     for (const L of state.lights.slice(0, 40)) {
       const r = document.createElement('div');
       r.className = 'cond-row';
@@ -2880,7 +2891,7 @@ function openLightPanel() {
 
 function setMapLight(id, on) {
   const url = state.map.url || '';
-  const list = (state.lightsOff[url] || []).filter((x) => x !== id);
+  const list = (lightsOffNow()).filter((x) => x !== id);
   if (!on) list.push(id);
   state.lightsOff[url] = list;
   revealFog();
@@ -2910,7 +2921,7 @@ function syncAmbienceUi() {
 
 const lightingForAi = () => ({
   ambient: ambientNow(),
-  mapLights: state.lights.slice(0, 40).map((l) => ({ id: l.id, name: l.name, col: Math.floor(l.x / GRID), row: Math.floor(l.y / GRID), brightFt: Math.round(l.bright / GRID * FT_PER_SQUARE), dimFt: Math.round(l.dim / GRID * FT_PER_SQUARE), on: !(state.lightsOff[state.map.url || ''] || []).includes(l.id) }))
+  mapLights: state.lights.slice(0, 40).map((l) => ({ id: l.id, name: l.name, col: Math.floor(l.x / GRID), row: Math.floor(l.y / GRID), brightFt: Math.round(l.bright / GRID * FT_PER_SQUARE), dimFt: Math.round(l.dim / GRID * FT_PER_SQUARE), on: !lightsOffNow().includes(l.id) }))
 });
 
 document.addEventListener('pointerdown', (e) => { if (lightPanel && !lightPanel.contains(e.target) && e.target.id !== 'lightBtn') closeLightPanel(); });
@@ -2940,7 +2951,7 @@ function saveScene() {
   scenes[name] = {
     mapUrl: state.map.url, mapKind: state.mapKind,
     creatures: state.tokens.filter((t) => !t.isPC && !isSummon(t)).map(serializeToken),
-    lightsOff: state.lightsOff[state.map.url || ''] || [], ambientOverride: state.ambientOverride, savedAt: Date.now()
+    lightsOff: lightsOffNow(), ambientOverride: state.ambientOverride, savedAt: Date.now()
   };
   store.set(scenesKey(), scenes);
   syncScenePick();

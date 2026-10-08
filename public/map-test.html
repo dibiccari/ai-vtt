@@ -111,6 +111,10 @@
     <label class="field"><span>Group (versions of one place)</span>
       <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
     </label>
+    <div id="mapLightsBox" hidden>
+      <div class="hint" style="margin:0 0 4px">Map lights: click one on the map, or tick it here, to light or put it out (a test only: nothing is saved).</div>
+      <div id="mapLightsList" class="stacked"></div>
+    </div>
     <label class="field"><span>Light level of this place</span>
       <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
     </label>
@@ -233,6 +237,7 @@
 <script src="/nav.js"></script>
 <script src="/wallobjects.js"></script>
 <script src="/flicker.js"></script>
+<script src="/effects.js"></script>
 <script>
 (function () {
   'use strict';
@@ -467,6 +472,7 @@
     if (lightTmp.width !== S.W || lightTmp.height !== S.H) { lightTmp.width = S.W; lightTmp.height = S.H; }
     const tctx = lightTmp.getContext('2d');
     for (const L of S.mapLights) {
+      if (S.lightsOff.has(L.id)) continue;
       const r = L.range * cell();
       const near = walls.filter((w) => pointSegmentDistance(L.x, L.y, w) <= r * 1.1);
       const lp = visibilityPolygon(L.x, L.y, near, S.W, S.H);
@@ -530,7 +536,7 @@
   }
 
   // Keep a flickering fire animating even when nothing else is happening (redraw about 15 times a second).
-  setInterval(() => { if (document.visibilityState === 'visible' && S.img && S.lights.length) requestRender(); }, 66);
+  setInterval(() => { if (document.visibilityState === 'visible' && S.img && (S.lights.length || S.effects.length)) requestRender(); }, 66);
 
   let revealQueued = false;
   function queueReveal() {
@@ -576,7 +582,7 @@
     ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
     ctx.drawImage(S.viewAs === 'dm' && S.dmImg ? S.dmImg : S.img, 0, 0, S.W, S.H);
     // Fires marked "flicker" in the config are animated over the picture.
-    for (const l of S.lights) Flicker.draw(ctx, l.x, l.y, cell() * Math.min(1, Math.max(0.25, Math.pow(l.range / 9, 2))), performance.now() / 1000);
+    for (const l of S.lights) if (!S.lightsOff.has(l.id)) Flicker.draw(ctx, l.x, l.y, cell() * Math.min(1, Math.max(0.25, Math.pow(l.range / 9, 2))), performance.now() / 1000);
 
     const px = 1 / v.scale;
     if (S.showGrid && S.tiles !== 'none') { if (S.tiles === 'hex') drawHexes(px); else drawGrid(px); }
@@ -606,6 +612,8 @@
     }
 
     if (!noFog()) drawTokenLight();
+    if (S.effects.length) Effects.draw(ctx, S.effects, performance.now() / 1000, cell());
+    if (S.viewAs === 'dm') drawLightMarkers(px);
     if (S.showWalls) drawWalls(px);
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
@@ -1004,6 +1012,18 @@
     ctx.restore();
   }
 
+  // DM view: a small ring on every map light, filled amber when lit.
+  function drawLightMarkers(px) {
+    for (const l of S.allLights) {
+      const lit = !S.lightsOff.has(l.id);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(l.x, l.y, Math.max(cell() * 0.3, 7 * px), 0, Math.PI * 2);
+      ctx.fillStyle = lit ? 'rgba(255,190,80,0.55)' : 'rgba(20,20,24,0.55)'; ctx.fill();
+      ctx.lineWidth = 2 * px; ctx.strokeStyle = lit ? '#ffd27a' : '#8a8f9a'; ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   // In a dark place the test token's light warms the ground it reaches (brighter for a lantern than a candle), only where its line of sight goes.
   function drawTokenLight() {
     if (S.light !== 'dark' || !S.polys.length) return;
@@ -1111,8 +1131,12 @@
           if (remote.squares > 0) S.squares = remote.squares;
         }
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
-        S.lights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && l.flicker === true && isFinite(l.x) && isFinite(l.y)) : [];
-        S.mapLights = remote && Array.isArray(remote.lights) ? remote.lights.filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0) : [];
+        S.allLights = (remote && Array.isArray(remote.lights) ? remote.lights : []).filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0).map((l, i) => ({ ...l, id: l.name || 'light-' + i }));
+        S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
+        S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
+        S.lights = S.allLights.filter((l) => l.flicker === true);
+        S.mapLights = S.allLights;
+        renderMapLightsList();
         S.ambience = remote && typeof remote.ambience === 'string' ? remote.ambience : '';
         S.mood = remote && typeof remote.mood === 'string' ? remote.mood : '';
         S.hexSize = remote && remote.hexSize >= 20 ? remote.hexSize : 95;
@@ -1363,6 +1387,26 @@
     return -1;
   }
 
+  // Map lights (a brazier, a campfire, wall torches): the list in the sidebar and a click on the light itself put them out or light them again. Test state only.
+  S.lightsOff = new Set(); S.allLights = []; S.effects = [];
+  function renderMapLightsList() {
+    const box = $('#mapLightsBox'), list = $('#mapLightsList');
+    box.hidden = !S.allLights.length;
+    list.innerHTML = '';
+    for (const l of S.allLights) {
+      const row = document.createElement('label'); row.className = 'check';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !S.lightsOff.has(l.id); cb.dataset.light = l.id;
+      cb.addEventListener('change', () => { toggleMapLight(l.id, cb.checked); });
+      row.append(cb, document.createTextNode(' ' + l.id + (l.kind ? ' (' + l.kind + ')' : '')));
+      list.appendChild(row);
+    }
+  }
+  function toggleMapLight(id, on) {
+    if (on) S.lightsOff.delete(id); else S.lightsOff.add(id);
+    renderMapLightsList(); revealFog(); requestRender();
+  }
+  const lightAt = (p) => S.allLights.find((l) => Math.hypot(l.x - p.x, l.y - p.y) <= Math.max(cell() * 0.6, 14 / S.view.scale)) || null;
+
   // The saved arrival spot under the pointer, if any.
   function startAt(p) {
     const r = 14 / S.view.scale;
@@ -1588,6 +1632,10 @@
       return;
     }
     if (e.button !== 0) return;
+    if (!isTerrainTool() && S.tool !== 'walls') {                       // a map light under the pointer is lit or put out by a click
+      const lt = lightAt(p);
+      if (lt && !(S.tool === 'start' && startAt(p)) && tokenAt(p) < 0) { toggleMapLight(lt.id, S.lightsOff.has(lt.id)); return; }
+    }
     {                                                                    // a pin or the token under the pointer wins; otherwise a door is clicked open or shut
       const door = doorUnder(p);
       if (door && !(S.tool === 'start' && startAt(p)) && tokenAt(p) < 0 && !(S.tool === 'start' && S.viewAs === 'dm' && startAt(p))) { clickDoor(door); return; }

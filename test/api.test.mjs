@@ -421,3 +421,16 @@ test('settings: the image model and quality are saved next to the voices, valida
   assert.equal(t.json.ok, false); assert.match(t.json.error, /same key as the voices|No OpenAI key/);
   await s.post('/api/settings', { IMAGE_MODEL: 'gpt-image-1', IMAGE_QUALITY: 'medium' });
 });
+
+test('map config: animated effects are saved with the set, cleaned, and kept when a save does not carry them; lights keep kind and an unlit start', async () => {
+  const eff = { id: 'Big River!', type: 'river', points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 40 }, { x: 0, y: 40 }], path: [{ x: 0, y: 20 }, { x: 100, y: 20 }], speed: 99, color: 'ff3300' };
+  const bad = [{ type: 'quicksand', points: eff.points }, { type: 'lava', points: [{ x: 1, y: 1 }] }];
+  ok(await s.put('/api/map-config?map=vtt-eff-test.png', { squares: 20, walls: [], starts: [], effects: [eff, ...bad], lights: [{ x: 50, y: 50, range: 4, name: 'Iron Brazier', kind: 'brazier', on: false, flicker: true }] }));
+  let c = (await s.get('/api/map-config?map=vtt-eff-test.png')).json.config;
+  assert.equal(c.effects.length, 1, 'a made-up type and a polygon of one point are dropped');
+  assert.deepEqual([c.effects[0].id, c.effects[0].type, c.effects[0].speed, c.effects[0].color], ['big-river', 'river', 4, 'ff3300']);
+  assert.deepEqual([c.lights[0].name, c.lights[0].kind, c.lights[0].on], ['iron-brazier', 'brazier', false]);
+  ok(await s.put('/api/map-config?map=vtt-eff-test.png', { squares: 20, walls: [{ x1: 0, y1: 0, x2: 10, y2: 0 }], starts: [], lights: c.lights }));       // Map Test sends no effects
+  c = (await s.get('/api/map-config?map=vtt-eff-test.png')).json.config;
+  assert.equal(c.effects.length, 1, 'effects survive a save that does not mention them');
+});

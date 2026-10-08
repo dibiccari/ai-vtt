@@ -370,3 +370,60 @@ test('the Campaign filter under Publisher lists campaigns and narrows the map li
   assert.equal(out.back, out.all, 'All campaigns brings the whole list back');
   assert.deepEqual(out.after, ['Publisher', 'Campaign'], 'Campaign sits under Publisher');
 });
+
+test('Terrain Test Grounds: a running stream is animated and the brazier starts unlit and can be lit from the list and by a click', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
+  const out = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const names = S.allLights.map((l) => l.id), offAtStart = [...S.lightsOff];
+    const cv = document.querySelector('canvas'), ctx = cv.getContext('2d');
+    S.fog = false; S.tokens = [];
+    const b = S.allLights.find((l) => l.id === 'brazier'), e = S.effects[0];
+    const sample = () => { const r = cv.getBoundingClientRect(); const px = (S.view.ox + e.path[20].x * S.view.scale) * (cv.width / r.width), py = (S.view.oy + e.path[20].y * S.view.scale) * (cv.height / r.height); return Array.from(ctx.getImageData(Math.round(px) - 60, Math.round(py) - 20, 120, 40).data); };
+    await wait(250); const a1 = sample(); await wait(900); const a2 = sample();
+    let diff = 0; for (let i = 0; i < a1.length; i++) if (a1[i] !== a2[i]) diff++;
+    const cbox = document.querySelector('#mapLightsList input[data-light="brazier"]');
+    const startedUnlit = cbox.checked === false;
+    cbox.click(); await wait(200);
+    const afterList = !S.lightsOff.has('brazier');
+    // a click on the brazier itself puts it out again
+    const r = cv.getBoundingClientRect(), sx = r.left + S.view.ox + b.x * S.view.scale, sy = r.top + S.view.oy + b.y * S.view.scale;
+    for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { clientX: sx, clientY: sy, button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 3, bubbles: true }));
+    await wait(300);
+    return { names, offAtStart, effects: S.effects.length, diff, startedUnlit, afterList, afterClick: S.lightsOff.has('brazier') };
+  })()`);
+  assert.ok(out.names.includes('brazier') && out.names.includes('campfire'), JSON.stringify(out));
+  assert.deepEqual(out.offAtStart, ['brazier'], 'only the brazier starts put out');
+  assert.equal(out.effects, 1);
+  assert.ok(out.diff > 200, 'the stream moves between two frames: ' + out.diff);
+  assert.ok(out.startedUnlit && out.afterList && out.afterClick, 'the list lights it and a click puts it out: ' + JSON.stringify(out));
+});
+
+test('Terrain Test Grounds: a running stream is animated and the brazier starts unlit and can be lit from the list and by a click', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
+  const out = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const names = S.allLights.map((l) => l.id), offAtStart = [...S.lightsOff];
+    const cv = document.querySelector('canvas'), ctx = cv.getContext('2d');
+    S.fog = false; S.tokens = [];
+    const b = S.allLights.find((l) => l.id === 'brazier'), e = S.effects[0];
+    const sample = () => { const r = cv.getBoundingClientRect(); const px = (S.view.ox + e.path[20].x * S.view.scale) * (cv.width / r.width), py = (S.view.oy + e.path[20].y * S.view.scale) * (cv.height / r.height); return Array.from(ctx.getImageData(Math.round(px) - 60, Math.round(py) - 20, 120, 40).data); };
+    await wait(250); const a1 = sample(); await wait(900); const a2 = sample();
+    let diff = 0; for (let i = 0; i < a1.length; i++) if (a1[i] !== a2[i]) diff++;
+    const cbox = document.querySelector('#mapLightsList input[data-light="brazier"]');
+    const startedUnlit = cbox.checked === false;
+    cbox.click(); await wait(200);
+    const afterList = !S.lightsOff.has('brazier');
+    const r = cv.getBoundingClientRect(), sx = r.left + S.view.ox + b.x * S.view.scale, sy = r.top + S.view.oy + b.y * S.view.scale;
+    for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { clientX: sx, clientY: sy, button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 3, bubbles: true }));
+    await wait(300);
+    return { names, offAtStart, effects: S.effects.length, diff, startedUnlit, afterList, afterClick: S.lightsOff.has('brazier') };
+  })()`);
+  assert.ok(out.names.includes('brazier') && out.names.includes('campfire'), JSON.stringify(out));
+  assert.deepEqual(out.offAtStart, ['brazier'], 'only the brazier starts put out');
+  assert.equal(out.effects, 1);
+  assert.ok(out.diff > 200, 'the stream moves between two frames: ' + out.diff);
+  assert.ok(out.startedUnlit && out.afterList && out.afterClick, 'the list lights it and a click puts it out: ' + JSON.stringify(out));
+});

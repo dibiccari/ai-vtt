@@ -1067,3 +1067,18 @@ test('watch mode (?watch=1): the page refuses every write, so a spectator can ne
   assert.equal(r.get, 200); assert.match(r.banner, /Watching/); assert.equal(r.pointerEvents, 'none');
   assert.equal((await server.get('/api/characters')).json.some((c) => c.id === 'edric'), true, 'nothing was deleted');
 });
+
+test('the tabletop animates the stream of Terrain Test Grounds and its brazier starts unlit', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state;
+    await vtt.travelTo({ mapUrl: '/uploads/vtt-terrain-test.png', mapName: 'Terrain', kind: 'battle', col: 5, row: 5 });
+    await new Promise((r) => setTimeout(r, 400));
+    const start = { effects: s.effects.length, lights: s.lights.map((l) => l.id), off: [...(s.lightsOff['/uploads/vtt-terrain-test.png'] || [])] };
+    const dm = (await (await fetch('/api/map-config?map=vtt-terrain-test.png')).json()).config;
+    return { start, brazier: s.lights.find((l) => l.id === 'brazier') && s.lights.find((l) => l.id === 'brazier').on, riverPts: s.effects[0] && s.effects[0].points.length, scaled: s.effects[0] && s.effects[0].points[0].x === dm.effects[0].points[0].x * (s.map.drawW / s.map.img.naturalWidth) };
+  })()`);
+  assert.equal(r.start.effects, 1); assert.ok(r.start.lights.includes('brazier') && r.start.lights.includes('campfire'), JSON.stringify(r));
+  assert.deepEqual(r.start.off, ['brazier'], 'the brazier starts put out');
+  assert.equal(r.brazier, false); assert.ok(r.riverPts > 50 && r.scaled, 'the stream is scaled to the board: ' + JSON.stringify(r));
+});
