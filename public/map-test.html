@@ -101,6 +101,7 @@
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
+    <label class="field" id="wallDepthRow"><span>Wall depth (squares of stone players see behind a wall): <b id="wallDepthVal">0</b></span><input type="range" id="wallDepth" min="0" max="2" step="0.1" value="0"></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
   </div>
 
@@ -329,7 +330,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind });
+    const body = JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, wallDepth: S.wallDepth });
     pendingSave = async () => {
       try {
         const res = await fetch('/api/map-config?map=' + encodeURIComponent(name), {
@@ -420,7 +421,27 @@
       }
     }
     revealObjectTops(radius);
+    revealWallFaces(radius);
     requestRender();
+  }
+
+  // A wall in sight shows the stone behind it (the player sees the brick between the wall line and the edge of the map): a strip wall depth squares wide on both sides of every seen wall.
+  function revealWallFaces(radius) {
+    if (!(S.wallDepth > 0) || !S.polys.length) return;
+    for (const w of sightWalls(S.walls)) {
+      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+      S.polys.forEach((poly, i) => {
+        const t = S.polyOwners[i];
+        if (![[w.x1, w.y1], [mx, my], [w.x2, w.y2]].some(([x, y]) => Math.hypot(x - t.x, y - t.y) <= radius * 0.9 && inside(poly, x, y))) return;
+        for (const c of [sctx, vctx]) {
+          c.save();
+          c.globalCompositeOperation = 'destination-out';
+          c.strokeStyle = '#000'; c.lineCap = 'butt'; c.lineWidth = 2 * S.wallDepth * cell();
+          c.beginPath(); c.moveTo(w.x1, w.y1); c.lineTo(w.x2, w.y2); c.stroke();
+          c.restore();
+        }
+      });
+    }
   }
 
   // The top of a small closed object (tent, boulder, crate) shows when its edge is in sight, instead of staying black.
@@ -1022,6 +1043,7 @@
         S.tiles = tilesOf(S.kind);
         S.group = remote && remote.group ? remote.group : '';
         S.variant = remote && remote.variant ? remote.variant : '';
+        S.wallDepth = remote && remote.wallDepth > 0 ? remote.wallDepth : 0;
         S.rooms = remote && Array.isArray(remote.rooms) ? remote.rooms.filter((r) => Array.isArray(r) && r.length === 4 && r.every(isFinite)) : [];
         S.difficult = remote && Array.isArray(remote.difficult) ? remote.difficult.filter((d) => d && [d.x, d.y, d.w, d.h].every(isFinite) && d.w > 0 && d.h > 0) : [];
         S.starts = (remote && Array.isArray(remote.starts) ? remote.starts.filter((s) => s && typeof s.name === 'string' && isFinite(s.x) && isFinite(s.y)) : [])
@@ -1155,6 +1177,7 @@
     $('#lightLevel').value = S.light;
     $('#ambienceKind').value = S.ambience;
     $('#moodSel').value = S.mood;
+    $('#wallDepth').value = S.wallDepth || 0; $('#wallDepthVal').textContent = S.wallDepth || 0;
     $('#hexSize').value = S.hexSize; $('#hexVal').textContent = S.hexSize; applyKindUi();
     $('#groupName').value = S.group;
     $('#variantName').value = S.variant;
@@ -1585,6 +1608,7 @@
   $('#showTerrain').addEventListener('change', (e) => { S.showTerrain = e.target.checked; requestRender(); });
   $('#showGrid').addEventListener('change', (e) => { S.showGrid = e.target.checked; applyKindUi(); requestRender(); });
   $('#mapKind').addEventListener('change', (e) => { S.kind = e.target.value; S.tiles = tilesOf(S.kind); applyKindUi(); save(); requestRender(); });
+  $('#wallDepth').addEventListener('input', (e) => { S.wallDepth = Number(e.target.value); $('#wallDepthVal').textContent = S.wallDepth; save(); queueReveal(); });
   $('#hexSize').addEventListener('input', (e) => { S.hexSize = Number(e.target.value); $('#hexVal').textContent = S.hexSize; updateScaleNote(); save(); requestRender(); });
 
   $('#resetFogBtn').addEventListener('click', resetFog);

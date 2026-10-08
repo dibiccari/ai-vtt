@@ -330,6 +330,7 @@ async function writeMapConfig(name, config) {
   await saveSet(hit.set);
 }
 
+const body_wallDepthMissing = (b) => b?.wallDepth === undefined;
 function normalizeMapConfig(body) {
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
   const walls = [];
@@ -370,6 +371,9 @@ function normalizeMapConfig(body) {
   for (const sc of Array.isArray(body?.secrets) ? body.secrets.slice(0, 100) : []) { const [x1, y1, x2, y2] = [num(sc?.x1), num(sc?.y1), num(sc?.x2), num(sc?.y2)]; if (![x1, y1, x2, y2].includes(null)) secrets.push({ name: String(sc?.name ?? '').slice(0, 80), x1, y1, x2, y2, type: 'wall', open: false }); }
   const config = { squares: int(body?.squares, 50, 5, 400), walls, starts };
   if (rooms.length) config.rooms = rooms;
+  // How many squares of picture behind a wall the players see once the wall is in sight (the stone itself, painted thick).
+  const wallDepth = Number(body?.wallDepth);
+  if (wallDepth > 0) config.wallDepth = Math.min(3, Math.round(wallDepth * 100) / 100);
   if (secrets.length) config.secrets = secrets;
   if (difficult.length) config.difficult = difficult;
   if (lights.length) config.lights = lights;
@@ -518,6 +522,9 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (old.kind && req.body?.kind === undefined) config.kind = old.kind;
       if (req.body?.difficult === undefined && Array.isArray(old.difficult) && old.difficult.length) config.difficult = old.difficult;
     } catch { /* no earlier config */ }
+  }
+  if (body_wallDepthMissing(req.body)) {
+    try { const old = await readMapConfig(file); if (old && old.wallDepth) config.wallDepth = old.wallDepth; } catch { /* no earlier config */ }
   }
   if (!config.rooms || !config.secrets) {       // Map Test does not send these: keep what the wall builder saved
     try {
