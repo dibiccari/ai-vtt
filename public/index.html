@@ -2582,13 +2582,16 @@ function openConditionPanel(t, clientX, clientY) {
     lightRow.className = 'cond-row';
     const lightLabel = document.createElement('label');
     lightLabel.textContent = 'Carries a light';
-    const lightSel = document.createElement('select');
-    for (const [v, text] of [['', 'none']].concat(Object.keys(LIGHT_KINDS).map((k) => [k, `${LIGHT_KINDS[k][2]} (${LIGHT_KINDS[k][0]}/${LIGHT_KINDS[k][1]} ft)`]))) {
-      const o = document.createElement('option'); o.value = v; o.textContent = text; lightSel.appendChild(o);
-    }
-    lightSel.value = t.lightKind || '';
-    lightSel.addEventListener('change', () => { t.lightKind = lightSel.value; conditionsChanged(); });
-    lightRow.append(lightLabel, lightSel);
+    // Dimmest to brightest by the book: none, candle (5/10 ft), torch (20/40), lantern (30/60). A Light spell is kept until the slider is moved.
+    const LIGHT_STEPS = ['', 'candle', 'torch', 'lantern'];
+    const lightSel = document.createElement('input');
+    lightSel.type = 'range'; lightSel.min = '0'; lightSel.max = String(LIGHT_STEPS.length - 1); lightSel.step = '1';
+    const lightText = document.createElement('span');
+    const showLight = () => { lightText.textContent = t.lightKind ? ` ${LIGHT_KINDS[t.lightKind][2]} (${LIGHT_KINDS[t.lightKind][0]}/${LIGHT_KINDS[t.lightKind][1]} ft)` : ' none'; };
+    lightSel.value = String(Math.max(0, LIGHT_STEPS.indexOf(t.lightKind || '')));
+    showLight();
+    lightSel.addEventListener('input', () => { t.lightKind = LIGHT_STEPS[Number(lightSel.value)]; showLight(); conditionsChanged(); });
+    lightRow.append(lightLabel, lightSel, lightText);
     panel.appendChild(lightRow);
   };
   render();
