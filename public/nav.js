@@ -19,7 +19,8 @@
       { href: '/voice-test.html', label: '🔊 Voice Test' },
       { href: '/sound-test.html', label: '🎵 Sound Test' },
       { href: '/conditions-test.html', label: '🎭 Character conditions' },
-      { href: '/image-test.html', label: '🖼 Image Test' }
+      { href: '/image-test.html', label: '🖼 Image Test' },
+      { href: '/image-bakeoff.html', label: '🏁 Image Bake-off' }
     ] },
     { href: '/settings.html', label: '⚙ Settings' }
   ];

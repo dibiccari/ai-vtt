@@ -1,0 +1,90 @@
+{
+  "at": "2026-10-08T20:10:24.940Z",
+  "layout": "layout.png",
+  "runs": [
+    {
+      "id": "openai-medium",
+      "provider": "openai",
+      "label": "OpenAI gpt-image-1, medium",
+      "model": "gpt-image-1",
+      "quality": "medium",
+      "price": "$0.07",
+      "file": "openai-medium.png",
+      "ok": true,
+      "reused": true,
+      "drift": {
+        "walls": 9,
+        "medianPx": 12,
+        "within8": 0.4444444444444444,
+        "within20": 0.8888888888888888,
+        "worstPx": 28
+      }
+    },
+    {
+      "id": "openai-high",
+      "provider": "openai",
+      "label": "OpenAI gpt-image-1, high",
+      "model": "gpt-image-1",
+      "quality": "high",
+      "price": "$0.25",
+      "file": "openai-high.png",
+      "ok": true,
+      "reused": true,
+      "drift": {
+        "walls": 9,
+        "medianPx": 30,
+        "within8": 0.3333333333333333,
+        "within20": 0.3333333333333333,
+        "worstPx": 52
+      }
+    },
+    {
+      "id": "gemini-nano-banana",
+      "provider": "gemini",
+      "label": "Google gemini-nano-banana-2.1, 1K",
+      "model": "gemini-nano-banana-2.1",
+      "quality": "1K",
+      "price": "$0.03",
+      "file": "gemini-nano-banana.png",
+      "ok": false,
+      "noKey": true,
+      "error": "No key saved yet. Add one in Settings > Image Generator."
+    },
+    {
+      "id": "gemini-3-pro",
+      "provider": "gemini",
+      "label": "Google gemini-3-pro-image, 1K",
+      "model": "gemini-3-pro-image",
+      "quality": "1K",
+      "price": "$0.13",
+      "file": "gemini-3-pro.png",
+      "ok": false,
+      "noKey": true,
+      "error": "No key saved yet. Add one in Settings > Image Generator."
+    },
+    {
+      "id": "fal-canny",
+      "provider": "fal",
+      "label": "FLUX Control LoRA (canny) on fal.ai",
+      "model": "fal-ai/flux-control-lora-canny",
+      "quality": "standard",
+      "price": "a few cents",
+      "file": "fal-canny.png",
+      "ok": false,
+      "noKey": true,
+      "error": "No key saved yet. Add one in Settings > Image Generator."
+    },
+    {
+      "id": "fal-kontext",
+      "provider": "fal",
+      "label": "FLUX Kontext on fal.ai",
+      "model": "fal-ai/flux-pro/kontext",
+      "quality": "standard",
+      "price": "a few cents",
+      "file": "fal-kontext.png",
+      "ok": false,
+      "noKey": true,
+      "error": "No key saved yet. Add one in Settings > Image Generator."
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Bake-off</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --gold:#f0c048; --accent:#4f9dff; --ok:#3fd27f; --bad:#ff8b8b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width:1700px; margin:0 auto; padding:18px 16px 40px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  .lead { color:var(--muted); margin:0 0 14px; max-width:1100px; }
+  .tools { display:flex; align-items:center; gap:14px; margin:0 0 12px; }
+  .tools label { display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; }
+  .tools input { width:18px; height:18px; accent-color:var(--gold); }
+  .grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+  .shot { position:relative; background:#05070a; }
+  .shot img { display:block; width:100%; height:auto; }
+  .shot svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; }
+  .showwalls .shot svg { display:block; }
+  figcaption { padding:10px 12px; font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+  figcaption b { color:var(--text); font-size:15px; }
+  .score { color:var(--text); }
+  .good { color:var(--ok); } .meh { color:var(--gold); } .poor { color:var(--bad); }
+  .missing { padding:56px 14px; text-align:center; color:var(--muted); font-size:14px; }
+  a.open { color:var(--accent); text-decoration:none; font-weight:600; }
+  .note { max-width:1100px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin:0 0 16px; font-size:13px; color:var(--muted); }
+  @media (max-width: 1100px) { .grid { grid-template-columns:1fr 1fr; } } @media (max-width: 700px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Image <span>Bake-off</span></h1>
+  <p class="lead">The same wall layout (the drawing) and the same prompt go to each image service. The question is which one keeps the painted walls and doors where the layout has them. Tick the box to draw the saved walls (red) and doors (green) over every picture. The drift number is how far, in pixels of a 1536 wide picture, the painted walls sit from the lines (lower is better; the drawing itself measures about 2).</p>
+  <div class="note" id="note">Loading…</div>
+  <div class="tools"><label><input type="checkbox" id="showWalls"> Show walls and doors</label></div>
+  <div class="grid" id="grid"></div>
+</main>
+<script src="/nav.js"></script>
+<script>
+(async function () {
+  'use strict';
+  const dir = '/scenarios/compare/image-test/';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const layout = await (await fetch(dir + 'layout.json')).json();
+  let results = null;
+  try { results = await (await fetch(dir + 'bakeoff-results.json')).json(); } catch { /* not run yet */ }
+  const NS = 'http://www.w3.org/2000/svg';
+  const overlay = () => {
+    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + layout.size[0] + ' ' + layout.size[1]); svg.setAttribute('preserveAspectRatio', 'none');
+    for (const [list, color] of [[layout.walls, '#ff3b3b'], [layout.doors, '#3fe07f']]) for (const w of list) { const l = document.createElementNS(NS, 'line'); l.setAttribute('x1', w.x1); l.setAttribute('y1', w.y1); l.setAttribute('x2', w.x2); l.setAttribute('y2', w.y2); l.setAttribute('stroke', color); l.setAttribute('stroke-width', '4'); l.setAttribute('stroke-linecap', 'round'); svg.appendChild(l); }
+    return svg;
+  };
+  const card = (title, src, lines, missing) => {
+    const fig = el('figure');
+    if (missing) fig.appendChild(el('div', 'missing', missing));
+    else { const shot = el('div', 'shot'); const img = el('img'); img.src = src; img.alt = title; img.loading = 'lazy'; shot.append(img, overlay()); fig.appendChild(shot); }
+    const cap = el('figcaption'); cap.appendChild(el('b', '', title));
+    for (const l of lines) cap.appendChild(typeof l === 'string' ? el('span', '', l) : l);
+    if (!missing) { const a = el('a', 'open', 'Open full size'); a.href = src; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
+    fig.appendChild(cap); return fig;
+  };
+  const grid = document.getElementById('grid');
+  grid.appendChild(card('The drawing (what every service was given)', dir + 'layout.png', ['Walls as stone bands, a door gap, furniture. Drift 0 by construction.']));
+  const grade = (m) => (m <= 10 ? 'good' : m <= 22 ? 'meh' : 'poor');
+  const ran = (results ? results.runs : []).filter((r) => r.ok).length;
+  document.getElementById('note').textContent = results
+    ? ran + ' of ' + results.runs.length + ' contenders have a picture. The others are waiting for a key: add it in Settings > Image Generator (pick the provider, paste its key, Save), then the bake-off is run again. The drift figure is an estimate read off the picture, so judge with the overlay too.'
+    : 'The bake-off has not been run yet.';
+  for (const r of (results ? results.runs : [])) {
+    if (!r.ok) { grid.appendChild(card(r.label, '', [r.model], r.noKey ? 'No key yet. Add one in Settings > Image Generator.' : 'Failed: ' + r.error)); continue; }
+    const d = r.drift;
+    const score = el('span', 'score');
+    score.append('Drift: median ', el('b', grade(d.medianPx), d.medianPx + ' px'), ', worst ' + d.worstPx + ' px, ' + Math.round(d.within8 * 100) + '% of walls within 8 px');
+    grid.appendChild(card(r.label, dir + r.file, [score, r.model + ' · ' + r.quality + ' · about ' + r.price + (r.seconds ? ' · ' + r.seconds + ' s' : ' · from the Image Test') + (r.note ? ' · ' + r.note : '')]));
+  }
+  const box = document.getElementById('showWalls');
+  box.addEventListener('change', () => document.body.classList.toggle('showwalls', box.checked));
+})();
+</script>
+</body>
+</html>
