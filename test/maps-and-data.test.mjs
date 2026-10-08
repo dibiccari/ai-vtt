@@ -12,6 +12,11 @@ const json = async (...p) => JSON.parse(await readFile(path.join(ROOT, ...p), 'u
 const uploads = await readdir(path.join(ROOT, 'public', 'uploads'));
 const configs = {};
 for (const f of await readdir(path.join(ROOT, 'data', 'maps'))) if (f.endsWith('.json')) configs[f.slice(0, -5)] = await json('data', 'maps', f);
+// Pictures that belong to a map set (data/mapsets/<guid>.json) take their walls, doors and pins from it: the old per-picture files are no longer read.
+for (const f of await readdir(path.join(ROOT, 'data', 'mapsets'))) {
+  const set = await json('data', 'mapsets', f);
+  for (const lv of set.levels || []) for (const look of lv.looks || []) configs[look.player] = { ...(configs[look.player] || {}), ...(lv.squares ? { squares: lv.squares } : {}), walls: lv.walls || [], starts: lv.starts || [], difficult: lv.difficult || [] };
+}
 
 // The same check scripts/check.mjs makes: every installed battle or camp map has a "start" pin.
 for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
