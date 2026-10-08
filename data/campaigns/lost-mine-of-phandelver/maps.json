@@ -38,10 +38,10 @@
     },
     {
       "id": "thundertree",
-      "file": "lmop-thundertree.png",
+      "file": "vtt-thundertree.png",
       "name": "Ruins of Thundertree",
       "kind": "battle",
-      "description": "The ruined village of Thundertree, overgrown with twig blights and haunted by zombies, with a ruined tower and a statue in the square. Use it for anything in the village."
+      "description": "The ruins of Thundertree, a village destroyed long ago by a volcano and now overgrown by forest: about a dozen roofless, crumbling stone buildings with broken walls and rubble scattered round a cobbled town square with a toppled statue plinth, the broken stump of a round tower in the north (the dragon's tower), a large ruined garrison in the north-east, an old smithy in the south, a farmhouse and a herbalist's shop, with thick forest all round. Overgrown lanes wind between the ruins from the west."
     },
     {
       "id": "cragmaw-castle",
