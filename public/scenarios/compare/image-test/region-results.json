@@ -1,0 +1,11 @@
+{
+  "model": "fal-ai/flux-pro/kontext/text-to-image",
+  "provider": "fal",
+  "aspect": "2:3",
+  "at": "2026-10-08T21:19:02.501Z",
+  "ok": true,
+  "seconds": 7,
+  "bytes": 2478262,
+  "note": "seed 7",
+  "file": "region-kontext.png"
+}

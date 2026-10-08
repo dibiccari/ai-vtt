@@ -60,6 +60,11 @@
   <p class="lead">A town map made by FLUX Kontext on fal.ai from a text description only (no drawing sent). The same description was used for our ChatGPT version of Phandalin. Walls do not apply to a town map, so there is no overlay here.</p>
   <section class="prompt"><h2>The prompt used</h2><p id="prompt3">Loading…</p></section>
   <div class="grid3" id="grid4"></div>
+
+  <h2 class="sec">FLUX Kontext paints <span>a regional map</span></h2>
+  <p class="lead">A regional map made by FLUX Kontext on fal.ai from a text description only (no drawing sent): the same atlas description we gave ChatGPT for the Sword Coast-style map. It is a portrait picture, 2:3.</p>
+  <section class="prompt"><h2>The prompt used</h2><p id="prompt4">Loading…</p></section>
+  <div class="grid3" id="grid5"></div>
 </main>
 <script src="/nav.js"></script>
 <script>
@@ -126,17 +131,20 @@
     else cap.appendChild(el('span', '', r.model));
     fig.appendChild(cap); grid3.appendChild(fig);
   }
-  // ---- the town
-  try { document.getElementById('prompt3').textContent = (await (await fetch(dir + 'town-prompt.txt')).text()).trim(); } catch { document.getElementById('prompt3').textContent = 'Not made yet.'; }
-  let town = null;
-  try { town = await (await fetch(dir + 'town-results.json')).json(); } catch { /* not made yet */ }
-  const g4 = document.getElementById('grid4');
-  const tf = el('figure');
-  if (town && town.ok) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + town.file; img.alt = 'Phandalin by FLUX Kontext'; img.loading = 'lazy'; shot.appendChild(img); tf.appendChild(shot); }
-  else tf.appendChild(el('div', 'missing', town ? 'Failed: ' + town.error : 'Not made yet.'));
-  const tc = el('figcaption'); tc.appendChild(el('b', '', 'FLUX Kontext on fal.ai')); tc.appendChild(el('span', '', town && town.ok ? town.model + ' · ' + town.seconds + ' s · ' + (town.bytes / 1e6).toFixed(1) + ' MB' : ''));
-  if (town && town.ok) { tc.appendChild(el('span', '', 'Top-down enough for a town: a green, roads, about forty buildings and the gorge, but it wrote its own title and a garbled legend into the picture, which a map for the table must not have.')); const a = el('a', 'open', 'Open full size'); a.href = dir + town.file; a.target = '_blank'; a.rel = 'noopener'; tc.appendChild(a); }
-  tf.appendChild(tc); g4.appendChild(tf);
+  // ---- the town and the region (FLUX Kontext from text only)
+  const textOnly = async (name, promptId, gridId, title, verdict) => {
+    try { document.getElementById(promptId).textContent = (await (await fetch(dir + name + '-prompt.txt')).text()).trim(); } catch { document.getElementById(promptId).textContent = 'Not made yet.'; }
+    let res = null;
+    try { res = await (await fetch(dir + name + '-results.json')).json(); } catch { /* not made yet */ }
+    const fig = el('figure');
+    if (res && res.ok) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + res.file; img.alt = title; img.loading = 'lazy'; shot.appendChild(img); fig.appendChild(shot); }
+    else fig.appendChild(el('div', 'missing', res ? 'Failed: ' + res.error : 'Not made yet.'));
+    const cap = el('figcaption'); cap.appendChild(el('b', '', title)); cap.appendChild(el('span', '', res && res.ok ? res.model + ' · ' + res.seconds + ' s · ' + (res.bytes / 1e6).toFixed(1) + ' MB' : ''));
+    if (res && res.ok) { cap.appendChild(el('span', '', verdict)); const a = el('a', 'open', 'Open full size'); a.href = dir + res.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
+    fig.appendChild(cap); document.getElementById(gridId).appendChild(fig);
+  };
+  await textOnly('town', 'prompt3', 'grid4', 'FLUX Kontext on fal.ai', 'Top-down enough for a town: a green, roads, about forty buildings and the gorge, but it wrote its own title and a garbled legend into the picture, which a map for the table must not have.');
+  await textOnly('region', 'prompt4', 'grid5', 'FLUX Kontext on fal.ai', 'Reads as an atlas: a sea down the west side, a coast with a walled port, a great forest, a volcano, rivers and trails. It added clouds and a decorated border, which a map should not have, and the sea is far too dominant.');
   const box = document.getElementById('showWalls');
   box.addEventListener('change', () => document.body.classList.toggle('showwalls', box.checked));
 })();
