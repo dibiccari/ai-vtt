@@ -580,7 +580,7 @@
     const px = 1 / v.scale;
     if (S.showGrid && S.tiles !== 'none') { if (S.tiles === 'hex') drawHexes(px); else drawGrid(px); }
 
-    if (S.fog && S.tokens.length) {
+    if (S.fog && S.tokens.length && !noFog()) {
       ctx.save();
       ctx.globalAlpha = S.dm ? 0.5 : 1;
       ctx.drawImage(shroud, 0, 0);
@@ -604,12 +604,12 @@
       ctx.restore();
     }
 
-    drawTokenLight();
+    if (!noFog()) drawTokenLight();
     if (S.showWalls) drawWalls(px);
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
     if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }                 // the players never see the terrain shading, the pins or the start area
-    drawTokens(px);
+    if (!noFog()) drawTokens(px);
   }
 
   // Hexagonal tiles (regional maps): pointy-top hexagons, hexSize = width flat to flat in picture pixels, one hex is 5 miles.
@@ -785,7 +785,7 @@
     ctx.textBaseline = 'middle';
     const editing = S.tool === 'start';
     if (!S.showPins) { ctx.restore(); return; }                              // the Show pins box hides them whatever the tool
-    const fogged = S.fog && S.tokens.length > 0 && !S.dm;
+    const fogged = S.fog && S.tokens.length > 0 && !S.dm && !noFog();
     for (const s of S.starts) {
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
       if (seen === null || (seen === 'unseen' && !editing)) continue;
@@ -1260,8 +1260,13 @@
 
   // What a kind of map uses: battle and camp squares, regional hexagons, town nothing. Only the controls that apply are shown.
   const tilesOf = (kind) => (kind === 'regional' ? 'hex' : kind === 'town' ? 'none' : 'square');
+  // Town and regional maps are plain pictures: no fog of war, no test token, no light or vision (the tabletop shows them whole).
+  const noFog = () => S.kind === 'town' || S.kind === 'regional';
   function applyKindUi() {
     $('#mapKind').value = S.kind;
+    const plain = noFog();
+    for (const el of [$('#fog').closest('label'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
+    if (plain && S.tool === 'token') setTool('start');
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
     $('#showTilesRow').hidden = S.tiles === 'none';
     updateScaleNote();

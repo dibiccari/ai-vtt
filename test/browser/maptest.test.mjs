@@ -314,3 +314,17 @@ test('Reset explored covers the map in fog again', opts, async () => {
   assert.equal(out.before, 'explored', JSON.stringify(out));
   assert.equal(out.after, 'unseen', 'the explored ground is forgotten: ' + JSON.stringify(out));
 });
+
+test('town and regional maps have no fog of war and no test token; battle maps keep both', opts, async () => {
+  const out = await page.eval(`(async () => {
+    const sel = document.querySelector('#mapKind'), res = {};
+    for (const k of ['town', 'regional', 'battle']) {
+      sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 200));
+      res[k] = { fog: document.querySelector('#fog').closest('label').hidden, token: document.querySelector('button.tool[data-tool="token"]').hidden, reset: document.querySelector('#resetFogBtn').hidden, light: document.querySelector('#lightBox').hidden };
+    }
+    return res;
+  })()`);
+  for (const k of ['town', 'regional']) assert.deepEqual(out[k], { fog: true, token: true, reset: true, light: true }, k + ' hides them: ' + JSON.stringify(out));
+  assert.deepEqual(out.battle, { fog: false, token: false, reset: false, light: false }, 'a battle map shows them: ' + JSON.stringify(out));
+});
