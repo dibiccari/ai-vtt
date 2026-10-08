@@ -404,3 +404,15 @@ test('map sets: a clone has its own id and pictures, deleting it leaves the orig
   assert.equal((await fetch(s.base + '/uploads/lmop-agathas-lair.png')).status, 200, 'the original picture is untouched');
   assert.ok((await s.get('/api/mapsets')).json.sets.some((x) => x.guid === src.guid), 'and its set');
 });
+
+test('settings: the image model and quality are saved next to the voices, validated, and shown; the images check needs the shared OpenAI key', async () => {
+  const before = (await s.get('/api/settings')).json.openai;
+  assert.equal(before.imageModel, 'gpt-image-1'); assert.equal(before.imageQuality, 'medium');
+  assert.equal((await s.post('/api/settings', { IMAGE_MODEL: 'gpt-image-1-mini', IMAGE_QUALITY: 'high' })).status, 200);
+  const after = (await s.get('/api/settings')).json.openai;
+  assert.equal(after.imageModel, 'gpt-image-1-mini'); assert.equal(after.imageQuality, 'high');
+  assert.equal((await s.post('/api/settings', { IMAGE_MODEL: 'bad model!' })).status, 400, 'a model name with spaces or symbols is refused');
+  const t = await s.post('/api/settings/test', { which: 'images' });
+  assert.equal(t.json.ok, false); assert.match(t.json.error, /same key as the voices/);
+  await s.post('/api/settings', { IMAGE_MODEL: 'gpt-image-1', IMAGE_QUALITY: 'medium' });
+});

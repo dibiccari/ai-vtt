@@ -13,7 +13,9 @@ if (!promptFile || !out) { console.error('usage: node scripts/generate-image.mjs
 const env = await readFile(path.join(root, '.env'), 'utf8').catch(() => '');
 const key = process.env.OPENAI_API_KEY || (/^OPENAI_API_KEY=(.+)$/m.exec(env) || [])[1]?.trim();
 if (!key) { console.error('No OPENAI_API_KEY in .env'); process.exit(1); }
-const model = opt('model', 'gpt-image-1'), size = opt('size', '1536x1024'), quality = opt('quality', 'medium');
+const { imageSettings } = await import(path.join(root, 'lib', 'image-settings.js'));
+const chosen = imageSettings(root);
+const model = opt('model', chosen.model), size = opt('size', '1536x1024'), quality = opt('quality', chosen.quality);       // the Settings page card picks the defaults
 const prompt = (await readFile(path.resolve(promptFile), 'utf8')).trim();
 const t0 = Date.now();
 const res = await fetch('https://api.openai.com/v1/images/generations', {
@@ -26,5 +28,5 @@ const item = data.data?.[0];
 const bytes = item?.b64_json ? Buffer.from(item.b64_json, 'base64') : item?.url ? Buffer.from(await (await fetch(item.url)).arrayBuffer()) : null;
 if (!bytes) { console.error('No picture came back'); process.exit(1); }
 await writeFile(path.resolve(out), bytes);
-const est = { low: 0.02, medium: 0.05, high: 0.2 }[quality] ?? 0.05;
-console.log(`${model} ${size} ${quality}: saved ${out} (${(bytes.length / 1e6).toFixed(1)} MB) in ${((Date.now() - t0) / 1000).toFixed(0)} s, about $${est.toFixed(2)} at list prices`);
+const est = model === 'gpt-image-1' ? { low: 0.02, medium: 0.05, high: 0.2 }[quality] : null;
+console.log(`${model} ${size} ${quality}: saved ${out} (${(bytes.length / 1e6).toFixed(1)} MB) in ${((Date.now() - t0) / 1000).toFixed(0)} s${est ? `, about ${est.toFixed(2)} at list prices` : ' (see the OpenAI price list for this model)'}`);

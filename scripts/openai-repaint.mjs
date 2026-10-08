@@ -13,9 +13,11 @@ if (!input || !promptFile || !out) { console.error('usage: node scripts/openai-r
 const env = await readFile(path.join(root, '.env'), 'utf8').catch(() => '');
 const key = process.env.OPENAI_API_KEY || (/^OPENAI_API_KEY=(.+)$/m.exec(env) || [])[1]?.trim();
 if (!key) { console.error('No OPENAI_API_KEY in .env'); process.exit(1); }
-const size = opt('size', '1536x1024'), quality = opt('quality', 'medium');
+const { imageSettings } = await import(path.join(root, 'lib', 'image-settings.js'));
+const chosen = imageSettings(root);
+const size = opt('size', '1536x1024'), quality = opt('quality', chosen.quality), model = opt('model', chosen.model);       // the Settings page card picks the defaults
 const form = new FormData();
-form.append('model', 'gpt-image-1');
+form.append('model', model);
 form.append('prompt', (await readFile(path.resolve(promptFile), 'utf8')).trim());
 form.append('size', size);
 form.append('quality', quality);
@@ -28,4 +30,4 @@ if (!res.ok) { console.error('OpenAI error', res.status, data.error?.message || 
 const b64 = data.data?.[0]?.b64_json;
 if (!b64) { console.error('No picture came back'); process.exit(1); }
 await writeFile(path.resolve(out), Buffer.from(b64, 'base64'));
-console.log(`gpt-image-1 edit ${size} ${quality}: saved ${out} in ${((Date.now() - t0) / 1000).toFixed(0)} s, about $${({ low: 0.03, medium: 0.07, high: 0.25 }[quality] ?? 0.07).toFixed(2)} at list prices`);
+console.log(`${model} edit ${size} ${quality}: saved ${out} in ${((Date.now() - t0) / 1000).toFixed(0)} s${model === 'gpt-image-1' ? `, about ${({ low: 0.03, medium: 0.07, high: 0.25 }[quality] ?? 0.07).toFixed(2)} at list prices` : ' (see the OpenAI price list for this model)'}`);
