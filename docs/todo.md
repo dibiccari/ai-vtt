@@ -2,7 +2,7 @@
 
 ## In progress
 - Goblin Ambush pilot DONE (Method A, vtt-goblin-ambush.png, in the Lost Mine campaign as triboar-ambush; pictures and prompts in public/scenarios/compare/goblin-ambush/); the user has not reviewed it yet.
-- Lost Mine on Explorer maps: Sword Coast and Phandalin done. Agatha's Lair and Cragmaw Castle (day and night, one set) Cragmaw Hideout, Old Owl Well, Redbrand Hideout, Thundertree and Wave Echo Cave done. Going alphabetically, still to re-create from the Map Adventurer pack (never send the originals to the image tool): Wyvern Tor.
+- Lost Mine on Explorer maps: ALL DONE (Sword Coast, Phandalin, Goblin Ambush, Agatha's Lair, Cragmaw Castle day and night, Cragmaw Hideout, Old Owl Well, Redbrand Hideout, Thundertree, Wave Echo Cave, Wyvern Tor). Waiting for the user's review of all of them (public/scenarios/compare/<map>/ has the prompts and pictures). Known rough spots to review: Wave Echo Cave stone rooms (only the south-middle room has hand walls), Wyvern Tor has no difficult terrain marked (the stream could be), Thundertree and Cragmaw Hideout walls are first passes.
 
 ## Tabletop
 - Party section (the Party tab): make each character's info accordions (collapsible sections), user request.

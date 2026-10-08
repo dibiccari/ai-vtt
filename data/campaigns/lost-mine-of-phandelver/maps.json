@@ -101,10 +101,10 @@
     },
     {
       "id": "wyvern-tor",
-      "file": "lmop-wyvern-tor.png",
+      "file": "vtt-wyvern-tor.png",
       "name": "Wyvern Tor",
       "kind": "battle",
-      "description": "A rocky hilltop in the highlands, home to an orc war camp. Use it for the climb and anything fought on the tor."
+      "description": "Wyvern Tor: the rugged lower slopes of a hill in wild country. A shallow turquoise stream with a small waterfall runs from the north through a ravine and south-west across the map; a long cliff ridge in the north-west holds the hidden cave mouth of the orc camp, with ragged tents, a firepit and stakes outside it and a lone orc sentry by a boulder twenty yards away; large rocky plateaus stand to the east and south-west, with worn dirt trails between them."
     }
   ]
 }
