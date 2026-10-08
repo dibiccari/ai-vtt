@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-08T21:31:28.610Z",
+  "runs": [
+    {
+      "id": "nano-banana",
+      "model": "gemini-nano-banana-2.1",
+      "price": "$0.03",
+      "kind": "town",
+      "ok": true,
+      "file": "town-gemini-nano-banana.jpg",
+      "seconds": 20,
+      "bytes": 1354709
+    },
+    {
+      "id": "3-pro",
+      "model": "gemini-3-pro-image",
+      "price": "$0.13",
+      "kind": "town",
+      "ok": true,
+      "file": "town-gemini-3-pro.jpg",
+      "seconds": 23,
+      "bytes": 1352540
+    }
+  ]
+}

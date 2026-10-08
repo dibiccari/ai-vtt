@@ -58,15 +58,15 @@
   <div class="note" id="bakeNote">Loading…</div>
   <div class="grid3" id="grid3"></div>
 
-  <h2 class="sec">FLUX Kontext paints <span>Phandalin</span></h2>
-  <p class="lead">The same description of Phandalin, word for word, given to ChatGPT (gpt-image-1, high, the picture our campaign uses) and to FLUX Kontext on fal.ai. Text only, no drawing sent to either. Walls do not apply to a town map, so there is no overlay here.</p>
+  <h2 class="sec">The town of <span>Phandalin</span>, four painters</h2>
+  <p class="lead">The same description of Phandalin, word for word, given to ChatGPT (gpt-image-1, high, the picture our campaign uses), FLUX Kontext on fal.ai and two Google Gemini models. Text only, no drawing sent to either. Walls do not apply to a town map, so there is no overlay here.</p>
   <section class="prompt"><h2>The prompt used</h2><p id="prompt3">Loading…</p></section>
-  <div class="grid2" id="grid4"></div>
+  <div class="grid4" id="grid4"></div>
 
-  <h2 class="sec">FLUX Kontext paints <span>a regional map</span></h2>
-  <p class="lead">The same atlas description, word for word, given to ChatGPT (gpt-image-1) and to FLUX Kontext on fal.ai, text only, portrait 2:3. This is ChatGPT's first picture from the text. Our campaign's Sword Coast was later made from a drawn layout, so it follows the real geography more closely.</p>
+  <h2 class="sec">A <span>regional map</span>, four painters</h2>
+  <p class="lead">The same atlas description, word for word, given to ChatGPT (gpt-image-1), FLUX Kontext on fal.ai and two Google Gemini models, text only, portrait 2:3. This is ChatGPT's first picture from the text. Our campaign's Sword Coast was later made from a drawn layout, so it follows the real geography more closely.</p>
   <section class="prompt"><h2>The prompt used</h2><p id="prompt4">Loading…</p></section>
-  <div class="grid2" id="grid5"></div>
+  <div class="grid4" id="grid5"></div>
 </main>
 <script src="/nav.js"></script>
 <script>
@@ -150,8 +150,23 @@
     if (res && res.ok) { cap.appendChild(el('span', '', verdict)); const a = el('a', 'open', 'Open full size'); a.href = dir + res.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
     fig.appendChild(cap); document.getElementById(gridId).appendChild(fig);
   };
+  const geminiCards = async (name, gridId, notes) => {
+    let res = null;
+    try { res = await (await fetch(dir + name + '-gemini-results.json')).json(); } catch { /* not made yet */ }
+    for (const r of (res ? res.runs : [])) {
+      const fig = el('figure');
+      if (r.ok) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + r.file; img.alt = r.model; img.loading = 'lazy'; shot.appendChild(img); fig.appendChild(shot); }
+      else fig.appendChild(el('div', 'missing', 'Failed: ' + r.error));
+      const cap = el('figcaption'); cap.appendChild(el('b', '', 'Google ' + r.model));
+      cap.appendChild(el('span', '', r.model + ' · 1K · about ' + r.price + (r.ok ? ' · ' + r.seconds + ' s' : '')));
+      if (r.ok) { cap.appendChild(el('span', '', notes[r.id])); const a = el('a', 'open', 'Open full size'); a.href = dir + r.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
+      fig.appendChild(cap); document.getElementById(gridId).appendChild(fig);
+    }
+  };
   await textOnly('town', 'prompt3', 'grid4', 'FLUX Kontext on fal.ai', 'Top-down enough for a town: a green, roads, about forty buildings and the gorge, but it wrote its own title and a garbled legend into the picture, which a map for the table must not have.', { file: 'town-chatgpt.png', title: 'ChatGPT (OpenAI) gpt-image-1', model: 'the Phandalin our campaign uses · high quality · about $0.20', verdict: 'No title, no legend, no writing in the picture, and richer painted art. But it shows only part of the town, close up and a little slanted: the whole layout the text describes (the green, the inn, the gorge, the ruined manor) is not all there, which FLUX gets closer to.' });
   await textOnly('region', 'prompt4', 'grid5', 'FLUX Kontext on fal.ai', 'Reads as an atlas: a sea down the west side, a coast with a walled port, a great forest, a volcano, rivers and trails. It added clouds and a decorated border, which a map should not have, and the sea is far too dominant.', { file: 'region-chatgpt.png', title: 'ChatGPT (OpenAI) gpt-image-1', model: 'the first atlas picture from this text · about $0.05 to $0.20', verdict: 'No clouds, no border, no writing. Land fills most of the picture with the sea as a strip down the west, a walled port on the coast, one great forest with ruins in clearings, a smoking volcano, a river, mountains along the east: much closer to the description than the FLUX version.' });
+  await geminiCards('town', 'grid4', { 'nano-banana': 'No writing. Sketchy and warm: houses, orchard, farm fields, a ruined manor on the gorge edge, a small green. Looks like a published town map.', '3-pro': 'No writing. The crispest of the four: a round town green with a little shrine, an inn with a stable, a smithy, a hall, orchard and fields, and the ruined manor above a river gorge.' });
+  await geminiCards('region', 'grid5', { 'nano-banana': 'No writing. Atlas style: a walled port on the coast, a great forest with a ruined castle clearing, a smoking volcano and rivers, snowy peaks, a dotted trail and a reedy marsh in the south.', '3-pro': 'No writing. The same description laid out with more detail: a walled port, two forests, a volcano, rivers, ruins and a glacial peak with cave mouths, and a dotted trail across the grassland.' });
   const box = document.getElementById('showWalls');
   box.addEventListener('change', () => document.body.classList.toggle('showwalls', box.checked));
 })();

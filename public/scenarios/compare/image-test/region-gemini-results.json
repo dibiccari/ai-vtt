@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-08T21:32:06.436Z",
+  "runs": [
+    {
+      "id": "nano-banana",
+      "model": "gemini-nano-banana-2.1",
+      "price": "$0.03",
+      "kind": "region",
+      "ok": true,
+      "file": "region-gemini-nano-banana.jpg",
+      "seconds": 15,
+      "bytes": 1253852
+    },
+    {
+      "id": "3-pro",
+      "model": "gemini-3-pro-image",
+      "price": "$0.13",
+      "kind": "region",
+      "ok": true,
+      "file": "region-gemini-3-pro.jpg",
+      "seconds": 23,
+      "bytes": 1226460
+    }
+  ]
+}
