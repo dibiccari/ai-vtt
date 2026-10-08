@@ -44,6 +44,7 @@ for (const c of CONTENDERS) {
   const t0 = Date.now();
   try {
     const { png, note } = await editFromLayout({ provider: c.provider, model: c.model, quality: c.quality, key: keys[c.provider], prompt, imagePng, width: 1536, height: 1024, seed: 7 });
+    if (png[0] === 0xff && png[1] === 0xd8) base.file = c.id + '.jpg';             // some services send a JPEG: keep the right extension
     writeFileSync(path.join(dir, base.file), png);
     const drift = await wallDrift(path.join(dir, base.file), layout);
     runs.push({ ...base, ok: true, seconds: Math.round((Date.now() - t0) / 1000), bytes: png.length, note, drift });
