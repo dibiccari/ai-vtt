@@ -38,7 +38,7 @@
   @media (max-width: 1000px) { .grid { grid-template-columns:1fr; } }
 </style>
 </head>
-<body>
+<body class="showwalls">
 <main>
   <h1>Image <span>Test</span></h1>
   <p class="lead" id="lead">One prompt, painted at low, medium and high quality, to compare. This is a one-time test: nothing here can be changed or sent.</p>
@@ -48,7 +48,7 @@
   <h2 class="sec">Same drawing, <span>three qualities</span></h2>
   <p class="lead" id="lead2">The first test paints each picture from scratch, so the rooms differ. Here the same wall layout (the first picture) is given to the image editor at each quality, so only the finish changes. Tick the box to draw the saved walls (red) and doors (green) over every picture and see how far the painter kept to them.</p>
   <section class="prompt"><h2>The prompt used</h2><p id="prompt2">Loading…</p></section>
-  <div class="tools"><label><input type="checkbox" id="showWalls"> Show walls and doors</label></div>
+  <div class="tools"><label><input type="checkbox" id="showWalls" checked> Show walls and doors</label></div>
   <div class="grid4" id="grid2"></div>
 
   <h2 class="sec">Bake-off: <span>other image services</span></h2>
@@ -107,6 +107,7 @@
   let bake = null;
   try { bake = await (await fetch(dir + 'bakeoff-results.json')).json(); } catch { /* not run yet */ }
   const grid3 = document.getElementById('grid3');
+  const verdict = { 'fal-canny': 'Top-down, but it barely repaints: the picture is the flat drawing with a little texture.', 'fal-kontext': 'Not top-down: it redrew the room from a slanted angle, so these walls cannot fit it.', 'openai-high': 'The room drifted to the left of the saved walls.', 'gemini-nano-banana': 'Painted and top-down; the kitchen wall is the one that sits off.', 'gemini-3-pro': 'Painted and top-down; the closest fit of the painted ones.' };
   const grade = (m) => (m <= 10 ? 'good' : m <= 22 ? 'meh' : 'poor');
   const done = bake ? bake.runs.filter((r) => r.ok).length : 0;
   document.getElementById('bakeNote').textContent = bake ? done + ' of ' + bake.runs.length + ' contenders have a picture. The others wait for a key with credit: add it in Settings > Image Generator, then the bake-off is run again (node scripts/image-bakeoff.mjs). The drift figure is an estimate read off the picture, so judge with the overlay too.' : 'The bake-off has not been run yet.';
@@ -115,7 +116,8 @@
     if (r.ok && layout) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + r.file; img.alt = r.label; img.loading = 'lazy'; shot.append(img, overlay()); fig.appendChild(shot); }
     else fig.appendChild(el('div', 'missing', r.noKey ? 'No key yet. Add one in Settings > Image Generator.' : 'Failed: ' + r.error));
     const cap = el('figcaption'); cap.appendChild(el('b', '', r.label));
-    if (r.ok) { const sc = el('span'); sc.append('Drift: median ', Object.assign(el('b', grade(r.drift.medianPx)), { textContent: r.drift.medianPx + ' px' }), ', worst ' + r.drift.worstPx + ' px, ' + Math.round(r.drift.within8 * 100) + '% of walls within 8 px'); cap.appendChild(sc); cap.appendChild(el('span', '', r.model + ' · ' + r.quality + ' · about ' + r.price + (r.seconds ? ' · ' + r.seconds + ' s' : ' · from the test above') + (r.note ? ' · ' + r.note : ''))); const a = el('a', 'open', 'Open full size'); a.href = dir + r.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
+    if (r.ok) { const sc = el('span'); sc.append('Drift: median ', Object.assign(el('b', grade(r.drift.medianPx)), { textContent: r.drift.medianPx + ' px' }), ', worst ' + r.drift.worstPx + ' px, ' + Math.round(r.drift.within8 * 100) + '% of walls within 8 px'); cap.appendChild(sc); if (verdict[r.id]) cap.appendChild(el('span', '', verdict[r.id]));
+    cap.appendChild(el('span', '', r.model + ' · ' + r.quality + ' · about ' + r.price + (r.seconds ? ' · ' + r.seconds + ' s' : ' · from the test above') + (r.note ? ' · ' + r.note : ''))); const a = el('a', 'open', 'Open full size'); a.href = dir + r.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
     else cap.appendChild(el('span', '', r.model));
     fig.appendChild(cap); grid3.appendChild(fig);
   }
