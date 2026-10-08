@@ -1,0 +1,10 @@
+{
+  "model": "fal-ai/flux-pro/kontext/text-to-image",
+  "provider": "fal",
+  "at": "2026-10-08T21:14:04.239Z",
+  "ok": true,
+  "seconds": 9,
+  "bytes": 2421868,
+  "note": "seed 7",
+  "file": "town-kontext.png"
+}

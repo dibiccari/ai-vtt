@@ -55,6 +55,11 @@
   <p class="lead">The same drawing and the same prompt sent to other image services, to see which keeps the walls and doors where the layout has them. The drift number is how far the painted walls sit from the lines, in pixels of a 1536 wide picture (lower is better; the drawing itself measures about 2). The checkbox above draws the saved walls over these pictures too.</p>
   <div class="note" id="bakeNote">Loading…</div>
   <div class="grid3" id="grid3"></div>
+
+  <h2 class="sec">FLUX Kontext paints <span>Phandalin</span></h2>
+  <p class="lead">A town map made by FLUX Kontext on fal.ai from a text description only (no drawing sent). The same description was used for our ChatGPT version of Phandalin. Walls do not apply to a town map, so there is no overlay here.</p>
+  <section class="prompt"><h2>The prompt used</h2><p id="prompt3">Loading…</p></section>
+  <div class="grid3" id="grid4"></div>
 </main>
 <script src="/nav.js"></script>
 <script>
@@ -121,6 +126,17 @@
     else cap.appendChild(el('span', '', r.model));
     fig.appendChild(cap); grid3.appendChild(fig);
   }
+  // ---- the town
+  try { document.getElementById('prompt3').textContent = (await (await fetch(dir + 'town-prompt.txt')).text()).trim(); } catch { document.getElementById('prompt3').textContent = 'Not made yet.'; }
+  let town = null;
+  try { town = await (await fetch(dir + 'town-results.json')).json(); } catch { /* not made yet */ }
+  const g4 = document.getElementById('grid4');
+  const tf = el('figure');
+  if (town && town.ok) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + town.file; img.alt = 'Phandalin by FLUX Kontext'; img.loading = 'lazy'; shot.appendChild(img); tf.appendChild(shot); }
+  else tf.appendChild(el('div', 'missing', town ? 'Failed: ' + town.error : 'Not made yet.'));
+  const tc = el('figcaption'); tc.appendChild(el('b', '', 'FLUX Kontext on fal.ai')); tc.appendChild(el('span', '', town && town.ok ? town.model + ' · ' + town.seconds + ' s · ' + (town.bytes / 1e6).toFixed(1) + ' MB' : ''));
+  if (town && town.ok) { tc.appendChild(el('span', '', 'Top-down enough for a town: a green, roads, about forty buildings and the gorge, but it wrote its own title and a garbled legend into the picture, which a map for the table must not have.')); const a = el('a', 'open', 'Open full size'); a.href = dir + town.file; a.target = '_blank'; a.rel = 'noopener'; tc.appendChild(a); }
+  tf.appendChild(tc); g4.appendChild(tf);
   const box = document.getElementById('showWalls');
   box.addEventListener('change', () => document.body.classList.toggle('showwalls', box.checked));
 })();
