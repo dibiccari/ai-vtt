@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 10,
+  "version": 44,
   "id": "b0f61f20-0b90-461a-bf44-32dd01c42bff",
   "slug": "vtt-terrain-test",
   "name": "Terrain Test",
@@ -1184,7 +1184,7 @@
           "x2": 1590,
           "y2": 240,
           "type": "door",
-          "open": false
+          "open": true
         },
         {
           "x1": 1650,
@@ -1358,24 +1358,14 @@
       "starts": [
         {
           "name": "start",
-          "x": 685,
-          "y": 603,
+          "x": 248,
+          "y": 450,
           "radius": 2
         },
         {
           "name": "far-bank",
           "x": 1700,
           "y": 1160
-        },
-        {
-          "name": "pin-1",
-          "x": 234,
-          "y": 514
-        },
-        {
-          "name": "pin-2",
-          "x": 108,
-          "y": 363
         },
         {
           "name": "cliff-top",

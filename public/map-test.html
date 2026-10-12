@@ -51,6 +51,7 @@
   .stage-bar > button { padding:6px 14px; border-radius:8px; white-space:nowrap; }
   .stage-bar .tool-sep { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
   .view-switch { display:inline-flex; gap:0; align-items:center; }
+  .view-stack { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
   .view-switch button { border-radius:0; padding:6px 18px; font-weight:700; }
   .view-switch button:first-child { border-radius:8px 0 0 8px; } .view-switch button:last-child { border-radius:0 8px 8px 0; }
   .view-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
@@ -98,6 +99,7 @@
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token: 30 ft (walls block, difficult terrain costs double)</label>
+    <label class="field"><span>Test token image</span><select id="testTokenImage" aria-label="Test token image"><option value="">Numbered marker</option></select></label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
@@ -203,13 +205,15 @@
     <button id="fitWidthBtn" title="Fit the map to the width of the view" aria-label="Fit map to width">↔</button>
   </div>
   <div class="stage-bar" id="stageBar">
-    <span class="view-switch" id="viewSwitch" role="group" aria-label="Who is looking">
-      <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
-      <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
-    </span>
-    <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
-      <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
-      <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
+    <span class="view-stack">
+      <span class="view-switch" id="viewSwitch" role="group" aria-label="Who is looking">
+        <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
+        <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
+      </span>
+      <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
+        <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
+        <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
+      </span>
     </span>
     <label class="vnote" id="lightBox" title="The light the test token carries. How far the token sees is the Vision range. In a dark place the light decides how well: clear inside its bright circle, dim beyond it (none counts as a candle: 5 ft bright, 10 ft dim). It makes no difference in bright or dim places.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
     <span class="tool-sep" aria-hidden="true"></span>
@@ -260,6 +264,7 @@
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
     brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    tokenImage: store.get('vtt.maptest.tokenImage', '/tokens/human-warrior-stern-a8268.png'),
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
   };
@@ -1056,21 +1061,68 @@
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      ctx.fillStyle = '#1b2230';
-      ctx.strokeStyle = '#f0c048';
-      ctx.lineWidth = 3 * px;
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#f0c048';
-      ctx.font = `700 ${r * 1.1}px "Segoe UI", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(i + 1), t.x, t.y + px);
+      const art = artFor(S.tokenImage);
+      if (art) {
+        ctx.save();
+        ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(art, t.x - r, t.y - r, r * 2, r * 2);
+        ctx.restore();
+        ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3 * px;
+        ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.fillStyle = '#1b2230';
+        ctx.strokeStyle = '#f0c048';
+        ctx.lineWidth = 3 * px;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#f0c048';
+        ctx.font = `700 ${r * 1.1}px "Segoe UI", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), t.x, t.y + px);
+      }
     });
     ctx.restore();
   }
+
+  const tokenArt = new Map();
+  function artFor(url) {
+    if (!url) return null;
+    let img = tokenArt.get(url);
+    if (!img) {
+      img = new Image();
+      img.onload = requestRender;
+      img.onerror = () => { img.failed = true; };
+      img.src = url;
+      tokenArt.set(url, img);
+    }
+    return img.complete && img.naturalWidth && !img.failed ? img : null;
+  }
+
+  async function loadTestTokenImages() {
+    try {
+      const res = await fetch('/tokens/manifest.json');
+      if (!res.ok) return;
+      const data = await res.json();
+      const select = $('#testTokenImage');
+      for (const token of Array.isArray(data.tokens) ? data.tokens : []) {
+        if (!token?.file || !/^[\w-]{1,80}\.(png|webp|jpg)$/i.test(token.file)) continue;
+        const option = document.createElement('option');
+        option.value = '/tokens/' + token.file;
+        option.textContent = String(token.name || token.file).slice(0, 100);
+        select.appendChild(option);
+      }
+      if ([...select.options].some((option) => option.value === S.tokenImage)) select.value = S.tokenImage;
+      else S.tokenImage = '';
+    } catch { /* the numbered marker still works without the token gallery */ }
+  }
+  $('#testTokenImage').addEventListener('change', (e) => {
+    S.tokenImage = e.target.value;
+    store.set('vtt.maptest.tokenImage', S.tokenImage);
+    requestRender();
+  });
 
   /* ---------------- view ---------------- */
   function fitView() {
@@ -2096,6 +2148,7 @@
   new ResizeObserver(() => { resizeCanvas(); }).observe(stage);
   resizeCanvas();
   setTool('start');
+  loadTestTokenImages();
   loadMapList(true);
 
   window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap, revealFog };
