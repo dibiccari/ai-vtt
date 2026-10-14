@@ -444,6 +444,8 @@ test('map sets: a night look is added to a place with its own picture, light and
   assert.equal(r.status, 200, JSON.stringify(r.json));
   assert.deepEqual(r.json.looks.map((l) => l.time), ['day', 'night'], 'a lone main look becomes the day look');
   assert.equal((await s.post('/api/mapsets/' + flagon.guid + '/looks', { time: 'night', picture: pic })).status, 409);
+  assert.equal((await fetch(s.base + '/uploads/' + pic)).status, 200, 'the picture is still served after the refused duplicate');
+  assert.ok((await s.get('/api/mapsets')).json.sets.some((x) => x.id === 'camp' && x.levels[0].looks.some((l) => l.player === pic)), 'the camp keeps its own day picture: a real place is not robbed');
   assert.equal((await s.post('/api/mapsets/' + flagon.guid + '/looks', { time: 'main', picture: pic })).status, 400);
   const sum = (await s.get('/api/mapsets')).json.sets.find((x) => x.guid === flagon.guid);
   assert.deepEqual(sum.times, ['day', 'night']); assert.equal(sum.levels[0].walls, flagon.levels[0].walls, 'the walls are the level\'s, shared by both looks');

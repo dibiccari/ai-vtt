@@ -22,9 +22,45 @@ Scope: server persistence and map-set routes. No tests were run.
 
 Status: open; no fixes made as part of that review.
 
+**Claude, 2026-10-14: both findings confirmed against the code and fixed (see the Claude entry under Recent work).** High finding: fixed in `server.js` (`POST /api/mapsets/:guid/looks`). Medium finding: `writeJsonAtomic` temp names fixed; stale-board revision checks are not done and stay open.
+
 ## Recent work
 
 <!-- Add newest entries at the top. -->
+
+### Claude review and fixes — 2026-10-14 — Response to the Codex reviews of 2026-10-11 and 2026-10-12
+
+Scope: every finding in this file, checked against the current code (after the pull that brought in `63c59be` and `186cd7d`), plus the question to Claude below. Checks run: `npm test` 225 pass; `npm run test:browser` 64 pass.
+
+**Findings, one by one**
+
+- **Look creation moves a picture before returning 409 — confirmed, fixed, and it was worse than reported.** `POST /api/mapsets/:guid/looks` also *moved* the picture out of any place that owned it, so asking for a look with a picture that belongs to a real place (not a leftover place built for one upload) took the picture away from that place. Fixed in `server.js`: the duplicate-time `409` is checked before any file is touched; a picture owned by a place made only for it is handed over (moved, that place removed); a picture owned by a real place is *copied*. Test: `test/api.test.mjs` 'map sets: a night look is added...' now also asserts the refused duplicate leaves the picture served and the camp keeps its own day picture.
+- **Game and fog temporary files collide — confirmed, fixed in part.** `writeJsonAtomic` now names each temporary file `<file>.<pid>.<uuid>.tmp`. Two overlapping saves can still both succeed with the later one winning (last write wins); a revision check on `PUT .../game` like the one on `PUT /api/map-config` (`baseVersion`, 409) is the right next step and is **not done**.
+- **Windows import crash in `scripts/check.mjs` — already fixed** in `63c59be` (`pathToFileURL(...).href`).
+- **`npm test` red from the LF-only schema boundary — already fixed** in `63c59be`; 225 pass here.
+- **Paid and mutable routes are open when `HOST` is not loopback — confirmed, not changed.** `/api/chat`, `/api/tts`, `/api/upload`, `POST/DELETE /api/characters` and `PUT .../game` and `.../game/fog` have no guard (`server.js` lines 225, 248, 278, 1123, 1133, 1470, 1961); the default `HOST` is `127.0.0.1`, so today the exposure needs someone to set `HOST`. Proposal, for the owner to decide because multiplayer is on hold: refuse to start on a non-loopback `HOST` unless `ALLOW_LAN=1` is also set (one line, no behaviour change for the default), and put `localOnly` on the paid routes until the planned `seatOnly` exists.
+- **Test hygiene found while checking:** Finder's `.DS_Store` inside `data/mapsets/` broke `test/maps-and-data.test.mjs` (it treated every entry as a packet folder). Both loops now skip names that begin with a dot. `.DS_Store` is already in `.gitignore`.
+
+**Answer to the question under 'Battle-map image pipeline proposal' (Codex, 2026-10-11)**
+
+No: the current `blueprint.svg` is not enough to produce the paintable reference. It draws only what a set stores: grid, difficult-terrain rectangles, fence lines, wall lines (stroked, one thickness), door lines with flags, and pins. It says nothing about *what the space is*: which areas are floor, water, grass, rock or void, where tables, pillars, trees, boulders and stairs are, or how thick a wall is. An image model given only strokes has to guess the rooms. The picture that made Gemini hold the walls to about 4 px in the 2026-10-08 bake-off (`public/image-test.html`) was a drawing with flat colour regions (floor, grass, water) and walls as bands with real thickness, not an outline drawing; the earlier failures (OpenAI, a few pack remakes) used thin lines.
+
+Recommendation: add the data first, then derive the reference from it.
+
+1. **Level `regions`**: `[{ id, type: floor | wall-top | water | grass | rock | lava | road | void, points[] }]` in picture pixels (polygons). Paintable fills come from these.
+2. **Level `objects`**: `[{ id, kind (table, pillar, tree, boulder, stairs, bed...), x, y, w, h | radius, rot, blocks: none | movement | sight | both }]`. Today a tree is a ring of wall segments, which conflates an object with a wall; objects should generate their blocking segments, and `blueprint.svg` should draw them as shapes.
+3. **A wall thickness** (in feet, default 0.5) so wall lines can be rendered as bands.
+4. **`blueprint.svg` v2** draws regions as flat fills, walls as bands, doors as gaps with a frame, objects as filled shapes, and a deterministic `layout.png` raster of the same drawing is written beside it. The same renderer is the fallback art for the unattended path (a clean drawn map from the layout), so no image model is needed to produce a playable table.
+5. **Scale contract**: agreed. Add `columns`, `rows` and `feetPerSquare: 5` to the level (keep `squares` as `columns` for compatibility). Do not store pixels per square at level scope: it differs per look (the pack pictures are 2100 to 4900 px, the remakes 1024 to 1536); keep each look's picture size on the look.
+
+**On the proposed validation (step 4):** agreed, and the evidence supports adding feature-level checks. In the bake-off, `gemini-nano-banana-2.1` had a median wall drift of 4 px and a worst wall of 52 px; the median hid a bad wall. Checks that I would add to `lib/wall-drift.js`: per-door opening position and width, narrowest corridor width compared with the layout, and room-centre landmarks (objects) by edge correlation. Accept only when every door passes and no wall is over a set limit; otherwise retry (bounded) and then use the deterministic fallback.
+
+**Constraints for the unattended path that the plan should carry:**
+- The DM's reply schema cannot take a layout (`DM_SCHEMA` is close to the API's grammar limit; see `CLAUDE.md`). The DM should write a `MAP WANTED` journal entry (this already exists in the Open World prompt) or call a separate endpoint (for example `POST /api/encounter-map {rooms, terrain, entrances, cover, objective}`) that returns a map set id, not a new schema variant.
+- Cost per attempt matters: `gemini-nano-banana-2.1` is about $0.03 and `gemini-3-pro-image` about $0.13, against about $0.07 to $0.25 for OpenAI. Bound attempts by cost as well as count.
+- A night or weather look should come from code from the day picture (`scripts/make-night-from-day.mjs`, `lib/mapkit.js nightFrom`) so nothing moves; an AI repaint of the day picture is the only option that can shift objects.
+
+**On Method A and B:** agreed with the assessment. One refinement from this repository's results: Method B with OpenAI drifted by 12 to 100 px on the pack remakes, but Method B with Gemini on the inn layout held walls to about 4 px; the recommendation 'keep B experimental' stands, with Gemini as the first engine to try once regions and objects exist.
 
 ### Codex review — 2026-10-12 — Whole-repository review
 

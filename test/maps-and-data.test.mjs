@@ -14,7 +14,7 @@ const uploads = listPictures(ROOT);
 const configs = {};
 for (const f of await readdir(path.join(ROOT, 'data', 'maps'))) if (f.endsWith('.json')) configs[f.slice(0, -5)] = await json('data', 'maps', f);
 // Pictures that belong to a map set (data/mapsets/<guid>.json) take their walls, doors and pins from it: the old per-picture files are no longer read.
-for (const f of await readdir(path.join(ROOT, 'data', 'mapsets'))) {
+for (const f of (await readdir(path.join(ROOT, 'data', 'mapsets'))).filter((n) => !n.startsWith('.'))) {       // Finder leaves .DS_Store files
   const set = await json('data', 'mapsets', f.endsWith('.json') ? f : path.join(f, 'set.json'));
   for (const lv of set.levels || []) for (const look of lv.looks || []) configs[look.player] = { ...(configs[look.player] || {}), ...(lv.squares ? { squares: lv.squares } : {}), walls: lv.walls || [], starts: lv.starts || [], difficult: lv.difficult || [] };
 }
@@ -117,7 +117,7 @@ test('start pins lie inside their picture (image size from the config walls and 
 test('map sets are packets: every set lives in data/mapsets/<guid>/ with its set.json and every picture it names, and no picture is left loose', async () => {
   const dir = path.join(ROOT, 'data', 'mapsets');
   let sets = 0;
-  for (const ent of await readdir(dir, { withFileTypes: true })) {
+  for (const ent of (await readdir(dir, { withFileTypes: true })).filter((e) => !e.name.startsWith('.'))) {
     assert.ok(ent.isDirectory(), `${ent.name}: a flat set file is left over (the server turns it into a packet)`);
     const set = await json('data', 'mapsets', path.join(ent.name, 'set.json'));
     assert.equal(set.id, ent.name, 'the folder is named by the set id');

@@ -29,6 +29,8 @@
 
 - Regional map: show the names of towns, cities and trails (roads) on it (our Sword Coast; public/coast.html already lays names over the picture, the tabletop and Map Test do not).
 
+- Better-looking generated maps: improve the map generation pipeline output (user request, 2026-10-14). Ideas on the table: regions and objects in the set so the layout drawing says what each area is, Gemini as the Method B painter, per-feature validation, a polished deterministic fallback renderer, an outdoor and a dungeon style guide, and a review gallery to compare outputs. See COLLABORATION.md.
+
 ## Characters
 - The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.
 - No way to give a saved character a new spell or weapon except through the DM.

@@ -4,7 +4,7 @@ import multer from 'multer';
 import Anthropic from '@anthropic-ai/sdk';
 import { mkdir, readdir, readFile, writeFile, unlink, rename, stat, copyFile, rm, open } from 'node:fs/promises';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
@@ -568,14 +568,15 @@ app.post('/api/mapsets/:guid/looks', localOnly, asyncRoute(async (req, res) => {
   const inPacket = existsSync(path.join(packetDir(doc.id), picture));
   if (!inPacket && !(await pictureFiles()).includes(picture)) return res.status(404).json({ error: 'That picture is not uploaded.' });
   const level = doc.levels[0];
+  if (level.looks.some((l) => l.time === time)) return res.status(409).json({ error: 'This place already has a ' + time + ' look.' });       // checked before any file is touched
   // A picture that a place of its own was already made for (a new upload is adopted by the next set built) is moved into this packet, and that stray place goes.
   const elsewhere = PACKET_FILES.get(picture);
   if (elsewhere && path.dirname(elsewhere) !== packetDir(doc.id)) {
-    const stray = SETS.index.get(picture)?.set;
-    await rename(elsewhere, path.join(packetDir(doc.id), picture));
-    if (stray && stray.id !== doc.id && stray.levels.every((lv) => lv.looks.every((l) => l.player === picture))) await rm(packetDir(stray.id), { recursive: true, force: true });
+    const owner = SETS.index.get(picture)?.set;
+    const stray = owner && owner.id !== doc.id && owner.levels.every((lv) => lv.looks.every((l) => l.player === picture)) ? owner : null;
+    if (stray) { await rename(elsewhere, path.join(packetDir(doc.id), picture)); await rm(packetDir(stray.id), { recursive: true, force: true }); }       // a place built only for this picture hands it over
+    else await copyFile(elsewhere, path.join(packetDir(doc.id), picture));                                                                               // a real place keeps its own picture: this one gets a copy
   }
-  if (level.looks.some((l) => l.time === time)) return res.status(409).json({ error: 'This place already has a ' + time + ' look.' });
   const first = level.looks[0];
   if (first.time === 'main') { first.time = 'day'; first.id = 'day'; }
   level.looks.push({ id: time, time, player: picture, dm: null, light: ['bright', 'dim', 'dark'].includes(req.body?.light) ? req.body.light : first.light, lights: Array.isArray(req.body?.lights) ? normalizeMapConfig({ lights: req.body.lights }).lights || [] : JSON.parse(JSON.stringify(first.lights || [])), ambient: /^[0-9a-f]{6,8}$/i.test(String(req.body?.ambient ?? '')) ? String(req.body.ambient).toLowerCase() : '', ambience: ['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(req.body?.ambience) ? req.body.ambience : first.ambience || '', mood: first.mood || '' });
@@ -1101,7 +1102,7 @@ app.put('/api/campaigns/:id/safety', localOnly, asyncRoute(async (req, res) => {
 const gamePaths = (id) => ({ game: path.join(CAMPAIGNS_DIR, id, 'game.json'), fog: path.join(CAMPAIGNS_DIR, id, 'fog.json') });
 async function readJsonOr(file, fallback) { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } }
 async function writeJsonAtomic(file, value) {
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;       // one name per write, so overlapping saves cannot trample each other's temporary file
   await writeFile(tmp, JSON.stringify(value));
   await rename(tmp, file);
 }
