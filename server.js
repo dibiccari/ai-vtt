@@ -8,6 +8,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
+import { levelUpOptions, applyLevelUp } from './lib/levelup.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
@@ -122,6 +123,8 @@ function normalizeCharacter(body) {
     ...(Array.isArray(body.inventory) ? { inventory: normalizeInventory(body.inventory) } : {}),
     ...(body.coins && typeof body.coins === 'object' ? { coins: normalizeCoins(body.coins) } : {}),
     ...(expertise.length ? { expertise } : {}),
+    ...(String(body.subclass ?? '').trim() ? { subclass: String(body.subclass).trim().slice(0, 60) } : {}),
+    ...(Array.isArray(body.feats) && body.feats.length ? { feats: body.feats.map((f) => String(f).slice(0, 60)).slice(0, 20) } : {}),
     ...(sheetLog.length ? { sheetLog } : {})
   };
 }
@@ -965,6 +968,21 @@ app.post('/api/party/exhaustion', trackRoute((b) => ({ op: 'exhaustion', target:
 app.post('/api/party/resource', trackRoute((b) => ({ op: 'resource', target: b.characterId, name: b.name, delta: b.delta, max: b.max, recharge: b.recharge })));
 app.post('/api/party/supplies', trackRoute((b) => ({ op: 'supplies', target: b.characterId, kind: b.kind, days: b.days })));
 app.post('/api/party/xp', trackRoute((b) => ({ op: 'xp', target: b.characterId || 'party', amount: b.amount, split: b.split })));
+// Level up (lib/levelup.js): what the next level gives and which choices there are, then apply the player's choices through the sheet editor (logged, with Undo).
+app.get('/api/party/levelup/:id', asyncRoute(async (req, res) => {
+  const c = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'No such character' });
+  res.json(levelUpOptions(c));
+}));
+app.post('/api/party/levelup/:id', localOnly, asyncRoute(async (req, res) => {
+  const c = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: 'No such character' });
+  const out = applyLevelUp(c, req.body || {});
+  if (!out.ok) return res.status(400).json({ error: out.error });
+  const saved = normalizeCharacter(out.character);
+  await saveCharacter(saved);
+  res.json({ character: saved, notes: out.notes, level: out.level });
+}));
 app.post('/api/party/clock', trackRoute((b) => (b.set ? { op: 'setTime', ...b.set } : { op: 'time', minutes: b.minutes })));
 // XP for defeated monsters: { monsters: ['1/4', {cr:'1', count:2}], partySize? } -> { total, each }
 app.post('/api/party/xp-split', asyncRoute(async (req, res) => {

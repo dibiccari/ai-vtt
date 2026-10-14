@@ -32,3 +32,23 @@ test('a pop-out shows one character, with no navigation bar and no stash', opts,
   const out = await page.eval(`(() => ({ cards: document.querySelectorAll('.card').length, name: document.querySelector('.card h3').textContent, nav: !!document.querySelector('nav, #navBar, .topnav'), pop: !!document.querySelector('details.card .head button'), folds: document.querySelectorAll('details').length, emptyBars: [...document.querySelectorAll('#status, #clock')].filter((e) => e.offsetHeight > 0).length }))()`);
   assert.equal(out.cards, 1); assert.equal(out.name, 'Astarion'); assert.equal(out.nav, false); assert.equal(out.pop, false); assert.equal(out.folds, 0); assert.equal(out.emptyBars, 0);
 });
+
+test('the level-up wizard walks the steps and levels the character', opts, async () => {
+  await page.goto(`${server.base}/party.html?embed=1&character=astarion`);
+  await page.waitFor('document.querySelector(".card.solo")');
+  await page.eval(`[...document.querySelectorAll('button')].find((b) => /Level up/.test(b.textContent)).click()`);
+  await page.waitFor('document.querySelector("dialog.wiz[open]")');
+  const steps = await page.eval(`[...document.querySelectorAll('dialog.wiz .steps span')].map((s) => s.textContent)`);
+  assert.deepEqual(steps, ['1. Hit points', '2. New features', '3. Review']);
+  const feature = await page.eval(`(document.querySelector('dialog.wiz') && (document.querySelector('dialog.wiz .body').textContent))`);
+  assert.match(feature, /Hit die d8/);
+  const click = (label) => page.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === ${JSON.stringify(label)}).click()`);
+  await click('Next');
+  assert.match(await page.eval(`document.querySelector('dialog.wiz .body').textContent`), /Cunning Action/);
+  await click('Next');
+  assert.match(await page.eval(`document.querySelector('dialog.wiz .body').textContent`), /becomes a level 2 Rogue/);
+  await click('Level up');
+  await page.waitFor('!document.querySelector("dialog.wiz")');
+  const res = await page.eval(`fetch('/api/party').then((r) => r.json()).then((d) => d.characters.find((c) => c.id === 'astarion').level)`);
+  assert.equal(res, 2);
+});
