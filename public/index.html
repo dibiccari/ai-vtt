@@ -1509,6 +1509,21 @@ async function openShopFor(characterId, shop) {
     InventoryWizard.open({
       character, shop,
       onError: (m) => toast(m, 'error'),
+      // The shopkeeper is a small agent of its own (POST /api/merchant): it greets, answers, haggles with a real Persuasion roll and may move the price; the DM stays out of it until the shop closes.
+      talk: (t) => jsonPost('/api/merchant', { buyerId: characterId, merchant: shop.merchant, groups: shop.groups, markup: t.markup, base: t.base, message: t.message, opening: t.opening, history: t.history, place: state.map && state.map.name || '' }),
+      onSay: (r) => {
+        const lines = [{ speaker: shop.merchant, voice: r.voice, text: r.line }];
+        const el = addChat('assistant', `🛒 ${shop.merchant}: ${r.line}`, lines);
+        for (const roll of r.rolls || []) addChat('system', '🎲 ' + roll);
+        try { voice.speak(lines, el); } catch (e) { /* no voice */ }
+      },
+      onClose: (info) => {
+        const bits = [`${character.name} left ${shop.merchant}'s shop.`];
+        if (info.summary) bits.push(`The merchant's account: ${info.summary}`);
+        if (info.markup !== info.base) bits.push(`The price ended at ${info.markup}% of the book price (you set ${info.base}%).`);
+        state.pendingNotes.push(bits.join(' '));
+        addChat('system', `🛒 ${character.name} leaves ${shop.merchant}'s shop`);
+      },
       onDone: async (out) => {
         const what = (out.notes || []).join('; ') || 'no change';
         addChat('system', `↳ ${character.name} shopped at ${shop.merchant}: ${what}`);

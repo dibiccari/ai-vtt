@@ -1092,17 +1092,23 @@ test('shop: the DM opens a merchant for a character; the dialog shows that stock
   try {
   await shopPage.goto(`${server.base}/?nosave=1`);
   await shopPage.waitFor('window.vtt && vtt.state && vtt.state.tokens.length');
+  await shopPage.eval(`(() => { const real = window.fetch.bind(window); window.fetch = (u, o) => { if (!String(u).includes('/api/merchant')) return real(u, o); const b = JSON.parse(o.body); const r = b.opening ? { line: 'Welcome to the forge.', voice: 'gruff', rolls: [], markup: 0, done: false, summary: 'Greeted.' } : { line: 'Fine, a little off.', voice: 'gruff', rolls: ['Persuasion: d20 (15) + 2 = 17 vs DC 13: success'], markup: 150, done: false, summary: 'Haggled the price down to 150 percent.' }; return Promise.resolve(new Response(JSON.stringify(r), { status: 200, headers: { 'Content-Type': 'application/json' } })); }; })()`);
   await shopPage.eval(`(async () => { const s = vtt.state; s.pendingNotes = []; const party = await (await fetch('/api/party')).json(); const hero = s.tokens.find((t) => t.isPC); hero.characterId = party.characters[0].id; await vtt.applyMapUpdates([{ type: 'openShop', merchant: 'Hurdred the smith', groups: ['Weapon'], markup: 200, buyer: hero.id }]); })()`);
   await shopPage.waitFor('document.querySelector("dialog.wiz[open] .shoplist table") || vtt.state.pendingNotes.length', 15000).catch(() => {});
   assert.ok(await shopPage.eval(`!!document.querySelector('dialog.wiz[open] .shoplist table')`), 'the shop opened: ' + await shopPage.eval(`JSON.stringify({ notes: vtt.state.pendingNotes, watch: window.WATCH, chat: [...document.querySelectorAll('#chat .msg, #chatLog > *')].slice(-2).map((e) => e.textContent) })`));
   const seen = await shopPage.eval(`(() => { const rows = [...document.querySelectorAll('dialog.wiz .shoplist tr')].slice(1); return { title: document.querySelector('dialog.wiz h2').textContent, groups: rows.every((r) => /Melee|Ranged/.test(r.textContent)), dagger: (rows.find((r) => /^Dagger/.test(r.textContent)) || { textContent: '' }).textContent } })()`);
   assert.match(seen.title, / at Hurdred the smith/); assert.equal(seen.groups, true, 'only weapons are for sale'); assert.match(seen.dagger, /4 gp/, 'a dagger is 2 gp in the SRD, 200 percent here');
+  await shopPage.waitFor(`/Welcome to the forge/.test(document.querySelector('dialog.wiz .talkbox').textContent)`);
+  await shopPage.eval(`(() => { const i = document.querySelector('dialog.wiz .talkbox input'); i.value = 'Any discount for a hero?'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
+  await shopPage.waitFor(`/Fine, a little off/.test(document.querySelector('dialog.wiz .talkbox').textContent)`);
+  assert.match(await shopPage.eval(`document.querySelector('dialog.wiz .talkbox').textContent`), /Persuasion: d20/);
+  assert.match(await shopPage.eval(`[...document.querySelectorAll('dialog.wiz .shoplist tr')].find((r) => /^Dagger/.test(r.textContent)).textContent`), /3 gp/, 'the merchant moved the price from 200 to 150 percent');
   await shopPage.eval(`[...document.querySelectorAll('dialog.wiz .shoplist tr')].find((r) => /^Dagger/.test(r.textContent)).querySelector('button').click()`);
   await shopPage.waitFor(`document.querySelector('dialog.wiz footer span').textContent.length > 0`); assert.match(await shopPage.eval(`document.querySelector('dialog.wiz footer span').textContent`), /Bought 1 × Dagger/);
   await shopPage.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === 'Review changes').click()`);
   await shopPage.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === 'Confirm').click()`);
   await shopPage.waitFor('!document.querySelector("dialog.wiz")');
   const note = await shopPage.eval(`vtt.state.pendingNotes.join(' | ')`);
-  assert.match(note, /finished shopping at Hurdred the smith/);
+  assert.match(note, /finished shopping at Hurdred the smith/); assert.match(note, /left Hurdred the smith's shop/); assert.match(note, /Haggled the price down/); assert.match(note, /150% of the book price \(you set 200%\)/);
   } finally { await shopPage.close(); }
 });

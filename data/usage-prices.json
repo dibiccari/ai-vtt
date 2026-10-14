@@ -22,5 +22,9 @@
   "claude-haiku-4-5": [
     1,
     5
+  ],
+  "claude-haiku-5-5": [
+    1,
+    5
   ]
 }

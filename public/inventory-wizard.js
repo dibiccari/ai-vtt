@@ -18,6 +18,7 @@
     + ' .wiz .live { margin-top:10px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel2); font-size:12px; } .wiz .live b { color:var(--gold); } .wiz .live .warn { color:#e0a060; } .wiz .live .bad { color:var(--danger); }'
     + ' .wiz .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; } .wiz .coinrow { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:6px 0; } .wiz .coinrow input { width:80px; }'
     + ' .wiz .shoplist { max-height:300px; overflow:auto; } .wiz .fx { color:var(--gold); font-size:12px; } .wiz .diff li { margin:3px 0; } .wiz .diff .add { color:var(--ok); } .wiz .diff .del { color:var(--danger); }';
+  style.textContent += ' .wiz .talkbox { border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin-bottom:8px; background:var(--panel2); } .wiz .talkline { margin:3px 0; font-size:13px; }';
   document.head.appendChild(style);
 
   function coinText(cp) { var gp = Math.floor(cp / 100), sp = Math.floor((cp % 100) / 10), c = cp % 10; return [gp && gp + ' gp', sp && sp + ' sp', c && c + ' cp'].filter(Boolean).join(' ') || '0 gp'; }
@@ -33,8 +34,11 @@
     if (sh) {
       var groups = (sh.groups || []).map(function (g) { return g.toLowerCase(); });
       shop = shop.filter(function (i) { return groups.length ? groups.indexOf(i.group.toLowerCase()) >= 0 : i.group !== 'Magic items'; });
-      shop.forEach(function (i) { if (i.cp) { i.cp = Math.ceil(i.cp * (sh.markup || 100) / 100); i.cost = coinText(i.cp); } });
+      sh.base = sh.markup || 100;
     }
+    function priceAt(m) { shop.forEach(function (i) { if (i.base) { i.cp = Math.ceil(i.base * m / 100); i.cost = coinText(i.cp); } }); }
+    if (sh) priceAt(sh.markup || 100);
+    var talkHist = [], talkLog = [], merchantSummary = '', merchantDone = false, talking = false, closedOnce = false;
     var byIndex = {}, byName = {};
     shop.forEach(function (i) { byIndex[i.index] = i; byName[norm(i.name)] = i; });
     var known = function (it) { return (it.srd && byIndex[it.srd]) || byName[norm(it.name)] || null; };
@@ -59,9 +63,12 @@
     liveBox.style.margin = '0 18px 8px';
     dlg.append(head, body, liveBox, foot);
     document.body.appendChild(dlg);
-    var close = function () { dlg.close(); dlg.remove(); };
+    var close = function () {
+      dlg.close(); dlg.remove();
+      if (sh && cfg.onClose && !closedOnce) { closedOnce = true; cfg.onClose({ summary: merchantSummary, markup: sh.markup, base: sh.base, talked: talkHist.length > 0 }); }
+    };
     cancel.addEventListener('click', close);
-    dlg.addEventListener('cancel', function () { dlg.remove(); });
+    dlg.addEventListener('cancel', function () { dlg.remove(); if (sh && cfg.onClose && !closedOnce) { closedOnce = true; cfg.onClose({ summary: merchantSummary, markup: sh.markup, base: sh.base, talked: talkHist.length > 0 }); } });
 
     function say(t) { status.textContent = t || ''; }
     function changed() { schedulePreview(); drawLive(); }
@@ -110,7 +117,40 @@
       draw(); changed();
     }
 
+    async function say2(text, opening) {
+      if (!cfg.talk || talking || merchantDone) return;
+      talking = true; drawTalk();
+      try {
+        if (!opening) { talkHist.push({ role: 'player', text: text }); talkLog.push({ who: c.name, text: text }); }
+        var r = await cfg.talk({ message: text, opening: !!opening, history: talkHist.slice(0, -1 * (opening ? 0 : 1)), merchant: sh.merchant, groups: sh.groups, markup: sh.markup, base: sh.base });
+        talkHist.push({ role: 'merchant', text: r.line }); talkLog.push({ who: sh.merchant, text: r.line, rolls: r.rolls });
+        merchantSummary = r.summary || merchantSummary;
+        if (r.markup) { sh.markup = r.markup; priceAt(r.markup); }
+        if (r.done) merchantDone = true;
+        if (cfg.onSay) cfg.onSay(r, sh);
+      } catch (err) { talkLog.push({ who: '', text: '(' + err.message + ')' }); }
+      talking = false; if (tab === 'Shop') draw(); else drawTalk();
+    }
+    var talkBox = el('div', 'talkbox');
+    function drawTalk() {
+      talkBox.innerHTML = '';
+      if (!sh || !cfg.talk) return;
+      talkLog.slice(-5).forEach(function (m) {
+        var d = el('div', 'talkline'); if (m.who) d.appendChild(el('b', '', m.who + ': ')); d.appendChild(document.createTextNode(m.text));
+        (m.rolls || []).forEach(function (r) { d.appendChild(el('div', 'meta', '🎲 ' + r)); });
+        talkBox.appendChild(d);
+      });
+      if (talking) talkBox.appendChild(el('div', 'meta', sh.merchant + ' is thinking…'));
+      if (merchantDone) { talkBox.appendChild(el('div', 'meta', sh.merchant + ' has ended the conversation.')); return; }
+      var row = el('div', 'coinrow'); var inp = el('input'); inp.placeholder = 'Say something to ' + sh.merchant + ' (ask, haggle…)'; inp.style.flex = '1'; inp.style.minWidth = '200px'; inp.disabled = talking;
+      var go = el('button', 'small', 'Say'); go.disabled = talking;
+      var send = function () { var t = inp.value.trim(); if (t) { inp.value = ''; say2(t, false); } };
+      go.addEventListener('click', send); inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+      row.append(inp, go); talkBox.appendChild(row);
+      if (!talking) setTimeout(function () { try { inp.focus(); } catch (e) { /* closed */ } }, 0);
+    }
     function drawShop() {
+      if (sh && cfg.talk) { body.appendChild(talkBox); drawTalk(); }
       var fl = el('div', 'filters');
       var q = el('input'); q.placeholder = 'Search the SRD…'; q.value = f.q; q.style.width = '220px';
       var g = el('select'); [''].concat(Object.keys(shop.reduce(function (m, i) { m[i.group] = 1; return m; }, {}))).forEach(function (n) { var o = el('option', '', n || 'Everything'); o.value = n; g.appendChild(o); }); g.value = f.group;
@@ -125,7 +165,7 @@
           var tr = el('tr'); tr.appendChild(el('td', '', i.name)); tr.appendChild(el('td', 'meta', i.detail)); tr.appendChild(el('td', 'num', i.cost || '—')); tr.appendChild(el('td', 'num', i.weight ? String(i.weight) : ''));
           var qty = el('input'); qty.type = 'number'; qty.min = '1'; qty.value = '1'; qty.style.width = '56px'; var qc = el('td'); qc.appendChild(qty); tr.appendChild(qc);
           var act = el('td'); var buy = el('button', 'small', 'Buy'), take = el('button', 'small', 'Take'); take.title = 'Add it without paying (loot, a gift, starting gear)';
-          buy.disabled = !i.cp; buy.addEventListener('click', function () { takeFromShop(i, Math.max(1, Number(qty.value) || 1), true); });
+          buy.disabled = !i.cp || merchantDone; buy.addEventListener('click', function () { takeFromShop(i, Math.max(1, Number(qty.value) || 1), true); });
           take.addEventListener('click', function () { takeFromShop(i, Math.max(1, Number(qty.value) || 1), false); });
           act.style.whiteSpace = 'nowrap'; act.append(buy, document.createTextNode(' '), take); tr.appendChild(act); t.appendChild(tr);
         });
@@ -239,6 +279,7 @@
     });
     draw(); schedulePreview();
     dlg.showModal();
+    if (sh && cfg.talk) say2('', true);
   }
   window.InventoryWizard = { open: open };
 })();
