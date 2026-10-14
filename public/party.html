@@ -72,7 +72,7 @@
   details.card[open] > summary { margin-bottom:10px; }
   details.sec { border-top:1px solid #1c2330; margin-top:8px; padding-top:6px; }
   details.sec > summary { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:2px 0; }
-  .tools { display:flex; gap:8px; align-items:center; margin:0 0 10px; flex-wrap:wrap; }
+  .head .small { margin-left:auto; }
 </style>
 </head>
 <body>
@@ -81,7 +81,6 @@
   <p class="lead">Gear, coins, attunement and the shared stash for <b id="campName">the active campaign</b>. Magic items change the numbers below (Ring of Protection, Gauntlets of Ogre Power), and the AI Dungeon Master reads and updates all of this as you play. Hover a number to see where it comes from.</p>
   <div class="status" id="status" role="status"></div>
   <div class="clock" id="clock"></div>
-  <div class="tools" id="tools"><button class="small" id="expandAll">Expand all</button><button class="small" id="collapseAll">Collapse all</button><button class="small" id="popOut" title="Open the party in its own window, for a second screen">Pop out ↗</button></div>
   <div class="grid" id="grid"></div>
   <datalist id="srdItems"></datalist>
 </div>
@@ -94,6 +93,7 @@
   var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   var COINS = ['cp', 'sp', 'ep', 'gp', 'pp'];
   var EMBED = document.documentElement.classList.contains('embed');
+  var ONLY = (new URLSearchParams(location.search)).get('character') || '';   // a pop-out window shows one character only
   var state = { clock: null, campaign: '', characters: [], stash: { items: [], coins: {} }, maxAttuned: 3 };
 
   function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
@@ -360,7 +360,13 @@
     who.appendChild(el('div', 'meta', c.class + ' ' + c.level + ' · HP ' + c.hp + '/' + c.effective.maxHp + (c.effective.maxHp !== c.maxHp ? ' (exhaustion halves ' + c.maxHp + ')' : '')));
     var bar = el('div', 'bar'); var fill = el('i'); fill.style.width = Math.max(0, Math.min(100, c.effective.maxHp ? c.hp / c.effective.maxHp * 100 : 0)) + '%'; bar.appendChild(fill); who.appendChild(bar);
     head.appendChild(who);
-    var card = accordion(c.id + '.card', 'card', head, !EMBED);
+    if (!ONLY) {
+      var pop = el('button', 'small', '↗'); pop.title = 'Open ' + c.name + ' in their own window';
+      pop.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); window.open('/party.html?embed=1&character=' + encodeURIComponent(c.id), 'vttParty-' + c.id, 'popup,width=640,height=900'); });
+      head.appendChild(pop);
+    }
+    var card = accordion(c.id + '.card', 'card', head, !EMBED || !!ONLY);
+    if (ONLY) card.open = true;                                             // a pop-out is never folded up
     card.classList.add('card');
     var sumStats = [], sumRules = [], sumInv = [], sumCoins = [];
 
@@ -453,10 +459,10 @@
   function render() {
     var grid = $('#grid');
     grid.innerHTML = '';
-    clockBar();
+    if (ONLY) $('#clock').hidden = true; else clockBar();
     if (!state.characters.length) { grid.appendChild(el('div', 'empty', 'No characters yet. Create them on the Character Sheets page.')); }
-    state.characters.forEach(function (c) { grid.appendChild(characterCard(c)); });
-    grid.appendChild(stashCard());
+    state.characters.forEach(function (c) { if (!ONLY || c.id === ONLY) grid.appendChild(characterCard(c)); });
+    if (!ONLY) grid.appendChild(stashCard());
   }
 
   async function load() {
@@ -469,14 +475,6 @@
     $('#campName').textContent = data.campaign;
     render();
   }
-
-  function setAll(open) {
-    document.querySelectorAll('details.acc').forEach(function (d) { d.open = open; accSave(d.dataset.key, open); });
-  }
-  $('#expandAll').addEventListener('click', function () { setAll(true); });
-  $('#collapseAll').addEventListener('click', function () { setAll(false); });
-  $('#popOut').addEventListener('click', function () { window.open('/party.html', 'vttParty', 'popup,width=760,height=900'); });
-  if (!EMBED) $('#popOut').hidden = true;
 
   load().catch(function (err) { setStatus(err.message, 'err'); });
   window.addEventListener('focus', function () { load().catch(function () { /* keep what is shown */ }); });
