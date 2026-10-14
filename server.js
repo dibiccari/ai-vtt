@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
 import { levelUpOptions, applyLevelUp } from './lib/levelup.js';
+import { schemaForMode, modeOf, modeNote } from './lib/dm-schema-modes.js';
 import { shopCatalog, payCoins, tidyCoins, sheetEditsForGear, armorClass, srdFor, costInCp, totalCp, coinText } from './lib/loadout.js';
 import { applyUpdate } from './lib/sheet-edit.js';
 import { migrateCharacterIds, readAliases, canonicalId, newCharacterId } from './lib/character-ids.js';
@@ -2141,11 +2142,12 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         // The journal changes every few turns, so it comes after the cached campaign text.
         { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
         { type: 'text', text: settingsText },
+        { type: 'text', text: modeNote(modeOf(state.combat)) },
         ...(monstersText ? [{ type: 'text', text: monstersText }] : []),
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       messages: buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl)),
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema: DM_SCHEMA } },
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, modeOf(state.combat)) } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default'

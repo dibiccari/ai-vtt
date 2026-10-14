@@ -18,11 +18,17 @@ const end = src.indexOf('\n};\n', b) + 4;
 const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine'];
 const schema = new Function('SKILLS', 'CATEGORIES', 'STATUSES', 'EFFECT_KINDS', 'VOICES', src.slice(a, end) + '\nreturn DM_SCHEMA;')(SKILLS, CATEGORIES, STATUSES, EFFECT_KINDS, VOICES);
 const variants = schema.properties.mapUpdates.items.anyOf.length;
+const { schemaForMode } = await import('../lib/dm-schema-modes.js');
 
-try {
-  await new Anthropic().beta.messages.create({ model: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5', max_tokens: 20, messages: [{ role: 'user', content: 'Say hi.' }], output_config: { effort: 'low', format: { type: 'json_schema', schema } } });
-  console.log(`OK   the DM reply schema is accepted (${variants} update variants)`);
-} catch (err) {
-  console.error(`FAIL the DM reply schema was refused (${variants} update variants): ${String(err.message).slice(0, 200)}`);
-  process.exit(1);
+// The DM gets a fight form or a scene form (lib/dm-schema-modes.js); the full form is only a source, but it is probed too so we know how much room is left.
+let failed = false;
+for (const [label, sch] of [['scene form', schemaForMode(schema, 'scene')], ['fight form', schemaForMode(schema, 'combat')], ['full schema (not sent)', schema]]) {
+  try {
+    await new Anthropic().beta.messages.create({ model: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5', max_tokens: 20, messages: [{ role: 'user', content: 'Say hi.' }], output_config: { effort: 'low', format: { type: 'json_schema', schema: sch } } });
+    console.log(`OK   ${label} accepted (${sch.properties.mapUpdates.items.anyOf.length} update variants)`);
+  } catch (err) {
+    console.error(`FAIL ${label} refused: ${String(err.message).slice(0, 200)}`);
+    if (label !== 'full schema (not sent)') failed = true;
+  }
 }
+if (failed) process.exit(1);
