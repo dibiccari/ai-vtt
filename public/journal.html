@@ -32,6 +32,7 @@
   .tag.open { color:var(--gold); border-color:var(--gold); } .tag.done { color:var(--ok); border-color:var(--ok); }
   .when { color:var(--muted); font-size:12px; }
   .recap { white-space:pre-wrap; font-size:15px; line-height:1.6; }
+  details.completed { margin-top:14px; } details.completed > summary { cursor:pointer; color:var(--muted); font-weight:600; padding:6px 0; } details.completed .entry { opacity:.75; }
   .status { color:var(--muted); min-height:20px; margin-top:8px; }
   .status.err { color:var(--danger); } .status.ok { color:var(--ok); }
   .empty { color:var(--muted); padding:8px 0; }
@@ -65,7 +66,7 @@
     ['place', 'Places'], ['loot', 'Loot'], ['promise', 'Promises']
   ];
   var $ = function (s) { return document.querySelector(s); };
-  var state = { campaign: '', name: '', entries: [], filter: 'all' };
+  var state = { campaign: '', name: '', entries: [], filter: 'all', showDone: false };
 
   function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
 
@@ -102,7 +103,9 @@
       list.appendChild(empty);
       return;
     }
-    shown.forEach(function (e) {
+    var active = shown.filter(function (e) { return e.status !== 'done'; });
+    var finished = shown.filter(function (e) { return e.status === 'done'; });
+    function drawEntry(e, into) {
       var row = document.createElement('div');
       row.className = 'entry';
       var body = document.createElement('div');
@@ -130,8 +133,21 @@
         } catch (err) { setStatus(err.message, 'err'); await load(); }
       });
       row.append(body, del);
-      list.appendChild(row);
-    });
+      into.appendChild(row);
+    }
+    active.forEach(function (e) { drawEntry(e, list); });
+    if (!active.length) { var none = document.createElement('div'); none.className = 'empty'; none.textContent = 'Nothing active here.'; list.appendChild(none); }
+    if (finished.length) {
+      var done = document.createElement('details');
+      done.className = 'completed';
+      done.open = state.showDone;
+      done.addEventListener('toggle', function () { state.showDone = done.open; });
+      var sum = document.createElement('summary');
+      sum.textContent = 'Completed (' + finished.length + ')';
+      done.appendChild(sum);
+      finished.forEach(function (e) { drawEntry(e, done); });
+      list.appendChild(done);
+    }
   }
 
   async function load() {
