@@ -1124,6 +1124,15 @@ test('place pins: players see the named places on a regional map, with a Show pl
     out.stored = localStorage.getItem('vtt.showPlaces');
     cb.checked = true; cb.dispatchEvent(new Event('change'));
     out.storedAgain = localStorage.getItem('vtt.showPlaces');
+    out.knownAtStart = (() => { const f = vtt.state.knownPlaces[vtt.state.map.url] || []; return vtt.state.placePins.filter((p) => p.known || f.includes(p.name)).map((p) => p.name); })();
+    vtt.state.pendingNotes = [];
+    await vtt.applyMapUpdates([{ type: 'discoverPlace', place: 'Thundertree', on: true }]);
+    out.afterDiscover = vtt.state.placePins.filter((p) => p.known || (vtt.state.knownPlaces[vtt.state.map.url] || []).includes(p.name)).map((p) => p.name);
+    out.chat = [...document.querySelectorAll('#chatLog > *')].slice(-2).map((e) => e.textContent).join(' ');
+    await vtt.applyMapUpdates([{ type: 'discoverPlace', place: 'thundertree', on: false }]);
+    out.afterForget = vtt.state.placePins.filter((p) => p.known || (vtt.state.knownPlaces[vtt.state.map.url] || []).includes(p.name)).map((p) => p.name);
+    await vtt.applyMapUpdates([{ type: 'discoverPlace', place: 'Atlantis', on: true }]);
+    out.badNote = vtt.state.pendingNotes.join(' ');
     out.noStartOrArea = vtt.state.placePins.every((p) => p.name !== 'start' && !/^area-/.test(p.name));
     await vtt.travelTo({ mapUrl: '/uploads/vtt-goblin-ambush.png', mapName: 'Goblin Ambush', kind: 'battle', col: 5, row: 5 });
     await new Promise((r) => setTimeout(r, 400));
@@ -1131,6 +1140,10 @@ test('place pins: players see the named places on a regional map, with a Show pl
     return out;
   })()`);
   assert.ok(r.places >= 10, 'the Sword Coast has its named places: ' + r.names.join(', ')); assert.equal(r.boxShown, true); assert.equal(r.on, true);
+  assert.deepEqual(r.knownAtStart.sort(), ['neverwinter', 'phandalin'], 'only the places known from the start are shown at first');
+  assert.deepEqual(r.afterDiscover.sort(), ['neverwinter', 'phandalin', 'thundertree'], 'a place the DM has the party discover appears');
+  assert.ok(/New place on the map: Thundertree/.test(r.chat)); assert.deepEqual(r.afterForget.sort(), ['neverwinter', 'phandalin']);
+  assert.match(r.badNote, /no place called "Atlantis"/);
   assert.equal(r.stored, '0'); assert.equal(r.storedAgain, '1'); assert.equal(r.noStartOrArea, true);
   assert.equal(r.battleBoxShown, false, 'on a battle map the pins are the DM\'s notes and there is no switch');
 });

@@ -630,7 +630,7 @@
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
     if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }
-    else if (PlacePins.appliesTo(S.kind) && PlacePins.enabled()) PlacePins.draw(ctx, S.starts.filter((p) => PlacePins.isPlace(p)), px);       // Player view: the same named places the tabletop shows                 // the players never see the terrain shading, the pins or the start area
+    else if (PlacePins.appliesTo(S.kind) && PlacePins.enabled()) PlacePins.draw(ctx, S.starts.filter((p) => PlacePins.isPlace(p) && PlacePins.knownTo(p, [])), px);       // only the places known from the start: discoveries belong to a campaign's game       // Player view: the same named places the tabletop shows                 // the players never see the terrain shading, the pins or the start area
     if (!noFog()) drawTokens(px);
   }
 
@@ -911,7 +911,7 @@
         (clash.length ? '\nThese will be replaced there: ' + clash.join(', ') + '.' : '') +
         (resized ? '\nThat map is a different size, so positions will be scaled to fit.' : '');
       if (!confirm(msg)) return;
-      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.radius ? { radius: x.radius } : {}), ...(x.dmOnly ? { dmOnly: true } : {}), ...(x.desc ? { desc: x.desc } : {}) }));
+      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.radius ? { radius: x.radius } : {}), ...(x.dmOnly ? { dmOnly: true } : {}), ...(x.known ? { known: true } : {}), ...(x.desc ? { desc: x.desc } : {}) }));
       const merged = existing.filter((e) => !copied.some((c) => c.name === e.name)).concat(copied);
       const body = {
         squares: cfg.squares > 0 ? cfg.squares : Math.max(5, Math.round(img.naturalWidth / 50)),
@@ -1843,6 +1843,7 @@
   pinCard.hidden = true;
   pinCard.innerHTML = '<label>Name <input type="text" id="pcName" maxlength="40" spellcheck="false"></label>' +
     '<label>Note for the DM <input type="text" id="pcNote" maxlength="300" spellcheck="false" placeholder="e.g. the cellar door at the back"></label>' +
+    '<label id="pcKnownRow" class="check" title="Players see this place from the start on a town or regional map. Unticked: the DM has the party discover it in play."><input type="checkbox" id="pcKnown"> Known to players from the start</label>' +
     '<label id="pcDmOnlyRow" class="check" title="On a town or regional map the players see the named places; tick this to keep this one to yourself"><input type="checkbox" id="pcDmOnly"> Hide from players</label>' +
     '<label id="pcRadiusRow">Arrival circle (squares) <input type="number" id="pcRadius" min="0" max="12" step="0.5"></label>' +
     '<details id="pcGuide" hidden><summary>Description</summary><div id="pcGuideText"></div></details>' +
@@ -1863,6 +1864,7 @@
     if (pin) {
       $('#pcName').value = pin.name;
       $('#pcNote').value = pin.desc || '';
+      $('#pcKnown').checked = pin.known === true; $('#pcKnownRow').hidden = pin.name === 'start' || /^area-\d+/.test(pin.name);
       $('#pcDmOnly').checked = pin.dmOnly === true; $('#pcDmOnlyRow').hidden = pin.name === 'start' || /^area-\d+/.test(pin.name);
       $('#pcStart').hidden = pin.name === 'start';
       $('#pcRadius').value = pin.radius || 0;
@@ -1900,6 +1902,7 @@
     if (S.selected.name === 'start') { parkAtStart(); revealFog(); }
     save(); requestRender();
   });
+  $('#pcKnown').addEventListener('change', () => { if (S.selected) { if ($('#pcKnown').checked) S.selected.known = true; else delete S.selected.known; save(); requestRender(); } });
   $('#pcDmOnly').addEventListener('change', () => { if (S.selected) { if ($('#pcDmOnly').checked) S.selected.dmOnly = true; else delete S.selected.dmOnly; save(); requestRender(); } });
   $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $("#pcNote").value.slice(0, 300); save(); renderStartList(); } });
   $('#pcStart').addEventListener('click', () => {

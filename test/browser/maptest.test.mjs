@@ -436,6 +436,7 @@ test('Show places: in the Player view of a regional map the named places are dra
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     localStorage.removeItem('vtt.showPlaces');
     const S = window.mapTest.state, out = {};
+    S.starts.forEach((p) => { if (PlacePins.isPlace(p)) p.known = true; });          // the places the players know from the start
     let drawn = 0; const real = PlacePins.draw; PlacePins.draw = (ctx, pins, px) => { drawn = pins.length; return real(ctx, pins, px); };
     const vis = () => { const e = document.querySelector('#placesRow'); return !e.hidden && e.offsetParent !== null; };
     out.kind = S.kind; out.dmSwitch = vis();

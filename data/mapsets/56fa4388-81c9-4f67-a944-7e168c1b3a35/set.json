@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 7,
+  "version": 8,
   "id": "56fa4388-81c9-4f67-a944-7e168c1b3a35",
   "slug": "dnd-sword-coast-ours",
   "name": "Sword Coast",
@@ -30,14 +30,16 @@
           "x": 289,
           "y": 875,
           "desc": "The great walled port city on the High Road, at the mouth of the Neverwinter River.",
-          "label": "Neverwinter"
+          "label": "Neverwinter",
+          "known": true
         },
         {
           "name": "phandalin",
           "x": 757,
           "y": 1410,
           "desc": "A frontier town of a few hundred people in the foothills of the Sword Mountains.",
-          "label": "Phandalin"
+          "label": "Phandalin",
+          "known": true
         },
         {
           "name": "thundertree",

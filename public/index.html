@@ -499,6 +499,7 @@ const state = {
   permadeath: false,                  // the campaign's Death setting (Campaigns > Settings); off = no permanent character death
   cbOpen: new Set(),                  // combatants whose details are open in the combat panel (the active one always is)
   autoTurns: 0,                       // creature turns the table has started in a row without a player acting (capped)
+  knownPlaces: {},                    // town and regional maps: the place pins the DM has had the players discover, by map picture (the pins marked known from the start need no entry)
   visitedMaps: [],                    // map pictures the party has been to (the Map picker lists only these, plus regional and camp maps)
   wallsInPicture: false,
   dmPad: '',                         // the DM's private scratchpad for this campaign (saved in the board, never shown to players; DM view only)
@@ -1988,12 +1989,18 @@ function render(now) {
 }
 
 // The places of a town or regional map, over the picture (the players' own switch: the Show places box on the map).
+// The places the players know on this map: marked known from the start, or discovered (the DM sends token action discover).
+function knownPlacePins() {
+  const found = (state.knownPlaces && state.knownPlaces[state.map.url]) || [];
+  return (state.placePins || []).filter((p) => PlacePins.knownTo(p, found));
+}
 function drawPlacePins() {
-  const has = PlacePins.appliesTo(state.mapKind) && Array.isArray(state.placePins) && state.placePins.length > 0;
+  const shown = PlacePins.appliesTo(state.mapKind) ? knownPlacePins() : [];
+  const has = shown.length > 0;
   const box = document.getElementById('placesToggle');
   if (box && box.hidden === has) box.hidden = !has;                           // the box only shows on a town or regional map that has places
   if (!has || !PlacePins.enabled()) return;
-  PlacePins.draw(ctx, state.placePins, 1 / state.view.scale);
+  PlacePins.draw(ctx, shown, 1 / state.view.scale);
 }
 
 function drawBackground() {
@@ -2708,6 +2715,7 @@ function saveBoard() {
     mapKind: state.mapKind,
     mapMemory: state.mapMemory,
     visitedMaps: state.visitedMaps,
+    knownPlaces: state.knownPlaces,
     fogBeforeOverland: state.fogBeforeOverland,
     combat: state.combat,
     dmPad: state.dmPad,
@@ -2877,9 +2885,9 @@ async function loadMapLighting() {
     const f = state.map.drawW / state.map.img.naturalWidth;
     // The module's numbered areas (pins named area-N, set on Map Test) as board squares, so the DM knows where each room is.
     // the other named pins of the map (not the start, not the numbered areas): places the DM can narrate and put creatures at, with the note written on the pin
-    state.places = (Array.isArray(config.starts) ? config.starts : []).filter((s) => s.name !== 'start' && !/^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ name: s.name, note: String(s.desc || '').slice(0, 300), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
+    state.places = (Array.isArray(config.starts) ? config.starts : []).filter((s) => s.name !== 'start' && !/^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ name: s.name, note: String(s.desc || '').slice(0, 300), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID), ...(s.known === true ? { known: true } : {}), ...(s.dmOnly === true ? { dmOnly: true } : {}) }));
     // What the players may see on a town or regional map (public/place-pins.js): the named places, in board pixels.
-    state.placePins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => PlacePins.isPlace(s)).map((s) => ({ name: s.name, label: s.label || '', x: s.x * f, y: s.y * f }));
+    state.placePins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => PlacePins.isPlace(s)).map((s) => ({ name: s.name, label: s.label || '', known: s.known === true, x: s.x * f, y: s.y * f }));
     state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ area: parseInt(s.name.slice(5), 10), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
     state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
@@ -4288,6 +4296,17 @@ async function applyMapUpdates(updates) {
         if (seenByParty(t)) addChat('system', h ? `↳ ${t.name} is ${h} ft in the air` : `↳ ${t.name} is on the ground`);
         break;
       }
+      case 'discoverPlace': {
+        // The DM has the party learn of a named place (or forget it): town and regional maps show the places the players know.
+        const slug = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const pin = state.placePins.find((p) => p.name === slug(u.place) || (p.label && slug(p.label) === slug(u.place)));
+        if (!pin) { state.pendingNotes.push(`There is no place called "${u.place}" on this map to discover. The places here: ${state.places.filter((p) => !p.dmOnly).map((p) => p.name).join(', ') || 'none'}.`); break; }
+        const url = state.map.url, list = (state.knownPlaces[url] = state.knownPlaces[url] || []);
+        if (u.on && !list.includes(pin.name)) { list.push(pin.name); if (PlacePins.appliesTo(state.mapKind)) addChat('system', `📍 New place on the map: ${PlacePins.label(pin)}`); }
+        else if (!u.on) state.knownPlaces[url] = list.filter((n) => n !== pin.name);
+        requestRender();
+        break;
+      }
       case 'openShop': {
         // The DM opens a merchant's shop for a character: the gear dialog at the Shop tab, with that merchant's stock and prices. What was bought goes back to the DM as a table note.
         if (window.WATCH === true) break;
@@ -4753,6 +4772,7 @@ async function init() {
     // Boards saved before the kind was recorded: the Sword Coast map is the overland one.
     state.mapKind = board.mapKind === 'town' ? 'town' : board.mapKind === 'regional' || board.mapKind === 'overland' || (!board.mapKind && /northswordcoast/.test(board.mapUrl || '')) ? 'regional' : board.mapKind === 'camp' ? 'camp' : 'battle';
     state.mapMemory = board.mapMemory && typeof board.mapMemory === 'object' ? board.mapMemory : {};
+    state.knownPlaces = board.knownPlaces && typeof board.knownPlaces === 'object' && !Array.isArray(board.knownPlaces) ? board.knownPlaces : {};
     state.visitedMaps = Array.isArray(board.visitedMaps) ? board.visitedMaps.filter((u) => typeof u === 'string') : [];
     state.fogBeforeOverland = typeof board.fogBeforeOverland === 'boolean' ? board.fogBeforeOverland : null;
     state.dmPad = typeof board.dmPad === 'string' ? board.dmPad.slice(0, 1500) : '';

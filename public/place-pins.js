@@ -7,6 +7,8 @@
   var P = {
     // A place pin a player may see: not the start, not a module area, not marked DM only.
     isPlace: function (pin) { return !!pin && pin.name !== 'start' && !isArea(pin.name) && pin.dmOnly !== true; },
+    // The players only see a place they know: pins marked known from the start, plus the ones the DM has had them discover (`found`: the names found on this map).
+    knownTo: function (pin, found) { return pin.known === true || (Array.isArray(found) && found.indexOf(pin.name) >= 0); },
     // Only plain (town and regional) maps show places to the players; on a battle map such pins are the DM's notes.
     appliesTo: function (kind) { return kind === 'town' || kind === 'regional'; },
     enabled: function () { try { return localStorage.getItem(KEY) !== '0'; } catch (e) { return true; } },

@@ -127,3 +127,10 @@ test('addCondition passes the minutes (value) and the caster (name) through to t
   assert.equal(out[0].type, 'addCondition');
   assert.equal(out[0].condition, 'bless'); assert.equal(out[0].minutes, 1); assert.equal(out[0].source, 'pc-caster');
 });
+
+test('token action discover becomes a discoverPlace update with the place name and on or off', async () => {
+  const tok = (o) => ({ type: 'token', action: 'discover', tokenId: '', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 1, ac: 0, ...o });
+  const out = await expandTokenUpdates([tok({ condition: 'Thundertree' }), tok({ condition: 'Conyberry', value: 0 })], []);
+  assert.deepEqual(out.map((u) => [u.type, u.place, u.on]), [['discoverPlace', 'Thundertree', true], ['discoverPlace', 'Conyberry', false]]);
+  assert.ok(DM_SCHEMA.properties.mapUpdates.items.anyOf[0].properties.action.enum.includes('discover'));
+});
