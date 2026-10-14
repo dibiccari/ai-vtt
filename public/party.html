@@ -72,6 +72,10 @@
   .wiz .feat { border-left:3px solid var(--gold); padding:2px 10px; margin:8px 0; } .wiz .feat b { color:var(--gold); } .wiz .feat div { color:var(--muted); font-size:12px; white-space:pre-wrap; }
   .wiz .abil6 { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; } .wiz .abil6 .a { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:6px; text-align:center; } .wiz .abil6 .a b { font-size:18px; display:block; }
   .wiz .spells { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:4px; max-height:300px; overflow:auto; margin-top:6px; } .wiz .spells label { display:flex; gap:6px; align-items:center; font-size:13px; padding:2px 6px; border-radius:6px; } .wiz .spells label:hover { background:var(--panel2); }
+  .sheetgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:2px 14px; font-size:13px; }
+  .sheetgrid div { display:flex; justify-content:space-between; gap:6px; padding:1px 0; border-bottom:1px dotted #1c2330; } .sheetgrid .prof b::before { content:'● '; color:var(--gold); } .sheetgrid .exp b::before { content:'◆ '; color:var(--gold); }
+  .prose { white-space:pre-wrap; font-size:13px; margin:0 0 6px; } .prose small { color:var(--muted); display:block; text-transform:uppercase; letter-spacing:.08em; font-size:10px; }
+  .spellrow { margin:3px 0; font-size:13px; } .spellrow b { color:var(--gold); margin-right:6px; }
   .wiz .sum li { margin:3px 0; }
   details.acc > summary { cursor:pointer; list-style:none; }
   details.acc > summary::-webkit-details-marker { display:none; }
@@ -83,7 +87,7 @@
   details.sec { border-top:1px solid #1c2330; margin-top:8px; padding-top:6px; }
   details.sec > summary { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:2px 0; }
   html.embed .solo-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:4px 28px; align-items:start; }
-  .solo-sec.inv { grid-column:1 / -1; }
+  .solo-sec.features, .solo-sec.about, .solo-sec.inv { grid-column:1 / -1; }
   .solo-sec h4 { margin-top:8px; border-bottom:1px solid var(--border); padding-bottom:3px; }
   .status[hidden], .clock[hidden] { display:none; }
   .head .small { margin-left:auto; }
@@ -510,6 +514,60 @@
     return d;
   }
 
+  // The full sheet (a pop-out shows it, like the Character Sheets page): saves, skills, attacks, spells, features, proficiencies, about.
+  var SHEET = null, LAYOUT = null;
+  async function loadSheet() {
+    if (!ONLY) return;
+    try {
+      LAYOUT = LAYOUT || await api('/api/sheet-layout');
+      var all = await api('/api/characters');
+      var list = Array.isArray(all) ? all : (all.characters || []);
+      var me = list.filter(function (x) { return x.id === ONLY; })[0];
+      SHEET = me && me.sheet ? me : null;
+    } catch (e) { SHEET = null; }
+  }
+  var ABIL_NAME = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+  function prose(label, text) { if (!String(text || '').trim()) return null; var p = el('div', 'prose'); p.appendChild(el('small', '', label)); p.appendChild(document.createTextNode(String(text))); return p; }
+  function sheetSections(c) {
+    var out = [];
+    if (!SHEET || !LAYOUT) return out;
+    var sh = SHEET.sheet, exp = SHEET.expertise || [];
+    var saves = el('div', 'sheetgrid');
+    ABIL.forEach(function (a) { var d = el('div', sh[LAYOUT.saves[a].box] === true ? 'prof' : ''); d.appendChild(el('span', '', ABIL_NAME[a])); d.appendChild(el('b', '', String(sh[LAYOUT.saves[a].field] || '+0'))); saves.appendChild(d); });
+    out.push(section(c, 'saves', 'Saving throws', [saves], true));
+    var skills = el('div', 'sheetgrid');
+    Object.keys(LAYOUT.skills).forEach(function (n) { var k = LAYOUT.skills[n]; var d = el('div', exp.indexOf(n) >= 0 ? 'exp' : sh[k.box] === true ? 'prof' : ''); d.appendChild(el('span', '', n + ' (' + k.ability.toUpperCase() + ')')); d.appendChild(el('b', '', String(sh[k.field] || '+0'))); skills.appendChild(d); });
+    var pass = el('div', 'weight', 'Passive Perception ' + (sh.Passive || '10') + ' · Initiative ' + (sh.Initiative || '+0') + ' · Proficiency bonus ' + (sh.ProfBonus || '+2') + ' · ● proficient ◆ expertise');
+    out.push(section(c, 'skills', 'Skills', [skills, pass], true));
+    var atk = [];
+    [['Wpn Name', 'Wpn1 AtkBonus', 'Wpn1 Damage'], ['Wpn Name 2', 'Wpn2 AtkBonus ', 'Wpn2 Damage '], ['Wpn Name 3', 'Wpn3 AtkBonus  ', 'Wpn3 Damage ']].forEach(function (w) {
+      if (!String(sh[w[0]] || '').trim()) return;
+      var t = atk.length ? atk[0] : null;
+      if (!t) { t = el('table'); var h = el('tr'); ['Attack', 'Bonus', 'Damage'].forEach(function (x) { h.appendChild(el('th', '', x)); }); t.appendChild(h); atk.push(t); }
+      var r = el('tr'); r.appendChild(el('td', '', sh[w[0]])); r.appendChild(el('td', 'num', sh[w[1]] || '')); r.appendChild(el('td', '', sh[w[2]] || '')); t.appendChild(r);
+    });
+    var atkNote = prose('Notes', sh.AttacksSpellcasting);
+    if (atk.length || atkNote) out.push(section(c, 'attacks', 'Attacks', atk.concat(atkNote ? [atkNote] : []), true));
+    var sp = [];
+    var cls = sh['Spellcasting Class 2'], ab = sh['SpellcastingAbility 2'];
+    if (cls || ab || sh['SpellSaveDC  2']) sp.push(el('div', 'weight', [cls, ab && 'Ability ' + ab, sh['SpellSaveDC  2'] && 'Save DC ' + sh['SpellSaveDC  2'], sh['SpellAtkBonus 2'] && 'Attack ' + sh['SpellAtkBonus 2']].filter(Boolean).join(' · ')));
+    for (var lvl = 0; lvl <= 9; lvl++) {
+      var names = (LAYOUT.spellLines[lvl] || []).map(function (f) { return String(sh[f] || '').trim(); }).filter(Boolean);
+      var slot = LAYOUT.slots[lvl], total = slot ? sh[slot.total] : '', left = slot ? sh[slot.remaining] : '';
+      if (!names.length && !(total && total !== '0')) continue;
+      var row = el('div', 'spellrow'); row.appendChild(el('b', '', lvl === 0 ? 'Cantrips' : 'Level ' + lvl + (total ? ' (' + (left || 0) + '/' + total + ' slots)' : '')));
+      row.appendChild(document.createTextNode(names.join(', ') || '—')); sp.push(row);
+    }
+    if (sp.length) out.push(section(c, 'spells', 'Spellcasting', sp, true));
+    var feat = [prose('', sh['Features and Traits']), prose('', sh['Feat+Traits'])].filter(Boolean);
+    if (feat.length) out.push(section(c, 'features', 'Features and traits', feat, true));
+    var prof = prose('', sh.ProficienciesLang);
+    if (prof) out.push(section(c, 'prof', 'Proficiencies and languages', [prof], true));
+    var about = [prose('Race', sh['Race ']), prose('Background', sh.Background), prose('Alignment', sh.Alignment), prose('Personality', sh['PersonalityTraits ']), prose('Ideals', sh.Ideals), prose('Bonds', sh.Bonds), prose('Flaws', sh.Flaws), prose('Backstory', sh.Backstory), prose('Allies and organizations', sh.Allies), prose('Treasure', sh.Treasure)].filter(Boolean);
+    if (about.length) out.push(section(c, 'about', 'About ' + c.name, about, true));
+    return out;
+  }
+
   function characterCard(c) {
     var head = el('div', 'head');
     if (c.image) { var img = el('img'); img.src = c.image; img.alt = ''; head.appendChild(img); }
@@ -589,6 +647,7 @@
     var holder = ONLY ? el('div', 'solo-grid') : card;
     if (ONLY) card.appendChild(holder);
     holder.appendChild(section(c, 'stats', 'Numbers and senses', sumStats, true));
+    if (ONLY) sheetSections(c).forEach(function (n) { n.classList.add('wide'); holder.appendChild(n); });
     holder.appendChild(section(c, 'rules', 'Experience, Hit Dice and features', sumRules, true));
     holder.appendChild(section(c, 'inv', 'Inventory (' + c.inventory.length + ')', sumInv, !EMBED));
     holder.appendChild(section(c, 'coins', 'Coins', sumCoins, !EMBED));
@@ -628,6 +687,7 @@
 
   async function load() {
     var data = await api('/api/party');
+    await loadSheet();
     state.campaign = data.campaign;
     state.characters = data.characters;
     state.stash = data.stash;

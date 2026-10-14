@@ -30,7 +30,10 @@ test('a pop-out shows one character, with no navigation bar and no stash', opts,
   await page.goto(`${server.base}/party.html?embed=1&character=astarion`);
   await page.waitFor('document.querySelector(".card.solo")');
   const out = await page.eval(`(() => ({ cards: document.querySelectorAll('.card').length, name: document.querySelector('.card h3').textContent, nav: !!document.querySelector('nav, #navBar, .topnav'), pop: !!document.querySelector('details.card .head button'), folds: document.querySelectorAll('details').length, emptyBars: [...document.querySelectorAll('#status, #clock')].filter((e) => e.offsetHeight > 0).length }))()`);
-  assert.equal(out.cards, 1); assert.equal(out.name, 'Astarion'); assert.equal(out.nav, false); assert.equal(out.pop, false); assert.equal(out.folds, 0); assert.equal(out.emptyBars, 0);
+  assert.equal(out.cards, 1); assert.equal(out.name, 'Astarion'); assert.equal(out.nav, false); assert.equal(out.pop, false); assert.equal(out.folds, 0);
+  const heads = await page.eval(`[...document.querySelectorAll('.solo-sec h4')].map((h) => h.textContent)`);
+  for (const h of ['Saving throws', 'Skills', 'Attacks', 'Features and traits', 'Proficiencies and languages', 'About Astarion']) assert.ok(heads.includes(h), 'the pop-out shows ' + h);
+  assert.ok(await page.eval(`/Stealth \\(DEX\\)/.test(document.querySelector('.card.solo').textContent)`), 'skills are listed'); assert.equal(out.emptyBars, 0);
 });
 
 test('the level-up wizard walks the steps and levels the character', opts, async () => {
