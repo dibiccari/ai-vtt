@@ -48,7 +48,6 @@
       <button id="exportBtn" title="Download the journal, the saved board and the chat of this campaign as one file">Export save</button>
       <button id="importBtn" title="Load a save file made by Export save. It replaces this campaign's journal, board and chat.">Import save</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
-      <button class="danger" id="clearBtn">Clear journal</button>
     </div>
     <div class="status" id="status"></div>
     <div class="recap" id="recap"></div>
@@ -198,10 +197,6 @@
     } catch (err) { setStatus(err.message, 'err'); }
   });
 
-  $('#clearBtn').addEventListener('click', async function () {
-    if (!confirm('Delete every journal entry of ' + state.name + '? The AI will forget the story so far.')) return;
-    try { await put([]); await load(); setStatus('Journal cleared.', 'ok'); } catch (err) { setStatus(err.message, 'err'); }
-  });
 
   load().catch(function (err) { setStatus(err.message, 'err'); });
 })();
