@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import '../public/token-size.js';
 import { loadServerPieces } from '../scripts/dm-schema.mjs';
 import { loadAdventureMonsters } from '../lib/adventure-monsters.js';
+import { fileURLToPath } from 'node:url';
 const TS = globalThis.TokenSize;
 const { expandTokenUpdates, DM_SCHEMA } = loadServerPieces();
 
@@ -45,7 +46,7 @@ test('speeds are read from SRD entries and the adventure file format', () => {
 });
 
 test('the DM adds a creature: size and flying speed come from the SRD or the adventure stat block', async () => {
-  const dir = new URL('../data/campaigns/lost-mine-of-phandelver', import.meta.url).pathname;
+  const dir = fileURLToPath(new URL('../data/campaigns/lost-mine-of-phandelver', import.meta.url)); // not .pathname: that is "/C:/..." on Windows
   const adv = await loadAdventureMonsters(dir);
   const add = (monster, extra = {}) => ({ type: 'token', action: 'add', tokenId: 't', name: '', col: 5, row: 5, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster, value: 0, ac: 0, ...extra });
   const [eagle, ghost, owlbear, dragon, goblin, tarrasque] = await Promise.all(['giant-eagle', 'ghost', 'owlbear', 'adult-red-dragon', 'goblin', 'tarrasque'].map(async (m) => (await expandTokenUpdates([add(m)], adv))[0]));

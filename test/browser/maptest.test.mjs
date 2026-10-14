@@ -102,7 +102,8 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
     out.dm = [S.viewAs, S.dm];
     out.toolsDm = ['start', 'terrain', 'eraser', 'token', 'toggle', 'pan'].map(vis);
-    out.firstInBar = document.querySelector('#stageBar').firstElementChild.id;
+    const firstInBar = document.querySelector('#stageBar').firstElementChild; // the switches sit in a .view-stack wrapper now
+    out.firstInBar = firstInBar.id || firstInBar.firstElementChild.id;
     const before = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
     document.querySelector('#makeDmBtn').click(); await wait(2500);
     const after = await fetch('/api/dm-map?map=vtt-terrain-test.png');

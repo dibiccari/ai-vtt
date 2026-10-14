@@ -4,7 +4,7 @@ import { readFile, writeFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let failed = false;
@@ -22,8 +22,8 @@ function check(label, file) {
 check('server.js', path.join(root, 'server.js'));
 
 // Every installed battle map must have a saved start spot (data/maps/<image>.json, starts[name 'start']).
-const { CAMPAIGN_MAPS, mapsFor } = await import(path.join(root, 'lib', 'campaign-maps.js'));
-const { listPictures, readSets } = await import(path.join(root, 'lib', 'pictures.js'));
+const { CAMPAIGN_MAPS, mapsFor } = await import(pathToFileURL(path.join(root, 'lib', 'campaign-maps.js')).href);
+const { listPictures, readSets } = await import(pathToFileURL(path.join(root, 'lib', 'pictures.js')).href);
 const uploads = listPictures(root);
 const sets = readSets(root, readFileSync);
 for (const campaign of Object.keys(CAMPAIGN_MAPS)) {

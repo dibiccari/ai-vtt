@@ -1034,6 +1034,9 @@ test('hold the Space bar to talk: it works on the page, on a button and in an em
 });
 
 test('the tabletop has Fit to width under Fit to height', opts, async () => {
+  // The campaign's map loads a moment after the page is ready and re-fits the view (and the layout); wait for it so it cannot undo the click.
+  await page.waitFor('window.vtt.state.map.url && window.vtt.state.map.img && window.vtt.state.map.img.complete');
+  await new Promise((r) => setTimeout(r, 300));
   await page.eval(setup);
   const r = await page.eval(`(async () => {
     const wrapW = document.querySelector('#fitBtn').closest('.zoom-controls') && true;

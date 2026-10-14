@@ -14,7 +14,8 @@ import '../public/token-size.js';              // sets globalThis.TokenSize, use
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export function loadServerPieces(serverFile = path.join(ROOT, 'server.js')) {
-  const src = readFileSync(serverFile, 'utf8');
+  // Windows checkouts convert files to CRLF; the searches below look for plain "\n", so read it as LF.
+  const src = readFileSync(serverFile, 'utf8').replace(/\r\n/g, '\n');
   const cut = (from, to, label) => {
     const a = src.indexOf(from), b = src.indexOf(to, a);
     if (a < 0 || b < 0) throw new Error(`server.js changed shape: cannot find ${label} (${from} .. ${to}). Update scripts/dm-schema.mjs.`);
