@@ -5,16 +5,15 @@
 - Lost Mine on our own maps: Method B (layout from the pack walls, ChatGPT repaint) drifts from the walls on most maps (Thundertree up to two squares, the castle badly, Redbrand and others 20 to 30 px), so only Cragmaw Hideout (vtt-cragmaw-hideout-b, within a few pixels) stays a Method B map. Every other battle map is the Method A version (picture painted first, walls traced onto it, always aligned): Goblin Ambush, Agatha's Lair, Cragmaw Castle day and night, Old Owl Well, Redbrand Hideout, Thundertree, Wave Echo Cave, Wyvern Tor. Idea to retry Method B when OpenAI credits are back: draw the layout with solid wall bands at the real wall thickness so the painter must keep them, measure drift against the walls automatically, keep only maps under about 10 px. The user does not want near-exact copies of the purchased art. The Method B tools stay: scripts/make-wall-layout.mjs, remake-from-pack.mjs, crop-region.mjs, copy-pack-setup.mjs.
 - OpenAI image credits are used up (HTTP 429): add credits before generating more pictures.
 
-## Tabletop
-- Party section (the Party tab): make each character's info accordions (collapsible sections), user request.
-- Party in the tabletop: make it expandable / a modal pop-out.
-- Level-up wizard: walks the player through a level-up and updates the character sheet (today level-up is a conversation with the DM).
-- Inventory wizard: change gear step by step, and update the character sheet.
-- Journal: remove the clear journal button.
-- Bring the tabletop's light rule in line with Map Test (range is always the Vision setting, light only changes how well) and let map lights clear fog there.
+## Tabletop and DM
+- DONE (Nov 2026): Party accordions and per-character pop-out with the full sheet, level-up wizard (+ Level-up Test page), inventory wizard with shop and coins, journal as a quest log without a clear button, tabletop and Map Test light follow the 5e rule, characters use GUID ids, DM purchases (gear buy) and the shop token action, the Merchant agent, the Bookkeeper agent, reply forms for fight and scene.
+- Live-check the shop end to end with the real DM (the DM opening a shop with the token action, the Merchant agent talking, the dialog, the DM's note afterwards); only the free tests and two direct merchant calls have run.
+- Orchestrator, next steps: decide when a service tool is worth its extra round trip (the DM once called buy_item with a fake item and, with a tool present, skipped a map change); make the clock advance and XP dependable (the time step fails now and then: the DM sends no time action); next specialists: recurring NPCs, a rules and lookup service, combat bookkeeping last.
+- Level-up wizard gaps: multiclass characters, subclasses and feats beyond the SRD (typed by hand), spells for prepared casters beyond the choice counts, racial features.
+- Inventory wizard gaps: give an item to another character or the stash from inside the wizard, magic armor (+1) on the armor class, Strength-minimum speed penalty, a real weapon-proficiency source for races.
+- Merchant agent: remember a merchant between visits (stock, mood, prices), merchant stock lists per campaign, selling magic items.
 
 ## Light and vision
-- Map Test: darkvision setting for the test token (60 or 120 ft), awaiting the user's answer.
 - Lights tool in Map Test (place, move, light and snuff lights such as a brazier) and a "light the brazier" player action.
 - Torch from gear: an equipped torch sets the token's light; swapping back to a weapon costs an action.
 - DM prompt rule for improvised fire hazards (a lantern thrown into a fire).
@@ -22,7 +21,7 @@
 ## Map sets
 - Fog per level (one layer per set today).
 - Pin visibility (known and discoverable pins, revealPin, a Show discovered places toggle): docs/map-set-format.md section 6c.
-- Campaigns, the tabletop and the DM's changeMap to use GUIDs.
+- Campaigns, the tabletop and the DM's changeMap to use GUIDs (characters already do).
 - Remove the Group and This version is called fields from Map Test.
 - The .vttmap container and the Market.
 - Import and trace scripts still write the old per-picture files in data/maps.
@@ -37,7 +36,7 @@
 
 ## Known problems
 - Flaky browser test: a campaign built from scratch opens on its first map (about one run in four).
-- Voices and sounds need the user's ears. A live DM check is due after the next prompt change.
+- Voices and sounds need the user's ears. The DM time step fails now and then in the live check (no clock advance sent).
 
 ## On hold
 - Multiplayer (keep it in mind).
