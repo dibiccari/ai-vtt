@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
 import { levelUpOptions, applyLevelUp } from './lib/levelup.js';
+import { migrateCharacterIds, readAliases, canonicalId, newCharacterId } from './lib/character-ids.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
@@ -33,6 +34,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const UPLOAD_DIR = path.join(PUBLIC_DIR, 'uploads');
 const CHAR_DIR = path.join(__dirname, 'data', 'characters');
+// Character ids are GUIDs (lib/character-ids.js). Older slug ids are migrated once at start-up and kept as aliases. VTT_KEEP_CHARACTER_IDS=1 skips the migration (the test sandbox).
+let characterAliases = {};
+if (process.env.VTT_KEEP_CHARACTER_IDS !== '1') { try { const moved = migrateCharacterIds(path.join(__dirname, 'data')); if (Object.keys(moved).length) console.log(`Gave ${Object.keys(moved).length} characters GUID ids`); } catch (err) { console.warn('Character id migration failed: ' + err.message); } }
+characterAliases = readAliases(path.join(__dirname, 'data'));
+const canonId = (id) => canonicalId(characterAliases, String(id ?? ''));
 const usageTracker = createUsageTracker(path.join(__dirname, 'data'));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -89,7 +95,7 @@ function normalizeSheet(raw) {
 function normalizeCharacter(body) {
   const name = String(body.name ?? '').trim().slice(0, 60);
   if (!name) throw Object.assign(new Error('Character name is required'), { status: 400 });
-  const id = safeId(body.id) || `${safeId(name.replace(/\s+/g, '-')) || 'pc'}-${Date.now().toString(36)}`;
+  const id = canonId(safeId(body.id)) || newCharacterId();
   const maxHp = int(body.maxHp, 10, 1, 999);
   const abilities = {};
   for (const key of ABILITIES) abilities[key] = int(body.abilities?.[key], 10, 1, 30);
@@ -202,6 +208,7 @@ app.get('/api/sheet-options', asyncRoute(async (_req, res) => {
   res.json(sheetOptionsCache);
 }));
 
+app.get('/api/character-aliases', (_req, res) => res.json(characterAliases));
 app.get('/api/characters', asyncRoute(async (req, res) => {
   const rules = (await readSettings(path.join(CAMPAIGNS_DIR, await getActiveCampaignId()))).rules === '2024' ? '2024' : '2014';
   // effSpeed / effMaxHp: what exhaustion leaves (the tabletop moves and heals by these; the stored speed and maximum stay as they are).
@@ -217,9 +224,7 @@ app.post('/api/characters/quick', localOnly, asyncRoute(async (req, res) => {
   const cls = String(req.body?.cls ?? ''), race = String(req.body?.race ?? '');
   if (!classes.includes(cls)) return res.status(400).json({ error: 'Pick a class: ' + classes.join(', ') });
   if (!races.includes(race)) return res.status(400).json({ error: 'Pick a race: ' + races.join(', ') });
-  const taken = new Set((await listCharacters()).map((c) => c.id));
-  let id = safeId(name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')) || 'hero';
-  for (let n = 2; taken.has(id); n++) id = safeId(`${id.replace(/-\d+$/, '')}-${n}`);
+  const id = newCharacterId();
   const character = normalizeCharacter(buildQuickCharacter({ id, name, cls, race, level: req.body?.level }));
   await saveCharacter(character);
   res.json({ ok: true, character });
@@ -249,7 +254,7 @@ app.post('/api/characters', asyncRoute(async (req, res) => {
 }));
 
 app.delete('/api/characters/:id', asyncRoute(async (req, res) => {
-  const id = safeId(req.params.id);
+  const id = canonId(safeId(req.params.id));
   if (!id) return res.status(400).json({ error: 'Invalid id' });
   try {
     await unlink(path.join(CHAR_DIR, `${id}.json`));
@@ -908,7 +913,7 @@ app.get('/api/party', asyncRoute(async (_req, res) => {
 
 // Replace one character's gear (the party page saves the whole list). Extra attunements beyond three are dropped and reported.
 app.put('/api/party/characters/:id', asyncRoute(async (req, res) => {
-  const id = safeId(req.params.id);
+  const id = canonId(safeId(req.params.id));
   let old;
   try { old = JSON.parse(await readFile(path.join(CHAR_DIR, `${id}.json`), 'utf8')); } catch { return res.status(404).json({ error: 'Character not found' }); }
   const problems = [];
@@ -959,7 +964,9 @@ async function runTrack(update) {
   return processTrackUpdates([{ type: 'track', ...update }], await trackStore(campaign), settings.rules === '2024' ? '2024' : '2014');
 }
 const trackRoute = (build) => asyncRoute(async (req, res) => {
-  const out = await runTrack(build(req.body || {}));
+  const update = build(req.body || {});
+  if (update.target && update.target !== 'party') update.target = canonId(update.target);
+  const out = await runTrack(update);
   if (out.problems.length && !out.notes.length) return res.status(400).json({ error: out.problems.join(' ') });
   res.json(out);
 });
@@ -970,12 +977,12 @@ app.post('/api/party/supplies', trackRoute((b) => ({ op: 'supplies', target: b.c
 app.post('/api/party/xp', trackRoute((b) => ({ op: 'xp', target: b.characterId || 'party', amount: b.amount, split: b.split })));
 // Level up (lib/levelup.js): what the next level gives and which choices there are, then apply the player's choices through the sheet editor (logged, with Undo).
 app.get('/api/party/levelup/:id', asyncRoute(async (req, res) => {
-  const c = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === req.params.id);
+  const c = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === canonId(req.params.id));
   if (!c) return res.status(404).json({ error: 'No such character' });
   res.json(levelUpOptions(c));
 }));
 app.post('/api/party/levelup/:id', localOnly, asyncRoute(async (req, res) => {
-  const c = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === req.params.id);
+  const c = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === canonId(req.params.id));
   if (!c) return res.status(404).json({ error: 'No such character' });
   const out = applyLevelUp(c, req.body || {});
   if (!out.ok) return res.status(400).json({ error: out.error });
@@ -1183,7 +1190,7 @@ app.delete('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
 
 // The Test Lab starts the tavern scenario with its four characters back at their starting kit and full hit points.
 app.post('/api/test-lab/reset-party', localOnly, asyncRoute(async (_req, res) => {
-  const party = await writeTavernParty(CHAR_DIR, { keepHp: false });
+  const party = await writeTavernParty(CHAR_DIR, { keepHp: false, resolve: canonId });
   res.json({ ok: true, party: party.map((c) => ({ id: c.id, name: c.name, hp: c.hp, maxHp: c.maxHp })) });
 }));
 
@@ -1279,7 +1286,7 @@ app.put('/api/campaigns/:id/party', localOnly, asyncRoute(async (req, res) => {
   const id = safeCampaignId(req.params.id);
   if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
   const known = new Set((await listCharacters()).map((c) => c.id));
-  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => String(x)).filter((x) => known.has(x));
+  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
   if (!party.length) return res.status(400).json({ error: 'A campaign needs at least one character.' });
   let saved = {};
   try { saved = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), 'utf8')); } catch { /* built-in campaigns have no campaign.json yet */ }
@@ -1296,7 +1303,7 @@ async function createScratchCampaign(req, res) {
   let id = safeCampaignId(name.replace(/\s+/g, '-')) || 'campaign';
   for (let n = 2; ids.includes(id); n++) id = safeCampaignId(`${id.replace(/-\d+$/, '')}-${n}`);
   const known = new Set((await listCharacters()).map((c) => c.id));
-  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => String(x)).filter((x) => known.has(x));
+  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
   if (!party.length) return res.status(400).json({ error: 'Pick at least one character for the party (make new ones on the Character Sheets page first).' });
   const premise = String(req.body?.premise ?? '').trim().slice(0, 20000);
   const { list, problems } = cleanMapList(req.body?.maps, await pictureFiles());
@@ -1325,7 +1332,7 @@ app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
     if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
   }
   const known = new Set((await listCharacters()).map((c) => c.id));
-  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => String(x)).filter((x) => known.has(x));
+  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
   if (!party.length) { await rm(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'Pick at least one character for the party (make new ones on the Character Sheets page first).' }); }
   await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: root, system: base.system, levels: base.levels, description: base.description, party }, null, 2));
   await writeSettings(dest, req.body?.settings);

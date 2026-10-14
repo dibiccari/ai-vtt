@@ -78,7 +78,7 @@
     var chars = await getJson('/api/characters?campaign=' + (id || LOST_MINE));
     var spots = [[31, 49], [32, 49], [31, 50], [32, 50], [33, 49], [33, 50]];
     var tokens = chars.slice(0, spots.length).map(function (c, i) {
-      return { id: 'tok-' + c.id, name: c.name, col: spots[i][0], row: spots[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' };
+      return { id: 'tok-' + (/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(c.id) ? c.id.slice(0, 8) : c.id), name: c.name, col: spots[i][0], row: spots[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' };
     });
     // The Sword Coast map is a regional map, not a battle grid: no grid lines, no fog, no tokens on it, and it is shown whole.
     return { mapUrl: url, tokens: tokens, activeIndex: 0, fogEnabled: false, gridOpacity: 0, zoomToParty: false, mapKind: 'regional' };
@@ -96,7 +96,7 @@
     var art = await pickArt();
     var tokens = [];
     chars.slice(0, PARTY_SPOTS.length).forEach(function (c, i) {
-      tokens.push({ id: 'tok-' + c.id, name: c.name, col: PARTY_SPOTS[i][0], row: PARTY_SPOTS[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' });
+      tokens.push({ id: 'tok-' + (/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(c.id) ? c.id.slice(0, 8) : c.id), name: c.name, col: PARTY_SPOTS[i][0], row: PARTY_SPOTS[i][1], color: c.color, isPC: true, characterId: c.id, speed: c.speed, movementRemaining: c.speed, image: c.image || '' });
     });
     CAST.forEach(function (n) {
       tokens.push({ id: n.id, name: n.name, col: n.col, row: n.row, color: n.color, isPC: false, characterId: null, speed: n.speed, movementRemaining: n.speed, image: art[n.id] || '', hidden: Boolean(n.hidden), kind: n.kind || 'creature' });

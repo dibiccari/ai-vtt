@@ -61,8 +61,8 @@ test('build your own: story, starter character, map request, create', opts, asyn
   assert.match(r.final, /Created The Sunken Bell/);
   const camps = (await server.get('/api/campaigns')).json.campaigns;
   const made = camps.find((c) => c.id === 'the-sunken-bell');
-  assert.ok(made && made.custom === true && made.party.some((p) => p.id === 'mira-vale'));
-  const ch = (await server.get('/api/characters')).json.find((c) => c.id === 'mira-vale');
+  assert.ok(made && made.custom === true && made.party.some((p) => p.name === 'Mira Vale'));
+  const ch = (await server.get('/api/characters')).json.find((c) => c.name === 'Mira Vale');
   assert.ok(ch && ch.class === 'Wizard' && ch.level === 2);
   const reqs = (await server.get('/api/map-maker')).json.requests;
   assert.ok(reqs.some((q) => q.title === 'The flooded crypt' && q.status === 'new'));

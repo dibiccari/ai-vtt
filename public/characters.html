@@ -938,7 +938,8 @@
     S.chars.sort((a, b) => a.name.localeCompare(b.name));
     renderList();
     const wanted = new URLSearchParams(location.search).get('id') || store.get('vtt.sheets.last', '');
-    const c = S.chars.find((x) => x.id === wanted) || S.chars[0];
+    let alias = {}; try { alias = await api('/api/character-aliases'); } catch (e) { /* none */ }
+    const c = S.chars.find((x) => x.id === (alias[wanted] || wanted)) || S.chars[0];
     if (c) open(JSON.parse(JSON.stringify(c)));
   }
   // A read-only sheet follows what the DM changes in play: look again when the tab comes back into view.

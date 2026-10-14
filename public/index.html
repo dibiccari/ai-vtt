@@ -1123,6 +1123,8 @@ function reachable(token) {
    TOKENS
    ===================================================================== */
 const activeToken = () => state.tokens[state.activeIndex] || null;
+const isGuidId = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(String(id));
+const tokenIdFor = (id) => 'tok-' + (isGuidId(id) ? String(id).slice(0, 8) : id);
 const characterFor = (t) => (t?.characterId ? state.characters.find((c) => c.id === t.characterId) : null);
 
 function makeToken({ id, name, color, characterId = null, isPC = true, col, row, speed = 30, image = '', hidden = false, kind = 'creature', size = 'medium', flySpeed = 0, hover = false }) {
@@ -1489,14 +1491,16 @@ function createDefaultTokens() {
     const [col, row] = START_SQUARES[i];
     const c = pcs[i];
     state.tokens.push(c
-      ? makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col, row, speed: c.effSpeed ?? c.speed, image: c.image || '' })
+      ? makeToken({ id: tokenIdFor(c.id), name: c.name, color: c.color, characterId: c.id, col, row, speed: c.effSpeed ?? c.speed, image: c.image || '' })
       : makeToken({ id: `tok-hero-${i + 1}`, name: DEFAULT_TOKENS[i].name, color: DEFAULT_TOKENS[i].color, col, row }));
   }
   state.activeIndex = 0;
 }
 
+let charAlias = {};
 function syncTokensWithCharacters() {
   const activeId = activeToken()?.id;
+  for (const t of state.tokens) if (t.characterId && charAlias[t.characterId]) t.characterId = charAlias[t.characterId];
   state.tokens = state.tokens.filter((t) => !t.characterId || state.characters.some((c) => c.id === t.characterId));
   for (const t of state.tokens) {
     const c = characterFor(t);
@@ -1516,7 +1520,7 @@ function syncTokensWithCharacters() {
     if (state.tokens.some((t) => t.characterId === c.id)) continue;
     const [col, row] = START_SQUARES[state.tokens.filter((t) => t.isPC).length % START_SQUARES.length];
     const spot = freeSquareNear(clamp(col, 0, cols() - 1), clamp(row, 0, rows() - 1));
-    state.tokens.push(makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' }));
+    state.tokens.push(makeToken({ id: tokenIdFor(c.id), name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' }));
   }
   const idx = state.tokens.findIndex((t) => t.id === activeId);
   state.activeIndex = idx >= 0 ? idx : clamp(state.activeIndex, 0, Math.max(0, state.tokens.length - 1));
@@ -4502,6 +4506,8 @@ async function loadCharacters() {
   try {
     const list = await api('/api/characters?campaign=' + encodeURIComponent(state.campaignId));
     state.characters = Array.isArray(list) ? list : [];
+    // Older saves name characters by their old slug id ("edric"); characters have GUID ids now, so point those tokens at the new id.
+    try { charAlias = await api('/api/character-aliases'); } catch (e) { /* no aliases: nothing to map */ }
   } catch (err) {
     state.characters = [];
     toast(`Could not load characters: ${err.message}`, 'error');
@@ -4515,7 +4521,7 @@ function placeCharacterToken(c, center = true) {
     const mid = screenToWorld(wrap.clientWidth / 2, wrap.clientHeight / 2);
     const cell = worldToCell(mid.x, mid.y);
     const spot = freeSquareNear(clamp(cell.col, 0, cols() - 1), clamp(cell.row, 0, rows() - 1));
-    t = makeToken({ id: `tok-${c.id}`, name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' });
+    t = makeToken({ id: tokenIdFor(c.id), name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' });
     state.tokens.push(t);
     revealFog();
   }

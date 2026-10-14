@@ -5,6 +5,8 @@
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { SAVES } from '../lib/sheet-edit.js';
 import { buildCharacter } from '../lib/charbuild.js';
+import { readAliases, canonicalId } from '../lib/character-ids.js';
+const ALIASES = readAliases(new URL('../data/', import.meta.url).pathname);       // characters have GUID ids; the party is still described by its old names
 
 const CHAR_DIR = new URL('../data/characters/', import.meta.url);
 const CAMPAIGN = 'lost-mine-of-phandelver';
@@ -96,7 +98,8 @@ for (const p of PARTY) {
   for (const k of Object.keys(e.saves)) if (s[SAVES[k].field] !== e.saves[k]) bad.push(`${k} save: built ${s[SAVES[k].field]}, sheet says ${e.saves[k]}`);
   if (e.dc && (s['SpellSaveDC  2'] !== e.dc || s['SpellAtkBonus 2'] !== e.spellAtk)) bad.push(`spell DC/attack: built ${s['SpellSaveDC  2']}/${s['SpellAtkBonus 2']}, sheet says ${e.dc}/${e.spellAtk}`);
   if (bad.length) { problems += bad.length; console.log(`MISMATCH ${p.name}:\n  ${bad.join('\n  ')}`); } else console.log(`ok  ${p.name}: HP ${c.maxHp}, AC ${c.ac} (${p.acNote}), init ${s.Initiative}, passive ${s.Passive}`);
-  writeFileSync(new URL(`${p.id}.json`, CHAR_DIR), JSON.stringify(c, null, 2));
+  const realId = canonicalId(ALIASES, p.id);
+  writeFileSync(new URL(`${realId}.json`, CHAR_DIR), JSON.stringify({ ...c, id: realId }, null, 2));
 }
 // The four older test characters belong to the tavern test campaign.
 for (const f of readdirSync(CHAR_DIR).filter((n) => /^(thorin|lyra|vex|seraphine)\.json$/.test(n))) {

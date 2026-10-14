@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { revertCharacterIds } from '../../lib/character-ids.js';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -15,6 +16,7 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
   await cp(path.join(ROOT, 'lib'), path.join(dir, 'lib'), { recursive: true });
   // data is copied, except the map packets (data/mapsets/<guid>/): their pictures are linked, only set.json is copied, so a test that edits a set never touches the real one
   await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true, filter: (src) => !src.startsWith(path.join(ROOT, 'data', 'mapsets') + path.sep) || src.endsWith('set.json') || (src.split(path.sep).length === path.join(ROOT, 'data', 'mapsets').split(path.sep).length + 1) });
+  revertCharacterIds(path.join(dir, 'data'));      // the tests name the seeded characters by their old slug ids
   for (const ent of await readdir(path.join(ROOT, 'data', 'mapsets'), { withFileTypes: true })) {
     if (!ent.isDirectory()) continue;
     for (const f of await readdir(path.join(ROOT, 'data', 'mapsets', ent.name))) if (f !== 'set.json') await symlink(path.join(ROOT, 'data', 'mapsets', ent.name, f), path.join(dir, 'data', 'mapsets', ent.name, f));
@@ -36,7 +38,7 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
 export async function startServer({ env = {}, sandbox } = {}) {
   const sb = sandbox || await makeSandbox();
   const port = 20000 + Math.floor(Math.random() * 20000);
-  const childEnv = { ...process.env, PORT: String(port), HOST: '127.0.0.1' };
+  const childEnv = { ...process.env, PORT: String(port), HOST: '127.0.0.1', VTT_KEEP_CHARACTER_IDS: '1' };
   delete childEnv.ANTHROPIC_API_KEY; delete childEnv.OPENAI_API_KEY; delete childEnv.ANTHROPIC_BASE_URL;
   Object.assign(childEnv, env);
   const child = spawn(process.execPath, ['server.js'], { cwd: sb.dir, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });

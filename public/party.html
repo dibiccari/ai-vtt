@@ -111,7 +111,8 @@
   var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   var COINS = ['cp', 'sp', 'ep', 'gp', 'pp'];
   var EMBED = document.documentElement.classList.contains('embed');
-  var ONLY = (new URLSearchParams(location.search)).get('character') || '';   // a pop-out window shows one character only
+  var ONLY = (new URLSearchParams(location.search)).get('character') || '';
+  var ALIAS = {};   // a pop-out window shows one character only
   var state = { clock: null, campaign: '', characters: [], stash: { items: [], coins: {} }, maxAttuned: 3 };
 
   function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
@@ -137,7 +138,7 @@
   function conditionsFor(character) {
     try {
       var board = JSON.parse(localStorage.getItem('vtt.board.' + state.campaign) || 'null');
-      var tok = board && Array.isArray(board.tokens) ? board.tokens.filter(function (t) { return t.characterId === character.id; })[0] : null;
+      var tok = board && Array.isArray(board.tokens) ? board.tokens.filter(function (t) { return t.characterId === character.id || ALIAS[t.characterId] === character.id; })[0] : null;
       return tok && Array.isArray(tok.conditions) ? tok.conditions : [];
     } catch (e) { return []; }
   }
@@ -687,6 +688,7 @@
 
   async function load() {
     var data = await api('/api/party');
+    try { ALIAS = await api('/api/character-aliases'); ONLY = ALIAS[ONLY] || ONLY; } catch (e) { /* none */ }
     await loadSheet();
     state.campaign = data.campaign;
     state.characters = data.characters;

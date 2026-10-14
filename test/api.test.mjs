@@ -270,15 +270,15 @@ test('quick starter characters: a name, race, class and level give a full sheet;
   assert.equal((await s.get('/api/characters')).json.length, before);
   const r = await s.post('/api/characters/quick', { name: 'Mira Vale', cls: 'Wizard', race: 'Elf', level: 3 }); ok(r);
   const c = r.json.character;
-  assert.equal(c.id, 'mira-vale'); assert.equal(c.class, 'Wizard'); assert.equal(c.level, 3);
+  assert.match(c.id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, 'a new character gets a GUID'); assert.equal(c.class, 'Wizard'); assert.equal(c.level, 3);
   assert.equal(c.abilities.int, 15); assert.equal(c.abilities.dex, 15, 'the elf bonus (+2 Dexterity) is on top of the standard array');
   assert.equal(c.maxHp, 6 + 2 + 2 * (4 + 2), 'hit die + Con at level 1, then the average and Con each level');
   assert.equal(c.ac, 12); assert.equal(c.darkvision, 60);
   assert.equal(c.sheet.ClassLevel, 'Wizard 3'); assert.equal(c.sheet['Race '], 'Elf'); assert.ok(c.sheet['SpellSaveDC  2']);
   assert.ok(c.inventory.some((i) => /spellbook/i.test(i.name)));
   const again = await s.post('/api/characters/quick', { name: 'Mira Vale', cls: 'Fighter', race: 'Human' }); ok(again);
-  assert.equal(again.json.character.id, 'mira-vale-2'); assert.equal(again.json.character.ac, 18);
-  assert.ok((await s.get('/api/characters')).json.some((x) => x.id === 'mira-vale'));
+  assert.notEqual(again.json.character.id, c.id, 'two characters with the same name get different ids'); assert.equal(again.json.character.ac, 18);
+  assert.ok((await s.get('/api/characters')).json.some((x) => x.id === c.id));
 });
 
 test('the Market: save a map as a pack, list it, add it to a campaign, export and import it; purchased pictures and private packs stay put', async () => {

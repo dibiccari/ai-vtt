@@ -6,7 +6,9 @@ import path from 'node:path';
 import { ROOT } from './helpers/sandbox.mjs';
 import { applyUpdate, processCharacterUpdates, modOf, profBonus, levelForXp, levelFromClassLevel, SKILLS, SAVES } from '../lib/sheet-edit.js';
 
-const load = async (id) => JSON.parse(await readFile(path.join(ROOT, 'data', 'characters', id + '.json'), 'utf8'));
+// The seeded characters have GUID ids now; the tests keep naming them by their old slug through the alias table.
+const aliases = JSON.parse(await readFile(path.join(ROOT, 'data', 'character-aliases.json'), 'utf8').catch(() => '{}'));
+const load = async (id) => JSON.parse(await readFile(path.join(ROOT, 'data', 'characters', (aliases[id] || id) + '.json'), 'utf8'));
 
 test('modOf, profBonus, levelForXp and levelFromClassLevel', () => {
   assert.deepEqual([1, 8, 9, 10, 11, 20, 30].map(modOf), [-5, -1, -1, 0, 0, 5, 10]);
