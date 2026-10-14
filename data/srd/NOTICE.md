@@ -1,6 +1,6 @@
 # SRD content notice
 
-The monsters, spells, magic items, equipment and conditions in this folder are the System Reference Document 5.1 content, in the JSON
+The monsters, spells, magic items, equipment, conditions, classes, levels, features, subclasses, races, subraces, traits, proficiencies, skills, backgrounds and feats in this folder are the System Reference Document 5.1 content, in the JSON
 form published by the 5e-bits project (https://github.com/5e-bits/5e-database, MIT-licensed data compilation).
 
 This work includes material taken from the System Reference Document 5.1 ("SRD 5.1") by Wizards of the Coast LLC and available at
