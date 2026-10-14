@@ -452,3 +452,13 @@ test('map sets: a night look is added to a place with its own picture, light and
   assert.deepEqual(sum.times, ['day', 'night']); assert.equal(sum.levels[0].walls, flagon.levels[0].walls, 'the walls are the level\'s, shared by both looks');
   assert.equal(sum.levels[0].looks.find((l) => l.time === 'night').light, 'dark');
 });
+
+test('a pin can be marked dmOnly (hidden from players) and the flag is saved', async () => {
+  const file = 'vtt-terrain-test.png';
+  const cur = (await s.get('/api/map-config?map=' + file)).json;
+  const starts = [...(cur.config.starts || []).filter((p) => p.name === 'start'), { name: 'secret-cache', x: 100, y: 120, desc: 'The thieves hid it here', dmOnly: true }, { name: 'old-mill', x: 300, y: 320, label: 'Old Mill' }];
+  const put = await s.put('/api/map-config?map=' + file, { ...cur.config, starts, baseVersion: cur.setVersion });
+  assert.equal(put.status, 200, put.text);
+  const back = (await s.get('/api/map-config?map=' + file)).json.config.starts;
+  assert.equal(back.find((p) => p.name === 'secret-cache').dmOnly, true); assert.equal(back.find((p) => p.name === 'old-mill').dmOnly, undefined);
+});

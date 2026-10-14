@@ -428,3 +428,31 @@ test('Terrain Test Grounds: a running stream is animated and the brazier starts 
   assert.ok(out.diff > 200, 'the stream moves between two frames: ' + out.diff);
   assert.ok(out.startedUnlit && out.afterList && out.afterClick, 'the list lights it and a click puts it out: ' + JSON.stringify(out));
 });
+
+test('Show places: in the Player view of a regional map the named places are drawn and a switch (shared with the tabletop) turns them off; the DM view has no switch; a pin can be hidden from players', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/dnd-sword-coast-ours.png`);
+  await page.waitFor('document.querySelector("#viewSwitch") && document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.kind === "regional"');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    localStorage.removeItem('vtt.showPlaces');
+    const S = window.mapTest.state, out = {};
+    let drawn = 0; const real = PlacePins.draw; PlacePins.draw = (ctx, pins, px) => { drawn = pins.length; return real(ctx, pins, px); };
+    const vis = () => { const e = document.querySelector('#placesRow'); return !e.hidden && e.offsetParent !== null; };
+    out.kind = S.kind; out.dmSwitch = vis();
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(300);
+    out.playerSwitch = vis(); out.playerOn = document.querySelector('#showPlaces').checked; out.drawn = drawn;
+    const box = document.querySelector('#showPlaces'); drawn = -1;
+    box.checked = false; box.dispatchEvent(new Event('change')); await wait(300);
+    out.drawnOff = drawn; out.stored = localStorage.getItem('vtt.showPlaces');
+    box.checked = true; box.dispatchEvent(new Event('change')); await wait(300);
+    out.drawnOn = drawn;
+    const pin = S.starts.find((p) => PlacePins.isPlace(p)); pin.dmOnly = true; drawn = -1; box.dispatchEvent(new Event('change')); await wait(300);
+    out.afterHide = drawn; out.total = S.starts.filter((p) => p.name !== 'start' && !/^area-/.test(p.name)).length;
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(300);
+    out.dmAgain = vis();
+    return out;
+  })()`);
+  assert.equal(r.kind, 'regional'); assert.equal(r.dmSwitch, false, 'the DM view has no places switch'); assert.equal(r.playerSwitch, true); assert.equal(r.playerOn, true);
+  assert.ok(r.drawn >= 10, 'the named places are drawn'); assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.stored, '0'); assert.equal(r.drawnOn, r.drawn);
+  assert.equal(r.afterHide, r.total - 1, 'a pin marked Hide from players is not drawn'); assert.equal(r.dmAgain, false);
+});

@@ -126,6 +126,8 @@
     background: var(--danger); color: #1a0505; box-shadow: var(--shadow); pointer-events: none; display: none;
   }
   .mode-badge.show { display: block; }
+  .places-toggle { position: absolute; left: 12px; bottom: 12px; background: rgba(10, 13, 18, 0.82); border: 1px solid var(--border-strong); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
+  .places-toggle[hidden] { display: none; }
   .zoom-controls { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
   .zoom-controls button {
     width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border);
@@ -365,6 +367,7 @@
       <button id="fitBtn" title="Fit the whole map in the view (fit to height)" aria-label="Fit map to height">⤢</button>
       <button id="fitWidthBtn" title="Fit the map to the width of the view" aria-label="Fit map to width">↔</button>
     </div>
+    <label class="places-toggle" id="placesToggle" title="Show the named places on this map" hidden><input type="checkbox" id="showPlaces" checked> Show places</label>
   </div>
   <!-- COMBAT TRACKER: beside the map, only while there is a fight -->
   <section class="combat" id="combatPanel" aria-label="Combat tracker"></section>
@@ -442,6 +445,7 @@
 <script src="/condition-rings.js"></script>
 <script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
+<script src="/place-pins.js"></script>
 <script src="/levelup-wizard.js"></script>
 <script src="/inventory-wizard.js"></script>
 <script src="/effects.js"></script>
@@ -1972,6 +1976,7 @@ function render(now) {
   drawWallSegments(1);
   drawTokens(false, now);
   drawFog();
+  drawPlacePins();
   if (state.drawWalls || state.gmOverride) drawWallSegments(0.85);
   drawReachable();
   drawTemplates();
@@ -1980,6 +1985,15 @@ function render(now) {
   drawWallPreview();
 
   if (animating) requestRender();
+}
+
+// The places of a town or regional map, over the picture (the players' own switch: the Show places box on the map).
+function drawPlacePins() {
+  const has = PlacePins.appliesTo(state.mapKind) && Array.isArray(state.placePins) && state.placePins.length > 0;
+  const box = document.getElementById('placesToggle');
+  if (box && box.hidden === has) box.hidden = !has;                           // the box only shows on a town or regional map that has places
+  if (!has || !PlacePins.enabled()) return;
+  PlacePins.draw(ctx, state.placePins, 1 / state.view.scale);
 }
 
 function drawBackground() {
@@ -2850,6 +2864,7 @@ async function loadMapLighting() {
   state.difficult = [];
   state.areaPins = [];
   state.places = [];
+  state.placePins = [];
   state.difficultSquares = null;
   state.rooms = [];
   if (!state.map.url || !state.map.img) return;
@@ -2863,6 +2878,8 @@ async function loadMapLighting() {
     // The module's numbered areas (pins named area-N, set on Map Test) as board squares, so the DM knows where each room is.
     // the other named pins of the map (not the start, not the numbered areas): places the DM can narrate and put creatures at, with the note written on the pin
     state.places = (Array.isArray(config.starts) ? config.starts : []).filter((s) => s.name !== 'start' && !/^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ name: s.name, note: String(s.desc || '').slice(0, 300), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
+    // What the players may see on a town or regional map (public/place-pins.js): the named places, in board pixels.
+    state.placePins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => PlacePins.isPlace(s)).map((s) => ({ name: s.name, label: s.label || '', x: s.x * f, y: s.y * f }));
     state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ area: parseInt(s.name.slice(5), 10), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
     state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
@@ -4649,6 +4666,8 @@ function bindUi() {
   $('#zoomInBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 1.25));
   $('#zoomOutBtn').addEventListener('click', () => zoomAt(wrap.clientWidth / 2, wrap.clientHeight / 2, 0.8));
   $('#fitBtn').addEventListener('click', fitView);
+  const placesBox = document.getElementById('showPlaces');                    // the players' switch for the named places of a town or regional map
+  if (placesBox) { placesBox.checked = PlacePins.enabled(); placesBox.addEventListener('change', () => { PlacePins.setEnabled(placesBox.checked); requestRender(); }); }
   $('#fitWidthBtn').addEventListener('click', fitWidth);
 
   voice.init();

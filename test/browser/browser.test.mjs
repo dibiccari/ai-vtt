@@ -1112,3 +1112,25 @@ test('shop: the DM opens a merchant for a character; the dialog shows that stock
   assert.match(note, /finished shopping at Hurdred the smith/); assert.match(note, /left Hurdred the smith's shop/); assert.match(note, /Haggled the price down/); assert.match(note, /150% of the book price \(you set 200%\)/);
   } finally { await shopPage.close(); }
 });
+
+test('place pins: players see the named places on a regional map, with a Show places switch that remembers; battle maps show none', opts, async () => {
+  const r = await page.eval(`(async () => {
+    localStorage.removeItem('vtt.showPlaces');
+    await vtt.travelTo({ mapUrl: '/uploads/dnd-sword-coast-ours.png', mapName: 'The Sword Coast', kind: 'regional', col: 5, row: 5 });
+    await new Promise((r) => setTimeout(r, 400));
+    const box = document.getElementById('placesToggle'), cb = document.getElementById('showPlaces');
+    const out = { places: vtt.state.placePins.length, names: vtt.state.placePins.map((p) => p.name).slice(0, 20), boxShown: !box.hidden, on: cb.checked };
+    cb.checked = false; cb.dispatchEvent(new Event('change'));
+    out.stored = localStorage.getItem('vtt.showPlaces');
+    cb.checked = true; cb.dispatchEvent(new Event('change'));
+    out.storedAgain = localStorage.getItem('vtt.showPlaces');
+    out.noStartOrArea = vtt.state.placePins.every((p) => p.name !== 'start' && !/^area-/.test(p.name));
+    await vtt.travelTo({ mapUrl: '/uploads/vtt-goblin-ambush.png', mapName: 'Goblin Ambush', kind: 'battle', col: 5, row: 5 });
+    await new Promise((r) => setTimeout(r, 400));
+    out.battleBoxShown = !document.getElementById('placesToggle').hidden;
+    return out;
+  })()`);
+  assert.ok(r.places >= 10, 'the Sword Coast has its named places: ' + r.names.join(', ')); assert.equal(r.boxShown, true); assert.equal(r.on, true);
+  assert.equal(r.stored, '0'); assert.equal(r.storedAgain, '1'); assert.equal(r.noStartOrArea, true);
+  assert.equal(r.battleBoxShown, false, 'on a battle map the pins are the DM\'s notes and there is no switch');
+});

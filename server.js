@@ -431,7 +431,7 @@ function normalizeMapConfig(body) {
     const desc = String(s?.desc ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
     const label = String(s?.label ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);        // how the name is written on the DM picture (capitals, apostrophes): the pin name itself is a lower-case slug
     const radius = Math.max(0, Math.min(12, Math.round((Number(s?.radius) || 0) * 2) / 2));          // squares: the arrival area around the pin
-    if (name && x !== null && y !== null && !(name === 'start' && starts.some((o) => o.name === 'start'))) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}), ...(label ? { label } : {}) });
+    if (name && x !== null && y !== null && !(name === 'start' && starts.some((o) => o.name === 'start'))) starts.push({ name, x, y, ...(radius ? { radius } : {}), ...(desc ? { desc } : {}), ...(label ? { label } : {}), ...(s?.dmOnly === true ? { dmOnly: true } : {}) });
   }
   // Light sources from a .dd2vtt file (image pixels; range in squares). Kept for the lighting work.
   const lights = [];

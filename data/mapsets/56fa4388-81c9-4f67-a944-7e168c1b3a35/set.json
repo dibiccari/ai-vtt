@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 6,
+  "version": 7,
   "id": "56fa4388-81c9-4f67-a944-7e168c1b3a35",
   "slug": "dnd-sword-coast-ours",
   "name": "Sword Coast",
@@ -29,79 +29,92 @@
           "name": "neverwinter",
           "x": 289,
           "y": 875,
-          "desc": "The great walled port city on the High Road, at the mouth of the Neverwinter River."
+          "desc": "The great walled port city on the High Road, at the mouth of the Neverwinter River.",
+          "label": "Neverwinter"
         },
         {
           "name": "phandalin",
           "x": 757,
           "y": 1410,
-          "desc": "A frontier town of a few hundred people in the foothills of the Sword Mountains."
+          "desc": "A frontier town of a few hundred people in the foothills of the Sword Mountains.",
+          "label": "Phandalin"
         },
         {
           "name": "thundertree",
           "x": 543,
           "y": 845,
-          "desc": "A ruined village west of the Neverwinter Wood."
+          "desc": "A ruined village west of the Neverwinter Wood.",
+          "label": "Thundertree"
         },
         {
           "name": "cragmaw-castle",
           "x": 740,
           "y": 1105,
-          "desc": "A ruined castle deep in the Neverwinter Wood."
+          "desc": "A ruined castle deep in the Neverwinter Wood.",
+          "label": "Cragmaw Castle"
         },
         {
           "name": "conyberry",
           "x": 1111,
           "y": 963,
-          "desc": "The ruins of a sacked town on the Triboar Trail."
+          "desc": "The ruins of a sacked town on the Triboar Trail.",
+          "label": "Conyberry"
         },
         {
           "name": "old-owl-well",
           "x": 1165,
           "y": 1100,
-          "desc": "A ruined watchtower and a well in the wastes east of the Triboar Trail."
+          "desc": "A ruined watchtower and a well in the wastes east of the Triboar Trail.",
+          "label": "Old Owl Well"
         },
         {
           "name": "leilon",
           "x": 550,
           "y": 1570,
-          "desc": "A ruined town on the High Road to the south."
+          "desc": "A ruined town on the High Road to the south.",
+          "label": "Leilon"
         },
         {
           "name": "cragmaw-hideout",
           "x": 569,
           "y": 1295,
-          "desc": "A goblin cave hideout in the grassland near the High Road."
+          "desc": "A goblin cave hideout in the grassland near the High Road.",
+          "label": "Cragmaw Hideout"
         },
         {
           "name": "wave-echo-cave",
           "x": 900,
           "y": 1400,
-          "desc": "A cave in the Sword Mountains, the lost mine of the Phandelver Pact."
+          "desc": "A cave in the Sword Mountains, the lost mine of the Phandelver Pact.",
+          "label": "Wave Echo Cave"
         },
         {
           "name": "wyvern-tor",
           "x": 1231,
           "y": 1235,
-          "desc": "A rocky hilltop in the highlands, home to an orc war camp."
+          "desc": "A rocky hilltop in the highlands, home to an orc war camp.",
+          "label": "Wyvern Tor"
         },
         {
           "name": "agatha-s-lair",
           "x": 1054,
           "y": 948,
-          "desc": "The shelter of the banshee Agatha, a few miles northwest of Conyberry."
+          "desc": "The shelter of the banshee Agatha, a few miles northwest of Conyberry.",
+          "label": "Agatha's Lair"
         },
         {
           "name": "mount-hotenow",
           "x": 450,
           "y": 518,
-          "desc": "A tall mountain on the west side of the Neverwinter Wood."
+          "desc": "A tall mountain on the west side of the Neverwinter Wood.",
+          "label": "Mount Hotenow"
         },
         {
           "name": "icespire-peak",
           "x": 1047,
           "y": 1332,
-          "desc": "The tallest peak of the Sword Mountains."
+          "desc": "The tallest peak of the Sword Mountains.",
+          "label": "Icespire Peak"
         }
       ],
       "difficult": [],

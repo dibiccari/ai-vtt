@@ -210,6 +210,7 @@
         <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
         <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
       </span>
+      <label class="check" id="placesRow" title="The same switch as on the tabletop: show the named places on this town or regional map" hidden><input type="checkbox" id="showPlaces"> Show places</label>
       <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
         <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
         <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
@@ -241,6 +242,7 @@
 <script src="/nav.js"></script>
 <script src="/wallobjects.js"></script>
 <script src="/flicker.js"></script>
+<script src="/place-pins.js"></script>
 <script src="/effects.js"></script>
 <script>
 (function () {
@@ -627,7 +629,8 @@
     if (S.showWalls) drawWalls(px);
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
-    if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }                 // the players never see the terrain shading, the pins or the start area
+    if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }
+    else if (PlacePins.appliesTo(S.kind) && PlacePins.enabled()) PlacePins.draw(ctx, S.starts.filter((p) => PlacePins.isPlace(p)), px);       // Player view: the same named places the tabletop shows                 // the players never see the terrain shading, the pins or the start area
     if (!noFog()) drawTokens(px);
   }
 
@@ -908,7 +911,7 @@
         (clash.length ? '\nThese will be replaced there: ' + clash.join(', ') + '.' : '') +
         (resized ? '\nThat map is a different size, so positions will be scaled to fit.' : '');
       if (!confirm(msg)) return;
-      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.radius ? { radius: x.radius } : {}), ...(x.desc ? { desc: x.desc } : {}) }));
+      const copied = S.starts.map((x) => ({ name: x.name, x: Math.round(x.x * sx), y: Math.round(x.y * sy), ...(x.radius ? { radius: x.radius } : {}), ...(x.dmOnly ? { dmOnly: true } : {}), ...(x.desc ? { desc: x.desc } : {}) }));
       const merged = existing.filter((e) => !copied.some((c) => c.name === e.name)).concat(copied);
       const body = {
         squares: cfg.squares > 0 ? cfg.squares : Math.max(5, Math.round(img.naturalWidth / 50)),
@@ -1840,6 +1843,7 @@
   pinCard.hidden = true;
   pinCard.innerHTML = '<label>Name <input type="text" id="pcName" maxlength="40" spellcheck="false"></label>' +
     '<label>Note for the DM <input type="text" id="pcNote" maxlength="300" spellcheck="false" placeholder="e.g. the cellar door at the back"></label>' +
+    '<label id="pcDmOnlyRow" class="check" title="On a town or regional map the players see the named places; tick this to keep this one to yourself"><input type="checkbox" id="pcDmOnly"> Hide from players</label>' +
     '<label id="pcRadiusRow">Arrival circle (squares) <input type="number" id="pcRadius" min="0" max="12" step="0.5"></label>' +
     '<details id="pcGuide" hidden><summary>Description</summary><div id="pcGuideText"></div></details>' +
     '<div class="pc-row"><button id="pcStart">Make start</button><button id="pcRemove" class="danger">Remove</button><button id="pcDone">Done</button></div>';
@@ -1859,6 +1863,7 @@
     if (pin) {
       $('#pcName').value = pin.name;
       $('#pcNote').value = pin.desc || '';
+      $('#pcDmOnly').checked = pin.dmOnly === true; $('#pcDmOnlyRow').hidden = pin.name === 'start' || /^area-\d+/.test(pin.name);
       $('#pcStart').hidden = pin.name === 'start';
       $('#pcRadius').value = pin.radius || 0;
       $('#pcRadiusRow').hidden = pin.name !== 'start';       // only the start pin has an arrival circle; the other pins are descriptions
@@ -1895,6 +1900,7 @@
     if (S.selected.name === 'start') { parkAtStart(); revealFog(); }
     save(); requestRender();
   });
+  $('#pcDmOnly').addEventListener('change', () => { if (S.selected) { if ($('#pcDmOnly').checked) S.selected.dmOnly = true; else delete S.selected.dmOnly; save(); requestRender(); } });
   $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $("#pcNote").value.slice(0, 300); save(); renderStartList(); } });
   $('#pcStart').addEventListener('click', () => {
     const pin = S.selected;
@@ -2002,6 +2008,7 @@
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
+  $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
   document.addEventListener('keydown', (e) => {
@@ -2108,6 +2115,8 @@
     $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
     $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
     $('#dropDmBtn').hidden = !S.dmImg;
+    $('#placesRow').hidden = !(S.viewAs === 'player' && PlacePins.appliesTo(S.kind));          // Player view of a town or regional map: the players' places switch
+    $('#showPlaces').checked = PlacePins.enabled();
   }
   function setView(v) {
     S.viewAs = v; S.dm = v === 'dm'; $('#dm').checked = S.dm;
