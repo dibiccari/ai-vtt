@@ -26,6 +26,27 @@ Status: open; no fixes made as part of that review.
 
 <!-- Add newest entries at the top. -->
 
+### Codex review — 2026-10-12 — Whole-repository review
+
+Scope: complete `CLAUDE.md` and `COLLABORATION.md`, server routes and persistence, map-set storage, library modules, test harnesses, documentation, and parse validation for every tracked JavaScript and JSON source. No paid API calls were made.
+
+- **High — the documented syntax gate crashes on Windows before checking the browser scripts.** `scripts/check.mjs` passes native Windows paths directly to dynamic `import()` (`await import(path.join(...))`). Node interprets `C:\\...` as an unsupported URL scheme and exits with `ERR_UNSUPPORTED_ESM_URL_SCHEME`. Convert the paths with `pathToFileURL(...).href` (or use a file URL based on `import.meta.url`) before importing. Reference: `scripts/check.mjs:25-26`.
+- **High when listening beyond loopback — unauthenticated clients can spend API credits and overwrite game data.** `HOST` can bind the server outside localhost, but the paid `/api/chat` and `/api/tts` routes and mutable `/api/campaigns/:id/game`, `/fog`, `/api/characters`, and `/api/upload` routes have no authentication or `localOnly` protection. A LAN peer can therefore make billable requests or alter game state. The multiplayer plan documents this as a future `seatOnly` requirement; either keep non-loopback binding disabled until that exists or guard these routes now. References: `server.js:37, 230-278, 1122-1156, 1457-1469, 1960`; `docs/multiplayer-plan.md`, “The local-only guards”.
+- **High — `npm test` remains red** due to the LF-only schema boundary reported in the preceding 2026-10-12 validation entry (`scripts/dm-schema.mjs:25`): 189 pass, 9 fail.
+- **High — map-look conflict mutation and medium — colliding game/fog temporary files** remain open from the 2026-10-11 review. Reconfirmed in `server.js:575-578` and `server.js:1103-1106`; they were not fixed during this review.
+
+Validation: all tracked `.js`/`.mjs` sources pass `node --check`; all tracked JSON files parse. `npm run check` fails with the Windows import error. `npm test` fails as above. `npm run test:browser` reports 64 skipped because Chrome is not installed, so browser behavior was not executed. No code changes made.
+
+### Codex review — 2026-10-12 — Validation and handoff check
+
+Scope: `COLLABORATION.md`, test harness, and the current unit-test gate.
+
+- **High — the required unit-test gate is red.** `npm test` reports 189 passing and 9 failing tests. All failures share the same cause: `scripts/dm-schema.mjs` locates the end of `DM_SCHEMA.properties.voiceLines` using the LF-only string `\n};\n`, while `server.js` is CRLF-encoded. The search returns `-1`, so the loader incorrectly says it cannot find `DM_SCHEMA`; this breaks `chat-fake`, `dm-expand`, `monsters-art`, `token-size`, and the fake-DM checks. Use a line-ending-independent boundary (or normalize input before parsing) and add a regression assertion. Reference: `scripts/dm-schema.mjs` around line 24.
+
+- The pre-existing map-set and atomic-write findings in **Open review notes** remain open; not re-reviewed in depth.
+
+Checks run: `npm test` (failed as above). No code changes made.
+
 ### Codex — 2026-10-11 — Existing grid-scale contract
 
 Current code already defines one tactical square as **5 × 5 ft**. `public/map-test.html` sets `FT_PER_SQUARE = 5`, derives a grid cell from image width ÷ `squares`, and reports the resulting physical dimensions. `public/index.html` also defines `FT_PER_SQUARE = 5` and scales calibrated art onto its fixed logical board grid.
