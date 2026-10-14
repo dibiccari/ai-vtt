@@ -72,6 +72,10 @@
   details.card[open] > summary { margin-bottom:10px; }
   details.sec { border-top:1px solid #1c2330; margin-top:8px; padding-top:6px; }
   details.sec > summary { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:2px 0; }
+  html.embed .solo-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:4px 28px; align-items:start; }
+  .solo-sec.inv { grid-column:1 / -1; }
+  .solo-sec h4 { margin-top:8px; border-bottom:1px solid var(--border); padding-bottom:3px; }
+  .status[hidden], .clock[hidden] { display:none; }
   .head .small { margin-left:auto; }
 </style>
 </head>
@@ -346,6 +350,7 @@
     return d;
   }
   function section(c, key, title, nodes, dflt) {
+    if (ONLY) { var p = el('div', 'solo-sec ' + key); p.appendChild(el('h4', '', title)); nodes.forEach(function (n) { p.appendChild(n); }); return p; }
     var d = accordion(c.id + '.' + key, 'sec', document.createTextNode(title), dflt);
     nodes.forEach(function (n) { d.appendChild(n); });
     return d;
@@ -365,9 +370,9 @@
       pop.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); window.open('/party.html?embed=1&character=' + encodeURIComponent(c.id), 'vttParty-' + c.id, 'popup,width=640,height=900'); });
       head.appendChild(pop);
     }
-    var card = accordion(c.id + '.card', 'card', head, !EMBED || !!ONLY);
-    if (ONLY) card.open = true;                                             // a pop-out is never folded up
-    card.classList.add('card');
+    var card;
+    if (ONLY) { card = el('div', 'card solo'); card.appendChild(head); }       // a pop-out has no folding: it uses the whole window
+    else { card = accordion(c.id + '.card', 'card', head, !EMBED); card.classList.add('card'); }
     var sumStats = [], sumRules = [], sumInv = [], sumCoins = [];
 
     var e = c.effective;
@@ -427,10 +432,12 @@
     }));
     sumInv.push(addForm(function (item) { c.inventory.push(item); saveCharacter(c); }));
     sumCoins.push(coinRow(c.coins, function () { saveCharacter(c); }));
-    card.appendChild(section(c, 'stats', 'Numbers and senses', sumStats, true));
-    card.appendChild(section(c, 'rules', 'Experience, Hit Dice and features', sumRules, true));
-    card.appendChild(section(c, 'inv', 'Inventory (' + c.inventory.length + ')', sumInv, !EMBED));
-    card.appendChild(section(c, 'coins', 'Coins', sumCoins, !EMBED));
+    var holder = ONLY ? el('div', 'solo-grid') : card;
+    if (ONLY) card.appendChild(holder);
+    holder.appendChild(section(c, 'stats', 'Numbers and senses', sumStats, true));
+    holder.appendChild(section(c, 'rules', 'Experience, Hit Dice and features', sumRules, true));
+    holder.appendChild(section(c, 'inv', 'Inventory (' + c.inventory.length + ')', sumInv, !EMBED));
+    holder.appendChild(section(c, 'coins', 'Coins', sumCoins, !EMBED));
     return card;
   }
 
@@ -459,7 +466,7 @@
   function render() {
     var grid = $('#grid');
     grid.innerHTML = '';
-    if (ONLY) $('#clock').hidden = true; else clockBar();
+    if (ONLY) { $('#clock').hidden = true; $('#status').hidden = true; } else clockBar();
     if (!state.characters.length) { grid.appendChild(el('div', 'empty', 'No characters yet. Create them on the Character Sheets page.')); }
     state.characters.forEach(function (c) { if (!ONLY || c.id === ONLY) grid.appendChild(characterCard(c)); });
     if (!ONLY) grid.appendChild(stashCard());

@@ -28,7 +28,7 @@ test('party cards fold into accordions and remember it', opts, async () => {
 
 test('a pop-out shows one character, with no navigation bar and no stash', opts, async () => {
   await page.goto(`${server.base}/party.html?embed=1&character=astarion`);
-  await page.waitFor('document.querySelector("details.card")');
-  const out = await page.eval(`(() => ({ cards: document.querySelectorAll('details.card').length, name: document.querySelector('details.card h3').textContent, nav: !!document.querySelector('nav, #navBar, .topnav'), pop: !!document.querySelector('details.card .head button'), open: document.querySelector('details.card').open }))()`);
-  assert.equal(out.cards, 1); assert.equal(out.name, 'Astarion'); assert.equal(out.nav, false); assert.equal(out.pop, false); assert.equal(out.open, true);
+  await page.waitFor('document.querySelector(".card.solo")');
+  const out = await page.eval(`(() => ({ cards: document.querySelectorAll('.card').length, name: document.querySelector('.card h3').textContent, nav: !!document.querySelector('nav, #navBar, .topnav'), pop: !!document.querySelector('details.card .head button'), folds: document.querySelectorAll('details').length, emptyBars: [...document.querySelectorAll('#status, #clock')].filter((e) => e.offsetHeight > 0).length }))()`);
+  assert.equal(out.cards, 1); assert.equal(out.name, 'Astarion'); assert.equal(out.nav, false); assert.equal(out.pop, false); assert.equal(out.folds, 0); assert.equal(out.emptyBars, 0);
 });
