@@ -63,6 +63,16 @@
   .lvl { background:var(--gold); color:#000; border-radius:999px; padding:1px 10px; font-size:12px; font-weight:700; }
   .xpbar { height:6px; background:#0d1117; border-radius:3px; overflow:hidden; margin:4px 0; } .xpbar i { display:block; height:100%; background:var(--accent); }
   .exh { color:#e0a060; font-size:12px; }
+  details.acc > summary { cursor:pointer; list-style:none; }
+  details.acc > summary::-webkit-details-marker { display:none; }
+  details.acc > summary::before { content:'▸'; color:var(--muted); display:inline-block; width:14px; transition:transform .12s; }
+  details.acc[open] > summary::before { transform:rotate(90deg); }
+  details.card > summary { display:flex; gap:10px; align-items:center; }
+  details.card > summary .head { margin:0; flex:1; }
+  details.card[open] > summary { margin-bottom:10px; }
+  details.sec { border-top:1px solid #1c2330; margin-top:8px; padding-top:6px; }
+  details.sec > summary { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:2px 0; }
+  .tools { display:flex; gap:8px; align-items:center; margin:0 0 10px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -71,6 +81,7 @@
   <p class="lead">Gear, coins, attunement and the shared stash for <b id="campName">the active campaign</b>. Magic items change the numbers below (Ring of Protection, Gauntlets of Ogre Power), and the AI Dungeon Master reads and updates all of this as you play. Hover a number to see where it comes from.</p>
   <div class="status" id="status" role="status"></div>
   <div class="clock" id="clock"></div>
+  <div class="tools" id="tools"><button class="small" id="expandAll">Expand all</button><button class="small" id="collapseAll">Collapse all</button><button class="small" id="popOut" title="Open the party in its own window, for a second screen">Pop out ↗</button></div>
   <div class="grid" id="grid"></div>
   <datalist id="srdItems"></datalist>
 </div>
@@ -82,6 +93,7 @@
   var CONDITION_COLORS = { blinded: '#8e8e9a', charmed: '#ff7ac8', deafened: '#9a8e7a', frightened: '#b06bff', grappled: '#d98a3d', incapacitated: '#cc5555', invisible: '#6fd0e8', paralyzed: '#e0c040', petrified: '#9aa0a6', poisoned: '#4cc46a', prone: '#c08a5a', restrained: '#d9a43d', stunned: '#f0a040', unconscious: '#e05050', exhaustion: '#a07850', concentrating: '#4f9dff' };
   var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
   var COINS = ['cp', 'sp', 'ep', 'gp', 'pp'];
+  var EMBED = document.documentElement.classList.contains('embed');
   var state = { clock: null, campaign: '', characters: [], stash: { items: [], coins: {} }, maxAttuned: 3 };
 
   function setStatus(text, kind) { var s = $('#status'); s.textContent = text || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
@@ -251,7 +263,6 @@
   }
   function rulesBlock(c) {
     var r = c.rules, box = el('div');
-    box.appendChild(el('h4', '', 'Experience, Hit Dice and features'));
     var xp = el('div', 'row');
     xp.appendChild(document.createTextNode('XP ' + r.xp + (r.nextLevelAt ? ' / ' + r.nextLevelAt + ' for level ' + (r.level + 1) : ' (maximum level)') + ' '));
     if (r.readyToLevelUp) { var up = el('span', 'lvl', 'Ready to level up (level ' + r.levelForXp + ')'); up.title = 'Ask the Dungeon Master to level this character up'; xp.appendChild(up); }
@@ -325,8 +336,22 @@
     catch (err) { setStatus(err.message, 'err'); }
   }
 
+  // Open or closed state of every accordion is remembered in this browser, so a re-render after a save does not fold things up.
+  function accOpen(key, dflt) { try { var v = localStorage.getItem('vtt.party.open.' + key); return v === null ? dflt : v === '1'; } catch (e) { return dflt; } }
+  function accSave(key, open) { try { localStorage.setItem('vtt.party.open.' + key, open ? '1' : '0'); } catch (e) { /* not remembered */ } }
+  function accordion(key, cls, summaryNode, dflt) {
+    var d = el('details', 'acc ' + cls); d.dataset.key = key; d.open = accOpen(key, dflt);
+    var sm = el('summary'); sm.appendChild(summaryNode); d.appendChild(sm);
+    d.addEventListener('toggle', function () { accSave(key, d.open); });
+    return d;
+  }
+  function section(c, key, title, nodes, dflt) {
+    var d = accordion(c.id + '.' + key, 'sec', document.createTextNode(title), dflt);
+    nodes.forEach(function (n) { d.appendChild(n); });
+    return d;
+  }
+
   function characterCard(c) {
-    var card = el('div', 'card');
     var head = el('div', 'head');
     if (c.image) { var img = el('img'); img.src = c.image; img.alt = ''; head.appendChild(img); }
     else { var dot = el('div', 'dot'); dot.style.background = c.color; head.appendChild(dot); }
@@ -335,7 +360,9 @@
     who.appendChild(el('div', 'meta', c.class + ' ' + c.level + ' · HP ' + c.hp + '/' + c.effective.maxHp + (c.effective.maxHp !== c.maxHp ? ' (exhaustion halves ' + c.maxHp + ')' : '')));
     var bar = el('div', 'bar'); var fill = el('i'); fill.style.width = Math.max(0, Math.min(100, c.effective.maxHp ? c.hp / c.effective.maxHp * 100 : 0)) + '%'; bar.appendChild(fill); who.appendChild(bar);
     head.appendChild(who);
-    card.appendChild(head);
+    var card = accordion(c.id + '.card', 'card', head, !EMBED);
+    card.classList.add('card');
+    var sumStats = [], sumRules = [], sumInv = [], sumCoins = [];
 
     var e = c.effective;
     var stats = el('div', 'stats');
@@ -345,21 +372,21 @@
       stat(e.speed, 'Speed', breakdownText(e.breakdown.speed), e.speed !== c.speed),
       stat(e.saveBonus ? signed(e.saveBonus) : '0', 'Saves', e.breakdown.saves.length ? breakdownText(e.breakdown.saves) : 'No item bonus to saving throws', e.saveBonus !== 0)
     );
-    card.appendChild(stats);
+    sumStats.push(stats);
     var abil = el('div', 'abil');
     ABIL.forEach(function (a) {
       var changed = e.abilities[a] !== c.abilities[a];
       abil.appendChild(stat(e.abilities[a], a, changed ? 'Base ' + c.abilities[a] + ', set by ' + e.breakdown.abilities[a] : 'Base ' + c.abilities[a], changed));
     });
-    card.appendChild(abil);
+    sumStats.push(abil);
 
-    card.appendChild(rulesBlock(c));
+    sumRules.push(rulesBlock(c));
 
     var conds = conditionsFor(c);
     if (conds.length) {
       var chips = el('div', 'chips');
       conds.forEach(function (k) { var ch = el('span', 'chip', k.name + (k.rounds > 0 ? ' (' + k.rounds + ')' : '')); ch.style.background = CONDITION_COLORS[k.name] || '#4f9dff'; chips.appendChild(ch); });
-      card.appendChild(chips);
+      sumRules.push(chips);
     }
 
     var dv = el('div', 'row');
@@ -368,23 +395,22 @@
     dvInp.addEventListener('change', function () { c.darkvision = Math.max(0, Math.min(120, Math.round(Number(dvInp.value) || 0))); saveCharacter(c); });
     dvLab.append(document.createTextNode('Darkvision (ft) '), dvInp);
     dv.appendChild(dvLab);
-    card.appendChild(dv);
+    sumStats.push(dv);
 
     var slots = el('div', 'slots');
     slots.appendChild(el('span', 'meta', 'Attuned ' + e.attuned.length + '/' + state.maxAttuned + ':'));
     for (var i = 0; i < state.maxAttuned; i++) slots.appendChild(el('span', 'slot' + (e.attuned[i] ? ' full' : ''), e.attuned[i] || 'empty'));
-    card.appendChild(slots);
+    sumStats.push(slots);
 
     var w = e.weight;
     var wText = 'Carrying ' + w.carried + ' lb of ' + w.capacity + ' lb capacity' + (w.status !== 'normal' ? ' · ' + w.status : '');
     var wEl = el('div', 'weight' + (w.status === 'normal' ? '' : w.status === 'encumbered' ? ' warn' : ' bad'), wText);
     wEl.title = w.variant ? 'Variant rule is on: encumbered over ' + w.encumberedAt + ' lb, heavily encumbered over ' + w.heavilyAt + ' lb, capacity ' + w.capacity + ' lb (Strength x 15).' : 'Standard rule: no penalty up to ' + w.capacity + ' lb (Strength x 15).';
-    card.appendChild(wEl);
+    sumStats.push(wEl);
 
     var others = state.characters.filter(function (x) { return x.id !== c.id; }).map(function (x) { return { id: x.id, name: x.name }; });
     var targets = [{ id: 'stash', name: 'Party stash' }].concat(others);
-    card.appendChild(el('h4', '', 'Inventory'));
-    card.appendChild(itemTable(c.inventory, {
+    sumInv.push(itemTable(c.inventory, {
       emptyText: 'Nothing carried.', attune: true, targets: targets, giveLabel: 'Give to…', giveTitle: 'Give this item to someone else or put it in the stash',
       save: function () { saveCharacter(c); },
       move: function (it, to) {
@@ -393,16 +419,19 @@
         moveBetween(c.inventory, it, other.inventory, async function () { await saveCharacter(other); await saveCharacter(c); });
       }
     }));
-    card.appendChild(addForm(function (item) { c.inventory.push(item); saveCharacter(c); }));
-    card.appendChild(el('h4', '', 'Coins'));
-    card.appendChild(coinRow(c.coins, function () { saveCharacter(c); }));
+    sumInv.push(addForm(function (item) { c.inventory.push(item); saveCharacter(c); }));
+    sumCoins.push(coinRow(c.coins, function () { saveCharacter(c); }));
+    card.appendChild(section(c, 'stats', 'Numbers and senses', sumStats, true));
+    card.appendChild(section(c, 'rules', 'Experience, Hit Dice and features', sumRules, true));
+    card.appendChild(section(c, 'inv', 'Inventory (' + c.inventory.length + ')', sumInv, !EMBED));
+    card.appendChild(section(c, 'coins', 'Coins', sumCoins, !EMBED));
     return card;
   }
 
   function stashCard() {
-    var card = el('div', 'card');
-    card.appendChild(el('h3', '', 'Party stash'));
-    card.appendChild(el('div', 'meta', 'Shared loot and supplies. Give an item to a character from here.'));
+    var hd = el('div'); hd.style.display = 'inline-block'; hd.appendChild(el('h3', '', 'Party stash')); hd.appendChild(el('div', 'meta', 'Shared loot and supplies. Give an item to a character from here.'));
+    var card = accordion('stash.card', 'card', hd, !EMBED);
+    card.classList.add('card');
     card.appendChild(el('h4', '', 'Items'));
     var targets = state.characters.map(function (x) { return { id: x.id, name: x.name }; });
     card.appendChild(itemTable(state.stash.items, {
@@ -440,6 +469,14 @@
     $('#campName').textContent = data.campaign;
     render();
   }
+
+  function setAll(open) {
+    document.querySelectorAll('details.acc').forEach(function (d) { d.open = open; accSave(d.dataset.key, open); });
+  }
+  $('#expandAll').addEventListener('click', function () { setAll(true); });
+  $('#collapseAll').addEventListener('click', function () { setAll(false); });
+  $('#popOut').addEventListener('click', function () { window.open('/party.html', 'vttParty', 'popup,width=760,height=900'); });
+  if (!EMBED) $('#popOut').hidden = true;
 
   load().catch(function (err) { setStatus(err.message, 'err'); });
   window.addEventListener('focus', function () { load().catch(function () { /* keep what is shown */ }); });
