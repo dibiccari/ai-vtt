@@ -216,6 +216,8 @@ try {
                    { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
       },
       searchwall: async () => { combat = { active: false }; setActive('pc-thorin'); },
+      // The step says the fight is over: take away the goblins and the ogre the group step added, or the DM rightly says the room is not safe to leave.
+      travel: async () => { combat = { active: false }; tokens = tokens.filter((t) => t.isPC || /^npc-(orla|bram|hidden|garrick|guard|choir|sleeper)$/.test(t.id) || /^trap-/.test(t.id)); setActive('pc-thorin'); },
       fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem(ID.thorin, 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
       haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem(ID.vex, 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
       senses: async () => {
