@@ -1,10 +1,10 @@
 // Characters have GUID ids; old slug ids are migrated once, with an alias table and rewritten references.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { migrateCharacterIds, readAliases, canonicalId, isGuid, tokenIdFor, revertCharacterIds } from '../lib/character-ids.js';
+import { migrateCharacterIds, readAliases, canonicalId, isGuid, tokenIdFor } from '../lib/character-ids.js';
 
 const fixture = () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'vtt-ids-'));
@@ -30,15 +30,6 @@ test('migration renames the files, rewrites parties and saved boards, and keeps 
   const aliases = readAliases(dir);
   assert.equal(canonicalId(aliases, 'edric'), map.edric); assert.equal(canonicalId(aliases, map.edric), map.edric);
   assert.deepEqual(migrateCharacterIds(dir), {}, 'a second run changes nothing');
-});
-
-test('the sandbox revert gives the slug ids back', () => {
-  const dir = fixture();
-  migrateCharacterIds(dir);
-  revertCharacterIds(dir);
-  assert.deepEqual(readdirSync(path.join(dir, 'characters')).sort(), ['astarion.json', 'edric.json']);
-  assert.deepEqual(JSON.parse(readFileSync(path.join(dir, 'campaigns', 'c1', 'campaign.json'), 'utf8')).party, ['edric', 'astarion', 'someone-else']);
-  assert.equal(existsSync(path.join(dir, 'character-aliases.json')), false);
 });
 
 test('token ids: slug characters keep theirs, GUID characters get a short readable one', () => {

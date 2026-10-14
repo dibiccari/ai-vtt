@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ROOT } from './helpers/sandbox.mjs';
 import { applyUpdate, processCharacterUpdates, modOf, profBonus, levelForXp, levelFromClassLevel, SKILLS, SAVES } from '../lib/sheet-edit.js';
+import { ID } from './helpers/ids.mjs';
 
 // The seeded characters have GUID ids now; the tests keep naming them by their old slug through the alias table.
 const aliases = JSON.parse(await readFile(path.join(ROOT, 'data', 'character-aliases.json'), 'utf8').catch(() => '{}'));
@@ -22,8 +23,8 @@ test('every skill and save in the table maps to a real sheet field (checked at i
 });
 
 test('xpGain adds experience and announces when a level is ready', async () => {
-  const edric = await load('edric');
-  const out = applyUpdate(edric, { characterId: 'edric', reason: 'goblins', edits: [{ field: 'xpGain', value: '300' }] });
+  const edric = await load(ID.edric);
+  const out = applyUpdate(edric, { characterId: ID.edric, reason: 'goblins', edits: [{ field: 'xpGain', value: '300' }] });
   assert.equal(out.character.sheet.XP, '300');
   assert.equal(out.readyLevel, 2);
   assert.ok(out.notes.some((n) => /XP 0/.test(n)));
@@ -32,7 +33,7 @@ test('xpGain adds experience and announces when a level is ready', async () => {
 });
 
 test('classLevel raises level and proficiency bonus and refreshes proficient skills and saves', async () => {
-  const edric = await load('edric');
+  const edric = await load(ID.edric);
   const before = Number(edric.sheet.Athletics);
   const prof = edric.sheet[SKILLS.Athletics.box] === true;
   const out = applyUpdate(edric, { edits: [{ field: 'classLevel', value: 'Fighter 5' }] });
@@ -44,12 +45,12 @@ test('classLevel raises level and proficiency bonus and refreshes proficient ski
 });
 
 test('classLevel without a number is rejected', async () => {
-  const out = applyUpdate(await load('edric'), { edits: [{ field: 'classLevel', value: 'Fighter' }] });
+  const out = applyUpdate(await load(ID.edric), { edits: [{ field: 'classLevel', value: 'Fighter' }] });
   assert.equal(out.changes.length, 0); assert.equal(out.rejected.length, 1);
 });
 
 test('raising an ability score updates its modifier, the skills under it and the saving throw', async () => {
-  const edric = await load('edric');
+  const edric = await load(ID.edric);
   const out = applyUpdate(edric, { edits: [{ field: 'str', value: '18' }] });
   const s = out.character.sheet;
   assert.equal(s.STR, '18'); assert.equal(s.STRmod, '+4'); assert.equal(out.character.abilities.str, 18);
@@ -59,25 +60,25 @@ test('raising an ability score updates its modifier, the skills under it and the
 });
 
 test('maxHp and hp are kept in range (hp never above max)', async () => {
-  const out = applyUpdate(await load('edric'), { edits: [{ field: 'maxHp', value: '30' }, { field: 'hp', value: '999' }] });
+  const out = applyUpdate(await load(ID.edric), { edits: [{ field: 'maxHp', value: '30' }, { field: 'hp', value: '999' }] });
   assert.equal(out.character.maxHp, 30); assert.equal(out.character.hp, 30);
-  const low = applyUpdate(await load('edric'), { edits: [{ field: 'hp', value: '-5' }] });
+  const low = applyUpdate(await load(ID.edric), { edits: [{ field: 'hp', value: '-5' }] });
   assert.equal(low.character.hp, 0);
 });
 
 test('a name change is refused, an unknown field is refused, a checkbox needs true or false', async () => {
-  const out = applyUpdate(await load('edric'), { edits: [{ field: 'CharacterName', value: 'Mallory' }, { field: 'NoSuchField', value: 'x' }, { field: SKILLS.Arcana.box, value: 'maybe' }] });
+  const out = applyUpdate(await load(ID.edric), { edits: [{ field: 'CharacterName', value: 'Mallory' }, { field: 'NoSuchField', value: 'x' }, { field: SKILLS.Arcana.box, value: 'maybe' }] });
   assert.equal(out.rejected.length, 3);
   assert.equal(out.character.name, 'Edric');
 });
 
 test('non-numeric numbers are rejected without changing anything', async () => {
-  const out = applyUpdate(await load('edric'), { edits: [{ field: 'ac', value: 'high' }] });
+  const out = applyUpdate(await load(ID.edric), { edits: [{ field: 'ac', value: 'high' }] });
   assert.equal(out.changes.length, 0); assert.match(out.rejected[0], /needs a number/);
 });
 
 test('skills: proficiency, expertise and removal recompute the bonus', async () => {
-  const edric = await load('edric');
+  const edric = await load(ID.edric);
   const out = applyUpdate(edric, { skills: [{ name: 'stealth', proficiency: 'expertise' }, { name: 'Basket Weaving', proficiency: 'proficient' }] });
   const dex = modOf(edric.abilities.dex);
   assert.equal(out.character.sheet['Stealth '], (dex + 4 >= 0 ? '+' : '') + (dex + 4));
@@ -86,14 +87,14 @@ test('skills: proficiency, expertise and removal recompute the bonus', async () 
 });
 
 test('saves: proficiency toggles the bonus', async () => {
-  const edric = await load('edric');
+  const edric = await load(ID.edric);
   const out = applyUpdate(edric, { saves: [{ ability: 'Wisdom', proficient: true }, { ability: 'luck', proficient: true }] });
   assert.equal(out.character.sheet[SAVES.wis.box], true);
   assert.equal(out.rejected.length, 1);
 });
 
 test('spells and slots: add, duplicate, remove, and a slot total keeps used slots used', async () => {
-  const lyra = await load('lyra');
+  const lyra = await load(ID.lyra);
   const added = applyUpdate(lyra, { spells: [{ level: 1, name: 'Find Familiar' }, { level: 1, name: 'find familiar' }] });
   const lines = Object.entries(added.character.sheet).filter(([, v]) => v === 'Find Familiar');
   assert.equal(lines.length, 1, 'no duplicate line');
@@ -105,7 +106,7 @@ test('spells and slots: add, duplicate, remove, and a slot total keeps used slot
 });
 
 test('processCharacterUpdates saves the result, logs it, and reports unknown characters', async () => {
-  const edric = await load('edric');
+  const edric = await load(ID.edric);
   const saved = [];
   const store = { list: async () => [edric], save: async (c) => { saved.push(c); return c; } };
   const r = await processCharacterUpdates([{ characterId: 'EDRIC', edits: [{ field: 'xpGain', value: '50' }] }, { characterId: 'ghost', edits: [{ field: 'hp', value: '1' }] }, { characterId: 'Edric', edits: [{ field: 'NoSuchField', value: 'x' }] }], store);

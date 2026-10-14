@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import { startServer, ROOT } from '../test/helpers/sandbox.mjs';
 import { loadServerPieces, validateSchema } from './dm-schema.mjs';
 import { CATEGORIES, STATUSES } from '../lib/journal.js';
+import { ID } from '../test/helpers/ids.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
@@ -106,7 +107,7 @@ process.on('SIGINT', async () => { await cleanup(); process.exit(130); });
 if (flag('--gating')) {
   try {
     console.log(`Gating check against model ${model}; throwaway server on port ${srv.port}; one API call.`);
-    const party = ['edric', 'rachel', 'shadowheart', 'astarion'];
+    const party = [ID.edric, ID.rachel, ID.shadowheart, ID.astarion];
     const made = await srv.post('/api/campaigns/new', { template: 'lost-mine-of-phandelver', name: 'gate-check', party, settings: {} });
     check(made.status === 200 && made.json.id === 'gate-check', 'fresh Lost Mine copy created in the sandbox');
     await srv.post('/api/campaigns/active', { id: 'gate-check' });
@@ -116,7 +117,7 @@ if (flag('--gating')) {
     const town = maps.find((m) => m.id === 'phandalin'), castle = maps.find((m) => m.id === 'cragmaw-castle');
     check(chars.length === 4 && !!town && !!castle, 'the party, Phandalin and Cragmaw Castle are available', chars.length + ' characters, maps: ' + maps.map((m) => m.id).join(','));
     if (failures) throw new Error('setup failed');
-    const tokens = chars.map((c, i) => ({ id: 'pc-' + c.id, name: c.name, col: 10 + i, row: 10, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: 0, where: '', readied: '', image: '', hidden: false, kind: 'creature', speed: 30, movementRemaining: 30, conditions: [], summon: null, dead: false, stable: false, deathSaves: null, spent: null, initiative: null, visibleToParty: true }));
+    const tokens = chars.map((c, i) => ({ id: 'pc-' + c.name.toLowerCase().split(' ')[0], name: c.name, col: 10 + i, row: 10, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: 0, where: '', readied: '', image: '', hidden: false, kind: 'creature', speed: 30, movementRemaining: 30, conditions: [], summon: null, dead: false, stable: false, deathSaves: null, spent: null, initiative: null, visibleToParty: true }));
     const arrive = flag('--gating-arrive');       // the party really goes: the DM must move the table there and find it quiet
     const say = arrive ? '[Table] The players insist: the party travels to Cragmaw Castle right now, although the story has not led them there and they have no clues about it. Move the table there and describe what they find.' : '[Edric] We have only just arrived in Phandalin and have heard nothing about any castle. Still, I feel like exploring: let us walk out of town to the ruined Cragmaw Castle in the hills right now and look around.';
     const res = await srv.post('/api/chat', { message: say, history: [], activeTokenId: 'pc-edric', tokens, characters: chars, walls: [], gridSize: 50, mapUrl: town.url, mapName: town.name, visitedMaps: [town.url], inputMode: 'text', combat: { active: false }, diceMode: 'ai', movementRule: 'circle' });
@@ -147,7 +148,7 @@ if (flag('--gating')) {
 try {
   console.log(`DM check against model ${model}; throwaway server on port ${srv.port}; at most ${MAX_CALLS} API calls.`);
   // fresh campaign: a copy of the tavern test with its four characters
-  const made = await srv.post('/api/campaigns/new', { template: 'tavern-brawl-test', name: 'dm-check', party: ['thorin', 'lyra', 'vex', 'seraphine'], settings: {} });
+  const made = await srv.post('/api/campaigns/new', { template: 'tavern-brawl-test', name: 'dm-check', party: [ID.thorin, ID.lyra, ID.vex, ID.seraphine], settings: {} });
   check(made.status === 200 && made.json.id === 'dm-check', 'fresh campaign created in the sandbox');
   await srv.post('/api/campaigns/active', { id: 'dm-check' });
   await srv.post('/api/campaigns/dm-check/start-over');
@@ -159,7 +160,7 @@ try {
   // The board the tabletop would send
   const mk = (o) => ({ where: '', readied: '', image: '', hidden: false, kind: 'creature', speed: 30, movementRemaining: 30, conditions: [], summon: null, lightKind: '', dead: false, stable: false, deathSaves: null, spent: null, initiative: null, visibleToParty: true, ...o });
   const c0 = flagon.start.col, r0 = flagon.start.row;
-  let tokens = chars.map((c, i) => mk({ id: 'pc-' + c.id, name: c.name, col: c0 + i, row: r0, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: Math.floor((c.abilities.dex - 10) / 2) }));
+  let tokens = chars.map((c, i) => mk({ id: 'pc-' + c.name.toLowerCase().split(' ')[0], name: c.name, col: c0 + i, row: r0, color: c.color, isPC: true, characterId: c.id, hp: c.hp, maxHp: c.maxHp, ac: c.ac, dexMod: Math.floor((c.abilities.dex - 10) / 2) }));
   tokens.push(
     mk({ id: 'npc-orla', name: 'Orla the barkeep', col: c0 + 2, row: r0 - 6, color: '#c9a', isPC: false, hp: 9, maxHp: 9, ac: 10, dexMod: 0 }),
     mk({ id: 'npc-bram', name: 'Drunk Bram', col: c0, row: r0 - 1, color: '#a96', isPC: false, hp: 11, maxHp: 11, ac: 10, dexMod: 0 }),
@@ -195,17 +196,17 @@ try {
       },
       deathsave: async () => {
         startPretendCombat(); setActive('pc-lyra');
-        const l = byId('pc-lyra'), c = chars.find((x) => x.id === 'lyra');
+        const l = byId('pc-lyra'), c = chars.find((x) => x.id === ID.lyra);
         T.lyraHp = c.hp; c.hp = 0; Object.assign(l, { hp: 0 }); l.conditions.push({ name: 'unconscious', rounds: 0 }); l.deathSaves = { successes: 0, failures: 0 };
       },
       group: async () => {
-        const l = byId('pc-lyra'), c = chars.find((x) => x.id === 'lyra');
+        const l = byId('pc-lyra'), c = chars.find((x) => x.id === ID.lyra);
         c.hp = T.lyraHp ?? c.maxHp; l.hp = c.hp; l.conditions = l.conditions.filter((x) => x.name !== 'unconscious'); l.deathSaves = null;
         combat = { active: false }; setActive('pc-thorin');
         T.places = [{ name: 'front-door', col: c0 + 8, row: r0 - 4, note: 'The tavern front door; the street is outside.' }];
       },
       forced: async () => { combat = { active: false }; setActive('pc-lyra'); const b = byId('npc-bram'); if (b) Object.assign(b, { hp: 11, dead: false }); T.bram = b ? { col: b.col, row: b.row } : null; },
-      levitate: async () => { combat = { active: false }; setActive('pc-lyra'); const l = byId('pc-lyra'); l.conditions = l.conditions.filter((c) => c.name !== 'concentrating'); await giveItem('lyra', 'Boots of levitation', 'While you wear these boots, you can use an action to cast the levitate spell on yourself at will (concentration).', { equipped: true, attuned: true, requiresAttunement: true }); },
+      levitate: async () => { combat = { active: false }; setActive('pc-lyra'); const l = byId('pc-lyra'); l.conditions = l.conditions.filter((c) => c.name !== 'concentrating'); await giveItem(ID.lyra, 'Boots of levitation', 'While you wear these boots, you can use an action to cast the levitate spell on yourself at will (concentration).', { equipped: true, attuned: true, requiresAttunement: true }); },
       lockeddoor: async () => {
         combat = { active: false }; setActive('pc-vex');
         const v = byId('pc-vex');
@@ -215,8 +216,8 @@ try {
                    { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
       },
       searchwall: async () => { combat = { active: false }; setActive('pc-thorin'); },
-      fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem('thorin', 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
-      haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem('vex', 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
+      fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem(ID.thorin, 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
+      haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem(ID.vex, 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
       senses: async () => {
         combat = { active: false };
         T.active = 'pc-vex';
@@ -414,12 +415,12 @@ try {
       check(gears.length >= 1, 'gear: the DM sent gear updates', gears.length + ' updates');
       const rope = gears.find((u) => u.action === 'add' && /rope/i.test(u.name)), torch = gears.find((u) => u.action === 'add' && /torch/i.test(u.name));
       const spent = gears.find((u) => u.action === 'coins' && (u.gp < 0 || u.sp < 0 || u.cp < 0 || u.ep < 0));
-      check(!!rope && /thorin/i.test(rope.target), 'gear: a rope added to Thorin', rope ? 'target ' + rope.target : 'missing');
-      check(!!torch && /thorin/i.test(torch.target) && torch.qty >= 2, 'gear: two torches added to Thorin', torch ? 'target ' + torch.target + ', qty ' + torch.qty : 'missing');
-      check(!!spent && /thorin/i.test(spent.target), 'gear: coins spent from Thorin', spent ? 'target ' + spent.target : 'missing');
-      const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === 'thorin');
+      check(!!rope && [ID.thorin, 'thorin'].includes(String(rope.target).toLowerCase()), 'gear: a rope added to Thorin', rope ? 'target ' + rope.target : 'missing');
+      check(!!torch && [ID.thorin, 'thorin'].includes(String(torch.target).toLowerCase()) && torch.qty >= 2, 'gear: two torches added to Thorin', torch ? 'target ' + torch.target + ', qty ' + torch.qty : 'missing');
+      check(!!spent && [ID.thorin, 'thorin'].includes(String(spent.target).toLowerCase()), 'gear: coins spent from Thorin', spent ? 'target ' + spent.target : 'missing');
+      const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === ID.thorin);
       check((th.inventory || []).some((i) => /rope/i.test(i.name)) && (th.inventory || []).some((i) => /torch/i.test(i.name)), 'gear: the rope and torches are in Thorin\'s saved inventory');
-      check((j.partyChanged || []).includes('thorin'), 'gear: the table was told the party changed');
+      check((j.partyChanged || []).includes(ID.thorin), 'gear: the table was told the party changed');
     }
     if (step.id === 'travel') {
       const asked = (raw?.mapUpdates || []).find((u) => u.type === 'changeMap');

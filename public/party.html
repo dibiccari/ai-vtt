@@ -63,15 +63,6 @@
   .lvl { background:var(--gold); color:#000; border-radius:999px; padding:1px 10px; font-size:12px; font-weight:700; }
   .xpbar { height:6px; background:#0d1117; border-radius:3px; overflow:hidden; margin:4px 0; } .xpbar i { display:block; height:100%; background:var(--accent); }
   .exh { color:#e0a060; font-size:12px; }
-  dialog.wiz { background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:14px; padding:0; width:min(680px, 94vw); max-height:90vh; }
-  dialog.wiz::backdrop { background:rgba(0,0,0,.65); }
-  .wiz header { padding:14px 18px 8px; border-bottom:1px solid var(--border); } .wiz header h2 { margin:0; font-size:18px; }
-  .wiz .steps { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; } .wiz .steps span { font-size:11px; padding:1px 9px; border-radius:999px; border:1px solid #3a4558; color:var(--muted); } .wiz .steps span.on { background:var(--accent); border-color:var(--accent); color:#001; font-weight:700; } .wiz .steps span.done { color:var(--ok); border-color:var(--ok); }
-  .wiz .body { padding:14px 18px; overflow:auto; max-height:56vh; } .wiz footer { padding:10px 18px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; align-items:center; }
-  .wiz .opt { display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border:1px solid var(--border); border-radius:8px; margin:6px 0; cursor:pointer; } .wiz .opt.on { border-color:var(--accent); background:rgba(79,157,255,.1); } .wiz .opt small { color:var(--muted); display:block; }
-  .wiz .feat { border-left:3px solid var(--gold); padding:2px 10px; margin:8px 0; } .wiz .feat b { color:var(--gold); } .wiz .feat div { color:var(--muted); font-size:12px; white-space:pre-wrap; }
-  .wiz .abil6 { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; } .wiz .abil6 .a { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:6px; text-align:center; } .wiz .abil6 .a b { font-size:18px; display:block; }
-  .wiz .spells { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:4px; max-height:300px; overflow:auto; margin-top:6px; } .wiz .spells label { display:flex; gap:6px; align-items:center; font-size:13px; padding:2px 6px; border-radius:6px; } .wiz .spells label:hover { background:var(--panel2); }
   .sheetgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:2px 14px; font-size:13px; }
   .sheetgrid div { display:flex; justify-content:space-between; gap:6px; padding:1px 0; border-bottom:1px dotted #1c2330; } .sheetgrid .prof b::before { content:'● '; color:var(--gold); } .sheetgrid .exp b::before { content:'◆ '; color:var(--gold); }
   .prose { white-space:pre-wrap; font-size:13px; margin:0 0 6px; } .prose small { color:var(--muted); display:block; text-transform:uppercase; letter-spacing:.08em; font-size:10px; }
@@ -103,6 +94,7 @@
   <datalist id="srdItems"></datalist>
 </div>
 <script src="/nav.js"></script>
+<script src="/levelup-wizard.js"></script>
 <script>
 (function () {
   'use strict';

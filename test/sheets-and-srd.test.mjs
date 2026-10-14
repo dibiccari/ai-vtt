@@ -10,6 +10,7 @@ import { listEntries, getEntry, monsterImage } from '../lib/compendium.js';
 import { buildCharacter } from '../lib/charbuild.js';
 import { TAVERN_PARTY, writeTavernParty, TAVERN_CAMPAIGN } from '../lib/tavern-party.js';
 import { SKILLS, SAVES, modOf, profBonus } from '../lib/sheet-edit.js';
+import { ID } from './helpers/ids.mjs';
 
 test('adventure monsters: the Lost Mine list loads, lookups are forgiving, the prompt lists them', async () => {
   const list = await loadAdventureMonsters(path.join(ROOT, 'data', 'campaigns', 'lost-mine-of-phandelver'));
@@ -83,11 +84,11 @@ test('tavern party: the four characters are written at full hit points, level 3,
   const dir = await mkdtemp(path.join(tmpdir(), 'vtt-tavern-'));
   try {
     await cp(path.join(ROOT, 'data', 'characters'), dir, { recursive: true });
-    const done = await writeTavernParty(dir, { keepHp: false });
-    assert.deepEqual(done.map((c) => c.id), TAVERN_PARTY.map((p) => p.id));
+    const done = await writeTavernParty(dir, { keepHp: false, resolve: (id) => ID[id] });
+    assert.deepEqual(done.map((c) => c.id), TAVERN_PARTY.map((p) => ID[p.id]));
     for (const c of done) { assert.equal(c.hp, c.maxHp); assert.equal(c.level, 3); assert.deepEqual(c.campaigns, [TAVERN_CAMPAIGN]); assert.equal(c.sheet.ProfBonus, '+2'); }
-    const again = JSON.parse(await readFile(path.join(dir, 'thorin.json'), 'utf8'));
-    assert.equal(again.id, 'thorin');
+    const again = JSON.parse(await readFile(path.join(dir, ID.thorin + '.json'), 'utf8'));
+    assert.equal(again.id, ID.thorin);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 

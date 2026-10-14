@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { loadServerPieces, validateSchema } from '../scripts/dm-schema.mjs';
 import { EFFECT_KINDS, normalizeItem, processPartyUpdates } from '../lib/party.js';
 import { applyUpdate } from '../lib/sheet-edit.js';
+import { ID } from './helpers/ids.mjs';
 
 const { expandSheetEdits, expandTokenUpdates, gearToPartyUpdates, DM_SCHEMA, VOICES } = loadServerPieces();
 const T = (action, extra = {}) => ({ type: 'token', action, tokenId: 't1', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 0, ac: 0, ...extra });
@@ -21,7 +22,7 @@ test('DM_SCHEMA: shape, closed objects, every update variant lists all its field
 });
 
 test('validateSchema accepts a correct reply and names what is wrong in broken ones', () => {
-  const ok = { rolls: ['Goblin: 14 to hit'], narrative: 'x', voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: [T('move'), { type: 'setHp', characterId: 'edric', hp: 3 }] };
+  const ok = { rolls: ['Goblin: 14 to hit'], narrative: 'x', voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: [T('move'), { type: 'setHp', characterId: ID.edric, hp: 3 }] };
   assert.deepEqual(validateSchema(ok, DM_SCHEMA), []);
   assert.ok(validateSchema({ ...ok, narrative: 5 }, DM_SCHEMA).length);
   assert.ok(validateSchema({ ...ok, extra: 1 }, DM_SCHEMA).some((p) => /extra: not allowed/.test(p)));
@@ -35,7 +36,7 @@ test('expandTokenUpdates: simple actions become their specific updates', async (
     T('move', { col: 3, row: 4 }), T('damage', { value: 7 }), T('heal', { value: 2 }), T('initiative', { value: 15 }), T('startCombat'), T('endCombat'), T('endTurn'),
     T('remove'), T('reveal'), T('hide'), T('addCondition', { condition: 'prone', rounds: 2 }), T('removeCondition', { condition: 'prone' }),
     T('away', { condition: 'scouting' }), T('away'), T('here'), T('rest', { value: 2 }), T('rest', { value: 1 }), T('mood', { condition: 'Combat' }), T('sfx', { condition: 'THUNDER' }),
-    T('light', { condition: 'Torch', value: 1 }), T('summon', { condition: 'mage-hand', name: 'lyra', col: 1, row: 1 }), T('ready', { condition: 'shoot' }), T('template', { condition: 'Cone ', value: 15, col: 2, row: 2, name: 'goblin' })
+    T('light', { condition: 'Torch', value: 1 }), T('summon', { condition: 'mage-hand', name: ID.lyra, col: 1, row: 1 }), T('ready', { condition: 'shoot' }), T('template', { condition: 'Cone ', value: 15, col: 2, row: 2, name: 'goblin' })
   ]);
   const types = out.map((u) => u.type);
   assert.deepEqual(types, ['moveToken', 'damageToken', 'healToken', 'setInitiative', 'startCombat', 'endCombat', 'endTurn', 'removeToken', 'revealToken', 'hideToken', 'addCondition', 'removeCondition', 'setWhere', 'setWhere', 'setWhere', 'restParty', 'restParty', 'setMood', 'playSound', 'lightToken', 'summonToken', 'readyToken', 'template']);
@@ -43,7 +44,7 @@ test('expandTokenUpdates: simple actions become their specific updates', async (
   assert.equal(out[12].where, 'scouting'); assert.equal(out[13].where, 'elsewhere'); assert.equal(out[14].where, '');
   assert.equal(out[15].kind, 'long'); assert.equal(out[16].kind, 'short');
   assert.equal(out[17].mood, 'combat'); assert.equal(out[18].sound, 'thunder');
-  assert.equal(out[19].kind, 'torch'); assert.equal(out[20].ownerId, 'lyra'); assert.equal(out[22].shape, 'cone'); assert.equal(out[22].toward, 'goblin');
+  assert.equal(out[19].kind, 'torch'); assert.equal(out[20].ownerId, ID.lyra); assert.equal(out[22].shape, 'cone'); assert.equal(out[22].toward, 'goblin');
 });
 
 test('expandTokenUpdates: a move marked forced or teleport carries its mode, anything else is the creature walking', async () => {
@@ -74,7 +75,7 @@ test('expandTokenUpdates: add without a monster uses the DM numbers; adventure c
   assert.equal(rr.name, 'Redbrand Ruffian'); assert.equal(rr.maxHp, 16); assert.equal(rr.ac, 14); assert.equal(rr.dexMod, 2); assert.equal(rr.monster, '', 'not an SRD index');
 });
 
-const G = (action, extra = {}) => ({ type: 'gear', action, target: 'edric', to: '', name: 'Rope', qty: 1, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...extra });
+const G = (action, extra = {}) => ({ type: 'gear', action, target: ID.edric, to: '', name: 'Rope', qty: 1, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...extra });
 
 test('gearToPartyUpdates: every gear action maps to the party update', () => {
   const out = gearToPartyUpdates([
@@ -83,14 +84,14 @@ test('gearToPartyUpdates: every gear action maps to the party update', () => {
   assert.deepEqual(out.map((u) => u.type), ['addItem', 'addItem', 'removeItem', 'moveItem', 'attuneItem', 'unattuneItem', 'adjustCoins']);
   assert.deepEqual(out[0].effects, [{ kind: 'ac', value: 1, ability: '' }]);
   assert.deepEqual(out[1].effects, [], 'effectKind none means no effect');
-  assert.deepEqual([out[3].from, out[3].to], ['edric', 'stash']);
-  assert.equal(out[4].characterId, 'edric');
+  assert.deepEqual([out[3].from, out[3].to], [ID.edric, 'stash']);
+  assert.equal(out[4].characterId, ID.edric);
   assert.equal(out[6].gp, -5);
   assert.ok(EFFECT_KINDS.every((k) => DM_SCHEMA.properties.mapUpdates.items.anyOf[3].properties.effectKind.enum.includes(k)));
 });
 
 test('gearToPartyUpdates output is accepted by processPartyUpdates', async () => {
-  const c = { id: 'edric', name: 'Edric', inventory: [], coins: { cp: 0, sp: 0, ep: 0, gp: 9, pp: 0 }, abilities: {}, ac: 10, speed: 30 };
+  const c = { id: ID.edric, name: 'Edric', inventory: [], coins: { cp: 0, sp: 0, ep: 0, gp: 9, pp: 0 }, abilities: {}, ac: 10, speed: 30 };
   const list = [c];
   const store = { list: async () => list, save: async (x) => { list[0] = x; return x; }, stash: async () => ({ items: [], coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 } }), saveStash: async (s) => s };
   const r = await processPartyUpdates(gearToPartyUpdates([G('add', { name: 'Ring of Protection', requiresAttunement: true, effectKind: 'ac', effectValue: 1 }), G('attune', { name: 'Ring of Protection' }), G('coins', { gp: -4 })]), store);
@@ -100,7 +101,7 @@ test('gearToPartyUpdates output is accepted by processPartyUpdates', async () =>
 });
 
 test('expandSheetEdits: skill/save/spell/slots lines become lists, the rest stays an edit', () => {
-  const u = expandSheetEdits({ type: 'updateCharacter', characterId: 'lyra', reason: 'level up', edits: [
+  const u = expandSheetEdits({ type: 'updateCharacter', characterId: ID.lyra, reason: 'level up', edits: [
     { field: 'skill Stealth', value: 'Expertise' }, { field: 'save dex', value: 'proficient' }, { field: 'save wis', value: 'no' },
     { field: 'spell add 2', value: 'Misty Step' }, { field: 'spell remove 1', value: 'Sleep' }, { field: 'slots 3', value: '2' }, { field: 'slot 1', value: '5' },
     { field: 'classLevel', value: 'Wizard 4' }, { field: 'int', value: ' 18 ' }

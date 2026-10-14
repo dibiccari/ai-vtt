@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT Level-up Test</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --panel2:#171c25; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:20px; max-width:980px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 16px; }
+  button { font:inherit; font-size:13px; color:inherit; cursor:pointer; padding:5px 12px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; }
+  button:hover:not(:disabled) { border-color:var(--accent); } button:disabled { opacity:.5; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#001; }
+  input, select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+  .row label { display:flex; flex-direction:column; gap:3px; color:var(--muted); font-size:12px; }
+  h2 { margin:0 0 8px; font-size:16px; } h4 { margin:12px 0 4px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .meta { color:var(--muted); font-size:12px; }
+  .abil { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+  .stat { background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:4px 10px; text-align:center; min-width:56px; } .stat b { display:block; font-size:18px; } .stat span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .stat.up { border-color:var(--gold); } .stat.up b { color:var(--gold); }
+  pre { white-space:pre-wrap; margin:0; font:inherit; font-size:13px; }
+  .changes { list-style:none; padding:0; margin:6px 0 0; } .changes li { padding:2px 0; border-bottom:1px solid #1c2330; font-size:13px; } .changes .was { color:var(--muted); text-decoration:line-through; margin-right:6px; }
+  .history { color:var(--muted); font-size:12px; margin-top:8px; }
+  .status { min-height:20px; color:var(--muted); margin:0 0 10px; } .status.err { color:var(--danger); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Level-up <span>Test</span></h1>
+  <p class="lead">Try the level-up wizard on a throwaway character. Nothing is saved: pick a class, race and starting level, press <b>Start</b>, then use <b>Level up…</b> as many times as you like to see what each level asks and gives, up to level 20. The wizard is the same one the Party page uses.</p>
+  <div class="status" id="status" role="status"></div>
+  <div class="card" id="setup">
+    <div class="row">
+      <label>Name <input id="name" value="Test Hero" maxlength="40" style="width:150px"></label>
+      <label>Class <select id="cls"></select></label>
+      <label>Race <select id="race"></select></label>
+      <label>Starting level <select id="level"></select></label>
+      <button class="primary" id="start">Start</button>
+    </div>
+  </div>
+  <div id="stage"></div>
+</div>
+<script src="/nav.js"></script>
+<script src="/levelup-wizard.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var ABIL = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+  var hero = null, previous = null, history = [];
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function setStatus(t, bad) { var s = $('#status'); s.textContent = t || ''; s.className = 'status' + (bad ? ' err' : ''); }
+  async function api(url, body) {
+    var res = await fetch(url, body === undefined ? undefined : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+    return data;
+  }
+
+  function spellLines(c) {
+    var fields = Object.keys(c.sheet || {}).filter(function (k) { return /^Spells /.test(k) && c.sheet[k]; });
+    return fields.map(function (k) { return c.sheet[k]; });
+  }
+  function sheetCard() {
+    var stage = $('#stage'); stage.innerHTML = '';
+    var c = hero, p = previous;
+    var card = el('div', 'card');
+    card.appendChild(el('h2', '', c.name + ': ' + c.class + ' ' + c.level));
+    card.appendChild(el('div', 'meta', 'HP ' + c.hp + '/' + c.maxHp + ' · AC ' + c.ac + ' · speed ' + c.speed + ' · proficiency ' + (c.sheet && c.sheet.ProfBonus) + ' · XP ' + (c.sheet && c.sheet.XP) + ' · hit dice ' + (c.sheet && c.sheet.HD)));
+    var ab = el('div', 'abil');
+    ABIL.forEach(function (a) { var s = el('div', 'stat' + (p && p.abilities[a] !== c.abilities[a] ? ' up' : '')); s.appendChild(el('b', '', String(c.abilities[a]))); s.appendChild(el('span', '', a)); ab.appendChild(s); });
+    card.appendChild(ab);
+    var sp = spellLines(c);
+    if (sp.length) { card.appendChild(el('h4', '', 'Spells on the sheet')); card.appendChild(el('div', '', sp.join(', '))); }
+    var slots = [];
+    for (var n = 1; n <= 9; n++) { var t = c.sheet && c.sheet['SlotsTotal ' + (18 + n)]; if (t && t !== '0') slots.push('L' + n + ': ' + t); }
+    if (slots.length) card.appendChild(el('div', 'meta', 'Spell slots ' + slots.join(' · ')));
+    card.appendChild(el('h4', '', 'Features and traits'));
+    var f = el('pre'); f.textContent = (c.sheet && c.sheet['Features and Traits']) || '(none yet)'; card.appendChild(f);
+    var go = el('button', 'primary', c.level >= 20 ? 'Level 20 reached' : 'Level up to ' + (c.level + 1) + '…'); go.disabled = c.level >= 20; go.style.marginTop = '12px';
+    go.addEventListener('click', openWizard);
+    var again = el('button', '', 'Start over'); again.style.marginLeft = '8px'; again.style.marginTop = '12px';
+    again.addEventListener('click', function () { hero = null; history = []; $('#stage').innerHTML = ''; setStatus(''); });
+    card.append(go, again);
+    if (history.length) { var h = el('div', 'history'); h.appendChild(document.createTextNode('So far: ' + history.join('  →  '))); card.appendChild(h); }
+    stage.appendChild(card);
+  }
+  function openWizard() {
+    LevelUpWizard.open({
+      character: hero,
+      fetchOptions: async function () { return (await api('/api/levelup/dry', { character: hero })).options; },
+      apply: function (choices) { return api('/api/levelup/dry', { character: hero, choices: choices }); },
+      onDone: function (out) {
+        previous = hero; hero = out.character;
+        history.push('level ' + out.level);
+        sheetCard();
+        var card = $('#stage').firstChild;
+        var box = el('div', 'card'); box.appendChild(el('h2', '', 'What changed'));
+        var ul = el('ul', 'changes'); out.notes.forEach(function (n) { ul.appendChild(el('li', '', n)); }); box.appendChild(ul);
+        $('#stage').insertBefore(box, card);
+        setStatus(hero.name + ' is level ' + out.level + '. Nothing was saved.');
+      },
+      onError: function (msg) { setStatus(msg, true); }
+    });
+  }
+  async function init() {
+    var q = await api('/api/characters/quick');
+    function fill(sel, items) { items.forEach(function (i) { var o = el('option', '', String(i)); o.value = i; sel.appendChild(o); }); }
+    fill($('#cls'), q.classes); fill($('#race'), q.races); fill($('#level'), q.levels);
+    $('#start').addEventListener('click', async function () {
+      try {
+        var out = await api('/api/levelup/dry', { name: $('#name').value, cls: $('#cls').value, race: $('#race').value, level: Number($('#level').value) });
+        hero = out.character; previous = null; history = ['level ' + hero.level];
+        setStatus(''); sheetCard();
+      } catch (err) { setStatus(err.message, true); }
+    });
+  }
+  init().catch(function (err) { setStatus(err.message, true); });
+})();
+</script>
+</body>
+</html>

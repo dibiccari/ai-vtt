@@ -990,6 +990,21 @@ app.post('/api/party/levelup/:id', localOnly, asyncRoute(async (req, res) => {
   await saveCharacter(saved);
   res.json({ character: saved, notes: out.notes, level: out.level });
 }));
+// A throwaway character for the Level-up test page: nothing is saved. Without choices it returns the options; with choices it returns the levelled character.
+app.post('/api/levelup/dry', asyncRoute(async (req, res) => {
+  const b = req.body || {};
+  let character;
+  if (b.character) character = normalizeCharacter(b.character);
+  else {
+    const { classes, races } = quickChoices();
+    if (!classes.includes(b.cls) || !races.includes(b.race)) return res.status(400).json({ error: 'Pick a class and a race.' });
+    character = normalizeCharacter(buildQuickCharacter({ id: newCharacterId(), name: String(b.name || 'Test Hero').slice(0, 40), cls: b.cls, race: b.race, level: b.level }));
+  }
+  if (b.choices === undefined) return res.json({ character, options: levelUpOptions(character) });
+  const out = applyLevelUp(character, b.choices);
+  if (!out.ok) return res.status(400).json({ error: out.error });
+  res.json({ character: normalizeCharacter(out.character), notes: out.notes, level: out.level });
+}));
 app.post('/api/party/clock', trackRoute((b) => (b.set ? { op: 'setTime', ...b.set } : { op: 'time', minutes: b.minutes })));
 // XP for defeated monsters: { monsters: ['1/4', {cr:'1', count:2}], partySize? } -> { total, each }
 app.post('/api/party/xp-split', asyncRoute(async (req, res) => {

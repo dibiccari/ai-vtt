@@ -5,6 +5,7 @@ import http from 'node:http';
 import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { startServer } from './helpers/sandbox.mjs';
+import { ID } from './helpers/ids.mjs';
 
 let s;
 before(async () => { s = await startServer(); });
@@ -42,11 +43,11 @@ test('campaigns: list, stats, and the active campaign switch', async () => {
 test('characters: party filtering, save keeps the stored sheet, validation, delete', async () => {
   const all = (await s.get('/api/characters')).json;
   assert.equal(all.length, 12);
-  assert.deepEqual((await s.get(`/api/characters?campaign=${LOST}`)).json.map((c) => c.id), ['astarion', 'edric', 'rachel', 'shadowheart']);
-  const edric = all.find((c) => c.id === 'edric');
-  const saved = await s.post('/api/characters', { id: 'edric', name: 'Edric', class: 'Fighter', level: 1, hp: 3, maxHp: 12, ac: 18, abilities: edric.abilities });
+  assert.deepEqual((await s.get(`/api/characters?campaign=${LOST}`)).json.map((c) => c.id), [ID.astarion, ID.edric, ID.rachel, ID.shadowheart]);
+  const edric = all.find((c) => c.id === ID.edric);
+  const saved = await s.post('/api/characters', { id: ID.edric, name: 'Edric', class: 'Fighter', level: 1, hp: 3, maxHp: 12, ac: 18, abilities: edric.abilities });
   ok(saved); assert.equal(saved.json.hp, 3);
-  const after = (await s.get('/api/characters')).json.find((c) => c.id === 'edric');
+  const after = (await s.get('/api/characters')).json.find((c) => c.id === ID.edric);
   assert.equal(after.hp, 3); assert.deepEqual(after.sheet, edric.sheet, 'a save without a sheet keeps the stored sheet');
   assert.deepEqual(after.campaigns, edric.campaigns);
   assert.equal((await s.post('/api/characters', { name: '   ' })).status, 400);
@@ -148,29 +149,29 @@ test('party: view, stash, attunement limit, long rest', async () => {
   const put = await s.put('/api/party/characters/edric', { inventory: rings, coins: { gp: 5 } }); ok(put);
   assert.equal(put.json.problems.length, 1); assert.equal(put.json.character.inventory.filter((i) => i.attuned).length, 3);
   assert.equal((await s.put('/api/party/characters/ghost', {})).status, 404);
-  await s.post('/api/characters', { id: 'edric', name: 'Edric', hp: 1, maxHp: 12, abilities: {} });
-  const rest = (await s.post('/api/party/rest', { kind: 'long' })).json; assert.ok(rest.rested.includes('edric'));
-  assert.equal((await s.get('/api/characters?campaign=' + LOST)).json.find((c) => c.id === 'edric').hp, 12);
+  await s.post('/api/characters', { id: ID.edric, name: 'Edric', hp: 1, maxHp: 12, abilities: {} });
+  const rest = (await s.post('/api/party/rest', { kind: 'long' })).json; assert.ok(rest.rested.includes(ID.edric));
+  assert.equal((await s.get('/api/characters?campaign=' + LOST)).json.find((c) => c.id === ID.edric).hp, 12);
 });
 
 test('new campaign: copies documents and maps, takes party and settings; bad requests change nothing', async () => {
   const before = (await s.get('/api/campaigns')).json.campaigns.length;
-  assert.equal((await s.post('/api/campaigns/new', { template: 'nope', party: ['edric'] })).status, 404);
+  assert.equal((await s.post('/api/campaigns/new', { template: 'nope', party: [ID.edric] })).status, 404);
   assert.equal((await s.post('/api/campaigns/new', { template: LOST, name: 'Empty party', party: ['ghost'] })).status, 400);
   assert.equal((await s.get('/api/campaigns')).json.campaigns.length, before);
   assert.equal(await exists('data/campaigns/empty-party'), false, 'the half-made folder is removed');
-  const r = await s.post('/api/campaigns/new', { template: LOST, name: 'Second Run', party: ['edric', 'ghost', 'astarion'], settings: { permadeath: true, rules: '2024' } }); ok(r);
-  assert.equal(r.json.id, 'second-run'); assert.deepEqual(r.json.party, ['edric', 'astarion']);
+  const r = await s.post('/api/campaigns/new', { template: LOST, name: 'Second Run', party: [ID.edric, 'ghost', ID.astarion], settings: { permadeath: true, rules: '2024' } }); ok(r);
+  assert.equal(r.json.id, 'second-run'); assert.deepEqual([...r.json.party].sort(), [ID.astarion, ID.edric].sort());
   const c = (await s.get('/api/campaigns')).json.campaigns.find((x) => x.id === 'second-run');
-  assert.equal(c.template, LOST); assert.ok(c.files.length >= 20); assert.deepEqual(c.party.map((x) => x.id).sort(), ['astarion', 'edric']);
+  assert.equal(c.template, LOST); assert.ok(c.files.length >= 20); assert.deepEqual(c.party.map((x) => x.id).sort(), [ID.astarion, ID.edric].sort());
   assert.deepEqual([(await s.get('/api/campaigns/second-run/settings')).json.permadeath, (await s.get('/api/campaigns/second-run/settings')).json.rules], [true, '2024']);
   assert.equal(await exists('data/campaigns/second-run/save.json'), false, 'the journal is not copied');
-  const again = await s.post('/api/campaigns/new', { template: 'second-run', name: 'Second Run', party: ['edric'] }); ok(again);
+  const again = await s.post('/api/campaigns/new', { template: 'second-run', name: 'Second Run', party: [ID.edric] }); ok(again);
   assert.equal(again.json.id, 'second-run-2'); assert.equal(again.json.template, LOST, 'a copy of a copy still points at the original template');
-  assert.deepEqual((await s.get('/api/campaigns/second-run/party')).json.party.sort(), ['astarion', 'edric']);
-  ok(await s.put('/api/campaigns/second-run/party', { party: ['edric'] }));
+  assert.deepEqual((await s.get('/api/campaigns/second-run/party')).json.party.sort(), [ID.astarion, ID.edric].sort());
+  ok(await s.put('/api/campaigns/second-run/party', { party: [ID.edric] }));
   assert.equal((await s.put('/api/campaigns/second-run/party', { party: ['ghost'] })).status, 400);
-  assert.deepEqual((await s.get('/api/characters?campaign=second-run')).json.map((x) => x.id), ['edric']);
+  assert.deepEqual((await s.get('/api/characters?campaign=second-run')).json.map((x) => x.id), [ID.edric]);
 });
 
 test('start over clears the journal, game, fog and stash but keeps documents and characters', async () => {
@@ -201,8 +202,8 @@ const GUARDED = [
   ['PUT', '/api/map-config?map=lmop-thundertree.png', { walls: [] }],
   ['PUT', `/api/campaigns/${LOST}/maps`, { maps: [] }], ['DELETE', `/api/campaigns/${LOST}/maps`],
   ['PUT', `/api/campaigns/${LOST}/safety`, { lines: ['x'] }], ['PUT', `/api/campaigns/${LOST}/settings`, { permadeath: true }],
-  ['PUT', `/api/campaigns/${LOST}/journal`, { entries: [] }], ['PUT', `/api/campaigns/${LOST}/party`, { party: ['edric'] }],
-  ['POST', `/api/campaigns/${LOST}/start-over`, {}], ['POST', '/api/campaigns/new', { template: LOST, name: 'Evil', party: ['edric'] }],
+  ['PUT', `/api/campaigns/${LOST}/journal`, { entries: [] }], ['PUT', `/api/campaigns/${LOST}/party`, { party: [ID.edric] }],
+  ['POST', `/api/campaigns/${LOST}/start-over`, {}], ['POST', '/api/campaigns/new', { template: LOST, name: 'Evil', party: [ID.edric] }],
   ['POST', '/api/campaigns/active', { id: 'tavern-brawl-test' }], ['PUT', `/api/campaigns/${LOST}/files/x.md`, { text: 'x' }], ['DELETE', `/api/campaigns/${LOST}/files/01-front-matter.md`],
   ['POST', '/api/test-lab/reset-party', {}], ['PUT', '/api/map-maker/requests', {}], ['PUT', '/api/map-maker/feedback', {}], ['PUT', '/api/sound-feedback', {}], ['POST', '/api/sound-choice', {}],
   ['PUT', '/api/dm-map?map=x.png', {}], ['GET', '/api/settings'], ['POST', '/api/settings', { ANTHROPIC_API_KEY: 'sk-evil' }], ['POST', '/api/settings/test', {}]
@@ -244,20 +245,20 @@ test('map config: pins may share a name (only start is unique) and keep their ar
 
 test('new campaign from scratch: its own name, premise document, picked maps and party; bad requests change nothing', async () => {
   const before = (await s.get('/api/campaigns')).json.campaigns.length;
-  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: '', party: ['edric'] })).status, 400);
+  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: '', party: [ID.edric] })).status, 400);
   assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: 'No Party', party: ['ghost'] })).status, 400);
   assert.equal((await s.get('/api/campaigns')).json.campaigns.length, before);
   assert.equal(await exists('data/campaigns/no-party'), false, 'nothing is written for a refused request');
   const picture = (await s.get('/api/maps')).json.maps[0].replace('/uploads/', '');
-  const r = await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', premise: 'A drowned village whose bell still rings at night.\nTone: eerie, low magic.', party: ['edric', 'ghost'], maps: [{ file: picture, name: 'The shore', kind: 'camp', description: 'Where the party lands.' }, { file: 'nope.png' }], settings: { rules: '2014', tableNotes: 'be gentle' } }); ok(r);
-  assert.equal(r.json.id, 'the-sunken-bell'); assert.deepEqual(r.json.party, ['edric']); assert.equal(r.json.maps, 1); assert.equal(r.json.problems.length, 1);
+  const r = await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', premise: 'A drowned village whose bell still rings at night.\nTone: eerie, low magic.', party: [ID.edric, 'ghost'], maps: [{ file: picture, name: 'The shore', kind: 'camp', description: 'Where the party lands.' }, { file: 'nope.png' }], settings: { rules: '2014', tableNotes: 'be gentle' } }); ok(r);
+  assert.equal(r.json.id, 'the-sunken-bell'); assert.deepEqual(r.json.party, [ID.edric]); assert.equal(r.json.maps, 1); assert.equal(r.json.problems.length, 1);
   const c = (await s.get('/api/campaigns')).json.campaigns.find((x) => x.id === 'the-sunken-bell');
   assert.equal(c.template, 'the-sunken-bell'); assert.ok(c.files.some((f) => f.name === '00-premise.md'));
   assert.match((await s.get('/api/campaigns/the-sunken-bell/files/00-premise.md')).json.text, /drowned village/);
   const maps = (await s.get('/api/campaigns/the-sunken-bell/maps')).json;
   assert.equal(maps.custom, true); assert.deepEqual(maps.maps.map((m) => [m.name, m.kind]), [['The shore', 'camp']]);
   assert.equal((await s.get('/api/campaigns/the-sunken-bell/settings')).json.tableNotes, 'be gentle');
-  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', party: ['edric'] })).json.id, 'the-sunken-bell-2', 'a second one with the same name gets its own id');
+  assert.equal((await s.post('/api/campaigns/new', { scratch: true, name: 'The Sunken Bell', party: [ID.edric] })).json.id, 'the-sunken-bell-2', 'a second one with the same name gets its own id');
 });
 
 test('quick starter characters: a name, race, class and level give a full sheet; bad requests change nothing', async () => {
@@ -297,7 +298,7 @@ test('the Market: save a map as a pack, list it, add it to a campaign, export an
   const list = (await s.get('/api/market')).json.maps; assert.equal(list.length, 1); assert.equal(list[0].name, 'Test Grounds');
   const pic = await fetch(`${s.base}/api/market/test-grounds/picture`); assert.equal(pic.status, 200); assert.match(pic.headers.get('content-type'), /image/);
   // add it to a campaign
-  const made = await s.post('/api/campaigns/new', { scratch: true, name: 'Market Test', party: ['edric'] }); ok(made);
+  const made = await s.post('/api/campaigns/new', { scratch: true, name: 'Market Test', party: [ID.edric] }); ok(made);
   const add = await s.post('/api/market/test-grounds/install', { campaign: 'market-test' }); ok(add);
   assert.match(add.json.file, /^mkt-test-grounds\./);
   const maps = (await s.get('/api/campaigns/market-test/maps')).json.maps;

@@ -6,6 +6,7 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import { startServer, makeSandbox, fakeAnthropic, boardStateOf } from './helpers/sandbox.mjs';
 import { loadServerPieces, validateSchema } from '../scripts/dm-schema.mjs';
+import { ID } from './helpers/ids.mjs';
 
 const { DM_SCHEMA } = loadServerPieces();
 const LOST = 'lost-mine-of-phandelver';
@@ -60,12 +61,12 @@ test('the reply is applied: SRD monsters get real numbers, bad map ids and unkno
       { type: 'token', action: 'startCombat', tokenId: '', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 0, ac: 0 },
       { type: 'changeMap', mapId: 'atlantis', arrive: 'x', reason: 'swim' },
       { type: 'journal', category: 'event', title: 'Goblin ambush', text: 'Goblins attacked on the road.', status: 'none', when: 'Day 1' },
-      { type: 'gear', action: 'coins', target: 'edric', to: '', name: '', qty: 0, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 5, pp: 0 },
-      { type: 'updateCharacter', characterId: 'edric', reason: 'xp', edits: [{ field: 'xpGain', value: '50' }] },
+      { type: 'gear', action: 'coins', target: ID.edric, to: '', name: '', qty: 0, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 5, pp: 0 },
+      { type: 'updateCharacter', characterId: ID.edric, reason: 'xp', edits: [{ field: 'xpGain', value: '50' }] },
       { type: 'updateCharacter', characterId: 'ghost', reason: 'x', edits: [{ field: 'hp', value: '1' }] }
     ]
   });
-  const before = (await s.get('/api/characters')).json.find((c) => c.id === 'edric');
+  const before = (await s.get('/api/characters')).json.find((c) => c.id === ID.edric);
   const r = await s.post('/api/chat', { message: 'go' }); assert.equal(r.status, 200, r.text);
   const j = r.json;
   const add = j.mapUpdates.find((u) => u.type === 'addToken');
@@ -78,7 +79,7 @@ test('the reply is applied: SRD monsters get real numbers, bad map ids and unkno
   assert.equal(j.characterUpdates.length, 1);
   assert.ok(j.partyNotes.some((n) => /\+5 gp/.test(n)));
   assert.equal(j.voiceLines.length, 1, 'with no voice lines the narrative is spoken as one line');
-  const after = (await s.get('/api/characters')).json.find((c) => c.id === 'edric');
+  const after = (await s.get('/api/characters')).json.find((c) => c.id === ID.edric);
   assert.equal(after.coins.gp, before.coins.gp + 5); assert.equal(after.sheet.XP, '50');
   assert.equal((await s.get(`/api/campaigns/${LOST}/journal`)).json.entries.at(-1).title, 'Goblin ambush');
   // the journal now goes to the DM

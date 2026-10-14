@@ -3,6 +3,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from '../helpers/sandbox.mjs';
 import { launchChrome, skipReason } from '../helpers/chrome.mjs';
+import { ID } from '../helpers/ids.mjs';
 
 const skip = skipReason();
 let server, page;
@@ -10,7 +11,7 @@ before(async () => {
   if (skip) return;
   server = await startServer();
   page = await launchChrome();
-  await page.goto(`${server.base}/characters.html?id=astarion`);
+  await page.goto(`${server.base}/characters.html?id=${ID.astarion}`);
   await page.waitFor('document.querySelector(".sheet") && document.querySelector(".sheet input")');
 });
 after(async () => { if (page) await page.close(); if (server) await server.stop(); });

@@ -4,6 +4,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from '../helpers/sandbox.mjs';
 import { launchChrome, skipReason } from '../helpers/chrome.mjs';
+import { ID } from '../helpers/ids.mjs';
 
 const skip = skipReason();
 const LOST = 'lost-mine-of-phandelver';
@@ -997,7 +998,7 @@ test('a group the DM puts on a pin is spread around it, not stacked on one tile;
 });
 
 test('a campaign built from scratch opens on its first map, the party on that map\'s start pin', opts, async () => {
-  const made = await server.post('/api/campaigns/new', { scratch: true, name: 'Opening Scene', premise: 'A test.', party: ['edric', 'astarion'], maps: [{ file: 'lmop-goblin-ambush.png', name: 'The ambush', kind: 'battle', description: 'A trail.' }] });
+  const made = await server.post('/api/campaigns/new', { scratch: true, name: 'Opening Scene', premise: 'A test.', party: [ID.edric, ID.astarion], maps: [{ file: 'lmop-goblin-ambush.png', name: 'The ambush', kind: 'battle', description: 'A trail.' }] });
   assert.equal(made.status, 200);
   await server.post('/api/campaigns/active', { id: made.json.id });
   try {
@@ -1068,7 +1069,7 @@ test('watch mode (?watch=1): the page refuses every write, so a spectator can ne
   })()`);
   for (const k of Object.keys(r).filter((x) => /^(POST|PUT|DELETE) /.test(x))) assert.deepEqual(r[k], [403, 'Watching only'], k);
   assert.equal(r.get, 200); assert.match(r.banner, /Watching/); assert.equal(r.pointerEvents, 'none');
-  assert.equal((await server.get('/api/characters')).json.some((c) => c.id === 'edric'), true, 'nothing was deleted');
+  assert.equal((await server.get('/api/characters')).json.some((c) => c.id === ID.edric), true, 'nothing was deleted');
 });
 
 test('the tabletop animates the stream of Terrain Test Grounds and its brazier starts unlit', opts, async () => {
