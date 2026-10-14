@@ -27,6 +27,14 @@
   async function open(cfg) {
     var c = cfg.character, shop;
     try { shop = (await api('/api/party/shop')).items; } catch (err) { cfg.onError(err.message); return; }
+    // At a merchant (the DM opened a shop): only their kind of stock, at their prices.
+    var sh = cfg.shop || null;
+    shop = shop.map(function (i) { return Object.assign({}, i, { base: i.cp }); });
+    if (sh) {
+      var groups = (sh.groups || []).map(function (g) { return g.toLowerCase(); });
+      shop = shop.filter(function (i) { return groups.length ? groups.indexOf(i.group.toLowerCase()) >= 0 : i.group !== 'Magic items'; });
+      shop.forEach(function (i) { if (i.cp) { i.cp = Math.ceil(i.cp * (sh.markup || 100) / 100); i.cost = coinText(i.cp); } });
+    }
     var byIndex = {}, byName = {};
     shop.forEach(function (i) { byIndex[i.index] = i; byName[norm(i.name)] = i; });
     var known = function (it) { return (it.srd && byIndex[it.srd]) || byName[norm(it.name)] || null; };
@@ -40,7 +48,8 @@
     var f = { q: '', group: '' };
 
     var dlg = el('dialog', 'wiz');
-    var head = el('header'); head.appendChild(el('h2', '', c.name + ': gear'));
+    var head = el('header'); head.appendChild(el('h2', '', sh ? c.name + ' at ' + sh.merchant : c.name + ': gear'));
+    if (sh) head.appendChild(el('div', 'meta', 'Prices ' + (sh.markup === 100 ? 'as in the SRD' : sh.markup + '% of the SRD price') + '. Selling gets half the SRD price. The Dungeon Master is told what you buy.'));
     var tabsBar = el('div', 'tabs'); head.appendChild(tabsBar);
     var body = el('div', 'body'), foot = el('footer');
     var status = el('span', 'meta'); status.style.marginRight = 'auto';
@@ -159,7 +168,7 @@
         tr.appendChild(wc);
         var ac = el('td'); if (it.requiresAttunement) { var ab = el('input'); ab.type = 'checkbox'; ab.checked = !!it.attuned; ab.title = 'Attune (three at most)'; ab.addEventListener('change', function () { it.attuned = ab.checked; changed(); }); ac.appendChild(ab); } tr.appendChild(ac);
         var act = el('td');
-        if (e && e.cp) { var sell = el('button', 'small', 'Sell'); sell.title = 'Sell one for half its price'; sell.addEventListener('click', function () { var half = Math.floor(e.cp / 2); coins.cp = (Number(coins.cp) || 0) + half; it.qty -= 1; if (it.qty < 1) inv.splice(inv.indexOf(it), 1); spent.push({ text: 'Sold 1 × ' + it.name + ' for ' + coinText(half), cls: 'del' }); draw(); changed(); }); act.append(sell, document.createTextNode(' ')); }
+        if (e && e.base) { var sell = el('button', 'small', 'Sell'); sell.title = 'Sell one for half its price'; sell.addEventListener('click', function () { var half = Math.floor(e.base / 2); coins.cp = (Number(coins.cp) || 0) + half; it.qty -= 1; if (it.qty < 1) inv.splice(inv.indexOf(it), 1); spent.push({ text: 'Sold 1 × ' + it.name + ' for ' + coinText(half), cls: 'del' }); draw(); changed(); }); act.append(sell, document.createTextNode(' ')); }
         var del = el('button', 'small danger', '✕'); del.title = 'Drop all of it'; del.addEventListener('click', function () { inv.splice(inv.indexOf(it), 1); spent.push({ text: 'Dropped ' + it.qty + ' × ' + it.name, cls: 'del' }); draw(); changed(); });
         act.appendChild(del); tr.appendChild(act); t.appendChild(tr);
       });
@@ -212,6 +221,7 @@
     }
 
     var TABS = ['Shop', 'Carried', 'Coins', 'Review'];
+    if (sh) { tab = 'Shop'; }
     function draw() {
       tabsBar.innerHTML = '';
       TABS.forEach(function (n) { var b = el('button', tab === n ? 'on' : '', n + (n === 'Carried' ? ' (' + inv.length + ')' : '')); b.addEventListener('click', function () { tab = n; say(''); draw(); }); tabsBar.appendChild(b); });

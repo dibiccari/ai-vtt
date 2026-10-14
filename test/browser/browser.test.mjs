@@ -1086,3 +1086,23 @@ test('the tabletop animates the stream of Terrain Test Grounds and its brazier s
   assert.deepEqual(r.start.off, ['brazier'], 'the brazier starts put out');
   assert.equal(r.brazier, false); assert.ok(r.riverPts > 50 && r.scaled, 'the stream is scaled to the board: ' + JSON.stringify(r));
 });
+
+test('shop: the DM opens a merchant for a character; the dialog shows that stock at the merchant\'s prices, and buying tells the DM', opts, async () => {
+  const shopPage = await launchChrome();                 // its own page: the earlier tests leave this one in watch mode, which refuses writes
+  try {
+  await shopPage.goto(`${server.base}/?nosave=1`);
+  await shopPage.waitFor('window.vtt && vtt.state && vtt.state.tokens.length');
+  await shopPage.eval(`(async () => { const s = vtt.state; s.pendingNotes = []; const party = await (await fetch('/api/party')).json(); const hero = s.tokens.find((t) => t.isPC); hero.characterId = party.characters[0].id; await vtt.applyMapUpdates([{ type: 'openShop', merchant: 'Hurdred the smith', groups: ['Weapon'], markup: 200, buyer: hero.id }]); })()`);
+  await shopPage.waitFor('document.querySelector("dialog.wiz[open] .shoplist table") || vtt.state.pendingNotes.length', 15000).catch(() => {});
+  assert.ok(await shopPage.eval(`!!document.querySelector('dialog.wiz[open] .shoplist table')`), 'the shop opened: ' + await shopPage.eval(`JSON.stringify({ notes: vtt.state.pendingNotes, watch: window.WATCH, chat: [...document.querySelectorAll('#chat .msg, #chatLog > *')].slice(-2).map((e) => e.textContent) })`));
+  const seen = await shopPage.eval(`(() => { const rows = [...document.querySelectorAll('dialog.wiz .shoplist tr')].slice(1); return { title: document.querySelector('dialog.wiz h2').textContent, groups: rows.every((r) => /Melee|Ranged/.test(r.textContent)), dagger: (rows.find((r) => /^Dagger/.test(r.textContent)) || { textContent: '' }).textContent } })()`);
+  assert.match(seen.title, / at Hurdred the smith/); assert.equal(seen.groups, true, 'only weapons are for sale'); assert.match(seen.dagger, /4 gp/, 'a dagger is 2 gp in the SRD, 200 percent here');
+  await shopPage.eval(`[...document.querySelectorAll('dialog.wiz .shoplist tr')].find((r) => /^Dagger/.test(r.textContent)).querySelector('button').click()`);
+  await shopPage.waitFor(`document.querySelector('dialog.wiz footer span').textContent.length > 0`); assert.match(await shopPage.eval(`document.querySelector('dialog.wiz footer span').textContent`), /Bought 1 × Dagger/);
+  await shopPage.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === 'Review changes').click()`);
+  await shopPage.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === 'Confirm').click()`);
+  await shopPage.waitFor('!document.querySelector("dialog.wiz")');
+  const note = await shopPage.eval(`vtt.state.pendingNotes.join(' | ')`);
+  assert.match(note, /finished shopping at Hurdred the smith/);
+  } finally { await shopPage.close(); }
+});

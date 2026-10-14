@@ -18,6 +18,7 @@
     --faint: #6b778a;
     --accent: #4f9dff;
     --accent-soft: rgba(79, 157, 255, 0.16);
+    --panel2: #171c25;       /* the name the gear and level-up dialogs use */
     --gold: #f0c048;
     --gold-soft: rgba(240, 192, 72, 0.16);
     --ok: #3fd27f;
@@ -441,6 +442,8 @@
 <script src="/condition-rings.js"></script>
 <script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
+<script src="/levelup-wizard.js"></script>
+<script src="/inventory-wizard.js"></script>
 <script src="/effects.js"></script>
 <script src="/ambience.js"></script>
 <script>
@@ -1498,6 +1501,24 @@ function createDefaultTokens() {
 }
 
 let charAlias = {};
+async function openShopFor(characterId, shop) {
+  try {
+    const party = await api('/api/party');
+    const character = party.characters.find((c) => c.id === characterId);
+    if (!character) { state.pendingNotes.push(`The shop could not open: no party member with id ${characterId}.`); return; }
+    InventoryWizard.open({
+      character, shop,
+      onError: (m) => toast(m, 'error'),
+      onDone: async (out) => {
+        const what = (out.notes || []).join('; ') || 'no change';
+        addChat('system', `↳ ${character.name} shopped at ${shop.merchant}: ${what}`);
+        state.pendingNotes.push(`${character.name} finished shopping at ${shop.merchant}. ${what}. Their coins and gear are updated; the shop is closed.`);
+        await loadCharacters();
+      }
+    });
+  } catch (err) { toast(`Could not open the shop: ${err.message}`, 'error'); }
+}
+
 function syncTokensWithCharacters() {
   const activeId = activeToken()?.id;
   for (const t of state.tokens) if (t.characterId && charAlias[t.characterId]) t.characterId = charAlias[t.characterId];
@@ -4233,6 +4254,16 @@ async function applyMapUpdates(updates) {
         const h = clamp(Math.round(Number(u.feet) || 0), 0, 5000);
         t.elevation = h;
         if (seenByParty(t)) addChat('system', h ? `↳ ${t.name} is ${h} ft in the air` : `↳ ${t.name} is on the ground`);
+        break;
+      }
+      case 'openShop': {
+        // The DM opens a merchant's shop for a character: the gear dialog at the Shop tab, with that merchant's stock and prices. What was bought goes back to the DM as a table note.
+        if (window.WATCH === true) break;
+        const buyerTok = state.tokens.find((x) => x.id === u.buyer && x.characterId) || activeToken();
+        const buyer = buyerTok && buyerTok.characterId ? buyerTok.characterId : '';
+        if (!buyer) { state.pendingNotes.push(`The shop of ${u.merchant} could not open: say which player character is shopping.`); break; }
+        addChat('system', `🛒 ${u.merchant} opens their shop for ${buyerTok.name}`);
+        openShopFor(buyer, u);
         break;
       }
       case 'doorAction': {

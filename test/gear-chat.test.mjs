@@ -94,3 +94,40 @@ test('the DM is told the party gear on the next turn (inventory, coins, effectiv
   assert.ok(JSON.stringify(edric).includes('Ring of protection'));
   assert.ok(board.party.stash);
 });
+
+test('buy: the table prices it, pays with change, adds the item and updates armor class and attacks; a buyer who cannot pay is refused', async () => {
+  const c0 = await character(ID.astarion);           // a rogue in leather armor, 15 gp
+  assert.equal(c0.coins.gp, 15);
+  // 1. a dagger at the SRD price (2 gp), wielded: it takes a free attack line
+  let j = await say(gear({ action: 'buy', target: ID.astarion, name: 'Dagger', qty: 1 }));
+  assert.match(j.partyNotes.join(' '), /bought 1 × Dagger for 2 gp/i);
+  let c = await character(ID.astarion);
+  assert.equal(c.coins.gp, 13); assert.ok(item(c, 'Dagger')); assert.equal(c.sheet.GP, '13');
+  // 2. armor he cannot afford: refused, nothing changes
+  j = await say(gear({ action: 'buy', target: ID.astarion, name: 'Plate', qty: 1 }));
+  assert.match(j.characterProblems.join(' '), /Not enough coin/);
+  c = await character(ID.astarion);
+  assert.equal(c.coins.gp, 13); assert.ok(!item(c, 'Plate Armor') && !item(c, 'Plate'));
+  // 3. a price the DM names (a haggled 5 sp for a rope), with no SRD match needed
+  j = await say(gear({ action: 'buy', target: ID.astarion, name: 'Wax-sealed letter', qty: 1, weight: 0, cp: 50 }));
+  c = await character(ID.astarion);
+  assert.equal(c.coins.gp, 12); assert.equal(c.coins.sp, 5, '13 gp minus 5 sp: the change comes back in silver');
+  // 4. no price at all: told to send one
+  j = await say(gear({ action: 'buy', target: ID.astarion, name: 'Mystery trinket', qty: 1 }));
+  assert.match(j.characterProblems.join(' '), /no price/i);
+  // 5. armor he can afford while already wearing armor goes in the pack, armor class unchanged
+  await say(gear({ action: 'coins', target: ID.astarion, gp: 100 }));
+  const acBefore = (await party()).characters.find((x) => x.id === ID.astarion).effective.ac;
+  j = await say(gear({ action: 'buy', target: ID.astarion, name: 'Chain mail', qty: 1 }));
+  assert.match(j.partyNotes.join(' '), /in the pack, not worn/);
+  assert.equal((await party()).characters.find((x) => x.id === ID.astarion).effective.ac, acBefore);
+});
+
+test('shop: the token action becomes an openShop update for the table, with the merchant, kinds of stock and markup', async () => {
+  const tok = (o) => ({ type: 'token', action: 'shop', tokenId: 'tok-' + ID.edric, name: '', col: 0, row: 0, value: 0, condition: '', ...o });
+  const j = await say(tok({ condition: 'Hurdred the smith: Weapon, Armor', value: 120 }), tok({ condition: '' }));
+  const shops = j.mapUpdates.filter((u) => u.type === 'openShop');
+  assert.equal(shops.length, 2);
+  assert.deepEqual([shops[0].merchant, shops[0].groups, shops[0].markup], ['Hurdred the smith', ['Weapon', 'Armor'], 120]);
+  assert.deepEqual([shops[1].merchant, shops[1].groups, shops[1].markup], ['A merchant', [], 100]);
+});
