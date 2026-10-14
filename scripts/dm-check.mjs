@@ -1,6 +1,6 @@
 // Scripted DM check: a short, fixed conversation with the REAL Dungeon Master (paid API calls), with invariants asserted on every reply.
 //   npm run dm-check -- --dry-run       print the plan, spend nothing
-//   npm run dm-check -- --live          run it (default at most 8 API calls; --max-calls N, --timeout SECONDS per call, default 180)
+//   npm run dm-check -- --live          run it (default at most 40 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
 // It starts a throwaway server on a COPY of the data (the real data/ is never touched) with a fresh campaign copied from the tavern test,
 // puts a local proxy between the server and api.anthropic.com to see the requests (dice tray) and the real token usage, and prints
 // pass/fail lines only: no story text. The key comes from ANTHROPIC_API_KEY or the repo's .env (never printed, never copied into the sandbox).
@@ -16,7 +16,7 @@ import { ID } from '../test/helpers/ids.mjs';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt("--max-calls", 20));
+const MAX_CALLS = Number(opt("--max-calls", 40));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -99,7 +99,7 @@ await new Promise((r) => proxy.listen(0, '127.0.0.1', r));
 const proxyUrl = `http://127.0.0.1:${proxy.address().port}`;
 
 const { DM_SCHEMA, VOICES } = loadServerPieces();
-const srv = await startServer({ env: { ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: proxyUrl, ANTHROPIC_MODEL: model } });
+const srv = await startServer({ env: { ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: proxyUrl, ANTHROPIC_MODEL: model, VTT_BOOKKEEPER: '1' } });       // the real configuration: the journal is kept by the bookkeeper after each reply
 const cleanup = async () => { await srv.stop().catch(() => {}); await new Promise((r) => proxy.close(r)); };
 process.on('SIGINT', async () => { await cleanup(); process.exit(130); });
 
@@ -264,8 +264,13 @@ try {
     if (res.status !== 200) continue;
     const j = res.json;
     if (DEBUG_STEPS.includes(step.id)) console.log('DEBUG ' + step.id + ' ' + JSON.stringify({ updates: (j.mapUpdates || []).map((u) => ({ t: u.type, id: u.tokenId, c: u.condition, r: u.rounds, m: u.minutes, s: u.source })), rolls: j.rolls, narrative: String(j.narrative || '').slice(0, 600) }));
-    const rec = calls.slice(before).find((c) => c.response && c.status === 200) || calls[calls.length - 1];
-    const retries = calls.length - before - 1;
+    // The DM may call services first (stop_reason tool_use) and then send the final reply: the reply is the last call that did not stop for a tool.
+    const isBookkeeper = (c) => /bookkeeper of a D&D campaign journal/.test(JSON.stringify(c.request && c.request.system || ''));      // runs after the reply, on its own
+    const mine = calls.slice(before).filter((c) => !isBookkeeper(c));
+    const toolRounds = mine.filter((c) => c.response && c.response.stop_reason === 'tool_use').length;
+    const rec = [...mine].reverse().find((c) => c.response && c.status === 200 && c.response.stop_reason !== 'tool_use') || mine[mine.length - 1];
+    const retries = mine.length - toolRounds - 1;
+    if (toolRounds) console.log(`INFO ${step.id}: the DM called services in ${toolRounds} round(s): ${mine.filter((c) => c.response && c.response.stop_reason === 'tool_use').flatMap((c) => c.response.content.filter((b) => b.type === 'tool_use').map((b) => b.name)).join(', ')}`);
     if (retries > 0) warn(`${step.id}: ${retries} extra API request(s) (the SDK retried)`);
 
     // 1. raw reply matches the schema
@@ -411,15 +416,10 @@ try {
       check(!upd(j).some((u) => u.tokenId === 'pc-vex' && ['setSpeed', 'setAc'].includes(u.type)), 'haste: the DM did not change speed or AC itself');
     }
     if (step.id === 'gear') {
-      const gears = (raw?.mapUpdates || []).filter((u) => u.type === 'gear');
-      check(gears.length >= 1, 'gear: the DM sent gear updates', gears.length + ' updates');
-      const rope = gears.find((u) => u.action === 'add' && /rope/i.test(u.name)), torch = gears.find((u) => u.action === 'add' && /torch/i.test(u.name));
-      const spent = gears.find((u) => u.action === 'coins' && (u.gp < 0 || u.sp < 0 || u.cp < 0 || u.ep < 0));
-      check(!!rope && [ID.thorin, 'thorin'].includes(String(rope.target).toLowerCase()), 'gear: a rope added to Thorin', rope ? 'target ' + rope.target : 'missing');
-      check(!!torch && [ID.thorin, 'thorin'].includes(String(torch.target).toLowerCase()) && torch.qty >= 2, 'gear: two torches added to Thorin', torch ? 'target ' + torch.target + ', qty ' + torch.qty : 'missing');
-      check(!!spent && [ID.thorin, 'thorin'].includes(String(spent.target).toLowerCase()), 'gear: coins spent from Thorin', spent ? 'target ' + spent.target : 'missing');
+      // Buying goes through the buy_item service now (or, in an older reply, gear updates): either way what counts is what the table saved.
       const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === ID.thorin);
       check((th.inventory || []).some((i) => /rope/i.test(i.name)) && (th.inventory || []).some((i) => /torch/i.test(i.name)), 'gear: the rope and torches are in Thorin\'s saved inventory');
+      check(((th.inventory || []).find((i) => /torch/i.test(i.name)) || { qty: 0 }).qty >= 2, 'gear: two torches');
       check((j.partyChanged || []).includes(ID.thorin), 'gear: the table was told the party changed');
     }
     if (step.id === 'travel') {
@@ -430,8 +430,10 @@ try {
       check((j.characterProblems || []).length === 0, 'travel: no problems were reported', (j.characterProblems || []).join('; ').slice(0, 160));
     }
     if (step.id === 'journal') {
-      check((j.journalAdded || []).length >= 1, `journal: ${j.journalAdded?.length || 0} entries added`);
-      check((j.journalAdded || []).every((e) => CATEGORIES.includes(e.category)), 'journal: categories are valid');
+      // The bookkeeper writes the journal after the reply is sent: give it a few seconds.
+      let waited = 0, count = 0;
+      while (waited < 25000) { count = ((await srv.get('/api/campaigns/dm-check/journal')).json.entries || []).length; if (count >= 1) break; await new Promise((r) => setTimeout(r, 1000)); waited += 1000; }
+      check(count >= 1 || (j.journalAdded || []).length >= 1, `journal: ${count} entries saved by the bookkeeper${waited ? ` after ${waited / 1000} s` : ''}`);
       const saved = (await srv.get('/api/campaigns/dm-check/journal')).json.entries;
       check(saved.length >= 1 && saved.every((e) => CATEGORIES.includes(e.category) && STATUSES.includes(e.status) && e.title && e.text), 'journal: saved entries are well formed');
     }

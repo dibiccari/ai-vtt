@@ -12,6 +12,7 @@ const base = { rolls: [], narrative: 'The tavern is loud and warm, and nothing l
 
 function dm({ badDice = false, leak = false, dangling = false, removesEffect = false } = {}) {
   return (req) => {
+    if (/bookkeeper of a D&D campaign journal/.test(JSON.stringify(req.system))) return { entries: [{ category: 'event', title: 'The brawl', text: 'A brawl broke out in the Rusty Flagon.', status: 'none', when: '' }, { category: 'promise', title: 'Pay Orla', text: 'The party promised to pay Orla for the damage.', status: 'open', when: '' }] };
     const state = boardStateOf(req);
     const said = JSON.stringify(req.messages.at(-1)).split('PLAYER ACTION')[1] || '';
     const d20 = state.diceTray.d20;
@@ -39,7 +40,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
 
 function runCheck(fakeUrl, extra = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '18', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '40', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     child.on('exit', (code) => resolve({ code, out }));
   });
@@ -51,11 +52,11 @@ test('dm-check passes against a well-behaved fake DM, prints no story text and r
     const r = await runCheck(f.url);
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /PASSED: 0 failure/);
-    assert.match(r.out, /USAGE 18 API request\(s\)/);
-    assert.match(r.out, /journal: 2 entries added/);
+    assert.match(r.out, /USAGE 3[0-9] API request\(s\)/);
+    assert.match(r.out, /journal: \d+ entries saved by the bookkeeper/);
     assert.ok(!r.out.includes('tavern is loud'), 'no narrative is printed');
     assert.ok(!r.out.includes('sk-ant-fake'), 'the key is never printed');
-    assert.equal(f.requests.length, 18);
+    assert.ok(f.requests.length >= 36, "18 DM calls and a bookkeeper call after each");
   } finally { await f.close(); }
 });
 

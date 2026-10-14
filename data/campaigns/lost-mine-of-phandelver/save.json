@@ -1,4 +1,41 @@
 {
   "version": 1,
-  "entries": []
+  "entries": [
+    {
+      "id": "jmv8nx7sof720",
+      "category": "quest",
+      "title": "Deliver Mining Supplies",
+      "text": "Gundren Rockseeker hired the party to take a wagon of mining supplies to Barthen's Provisions in the frontier town of Phandalin.",
+      "status": "open",
+      "when": "Day 1, 08:00",
+      "at": 1792015772856
+    },
+    {
+      "id": "jmv8nx7soceeg",
+      "category": "promise",
+      "title": "Gundren's Payment",
+      "text": "Gundren promised each party member 10 gold pieces once the supplies are delivered to Barthen's Provisions.",
+      "status": "none",
+      "when": "Day 1, 08:00",
+      "at": 1792015772856
+    },
+    {
+      "id": "jmv8nx7sonc78",
+      "category": "npc",
+      "title": "Gundren Rockseeker",
+      "text": "A dwarf friend who hired the party and rode ahead to Phandalin with the warrior Sildar Hallwinter.",
+      "status": "none",
+      "when": "Day 1, 08:00",
+      "at": 1792015772856
+    },
+    {
+      "id": "jmv8nx7soenfk",
+      "category": "npc",
+      "title": "Sildar Hallwinter",
+      "text": "A warrior travelling with Gundren Rockseeker, who rode ahead of the party toward Phandalin.",
+      "status": "none",
+      "when": "Day 1, 08:00",
+      "at": 1792015772856
+    }
+  ]
 }

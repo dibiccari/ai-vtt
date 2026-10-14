@@ -16,9 +16,9 @@ test('mode follows the combat tracker', () => {
   assert.match(modeNote('combat'), /fight is running/); assert.match(modeNote('scene'), /no fight/);
 });
 
-test('the fight form has no gear, journal, sheet, map change, shop or rest', () => {
+test('the fight form has no gear, journal, sheet, shop or rest', () => {
   const s = schemaForMode(DM_SCHEMA, 'combat');
-  assert.deepEqual(types(s), ['token', 'setHp', 'addWall']);
+  assert.deepEqual(types(s), ['token', 'setHp', 'changeMap', 'addWall'], 'a fight can end and the party move on in one reply');
   for (const a of SCENE_ONLY_ACTIONS) assert.ok(!actionsOf(s).includes(a), a + ' is not in a fight');
   for (const a of ['damage', 'endTurn', 'initiative', 'template', 'addCondition', 'move', 'xp']) assert.ok(actionsOf(s).includes(a), a);
   assert.deepEqual(validateSchema(reply([tokenUpd('damage')]), s), []);

@@ -10,6 +10,7 @@ import { ID } from './helpers/ids.mjs';
 
 const { DM_SCHEMA } = loadServerPieces();
 import { schemaForMode } from '../lib/dm-schema-modes.js';
+import { movedFor } from '../lib/services.js';
 const LOST = 'lost-mine-of-phandelver';
 let fake, s;
 const reply = { rolls: ['Goblin attack: 14 to hit'], narrative: 'A goblin leaps from the brush.', voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'A goblin leaps from the brush.' }], mapUpdates: [] };
@@ -29,7 +30,7 @@ test('the request to the model: system blocks, strict schema, board state with d
   assert.equal(fake.requests.length, 1);
   const req = fake.requests[0];
   assert.equal(req.output_config.format.type, 'json_schema');
-  assert.deepEqual(req.output_config.format.schema, schemaForMode(DM_SCHEMA, 'scene'), 'no fight is running: the scene form');
+  assert.deepEqual(req.output_config.format.schema, schemaForMode(DM_SCHEMA, 'scene', movedFor(['record_journal'])), 'no fight is running: the scene form without what moved to services (with the bookkeeper off the journal is a service)');
   assert.ok(req.system.some((b) => /REPLY FORM: no fight/.test(b.text)));
   assert.ok(req.system.length >= 3);
   assert.ok(req.system.some((b) => b.cache_control), 'the campaign text is a cached block');

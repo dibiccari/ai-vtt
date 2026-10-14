@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
 import { levelUpOptions, applyLevelUp } from './lib/levelup.js';
+import { bookkeeperSchema, BOOKKEEPER_SYSTEM, bookkeeperMessage, cleanBookkeeperReply, BOOKKEEPER_MODEL_DEFAULT } from './lib/bookkeeper.js';
 import { merchantSchema, merchantSystem, merchantMessages, cleanMerchantReply, MERCHANT_MODEL_DEFAULT } from './lib/merchant.js';
+import { buildServices, toolsFor, runService, servicesNote, enabledServices, movedFor } from './lib/services.js';
 import { schemaForMode, modeOf, modeNote } from './lib/dm-schema-modes.js';
 import { shopCatalog, payCoins, tidyCoins, sheetEditsForGear, armorClass, srdFor, costInCp, totalCp, coinText } from './lib/loadout.js';
 import { applyUpdate } from './lib/sheet-edit.js';
@@ -969,6 +971,12 @@ async function planGear(id, body) {
 }
 // The DM sells things to the party: gear action buy (target = character, name = an SRD item, qty, cp = the whole price in copper when it is not the SRD price). The table prices it, pays in coin
 // with change, adds the item and brings the sheet in step (armor class, attack lines). A purchase the buyer cannot afford is refused and the DM is told.
+// A party member from whatever the DM calls them: id, name, first name, or the token id of their token (pc-thorin, tok-9ccde74f).
+function findPartyMember(list, ref) {
+  const key = String(ref ?? '').trim().toLowerCase();
+  const bare = key.replace(/^(pc|tok)-/, '');
+  return list.find((c) => c.id === canonId(ref)) || list.find((c) => c.name.toLowerCase() === key) || list.find((c) => c.name.toLowerCase().split(/\s+/)[0] === bare) || list.find((c) => bare.length >= 4 && c.id.startsWith(bare)) || null;
+}
 let magicByName = null;
 async function dmBuys(updates, campaign) {
   const notes = [], problems = [], changed = [];
@@ -978,8 +986,7 @@ async function dmBuys(updates, campaign) {
   const settings = await readSettings(path.join(CAMPAIGNS_DIR, campaign));
   for (const u of buys) {
     const list = await listCharacters(campaign);
-    const key = String(u.target ?? '').trim().toLowerCase();
-    const who = list.find((c) => c.id === canonId(u.target)) || list.find((c) => c.name.toLowerCase() === key);
+    const who = findPartyMember(list, u.target);
     if (!who) { problems.push(`A purchase named a buyer who is not in the party ("${u.target}").`); continue; }
     const qty = Math.max(1, Math.round(Number(u.qty)) || 1);
     const entry = srdFor({ name: u.name });
@@ -1043,6 +1050,21 @@ app.post('/api/merchant', asyncRoute(async (req, res) => {
     throw err;
   }
 }));
+
+// The bookkeeper runs after a reply has been sent: it reads the turn and the journal and writes what is worth keeping (cheap model, tiny schema, nothing for the player to wait for).
+async function keepJournal(campaign, { message, narrative, rolls }) {
+  if (!anthropic) return [];
+  const dir = path.join(CAMPAIGNS_DIR, campaign);
+  const model = process.env.BOOKKEEPER_MODEL || BOOKKEEPER_MODEL_DEFAULT;
+  const journal = journalForPrompt((await readSave(dir)).entries);
+  const when = describeClock(await readClock(dir)).text;
+  const response = await anthropic.beta.messages.create({ model, max_tokens: 800, system: BOOKKEEPER_SYSTEM, messages: [{ role: 'user', content: bookkeeperMessage({ message, narrative, rolls, journal, when }) }], output_config: { format: { type: 'json_schema', schema: bookkeeperSchema() } } });
+  usageTracker.record(response.model || model, response.usage, campaign, 'bookkeeper');
+  const block = response.content.find((x) => x.type === 'text');
+  let raw; try { raw = JSON.parse(block?.text ?? ''); } catch { return []; }
+  const entries = cleanBookkeeperReply(raw);
+  return entries.length ? addJournalUpdates(dir, entries) : [];
+}
 
 // Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).
 async function restParty(kind, { noFood = false } = {}) {
@@ -2159,7 +2181,37 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const adventureMonsters = await loadAdventureMonsters(path.join(CAMPAIGNS_DIR, await templateOfCampaign(activeCampaign)));
     const monstersText = adventureMonstersForPrompt(adventureMonsters);
     const journalText = journalForPrompt((await readSave(path.join(CAMPAIGNS_DIR, activeCampaign))).entries);
-    const response = await anthropic.beta.messages.create({
+    // The DM as orchestrator (lib/services.js): while it works out its reply it may call services (journal, buying, XP); each does its work with real code and answers in plain words.
+    const mode = modeOf(state.combat);
+    const bookkeeperOn = process.env.VTT_BOOKKEEPER !== '0';            // the journal is kept by a small agent after the reply (lib/bookkeeper.js), not by the DM
+    const serviceNames = enabledServices(process.env.VTT_DM_SERVICES);
+    if (!bookkeeperOn && !serviceNames.includes('record_journal') && process.env.VTT_DM_SERVICES !== '0') serviceNames.push('record_journal');       // someone has to keep the journal, and the reply form has no room for it
+    const servicesOn = serviceNames.length > 0 && process.env.VTT_DM_SERVICES !== '0';
+    const movedNow = () => { const m = servicesOn ? movedFor(serviceNames) : { variants: [], tokenActions: [], gearActions: [] }; if (bookkeeperOn) m.variants.push('journal'); return m; };
+    const fx = { partyNotes: [], partyChanged: [], problems: [], journalAdded: [], characterUpdates: [] };
+    const campaignDir2 = path.join(CAMPAIGNS_DIR, activeCampaign);
+    const services = (servicesOn ? buildServices({
+      journal: async (i) => {
+        const added = await addJournalUpdates(campaignDir2, [{ type: 'journal', category: i.category, title: i.title, text: i.text, status: i.status || 'none', when: i.when || '' }]);
+        if (!added.length) return { ok: false, text: 'The journal entry was not recorded (check the category, title and text).' };
+        fx.journalAdded.push(...added);
+        return { text: `Recorded in the journal: ${added[0].category} "${added[0].title}".` };
+      },
+      buy: async (i) => {
+        const out = await dmBuys([{ type: 'gear', action: 'buy', target: i.buyer, name: i.item, qty: i.qty || 1, cp: i.price_cp || 0, weight: 0 }], activeCampaign);
+        fx.partyNotes.push(...out.notes); fx.partyChanged.push(...out.changed); fx.problems.push(...out.problems);
+        return { ok: !out.problems.length, text: [...out.notes, ...out.problems].join(' ') || 'Nothing happened.' };
+      },
+      xp: async (i) => {
+        const rulesV = (await readSettings(campaignDir2)).rules === '2024' ? '2024' : '2014';
+        const party = String(i.target) === 'party';
+        const out = await processTrackUpdates([{ type: 'track', op: 'xp', target: party ? 'party' : canonId(i.target), amount: i.amount, split: party && i.each !== true }], await trackStore(activeCampaign), rulesV);
+        fx.partyNotes.push(...out.notes); fx.partyChanged.push(...out.changed); fx.problems.push(...out.problems); fx.characterUpdates.push(...out.characterUpdates);
+        return { ok: !out.problems.length, text: [...out.notes, ...out.problems].join(' ') || 'No XP was awarded.' };
+      }
+    }) : []).filter((x) => serviceNames.includes(x.name));
+    const tools = toolsFor(services, mode);
+    const dmParams = {
       model: MODEL,
       max_tokens: 16000,
       system: [
@@ -2168,18 +2220,32 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         // The journal changes every few turns, so it comes after the cached campaign text.
         { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
         { type: 'text', text: settingsText },
-        { type: 'text', text: modeNote(modeOf(state.combat)) },
+        { type: 'text', text: modeNote(mode) },
+        ...(servicesOn ? [{ type: 'text', text: servicesNote(serviceNames) }] : []),
+        ...(bookkeeperOn ? [{ type: 'text', text: 'JOURNAL: a bookkeeper writes the campaign journal from your narration after each reply, so you do not send journal updates. Make names, places, promises, quests and what the party found plain in what you narrate, and the journal will keep them.' }] : []),
         ...(monstersText ? [{ type: 'text', text: monstersText }] : []),
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
-      messages: buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl)),
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, modeOf(state.combat)) } },
+      ...(tools.length ? { tools } : {}),
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default'
-    });
-
-    usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
+    };
+    let dmMessages = buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl));
+    let response, rounds = 0;
+    for (;;) {
+      response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });
+      usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
+      if (response.stop_reason !== 'tool_use' || rounds >= 6) break;
+      rounds += 1;
+      const results = [];
+      for (const use of response.content.filter((b) => b.type === 'tool_use')) {
+        const out = await runService(services, use.name, use.input);
+        results.push({ type: 'tool_result', tool_use_id: use.id, content: out.text, ...(out.ok ? {} : { is_error: true }) });
+      }
+      dmMessages = [...dmMessages, { role: 'assistant', content: response.content }, { role: 'user', content: results }];
+    }
     if (response.stop_reason === 'refusal') {
       const narrative = 'The DM declines to narrate that action. Try describing it differently.';
       return res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: [] });
@@ -2229,13 +2295,14 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       narrative,
       voiceLines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
       mapUpdates: boardFinal,
-      characterUpdates: [...sheetResults.results, ...trackResult.characterUpdates],
-      partyNotes: [...buyResult.notes, ...partyResult.notes, ...restNotes, ...trackResult.notes],
-      partyChanged: [...new Set([...buyResult.changed, ...partyResult.changed, ...restedIds, ...trackResult.changed])],
+      characterUpdates: [...sheetResults.results, ...trackResult.characterUpdates, ...fx.characterUpdates],
+      partyNotes: [...fx.partyNotes, ...buyResult.notes, ...partyResult.notes, ...restNotes, ...trackResult.notes],
+      partyChanged: [...new Set([...fx.partyChanged, ...buyResult.changed, ...partyResult.changed, ...restedIds, ...trackResult.changed])],
       clock: describeClock(await readClock(path.join(CAMPAIGNS_DIR, activeCampaign))),
-      journalAdded: journalAdded.map((e) => ({ category: e.category, title: e.title })),
-      characterProblems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems]
+      journalAdded: [...fx.journalAdded, ...journalAdded].map((e) => ({ category: e.category, title: e.title })),
+      characterProblems: [...fx.problems, ...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems]
     });
+    if (bookkeeperOn && narrative.trim()) keepJournal(activeCampaign, { message: text, narrative, rolls }).catch((err) => console.warn('Bookkeeper failed:', err.message));
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
       return res.status(429).json({ error: 'The DM is overwhelmed (rate limited). Try again shortly.' });

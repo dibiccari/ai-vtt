@@ -36,7 +36,7 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
 export async function startServer({ env = {}, sandbox } = {}) {
   const sb = sandbox || await makeSandbox();
   const port = 20000 + Math.floor(Math.random() * 20000);
-  const childEnv = { ...process.env, PORT: String(port), HOST: '127.0.0.1', VTT_KEEP_CHARACTER_IDS: '1' };
+  const childEnv = { ...process.env, PORT: String(port), HOST: '127.0.0.1', VTT_KEEP_CHARACTER_IDS: '1', VTT_BOOKKEEPER: '0' };
   delete childEnv.ANTHROPIC_API_KEY; delete childEnv.OPENAI_API_KEY; delete childEnv.ANTHROPIC_BASE_URL;
   Object.assign(childEnv, env);
   const child = spawn(process.execPath, ['server.js'], { cwd: sb.dir, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -75,6 +75,7 @@ export async function fakeAnthropic(replies) {
       const out = typeof next === 'function' ? next(parsed) : next;
       res.setHeader('content-type', 'application/json');
       if (out && out.__status) { res.statusCode = out.__status; return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: out.__message || 'fake error' } })); }
+      if (out && out.__tool_use) return res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: out.__tool_use.map((t, i) => ({ type: 'tool_use', id: 'toolu_fake' + i, name: t.name, input: t.input })), stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 5 } }));
       const stop = out && out.__stop ? out.__stop : 'end_turn';
       res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: [{ type: 'text', text: JSON.stringify(out) }], stop_reason: stop, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 5 } }));
     });

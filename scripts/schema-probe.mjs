@@ -19,13 +19,19 @@ const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstr
 const schema = new Function('SKILLS', 'CATEGORIES', 'STATUSES', 'EFFECT_KINDS', 'VOICES', src.slice(a, end) + '\nreturn DM_SCHEMA;')(SKILLS, CATEGORIES, STATUSES, EFFECT_KINDS, VOICES);
 const variants = schema.properties.mapUpdates.items.anyOf.length;
 const { schemaForMode } = await import('../lib/dm-schema-modes.js');
+const { buildServices, toolsFor, movedFor, enabledServices } = await import('../lib/services.js');
+// What the server really sends: the form without what the services and the bookkeeper took over, together with the tools (tools count toward the same grammar budget).
+const names = enabledServices(process.env.VTT_DM_SERVICES);
+const moved = movedFor(names); moved.variants.push('journal');
+const allTools = buildServices({});
 
 // The DM gets a fight form or a scene form (lib/dm-schema-modes.js); the full form is only a source, but it is probed too so we know how much room is left.
 let failed = false;
-for (const [label, sch] of [['scene form', schemaForMode(schema, 'scene')], ['fight form', schemaForMode(schema, 'combat')], ['full schema (not sent)', schema]]) {
+for (const [label, sch, mode] of [['scene form', schemaForMode(schema, 'scene', moved), 'scene'], ['fight form', schemaForMode(schema, 'combat', moved), 'combat'], ['full schema (not sent)', schema, null]]) {
+  const tools = mode ? toolsFor(allTools.filter((x) => names.includes(x.name)), mode) : [];
   try {
-    await new Anthropic().beta.messages.create({ model: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5', max_tokens: 20, messages: [{ role: 'user', content: 'Say hi.' }], output_config: { effort: 'low', format: { type: 'json_schema', schema: sch } } });
-    console.log(`OK   ${label} accepted (${sch.properties.mapUpdates.items.anyOf.length} update variants)`);
+    await new Anthropic().beta.messages.create({ model: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5', max_tokens: 20, messages: [{ role: 'user', content: 'Say hi.' }], ...(tools.length ? { tools } : {}), output_config: { effort: 'low', format: { type: 'json_schema', schema: sch } } });
+    console.log(`OK   ${label} accepted (${sch.properties.mapUpdates.items.anyOf.length} update variants, ${tools.length} tools)`);
   } catch (err) {
     console.error(`FAIL ${label} refused: ${String(err.message).slice(0, 200)}`);
     if (label !== 'full schema (not sent)') failed = true;
