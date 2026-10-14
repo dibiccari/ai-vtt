@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { SKILLS, SAVES, processCharacterUpdates } from './lib/sheet-edit.js';
 import { levelUpOptions, applyLevelUp } from './lib/levelup.js';
+import { shopCatalog, payCoins, tidyCoins, sheetEditsForGear, armorClass } from './lib/loadout.js';
+import { applyUpdate } from './lib/sheet-edit.js';
 import { migrateCharacterIds, readAliases, canonicalId, newCharacterId } from './lib/character-ids.js';
 import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
@@ -930,6 +932,46 @@ app.get('/api/party/srd-item', asyncRoute(async (req, res) => {
   const item = itemFromSrd(kind === 'equipment' ? 'equipment' : 'magic', entry);
   if (!item) return res.status(404).json({ error: 'Not found' });
   res.json({ item });
+}));
+
+// The gear wizard (public/inventory-wizard.js): the shop list, paying in coins, and a preview or commit of a whole new inventory and purse.
+// The commit also brings the sheet in step (armor class, attack lines, Equipment and coin boxes) through the sheet editor, so it is logged and can be undone.
+let shopCache = null;
+app.get('/api/party/shop', asyncRoute(async (_req, res) => {
+  if (!shopCache) shopCache = shopCatalog(JSON.parse(await readFile(path.join(__dirname, 'data', 'srd', 'magic-items.json'), 'utf8')));
+  res.json({ items: shopCache });
+}));
+app.post('/api/party/pay', (req, res) => {
+  const out = payCoins(normalizeCoins(req.body?.coins), Math.round(Number(req.body?.cost)));
+  res.status(out.ok ? 200 : 400).json(out.ok ? out : { error: out.error });
+});
+app.post('/api/party/tidy', (req, res) => res.json({ coins: tidyCoins(normalizeCoins(req.body?.coins)) }));
+async function planGear(id, body) {
+  const old = (await listCharacters(await getActiveCampaignId())).find((x) => x.id === canonId(id));
+  if (!old) return null;
+  const before = seedFromSheet(old);
+  const problems = [];
+  const next = { ...before, inventory: normalizeInventory(body?.inventory, problems), coins: normalizeCoins(body?.coins) };
+  const synced = syncSheet(next);
+  const plan = sheetEditsForGear(before, synced);
+  const sheetEdits = [...plan.edits, ...['Equipment', 'CP', 'SP', 'EP', 'GP', 'PP'].map((f) => ({ field: f, value: String(synced.sheet[f] ?? '') }))];
+  const out = applyUpdate(old, { reason: String(body?.reason || 'Gear change').slice(0, 200), edits: sheetEdits });
+  const character = { ...out.character, inventory: next.inventory, coins: next.coins };
+  const settings = await readSettings(path.join(CAMPAIGNS_DIR, await getActiveCampaignId()));
+  return { old, character, problems, plan, notes: out.notes, effective: computeEffective(seedFromSheet(character), Boolean(settings.variantEncumbrance), settings.rules === '2024' ? '2024' : '2014'), armor: armorClass(synced) };
+}
+const gearView = (p) => ({ problems: p.problems, notes: p.plan.notes, warnings: p.plan.warnings, armor: p.armor, effective: p.effective, coins: p.character.coins, ac: p.effective.ac });
+app.post('/api/party/gear/:id/preview', asyncRoute(async (req, res) => {
+  const p = await planGear(req.params.id, req.body);
+  if (!p) return res.status(404).json({ error: 'No such character' });
+  res.json(gearView(p));
+}));
+app.post('/api/party/gear/:id/commit', localOnly, asyncRoute(async (req, res) => {
+  const p = await planGear(req.params.id, req.body);
+  if (!p) return res.status(404).json({ error: 'No such character' });
+  const saved = normalizeCharacter(p.character);
+  await saveCharacter(saved);
+  res.json({ ...gearView(p), character: partyView(saved) });
 }));
 
 // Rest the whole party: a long rest restores hit points and spell slots (the tabletop clears conditions on its own board).

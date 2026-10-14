@@ -95,6 +95,7 @@
 </div>
 <script src="/nav.js"></script>
 <script src="/levelup-wizard.js"></script>
+<script src="/inventory-wizard.js"></script>
 <script>
 (function () {
   'use strict';
@@ -626,6 +627,9 @@
 
     var others = state.characters.filter(function (x) { return x.id !== c.id; }).map(function (x) { return { id: x.id, name: x.name }; });
     var targets = [{ id: 'stash', name: 'Party stash' }].concat(others);
+    var mg = el('button', '', 'Manage gear…'); mg.title = 'Shop, equip, attune and spend coin; the armor class and attack lines follow';
+    mg.addEventListener('click', function () { InventoryWizard.open({ character: c, onError: function (m) { setStatus(m, 'err'); }, onDone: async function (out) { setStatus(c.name + ': ' + ((out.notes || []).join(' · ') || 'gear saved') + '.', 'ok'); await load(); } }); });
+    sumInv.push(mg);
     sumInv.push(itemTable(c.inventory, {
       emptyText: 'Nothing carried.', attune: true, targets: targets, giveLabel: 'Give to…', giveTitle: 'Give this item to someone else or put it in the stash',
       save: function () { saveCharacter(c); },
