@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 77,
+  "version": 79,
   "id": "406a08bc-086d-4533-8631-d575938170a2",
   "slug": "camp",
   "name": "Camp",
@@ -9967,17 +9967,7 @@
           "player": "vtt-camp-day.png",
           "dm": null,
           "light": "bright",
-          "lights": [
-            {
-              "x": 1000,
-              "y": 750,
-              "range": 9,
-              "intensity": 1,
-              "color": "ffff9a3c",
-              "name": "campfire",
-              "flicker": true
-            }
-          ],
+          "lights": [],
           "ambient": "ffffffff",
           "ambience": "",
           "mood": ""
@@ -9988,41 +9978,7 @@
           "player": "vtt-camp-night.png",
           "dm": null,
           "light": "dark",
-          "lights": [
-            {
-              "x": 1000,
-              "y": 750,
-              "range": 9,
-              "intensity": 1,
-              "color": "ffff9a3c",
-              "name": "campfire",
-              "flicker": true
-            },
-            {
-              "x": 550,
-              "y": 410,
-              "range": 2.5,
-              "intensity": 0.35,
-              "color": "ffffd27a",
-              "name": "lantern-nw"
-            },
-            {
-              "x": 1475,
-              "y": 430,
-              "range": 2.5,
-              "intensity": 0.35,
-              "color": "ffffd27a",
-              "name": "lantern-ne"
-            },
-            {
-              "x": 1560,
-              "y": 1075,
-              "range": 2.5,
-              "intensity": 0.35,
-              "color": "ffffd27a",
-              "name": "lantern-se"
-            }
-          ],
+          "lights": [],
           "ambient": "ff1a2240",
           "ambience": "",
           "mood": ""

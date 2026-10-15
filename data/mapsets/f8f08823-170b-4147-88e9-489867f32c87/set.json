@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 129,
+  "version": 130,
   "id": "f8f08823-170b-4147-88e9-489867f32c87",
   "slug": "vtt-crypt-method-a",
   "name": "Crypt Method A",
@@ -1397,35 +1397,7 @@
           "player": "vtt-crypt-method-a.png",
           "dm": null,
           "light": "dark",
-          "lights": [
-            {
-              "x": 441,
-              "y": 263,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-1"
-            },
-            {
-              "x": 973,
-              "y": 336,
-              "range": 8,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "brazier"
-            },
-            {
-              "x": 1076,
-              "y": 817,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-2"
-            }
-          ],
+          "lights": [],
           "ambient": "ff2a2630",
           "ambience": "dungeon",
           "mood": "dungeon"

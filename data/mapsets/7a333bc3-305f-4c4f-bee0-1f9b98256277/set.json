@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 5,
+  "version": 6,
   "id": "7a333bc3-305f-4c4f-bee0-1f9b98256277",
   "slug": "vtt-dungeon-cellars",
   "name": "Dungeon Cellars",
@@ -1365,134 +1365,7 @@
           "player": "vtt-dungeon-cellars.png",
           "dm": null,
           "light": "dark",
-          "lights": [
-            {
-              "x": 250,
-              "y": 152.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-1"
-            },
-            {
-              "x": 500,
-              "y": 152.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-2"
-            },
-            {
-              "x": 647.5,
-              "y": 450,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-3"
-            },
-            {
-              "x": 1200,
-              "y": 375,
-              "range": 8,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "brazier"
-            },
-            {
-              "x": 902.5,
-              "y": 200,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-5"
-            },
-            {
-              "x": 1547.5,
-              "y": 200,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-6"
-            },
-            {
-              "x": 1547.5,
-              "y": 500,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-7"
-            },
-            {
-              "x": 1000,
-              "y": 852.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-8"
-            },
-            {
-              "x": 1400,
-              "y": 852.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-9"
-            },
-            {
-              "x": 1200,
-              "y": 1197.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-10"
-            },
-            {
-              "x": 102.5,
-              "y": 900,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-11"
-            },
-            {
-              "x": 597.5,
-              "y": 1100,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-12"
-            },
-            {
-              "x": 325,
-              "y": 1197.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-13"
-            },
-            {
-              "x": 750,
-              "y": 347.5,
-              "range": 6,
-              "intensity": 1,
-              "color": "ffffa24d",
-              "flicker": true,
-              "name": "torch-14"
-            }
-          ],
+          "lights": [],
           "ambient": "ff2a2630",
           "ambience": "dungeon",
           "mood": ""
