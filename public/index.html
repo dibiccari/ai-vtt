@@ -1640,7 +1640,7 @@ function objectLoops() {
 
 // After the fog is cut for what each party member sees: reveal the top of any small object whose edge someone can see.
 function revealObjectTops() {
-  if (!state.sight.length) return;
+  if (!state.sight.length || state.objectTops === false) return;       // the map says closed wall rings keep their inside hidden
   for (const loop of objectLoops()) {
     const points = WallObjects.samples(loop, 14);
     const seers = state.sight.filter((s) => points.some((p) => visibleFrom(s, p.x, p.y)));
@@ -2872,6 +2872,7 @@ async function loadMapLighting() {
   state.effects = [];
   state.difficult = [];
   state.areaPins = [];
+  state.objectTops = true;
   state.places = [];
   state.placePins = [];
   state.difficultSquares = null;
@@ -2881,6 +2882,7 @@ async function loadMapLighting() {
     const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
     const { config } = await res.json();
     if (!config) return;
+    state.objectTops = config.objectTops !== false;
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
     state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;

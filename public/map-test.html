@@ -105,6 +105,7 @@
     <label class="check"><input type="checkbox" id="fog" checked> Fog of war</label>
     <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
+    <label class="check" title="A small closed ring of walls (a boulder, a tent, a tree crown): ticked, its top shows once the ring is seen; unticked, the inside stays hidden like any other walled-off space. Saved with the map."><input type="checkbox" id="objectTops" checked> Show the tops of closed wall rings</label>
     <label class="check" title="Draw how far each light reaches: the dashed circle is where its dim light ends, the solid one where its bright light ends (half as far). Includes the test token's own light on a dark map. DM view only."><input type="checkbox" id="showLightRadius"> Show light radius</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
@@ -370,7 +371,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
+    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, ...(S.objectTops === false ? { objectTops: false } : {}), ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
     pendingSave = () => { saveChain = saveChain.then(sendSave, sendSave); return saveChain; };
     const sendSave = async () => {
       if (S.stale) { setSavedNote('Not saved: this map was changed elsewhere. Reload the page.'); return; }
@@ -538,7 +539,7 @@
   // The top of a small closed object (tent, boulder, crate) shows when its edge is in sight, instead of staying black.
   let objectCache = { key: '', loops: [] };
   function revealObjectTops(visionRadius) {
-    if (!S.polys.length) return;
+    if (!S.polys.length || S.objectTops === false) return;
     // In a dark place a boulder's top is only seen where the token can see: within its darkvision or its carried light (never just because it is inside the vision range).
     const radius = S.light === 'dark' ? Math.min(visionRadius, Math.max((S.darkvisionFt / FT_PER_SQUARE) * cell(), (lightReachFt() / FT_PER_SQUARE) * cell())) : visionRadius;
     if (radius <= 0) return;
@@ -1232,6 +1233,7 @@
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.allLights = (remote && Array.isArray(remote.lights) ? remote.lights : []).filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0).map((l, i) => ({ ...l, id: l.name || 'light-' + i }));
         S.lightsEdited = false;
+        S.objectTops = !(remote && remote.objectTops === false); $('#objectTops').checked = S.objectTops;
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
         S.lights = S.allLights.filter((l) => l.flicker === true);
@@ -2124,6 +2126,7 @@
   $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; requestRender(); updateReadout(); });
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   S.showLightRadius = store.get('vtt.maptest.lightRadius', false) === true; $('#showLightRadius').checked = S.showLightRadius;
+  $('#objectTops').addEventListener('change', (e) => { S.objectTops = e.target.checked; save(); resetFog(); });       // explored ground is remembered, so the layer starts again
   $('#showLightRadius').addEventListener('change', (e) => { S.showLightRadius = e.target.checked; store.set('vtt.maptest.lightRadius', S.showLightRadius); requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });

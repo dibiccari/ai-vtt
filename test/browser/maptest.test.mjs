@@ -601,11 +601,15 @@ test('in a dark place the top of a boulder (a small closed wall ring) is reveale
     const setDv = (v) => { const sel = document.querySelector('#testDv'); sel.value = v; sel.dispatchEvent(new Event('change')); };
     const setLight = (v) => { const e = document.querySelector('#testLight'); e.value = v; e.dispatchEvent(new Event('input')); };
     out.cases = {};
-    for (const [name, dv, light] of [['none', '0', '0'], ['dv60', '60', '0']]) { setLight(light); setDv(dv); window.mapTest.revealFog(); await wait(500); out.cases[name] = sh(cx, cy); }
+    for (const [name, dv, light] of [['none', '0', '0'], ['dv60', '60', '0'], ['dv60-off', '60', '0']]) {
+      if (name === 'dv60-off') { const cb = document.querySelector('#objectTops'); cb.checked = false; cb.dispatchEvent(new Event('change')); } setLight(light); setDv(dv); window.mapTest.revealFog(); await wait(500); out.cases[name] = sh(cx, cy); }
     return out;
   })()`);
   assert.notEqual(r.loops, 0, 'the map has small wall rings');
   assert.equal(r.light, 'dark');
   assert.ok(r.cases.none >= 200, 'with no darkvision and no light the ring stays under the fog: ' + JSON.stringify(r.cases));
   assert.ok(r.cases.dv60 < 120, 'with darkvision 60 ft the ring (30 ft away, in sight) is revealed: ' + JSON.stringify(r.cases));
+  assert.ok(r.cases['dv60-off'] >= 200, 'with Show the tops of closed wall rings unticked the inside stays hidden: ' + JSON.stringify(r.cases));
+  const saved = (await server.get('/api/map-config?map=vtt-pack-cragmaw-hideout-copy.png')).json.config;
+  assert.equal(saved.objectTops, false, 'the choice is saved with the map');
 });

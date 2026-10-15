@@ -474,6 +474,7 @@ function normalizeMapConfig(body) {
   if (['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(body?.ambience)) config.ambience = body.ambience;
   if (/^[0-9a-f]{6,8}$/i.test(String(body?.ambient ?? ''))) config.ambient = String(body.ambient).toLowerCase();
   if (MOODS.some((m) => m.id && m.id === body?.mood)) config.mood = body.mood;            // a mood theme chosen in the map editor (lib/market.js MOODS)
+  if (body?.objectTops === false) config.objectTops = false;                      // false: the inside of a small closed wall ring (a boulder, a tent) stays hidden; the default shows the top of one that is seen
   if (['battle', 'camp', 'town', 'regional'].includes(body?.kind)) config.kind = body.kind;                      // the type of map chosen in the map tools
   if (body?.tiles === 'hex') { config.tiles = 'hex'; config.hexSize = Math.max(20, Math.min(260, Math.round(Number(body?.hexSize) || 95))); }       // regional maps: hexagons, one hex is 5 miles (squares are the default and need no entry)
   if (body?.source === 'dd2vtt') config.source = 'dd2vtt';
