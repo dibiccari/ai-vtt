@@ -49,6 +49,8 @@ const STEPS = [
   { id: 'lockeddoor', say: '[Vex] I kneel at the cellar door and try to pick its lock with my thieves\' tools. Roll it for me.', expect: 'a roll from the tray, and door action unlock (then open) only if the roll meets the lock\'s dc; the secret door is never mentioned' },
   { id: 'searchwall', say: '[Thorin] I search the old shelves along the south wall, tapping the stone behind them for anything hidden. Roll my Perception.', expect: 'a Perception roll; if it meets the secret door\'s dc the DM reveals it with action door, otherwise nothing hidden is mentioned' },
   { id: 'travel', say: '[Thorin] The fight is over. We open the cellar hatch behind the bar and go down into the old cellars to look for the missing barrels, all four of us together.', expect: 'changeMap to the cellars map, resolved to a picture and an arrival square, no problems reported' },
+  { id: 'shop', say: '[Thorin] I would like to browse what Orla the barkeep has for sale behind the bar. Show me her wares.', expect: 'the shop token action for Orla, opened for Thorin, with no goods added by the DM' },
+  { id: 'discover', say: '[Thorin] The party is looking at the regional map. A traveller by the fire tells us the ruins of Thundertree lie in the forest north-west of Phandalin. We note it on our map.', expect: 'discover for Thundertree only (not the other undiscovered places)' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
 
@@ -215,6 +217,7 @@ try {
         T.walls = [{ x1: (v.col + 1) * g, y1: (v.row - 3) * g, x2: (v.col + 2) * g, y2: (v.row - 3) * g, type: 'door', open: false, locked: true, dc: 12 },
                    { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
       },
+      discover: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/dnd-sword-coast-ours.png', name: 'The Sword Coast (regional map)', places: [{ name: 'neverwinter', note: 'The great city on the coast', col: 10, row: 30, known: true }, { name: 'phandalin', note: 'A frontier town', col: 30, row: 55, known: true }, { name: 'thundertree', note: 'A ruined town in the forest', col: 20, row: 33 }, { name: 'conyberry', note: 'A ruined hamlet', col: 44, row: 37 }, { name: 'icespire-peak', note: 'A mountain', col: 36, row: 50 }] }; },
       searchwall: async () => { combat = { active: false }; setActive('pc-thorin'); },
       // The step says the fight is over: take away the goblins and the ogre the group step added, or the DM rightly says the room is not safe to leave.
       travel: async () => { combat = { active: false }; tokens = tokens.filter((t) => t.isPC || /^npc-(orla|bram|hidden|garrick|guard|choir|sleeper)$/.test(t.id) || /^trap-/.test(t.id)); setActive('pc-thorin'); },
@@ -258,7 +261,7 @@ try {
     try {
       if (hooks.before[step.id]) await hooks.before[step.id]();
       res = await Promise.race([
-        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: T.walls || [], gridSize: 50, mapUrl: flagon.url, mapName: flagon.name, places: T.places || [], inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
+        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: T.walls || [], gridSize: 50, mapUrl: T.map ? T.map.url : flagon.url, mapName: T.map ? T.map.name : flagon.name, places: T.map ? T.map.places : (T.places || []), inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS + 5000))
       ]);
     } catch (err) { fail(`${step.id}: no reply (${err.message})`); continue; }
@@ -416,6 +419,18 @@ try {
       check(!!h, 'haste: a haste effect on Vex', upd(j).map((u) => u.type + ':' + (u.tokenId || '') + ':' + condOf(u)).join(', ').slice(0, 200));
       check(!h || !h.source, 'haste: no concentration source (a potion needs none)', h ? 'source ' + h.source : '');
       check(!upd(j).some((u) => u.tokenId === 'pc-vex' && ['setSpeed', 'setAc'].includes(u.type)), 'haste: the DM did not change speed or AC itself');
+    }
+    if (step.id === 'shop') {
+      const shop = upd(j).find((u) => u.type === 'openShop');
+      check(!!shop, 'shop: the DM opened a shop (token action shop)', upd(j).map((u) => u.type).join(', '));
+      check(!shop || /orla/i.test(shop.merchant), 'shop: the merchant is Orla', shop ? shop.merchant : '');
+      check(!shop || /thorin/i.test(shop.buyer), 'shop: opened for the shopping character, Thorin', shop ? shop.buyer : '');
+      check(!(raw?.mapUpdates || []).some((u) => u.type === 'gear' && ['add', 'buy'].includes(u.action)), 'shop: the DM did not hand over goods itself');
+    }
+    if (step.id === 'discover') {
+      const found = upd(j).filter((u) => u.type === 'discoverPlace' && u.on);
+      check(found.some((u) => /thundertree/i.test(u.place)), 'discover: Thundertree was discovered', upd(j).map((u) => u.type + ':' + (u.place || '')).join(', '));
+      check(!found.some((u) => !/thundertree/i.test(u.place)), 'discover: nothing else was discovered', found.map((u) => u.place).join(', '));
     }
     if (step.id === 'gear') {
       // Buying goes through the buy_item service now (or, in an older reply, gear updates): either way what counts is what the table saved.
