@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 8,
+  "version": 12,
   "id": "56fa4388-81c9-4f67-a944-7e168c1b3a35",
   "slug": "dnd-sword-coast-ours",
   "name": "Sword Coast",
@@ -43,8 +43,8 @@
         },
         {
           "name": "thundertree",
-          "x": 543,
-          "y": 845,
+          "x": 547,
+          "y": 838,
           "desc": "A ruined village west of the Neverwinter Wood.",
           "label": "Thundertree"
         },
@@ -78,8 +78,8 @@
         },
         {
           "name": "cragmaw-hideout",
-          "x": 569,
-          "y": 1295,
+          "x": 562,
+          "y": 1253,
           "desc": "A goblin cave hideout in the grassland near the High Road.",
           "label": "Cragmaw Hideout"
         },
@@ -117,6 +117,12 @@
           "y": 1332,
           "desc": "The tallest peak of the Sword Mountains.",
           "label": "Icespire Peak"
+        },
+        {
+          "name": "triboar-trail",
+          "x": 716,
+          "y": 1238,
+          "known": true
         }
       ],
       "difficult": [],

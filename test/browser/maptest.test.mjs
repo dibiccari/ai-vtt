@@ -627,3 +627,28 @@ test('Fog of war on this map: the checkbox in Map Tools is saved with the map an
   await page.eval(`(async () => { const cb = document.querySelector('#fog'); cb.checked = true; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
   assert.equal((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.fog, undefined, 'fog on is the default and is not stored');
 });
+
+test('Show places on a town map: with no place known from the start the Player view says so, and the All button makes them show', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-phandalin.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.kind === "town"');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, out = {};
+    S.starts.forEach((p) => { delete p.known; });
+    let drawn = -1; const real = PlacePins.draw; PlacePins.draw = (ctx, pins, px) => { drawn = pins.length; return real(ctx, pins, px); };
+    const places = S.starts.filter((p) => PlacePins.isPlace(p)).length; out.places = places;
+    out.rowDm = !document.querySelector('#knownRow').hidden;
+    document.querySelector('#knownNone').click(); await wait(200);
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(300);
+    const cb = document.querySelector('#showPlaces'); cb.checked = true; cb.dispatchEvent(new Event('change')); await wait(300);
+    out.hint = !document.querySelector('#placesHint').hidden; out.rowPlayer = !document.querySelector('#knownRow').hidden; out.drawnNone = drawn;
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
+    document.querySelector('#knownAll').click(); await wait(200);
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(300);
+    out.hintAfter = !document.querySelector('#placesHint').hidden; out.drawnAll = drawn;
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); document.querySelector('#knownNone').click(); await wait(2200);
+    return out;
+  })()`);
+  assert.ok(r.places >= 10); assert.equal(r.rowDm, true); assert.equal(r.hint, true, 'it says why nothing shows'); assert.equal(r.rowPlayer, false);
+  assert.ok(r.drawnNone <= 0, 'none known: none drawn'); assert.equal(r.hintAfter, false); assert.equal(r.drawnAll, r.places, 'All: every place is drawn');
+});

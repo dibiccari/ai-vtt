@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 154,
+  "version": 155,
   "id": "fe449df8-3c8b-4e23-92b8-71722160d4b7",
   "slug": "vtt-pack-cragmaw-hideout-copy",
   "name": "Cragmaw Hideout",
@@ -1678,48 +1678,7 @@
           "player": "vtt-pack-cragmaw-hideout-copy.png",
           "dm": null,
           "light": "dim",
-          "lights": [
-            {
-              "x": 1656,
-              "y": 880,
-              "range": 3.5,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "small-camp-fire"
-            },
-            {
-              "x": 345,
-              "y": 1201,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "daylight-1"
-            },
-            {
-              "x": 698,
-              "y": 1206,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "daylight-2"
-            },
-            {
-              "x": 1039,
-              "y": 1209,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "torch-1"
-            },
-            {
-              "x": 1377,
-              "y": 1219,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "torch-2"
-            }
-          ],
+          "lights": [],
           "ambient": "",
           "ambience": "cave",
           "mood": ""

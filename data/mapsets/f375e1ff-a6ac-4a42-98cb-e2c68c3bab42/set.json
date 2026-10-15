@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 1,
+  "version": 2,
   "id": "f375e1ff-a6ac-4a42-98cb-e2c68c3bab42",
   "slug": "lmop-agathas-lair",
   "name": "Agatha's Lair",
@@ -305,127 +305,7 @@
           "player": "lmop-agathas-lair.png",
           "dm": null,
           "light": "dim",
-          "lights": [
-            {
-              "x": 976.84,
-              "y": 1209.94,
-              "range": 2,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 998.72,
-              "y": 1255.14,
-              "range": 2,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1102.26,
-              "y": 1258.06,
-              "range": 2,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1156.22,
-              "y": 1206.29,
-              "range": 2,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1237.88,
-              "y": 1123.89,
-              "range": 2,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1052.68,
-              "y": 972.23,
-              "range": 2,
-              "intensity": 0.8,
-              "color": "ffffad58"
-            },
-            {
-              "x": 963.06,
-              "y": 1209.94,
-              "range": 0.5,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1001.71,
-              "y": 1266.08,
-              "range": 0.5,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1102.33,
-              "y": 1264.62,
-              "range": 0.5,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1133.69,
-              "y": 1220.87,
-              "range": 0.5,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1237.96,
-              "y": 1118.06,
-              "range": 0.5,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1056.39,
-              "y": 980.25,
-              "range": 0.5,
-              "intensity": 0.5,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1455.02,
-              "y": 219.85,
-              "range": 7.5,
-              "intensity": 0.5,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 1893.98,
-              "y": 1059.85,
-              "range": 7.5,
-              "intensity": 0.5,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 905.23,
-              "y": 1818.19,
-              "range": 7.5,
-              "intensity": 0.5,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 273.77,
-              "y": 1027.77,
-              "range": 7.5,
-              "intensity": 0.5,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 661.43,
-              "y": 517.86,
-              "range": 7.5,
-              "intensity": 0.5,
-              "color": "ff0b0905"
-            }
-          ],
+          "lights": [],
           "ambient": "ffffffff",
           "ambience": "forest",
           "mood": ""

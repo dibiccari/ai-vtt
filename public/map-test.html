@@ -183,6 +183,7 @@
   <div class="group">
     <h2>Pins</h2>
     <p class="hint">Use the Pins tool. The green ring and circle is where the party starts (drag it, or set its circle size on its card); the blue pins are places the DM can narrate and send the party to. Click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
+    <div id="knownRow" class="hint" hidden style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" title="On a town or regional map the players see only the places they know. These set the flag for every named place at once."><span>Players know the places from the start:</span><button type="button" id="knownAll" class="small">All</button><button type="button" id="knownNone" class="small">None</button></div>
     <div id="startList" class="hint"></div>
     <div id="areaBox" hidden>
       <p class="hint">Module areas: drag a number onto the map to drop its pin (a ✓ means it is placed; drag it again to move it, or right-click the pin to remove it). The AI reads these to know where each area is.</p>
@@ -227,7 +228,7 @@
         <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
         <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
       </span>
-      <label class="check" id="placesRow" title="The same switch as on the tabletop: show the named places on this town or regional map" hidden><input type="checkbox" id="showPlaces"> Show places</label>
+      <label class="check" id="placesRow" title="The same switch as on the tabletop: show the named places on this town or regional map" hidden><input type="checkbox" id="showPlaces"> Show places<span id="placesHint" class="hint" style="margin-left:8px" hidden></span></label>
       <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
         <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
         <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
@@ -1006,7 +1007,18 @@
     save(); renderStartList(); requestRender();
   });
 
+  // Town and regional maps: the Player view shows the places marked known from the start (the tabletop adds the ones the DM has the party discover). Say so when there are none, and offer All / None.
+  function updatePlacesHint() {
+    const places = S.starts.filter((p) => PlacePins.isPlace(p)), known = places.filter((p) => p.known === true).length;
+    const applies = PlacePins.appliesTo(S.kind);
+    $('#knownRow').hidden = !(applies && places.length) || S.viewAs !== 'dm';
+    const hint = $('#placesHint');
+    hint.hidden = !(S.viewAs === 'player' && applies && places.length > 0 && known === 0);
+    hint.textContent = 'No place is marked "known from the start", so players see none yet (DM view: Players know the places from the start, or a pin\'s card).';
+  }
+  function setAllKnown(on) { for (const p of S.starts) if (PlacePins.isPlace(p)) { if (on) p.known = true; else delete p.known; } save(); updatePlacesHint(); renderStartList(); requestRender(); }
   function renderStartList() {
+    updatePlacesHint();
     const box = $('#startList');
     box.innerHTML = '';
     const plain = S.starts.filter((p) => !isAreaPin(p));
@@ -2019,7 +2031,7 @@
     if (S.selected.name === 'start') { parkAtStart(); revealFog(); }
     save(); requestRender();
   });
-  $('#pcKnown').addEventListener('change', () => { if (S.selected) { if ($('#pcKnown').checked) S.selected.known = true; else delete S.selected.known; save(); requestRender(); } });
+  $('#pcKnown').addEventListener('change', () => { if (S.selected) { if ($('#pcKnown').checked) S.selected.known = true; else delete S.selected.known; save(); updatePlacesHint(); requestRender(); } });
   $('#pcDmOnly').addEventListener('change', () => { if (S.selected) { if ($('#pcDmOnly').checked) S.selected.dmOnly = true; else delete S.selected.dmOnly; save(); requestRender(); } });
   $('#pcNote').addEventListener('input', () => { if (S.selected) { S.selected.desc = $("#pcNote").value.slice(0, 300); save(); renderStartList(); } });
   $('#pcStart').addEventListener('click', () => {
@@ -2133,6 +2145,7 @@
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
   $('#addLightBtn').addEventListener('click', () => { S.addingLight = !S.addingLight; $('#addLightBtn').textContent = S.addingLight ? 'Click the map… (cancel)' : 'Add a light'; cv.style.cursor = S.addingLight ? 'crosshair' : ''; });
   $('#clearLightsBtn').addEventListener('click', () => { if (!S.allLights.length) return; if (!confirm('Delete all ' + S.allLights.length + ' lights of this map? This is saved.')) return; S.allLights = []; S.lightsOff = new Set(); refreshLights(); setSavedNote('Deleted every light of this map.'); });
+  $('#knownAll').addEventListener('click', () => setAllKnown(true)); $('#knownNone').addEventListener('click', () => setAllKnown(false));
   $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
@@ -2240,7 +2253,7 @@
     $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
     $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
     $('#dropDmBtn').hidden = !S.dmImg;
-    renderMapLightsList();
+    renderMapLightsList(); updatePlacesHint();
     $('#placesRow').hidden = !(S.viewAs === 'player' && PlacePins.appliesTo(S.kind));          // Player view of a town or regional map: the players' places switch
     $('#showPlaces').checked = PlacePins.enabled();
   }
