@@ -728,7 +728,9 @@ function zoomAt(sx, sy, factor) {
 
 // Regional and town maps are plain pictures: no tokens, no fog, no movement, shown whole. A camp map shows tokens and the grid but has no fog of war.
 function plainMap() { return state.mapKind === 'regional' || state.mapKind === 'town'; }
-function noFogMap() { return state.mapKind !== 'battle'; }
+function noFogMap() { return state.mapKind !== 'battle' || state.mapFog === false; }
+// Fog of war really applies: the table has it on AND the map is one that has fog (a map set up with the fog off is shown whole to the players).
+const fogOn = () => state.fogEnabled && state.mapFog !== false;
 
 // Opening view for boards that ask for it (a big battle map is too large to show whole): close on the active token.
 // Every map opens fitted to the view, whole, whatever its size (zoom in with the + button or the wheel).
@@ -1450,7 +1452,7 @@ function seenByParty(t) {
   if (isElsewhere(t)) return false;
   if (t.isPC) return true;
   if (t.hidden || hasCondition(t, 'invisible')) return false;
-  if (!state.fogEnabled || state.gmOverride) return true;
+  if (!fogOn() || state.gmOverride) return true;
   // A token is seen when its centre is in sight, or (a big one) the centre of any of its squares: the edge-most visible point.
   if (fp(t) > 1) return TokenSize.cells(t.col, t.row, fp(t)).concat([[t.col + fp(t) / 2 - 0.5, t.row + fp(t) / 2 - 0.5]]).some(([c, r]) => { const x = centerOf(c), y = centerOf(r); return state.sight.some((s) => visibleFrom(s, x, y)); });
   const x = tcx(t), y = tcy(t);
@@ -1459,7 +1461,7 @@ function seenByParty(t) {
 const canSee = (t) => seenByParty(t) || state.dmView;
 // Is a point (a door, say) in the party's sight? Used to decide whether a change there is worth a line in the chat.
 function seenByPartyPoint(x, y) {
-  if (!state.fogEnabled || state.gmOverride) return true;
+  if (!fogOn() || state.gmOverride) return true;
   return state.sight.some((s) => visibleFrom(s, x, y));
 }
 
@@ -1671,7 +1673,7 @@ function revealObjectTops() {
 
 function revealFog() {
   // With fog off the whole map is shown and nothing is remembered as explored. Turning fog on later starts from what the party sees then.
-  if (!state.fogEnabled) {
+  if (!fogOn()) {
     state.sight = [];
     renderTurnBar();
     requestRender();
@@ -2082,7 +2084,7 @@ function drawWallSegments(alpha) {
 }
 
 function drawFog() {
-  if (!state.fogEnabled) return;
+  if (!fogOn()) return;
   ctx.save();
   ctx.globalAlpha = state.gmOverride ? 0.5 : 1;
   ctx.drawImage(shroud, 0, 0);
@@ -2872,6 +2874,7 @@ async function loadMapLighting() {
   state.effects = [];
   state.difficult = [];
   state.areaPins = [];
+  state.mapFog = true;
   state.objectTops = true;
   state.places = [];
   state.placePins = [];
@@ -2883,6 +2886,7 @@ async function loadMapLighting() {
     const { config } = await res.json();
     if (!config) return;
     state.objectTops = config.objectTops !== false;
+    state.mapFog = config.fog !== false;                       // Map Tools > Fog of war on this map (saved with the map)
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
     state.ambience = typeof config.ambience === 'string' ? config.ambience : '';
     const f = state.map.drawW / state.map.img.naturalWidth;
@@ -4666,7 +4670,7 @@ function bindUi() {
     if (p) await travelTo({ mapUrl: p.url, mapName: p.name, kind: p.kind, col: p.start.col, row: p.start.row, px: p.startPx });
   });
   $('#resetFogBtn').addEventListener('click', () => {
-    if (!state.fogEnabled) { toast('Turn on Fog of war first.'); return; }
+    if (!fogOn()) { toast('Fog of war is off for this map.'); return; }
     if (confirm('Cover the whole map in fog again? Explored areas will be forgotten.')) resetFog();
   });
   $('#fogToggle').addEventListener('change', (e) => {

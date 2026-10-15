@@ -615,3 +615,15 @@ test('in a dark place the top of a boulder (a small closed wall ring) is reveale
   const saved = (await server.get('/api/map-config?map=vtt-pack-cragmaw-hideout-copy.png')).json.config;
   assert.equal(saved.objectTops, false, 'the last choice (off) is saved with the map');
 });
+
+test('Fog of war on this map: the checkbox in Map Tools is saved with the map and read back', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  await page.eval(`(async () => { const cb = document.querySelector('#fog'); cb.checked = false; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
+  assert.equal((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.fog, false);
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  assert.equal(await page.eval(`document.querySelector('#fog').checked`), false, 'the box comes back unticked');
+  await page.eval(`(async () => { const cb = document.querySelector('#fog'); cb.checked = true; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
+  assert.equal((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.fog, undefined, 'fog on is the default and is not stored');
+});

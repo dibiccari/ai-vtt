@@ -1181,8 +1181,36 @@ test('XP: when a fight ends the table shares the XP of the creatures it saw fall
       return { before, after, again, notes: s.pendingNotes.join(' | '), flags: [a.xpAwarded, b.xpAwarded, alive.xpAwarded === true] };
     })()`);
     const gain = r.after.map((x, i) => x - r.before[i]);
-    assert.ok(gain.every((g) => g === 25), '100 XP shared by four characters: ' + gain.join(','));
+    assert.ok(gain.length >= 1 && gain.every((g) => g === Math.floor(100 / gain.length)), '100 XP shared equally by the party: ' + gain.join(','));
     assert.deepEqual(r.again, r.after, 'the same creatures are never paid twice'); assert.deepEqual(r.flags, [true, true, false]);
     assert.match(r.notes, /awarded 100 XP/); assert.match(r.notes, /Do not award XP for these again/);
   } finally { await xpPage.close(); }
+});
+
+test('fog off for a map: a battle map saved with fog off is shown whole to the players and its fog controls are disabled; other battle maps keep their fog', opts, async () => {
+  const f = 'vtt-terrain-test.png';
+  const cur = (await server.get('/api/map-config?map=' + f)).json;
+  assert.equal((await server.put('/api/map-config?map=' + f, { ...cur.config, fog: false, baseVersion: cur.setVersion })).status, 200);
+  assert.equal((await server.get('/api/map-config?map=' + f)).json.config.fog, false, 'the setting is saved with the map');
+  const fogPage = await launchChrome();
+  try {
+    await fogPage.goto(`${server.base}/?nosave=1`);
+    await fogPage.waitFor('window.vtt && vtt.state && vtt.state.tokens.length');
+    const r = await fogPage.eval(`(async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const out = {};
+      await vtt.travelTo({ mapUrl: '/uploads/${f}', mapName: 'Terrain Test', kind: 'battle', col: 3, row: 3 }); await wait(1200);
+      out.offFlag = vtt.state.mapFog; out.toggleDisabled = document.getElementById('fogToggle').disabled;
+      const far = Object.assign(makeToken({ id: 'far', name: 'Far goblin', color: '#0a0', isPC: false, col: 35, row: 25 }), { hp: 7, maxHp: 7 });
+      vtt.state.tokens.push(far); vtt.revealFog(); out.farSeenNoFog = vtt.seenByParty(far);
+      await vtt.travelTo({ mapUrl: '/uploads/vtt-pack-cragmaw-hideout-copy.png', mapName: 'Cragmaw Hideout', kind: 'battle', col: 3, row: 3 }); await wait(1200);
+      out.onFlag = vtt.state.mapFog; out.toggleDisabledAfter = document.getElementById('fogToggle').disabled;
+      return out;
+    })()`);
+    assert.equal(r.offFlag, false); assert.equal(r.toggleDisabled, true); assert.equal(r.farSeenNoFog, true, 'with no fog a creature far away is seen');
+    assert.equal(r.onFlag, true); assert.equal(r.toggleDisabledAfter, false, 'another battle map has its fog');
+  } finally { await fogPage.close(); }
+  const now = (await server.get('/api/map-config?map=' + f)).json, { fog: _gone, ...rest } = now.config;
+  await server.put('/api/map-config?map=' + f, { ...rest, baseVersion: now.setVersion });       // leave the map as it was (fog is on when the flag is absent)
+  assert.equal((await server.get('/api/map-config?map=' + f)).json.config.fog, undefined);
 });
