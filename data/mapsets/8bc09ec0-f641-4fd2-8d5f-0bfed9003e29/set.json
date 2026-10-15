@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 3,
+  "version": 8,
   "id": "8bc09ec0-f641-4fd2-8d5f-0bfed9003e29",
   "slug": "vtt-pack-thundertree-copy",
   "name": "Thundertree",
@@ -1967,7 +1967,8 @@
         {
           "name": "start",
           "x": 83,
-          "y": 395
+          "y": 395,
+          "radius": 2
         },
         {
           "name": "area-1",
@@ -2063,41 +2064,13 @@
           "player": "vtt-pack-thundertree-copy.png",
           "dm": null,
           "light": "bright",
-          "lights": [
-            {
-              "x": 3375.23,
-              "y": 819.3,
-              "range": 11,
-              "intensity": 0.7,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 2348.22,
-              "y": 1457.47,
-              "range": 6.5,
-              "intensity": 0.7,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 1109.96,
-              "y": 692.18,
-              "range": 6.5,
-              "intensity": 0.7,
-              "color": "ffeccd8b"
-            },
-            {
-              "x": 1464.69,
-              "y": 2012.56,
-              "range": 6.5,
-              "intensity": 0.7,
-              "color": "ffeccd8b"
-            }
-          ],
-          "ambient": "ffffffff",
+          "lights": [],
+          "ambient": "",
           "ambience": "",
           "mood": ""
         }
-      ]
+      ],
+      "fog": false
     }
   ],
   "links": [],

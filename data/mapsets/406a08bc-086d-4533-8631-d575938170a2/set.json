@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 79,
+  "version": 86,
   "id": "406a08bc-086d-4533-8631-d575938170a2",
   "slug": "camp",
   "name": "Camp",
@@ -9967,8 +9967,18 @@
           "player": "vtt-camp-day.png",
           "dm": null,
           "light": "bright",
-          "lights": [],
-          "ambient": "ffffffff",
+          "lights": [
+            {
+              "x": 1002,
+              "y": 740,
+              "range": 4,
+              "intensity": 1,
+              "color": "ffff9a3c",
+              "flicker": true,
+              "name": "torch-1"
+            }
+          ],
+          "ambient": "",
           "ambience": "",
           "mood": ""
         },
@@ -9983,7 +9993,8 @@
           "ambience": "",
           "mood": ""
         }
-      ]
+      ],
+      "fog": false
     }
   ],
   "links": []

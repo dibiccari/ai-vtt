@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 7,
+  "version": 16,
   "id": "1437d184-c1ef-41b2-a368-1da66d5ed9a4",
   "slug": "vtt-pack-cragmaw-castle-day-copy",
   "name": "Cragmaw Castle",
@@ -5431,41 +5431,6 @@
           "light": "bright",
           "lights": [
             {
-              "x": 1227.83,
-              "y": 1443.64,
-              "range": 1.5,
-              "intensity": 0.7,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1712.58,
-              "y": 1446.26,
-              "range": 1.5,
-              "intensity": 0.7,
-              "color": "ffffad58"
-            },
-            {
-              "x": 1713.45,
-              "y": 941.39,
-              "range": 1.5,
-              "intensity": 0.7,
-              "color": "ffffad58"
-            },
-            {
-              "x": 2540.33,
-              "y": 1022.76,
-              "range": 1.5,
-              "intensity": 0.7,
-              "color": "ffffad58"
-            },
-            {
-              "x": 2189.45,
-              "y": 1395.51,
-              "range": 1.5,
-              "intensity": 0.7,
-              "color": "ffffad58"
-            },
-            {
               "x": 1222.58,
               "y": 1441.89,
               "range": 2.81,
@@ -5480,8 +5445,8 @@
               "color": "ffffad58"
             },
             {
-              "x": 1716.95,
-              "y": 945.76,
+              "x": 1713,
+              "y": 943,
               "range": 3.12,
               "intensity": 0.7,
               "color": "ffffad58"
@@ -5501,7 +5466,7 @@
               "color": "ffffad58"
             }
           ],
-          "ambient": "ffffffff",
+          "ambient": "",
           "ambience": "",
           "mood": ""
         },
@@ -5587,7 +5552,8 @@
           "ambience": "night",
           "mood": ""
         }
-      ]
+      ],
+      "fog": false
     }
   ],
   "links": [],

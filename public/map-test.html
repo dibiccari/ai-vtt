@@ -92,6 +92,16 @@
     <label class="field"><span>Campaign</span><select id="campaignFilter" aria-label="Campaign"><option value="">All campaigns</option><option value="__none">Not in any campaign</option></select></label>
     <select id="mapSelect" aria-label="Map"></select>
     <label class="field"><span>Type of map</span><select id="mapKind" aria-label="Type of map"><option value="battle">Battle map (squares)</option><option value="camp">Camp (squares)</option><option value="town">Town map (no tiles)</option><option value="regional">Regional map (hexagons, 5 miles)</option></select></label>
+    <label class="field"><span>Light level of this place</span>
+      <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
+    </label>
+    <label class="field"><span>Ambient sound</span>
+      <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
+    </label>
+    <label class="field"><span>Mood theme</span>
+      <select id="moodSel"><option value="">No mood</option></select>
+    </label>
+    <p class="hint">A mood sets the light level and the ambient sound together; you can still change either one above afterwards.</p>
     <p class="hint" id="scaleNote"></p>
     <div class="readout" id="sizeNote"></div>
     <p class="hint">One entry for each place: its day and night looks and its DM and player pictures are in the same entry (use the Day | Night and DM | Player buttons above the map).</p>
@@ -134,16 +144,6 @@
         <button type="button" id="clearLightsBtn" class="danger" title="Delete every light of this map">Remove all</button>
       </div>
     </div>
-    <label class="field"><span>Light level of this place</span>
-      <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
-    </label>
-    <label class="field"><span>Ambient sound</span>
-      <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
-    </label>
-    <label class="field"><span>Mood theme</span>
-      <select id="moodSel"><option value="">No mood</option></select>
-    </label>
-    <p class="hint">A mood sets the light level and the ambient sound together; you can still change either one above afterwards.</p>
     <label class="field"><span>This version is called</span>
       <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
     </label>
