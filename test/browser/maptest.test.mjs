@@ -516,3 +516,30 @@ test('Lights tool: click to add, click a light to edit its kind, reach, flame an
   assert.equal(r.afterDelete, 0);
   assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0);
 });
+
+test('a drag on empty ground pans the map with the Pins, Token and Lights tools (a plain click still acts); the small campfire is a kind of light', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, out = {};
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const ptr = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { clientX: b.left + x, clientY: b.top + y, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, bubbles: true }));
+    out.kinds = [...document.querySelectorAll('#newLightKind option')].map((o) => o.value);
+    for (const tool of ['lights', 'start', 'token']) {
+      document.querySelector('button.tool[data-tool="' + tool + '"]').click();
+      const before = { ox: S.view.ox, oy: S.view.oy, lights: S.allLights.length, pins: S.starts.length };
+      ptr('pointerdown', 700, 100); for (let i = 1; i <= 8; i++) ptr('pointermove', 700 - i * 12, 100 + i * 8); ptr('pointerup', 604, 164); await wait(200);
+      out[tool] = { panned: Math.round(S.view.ox - before.ox) + ',' + Math.round(S.view.oy - before.oy), added: S.allLights.length - before.lights, pins: S.starts.length - before.pins };
+    }
+    document.querySelector('button.tool[data-tool="lights"]').click();
+    document.querySelector('#newLightKind').value = 'small-campfire';
+    const sx = S.view.ox + 1000 * S.view.scale, sy = S.view.oy + 1100 * S.view.scale;          // somewhere with no light
+    ptr('pointerdown', sx, sy); ptr('pointerup', sx, sy); await wait(300);
+    out.small = S.allLights.filter((l) => l.kind === 'small-campfire').map((l) => l.kind + ':' + l.range + ':' + (l.flicker === true))[0];
+    return out;
+  })()`);
+  assert.ok(r.kinds.includes('small-campfire'));
+  for (const tool of ['lights', 'start', 'token']) { assert.equal(r[tool].panned, '-96,64', tool + ' pans by the drag'); assert.equal(r[tool].added, 0); assert.equal(r[tool].pins, 0); }
+  assert.equal(r.small, 'small-campfire:4:true', 'a small campfire: a short reach with a flame');
+});

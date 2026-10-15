@@ -123,7 +123,7 @@
       <div class="hint" style="margin:0 0 4px">Map lights: click one on the map, or tick it here, to light or put it out (a test only). The ✕ deletes a light from the map for good; Add a light, then click the map.</div>
       <div id="mapLightsList" class="stacked"></div>
       <div class="row-inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
-        <select id="newLightKind" title="The kind of light to add"><option value="torch">Torch</option><option value="brazier">Brazier</option><option value="campfire">Campfire</option><option value="lantern">Lantern</option><option value="candle">Candle</option><option value="crystal">Glowing crystal</option></select>
+        <select id="newLightKind" title="The kind of light to add"><option value="torch">Torch</option><option value="brazier">Brazier</option><option value="campfire">Campfire</option><option value="small-campfire">Small campfire (less light)</option><option value="lantern">Lantern</option><option value="candle">Candle</option><option value="crystal">Glowing crystal</option></select>
         <button type="button" id="addLightBtn">Add a light</button>
         <button type="button" id="clearLightsBtn" class="danger" title="Delete every light of this map">Remove all</button>
       </div>
@@ -1486,7 +1486,7 @@
     renderMapLightsList(); revealFog(); requestRender();
   }
   // Editing the lights (DM view): add one where you click, delete one or all. The list is saved with the map; the table's own light switches stay separate.
-  const LIGHT_KINDS = { torch: { range: 6, flicker: true, color: 'ffffb060' }, campfire: { range: 9, flicker: true, color: 'ffff9a3c' }, brazier: { range: 8, flicker: true, color: 'ffff9a3c' }, lantern: { range: 5, flicker: false, color: 'ffffc070' }, candle: { range: 2, flicker: true, color: 'ffffd080' }, crystal: { range: 5, flicker: false, color: 'ff9fd8ff' }, lava: { range: 7, flicker: true, color: 'ffff5a1e' }, daylight: { range: 10, flicker: false, color: 'ffeccd8b' } };
+  const LIGHT_KINDS = { torch: { range: 6, flicker: true, color: 'ffffb060' }, campfire: { range: 9, flicker: true, color: 'ffff9a3c' }, 'small-campfire': { range: 4, flicker: true, color: 'ffff9a3c' }, brazier: { range: 8, flicker: true, color: 'ffff9a3c' }, lantern: { range: 5, flicker: false, color: 'ffffc070' }, candle: { range: 2, flicker: true, color: 'ffffd080' }, crystal: { range: 5, flicker: false, color: 'ff9fd8ff' }, lava: { range: 7, flicker: true, color: 'ffff5a1e' }, daylight: { range: 10, flicker: false, color: 'ffeccd8b' } };
   function refreshLights() { S.lights = S.allLights.filter((l) => l.flicker === true); S.mapLights = S.allLights; S.lightsEdited = true; renderMapLightsList(); revealFog(); save(); requestRender(); }
   function deleteLight(l) { const i = S.allLights.indexOf(l); if (i < 0) return; S.allLights.splice(i, 1); S.lightsOff.delete(l.id); refreshLights(); setSavedNote('Deleted the light ' + l.id + '.'); }
   function addLightAt(p) {
@@ -1498,7 +1498,7 @@
   /* ---- the Lights tool: a card to edit one light ---- */
   const lightCard = document.createElement('div');
   lightCard.id = 'lightCard'; lightCard.hidden = true;
-  lightCard.innerHTML = '<label>Kind <select id="lcKind">' + Object.keys(LIGHT_KINDS).map((k) => '<option value="' + k + '">' + k + '</option>').join('') + '<option value="">other</option></select></label>' +
+  lightCard.innerHTML = '<label>Kind <select id="lcKind">' + Object.keys(LIGHT_KINDS).map((k) => '<option value="' + k + '">' + (k === 'small-campfire' ? 'small campfire' : k) + '</option>').join('') + '<option value="">other</option></select></label>' +
     '<label>Name <input type="text" id="lcName" maxlength="40" spellcheck="false"></label>' +
     '<label>Reach (squares: dim light to this far, bright to half) <input type="number" id="lcRange" min="1" max="40" step="0.5"></label>' +
     '<label class="check"><input type="checkbox" id="lcFlicker"> Flickers (animated flame)</label>' +
@@ -1839,7 +1839,7 @@
   cv.addEventListener('pointerdown', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
-    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : false);
+    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : false);       // empty ground: a click does the tool's action, a drag pans the map
     if (!empty) { handleDown(e); return; }
     try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     S.drag = { kind: 'pending', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy, press: { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, shiftKey: e.shiftKey } };
