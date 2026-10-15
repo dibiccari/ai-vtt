@@ -28,6 +28,10 @@
   [hidden] { display:none !important; }       /* a hidden control is really hidden, whatever display its class gives it */
   label.field { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
   label.field b { color:var(--text); }
+  details.group > summary { cursor:pointer; list-style:none; }
+  details.group > summary::-webkit-details-marker { display:none; }
+  details.group > summary::before { content:'▸'; color:var(--muted); display:inline-block; width:14px; transition:transform .12s; }
+  details.group[open] > summary::before { transform:rotate(90deg); }
   /* a label with a dropdown sits on one line: the label, then the dropdown filling the rest (saves a row each) */
   label.field:has(> select) { flex-direction:row; align-items:center; gap:8px; }
   label.field:has(> select) > span { flex:0 0 auto; max-width:42%; }
@@ -121,10 +125,10 @@
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token: 30 ft (walls block, difficult terrain costs double)</label>
-    <label class="field"><span>Test token image</span><select id="testTokenImage" aria-label="Test token image"><option value="">Numbered marker</option></select></label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
+    <label class="field"><span>Test token image</span><select id="testTokenImage" aria-label="Test token image"><option value="">Numbered marker</option></select></label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
   </div>
@@ -132,9 +136,6 @@
   <div class="group">
     <h2>Place settings</h2>
     <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
-    <label class="field"><span>Group (versions of one place)</span>
-      <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
-    </label>
     <div id="mapLightsBox" hidden>
       <div class="hint" style="margin:0 0 4px">Map lights: click one on the map, or tick it here, to light or put it out (a test only). The ✕ deletes a light from the map for good; Add a light, then click the map.</div>
       <div id="mapLightsList" class="stacked"></div>
@@ -144,10 +145,6 @@
         <button type="button" id="clearLightsBtn" class="danger" title="Delete every light of this map">Remove all</button>
       </div>
     </div>
-    <label class="field"><span>This version is called</span>
-      <input type="text" id="variantName" maxlength="20" spellcheck="false" placeholder="day, night, winter…">
-    </label>
-    <p class="hint">Give the day and night maps of one place the same group name and different version names. A Day/Night switch then appears in the top left of the map.</p>
   </div>
 
   <div class="group">
@@ -157,28 +154,11 @@
     <p class="hint" id="dmStatus"></p>
   </div>
 
-  <div class="group">
-    <h2>Market</h2>
-    <p class="hint">Save this map, with its walls, doors, lights, pins, terrain and mood, to the Market, where any campaign can add it. Pictures from a purchase or from Wizards of the Coast cannot be saved.</p>
-    <button id="saveMarketBtn" type="button">Save to Market…</button>
-    <div id="marketForm" hidden>
-      <label class="field"><span>Name</span><input type="text" id="mkName" maxlength="80" spellcheck="false"></label>
-      <label class="field"><span>Kind of map</span><select id="mkType"><option value="battle">Battle map (squares, walls, fog)</option><option value="camp">Camp (squares, no fog)</option><option value="town">Town (no grid)</option><option value="regional">Regional (no grid)</option></select></label>
-      <label class="field"><span>Description</span><textarea id="mkDesc" rows="3" maxlength="600" placeholder="What it is and how it plays"></textarea></label>
-      <label class="field"><span>Tags (separated by commas)</span><input type="text" id="mkTags" maxlength="120" spellcheck="false" placeholder="dungeon, cave, forest"></label>
-      <label class="field"><span>Licence</span><select id="mkLicence"></select></label>
-      <label class="field"><span>Author (optional)</span><input type="text" id="mkAuthor" maxlength="60" spellcheck="false"></label>
-      <label class="check"><input type="checkbox" id="mkRights"> I made this map or have the right to share it</label>
-      <div class="row"><button id="mkSave" type="button" class="primary">Save to Market</button><button id="mkCancel" type="button">Cancel</button></div>
-      <p class="hint" id="mkStatus"></p>
-    </div>
-  </div>
-
-  <div class="group">
-    <h2>Doors</h2>
+  <details class="group" id="doorsGroup">
+    <summary><h2 style="display:inline">Doors</h2></summary>
     <p class="hint">Each door can be normal, <b>locked</b> (the table will not open it until the DM unlocks it; set the DC of the lock) or <b>secret</b> (a plain wall to everyone until the DM reveals it; set the DC to spot it). Orange dots mark locked doors on the map, purple ones secret doors.</p>
     <div id="doorList"></div>
-  </div>
+  </details>
 
   <div class="group">
     <h2>Pins</h2>
@@ -1397,8 +1377,6 @@
     $('#ambienceKind').value = S.ambience;
     $('#moodSel').value = S.mood;
     $('#hexSize').value = S.hexSize; $('#hexVal').textContent = S.hexSize; applyKindUi();
-    $('#groupName').value = S.group;
-    $('#variantName').value = S.variant;
     refreshVariants();
   }
 
@@ -2069,13 +2047,6 @@
   $('#publisher').value = store.get('vtt.maptest.publisher', '') || '';
   $('#publisher').addEventListener('change', (e) => { store.set('vtt.maptest.publisher', e.target.value); loadMapList(); });
   $('#copyPinsBtn').addEventListener('click', copyPins);
-  const groupChanged = () => {
-    S.group = $('#groupName').value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-    S.variant = S.group ? ($('#variantName').value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'main') : '';
-    save();
-    // The server file is written a moment after save(); refresh the switch once it is there.
-    setTimeout(refreshVariants, 900);
-  };
   $('#testDv').value = String(S.darkvisionFt);
   $('#testDv').addEventListener('change', (e) => { S.darkvisionFt = Number(e.target.value); store.set('vtt.maptest.dv', S.darkvisionFt); revealFog(); });
   $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; showTestLight(); resetFog(); save(); });       // the fog's colour follows the light, so the explored layer starts again
@@ -2086,7 +2057,6 @@
     MOODS = shop.moods || [];
     for (const m of MOODS.filter((x) => x.id)) { const o = document.createElement('option'); o.value = m.id; o.textContent = m.label; $('#moodSel').appendChild(o); }
     $('#moodSel').value = S.mood;
-    for (const l of shop.licences || []) { const o = document.createElement('option'); o.value = l; o.textContent = l; $('#mkLicence').appendChild(o); }
   }).catch(() => {});
   $('#moodSel').addEventListener('change', (e) => {
     S.mood = e.target.value;
@@ -2095,29 +2065,6 @@
     if (m && m.ambience) { S.ambience = m.ambience; $('#ambienceKind').value = S.ambience; }
     save();
   });
-  // Save to Market: the picture and its set-up become a pack any campaign can add.
-  $('#saveMarketBtn').addEventListener('click', () => {
-    const f = $('#marketForm'); f.hidden = !f.hidden;
-    if (f.hidden) return;
-    if (!$('#mkName').value) $('#mkName').value = mapName().replace(/\.[a-z0-9]+$/i, '').replace(/^(vtt|mkt)-/, '').replace(/[-_]+/g, ' ');
-    $('#mkStatus').textContent = '';
-  });
-  $('#mkCancel').addEventListener('click', () => { $('#marketForm').hidden = true; });
-  $('#mkSave').addEventListener('click', async () => {
-    const st = $('#mkStatus'); st.textContent = 'Saving…';
-    try {
-      await fetch('/api/map-config?map=' + encodeURIComponent(mapName()), { method: 'GET' });       // the page's own autosave has already run; this just makes sure the set-up exists
-      const res = await fetch('/api/market/maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        picture: mapName(), name: $('#mkName').value, type: $('#mkType').value, description: $('#mkDesc').value, tags: $('#mkTags').value, mood: S.mood,
-        licence: $('#mkLicence').value, author: $('#mkAuthor').value, rights: $('#mkRights').checked }) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || res.statusText);
-      st.innerHTML = ''; st.append('Saved to the Market as "' + data.pack.name + '". ');
-      const a = document.createElement('a'); a.href = '/market.html'; a.textContent = 'Open the Market'; st.appendChild(a);
-    } catch (err) { st.textContent = 'Could not save: ' + err.message; }
-  });
-  $('#groupName').addEventListener('change', groupChanged);
-  $('#variantName').addEventListener('change', groupChanged);
 
   $('#squares').addEventListener('input', (e) => {
     const n = clamp(Math.round(Number(e.target.value)), 5, 400);
@@ -2146,6 +2093,7 @@
   $('#addLightBtn').addEventListener('click', () => { S.addingLight = !S.addingLight; $('#addLightBtn').textContent = S.addingLight ? 'Click the map… (cancel)' : 'Add a light'; cv.style.cursor = S.addingLight ? 'crosshair' : ''; });
   $('#clearLightsBtn').addEventListener('click', () => { if (!S.allLights.length) return; if (!confirm('Delete all ' + S.allLights.length + ' lights of this map? This is saved.')) return; S.allLights = []; S.lightsOff = new Set(); refreshLights(); setSavedNote('Deleted every light of this map.'); });
   $('#knownAll').addEventListener('click', () => setAllKnown(true)); $('#knownNone').addEventListener('click', () => setAllKnown(false));
+  { const dg = $('#doorsGroup'); try { dg.open = localStorage.getItem('vtt.maptest.doorsOpen') === '1'; } catch (e) { /* closed */ } dg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.doorsOpen', dg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Doors section is an accordion, remembered
   $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
