@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 93,
+  "version": 119,
   "id": "b0f61f20-0b90-461a-bf44-32dd01c42bff",
   "slug": "vtt-terrain-test",
   "name": "Terrain Test",
@@ -3428,7 +3428,8 @@
           ],
           "speed": 1
         }
-      ]
+      ],
+      "fog": false
     }
   ],
   "links": [],

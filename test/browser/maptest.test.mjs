@@ -618,3 +618,23 @@ test('Show places on a town map: with no place known from the start the Player v
   assert.ok(r.places >= 10); assert.equal(r.rowDm, true); assert.equal(r.hint, true, 'it says why nothing shows'); assert.equal(r.rowPlayer, false);
   assert.ok(r.drawnNone <= 0, 'none known: none drawn'); assert.equal(r.hintAfter, false); assert.equal(r.drawnAll, r.places, 'All: every place is drawn');
 });
+
+test('toggling a light\'s Flicker over and over does not wear the soft edge of the fog away', opts, async () => {
+  await installTerrainLights(server);
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state;
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
+    const t = S.tokens[0] || (S.tokens.push({ x: 500, y: 500, id: 't' }), S.tokens[0]); window.mapTest.revealFog(); await wait(500);
+    const radius = (S.visionFt / 5) * (S.W / S.squares);
+    const edge = [0.8, 0.9, 0.97].map((f) => window.mapTest.fogAlphaAt(t.x + radius * f, t.y));
+    const cb = document.querySelector('#mapLightsList input[type=checkbox][title^="Flickers"]');
+    for (let i = 0; i < 12; i++) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); await wait(60); }
+    await wait(300);
+    const after = [0.8, 0.9, 0.97].map((f) => window.mapTest.fogAlphaAt(t.x + radius * f, t.y));
+    return { edge, after };
+  })()`);
+  r.edge.forEach((a, i) => assert.ok(Math.abs(a - r.after[i]) <= 6, 'the fog edge stays as it was: ' + JSON.stringify(r)));
+});

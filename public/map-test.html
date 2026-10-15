@@ -1517,7 +1517,7 @@
       name.addEventListener('change', () => renameLight(l, name.value, name));
       cell(name).style.width = '100%';
       const fl = document.createElement('input'); fl.type = 'checkbox'; fl.checked = l.flicker === true; fl.title = 'Flickers (animated flame)';
-      fl.addEventListener('change', () => { if (fl.checked) l.flicker = true; else delete l.flicker; lightsChanged(); });
+      fl.addEventListener('change', () => { if (fl.checked) l.flicker = true; else delete l.flicker; lightsChanged(true); });
       cell(fl);
       const on = document.createElement('input'); on.type = 'checkbox'; on.checked = !S.lightsOff.has(l.id); on.dataset.light = l.id; on.title = 'Lit: ticked lights start lit';
       on.addEventListener('change', () => { if (on.checked) delete l.on; else l.on = false; toggleMapLight(l.id, on.checked); lightsChanged(); });
@@ -1533,7 +1533,7 @@
     const n = pinSlug(text) || l.id;
     if (S.allLights.some((x) => x !== l && x.id === n)) { input.value = l.name || l.id; setSavedNote('Another light already has that name.'); return; }
     const wasOff = S.lightsOff.has(l.id); S.lightsOff.delete(l.id); l.id = n; l.name = n; if (wasOff) S.lightsOff.add(n);
-    lightsChanged();
+    lightsChanged(true);
   }
   function toggleMapLight(id, on) {
     if (on) S.lightsOff.delete(id); else S.lightsOff.add(id);
@@ -1575,7 +1575,8 @@
     }
     positionLightCard(); requestRender();
   }
-  function lightsChanged() { S.lights = S.allLights.filter((x) => x.flicker === true); S.mapLights = S.allLights; S.lightsEdited = true; renderMapLightsList(); revealFog(); save(); requestRender(); }
+  // A flame or a name changes nothing anyone sees, so (sightUnchanged) it skips the reveal: revealing again would only wear the soft edge of the explored fog away.
+  function lightsChanged(sightUnchanged) { S.lights = S.allLights.filter((x) => x.flicker === true); S.mapLights = S.allLights; S.lightsEdited = true; renderMapLightsList(); if (!sightUnchanged) revealFog(); save(); requestRender(); }
   $('#lcKind').addEventListener('change', () => {          // a new kind brings its usual size, colour and flame; they can be changed after
     const l = S.selectedLight; if (!l) return; const k = $('#lcKind').value, d = LIGHT_KINDS[k];
     l.kind = k || undefined; if (!k) delete l.kind;
@@ -1586,10 +1587,10 @@
     const l = S.selectedLight; if (!l) return; const n = pinSlug($('#lcName').value) || l.id;
     if (S.allLights.some((x) => x !== l && x.id === n)) { $('#lcName').value = l.name || l.id; setSavedNote('Another light already has that name.'); return; }
     const wasOff = S.lightsOff.has(l.id); S.lightsOff.delete(l.id); l.id = n; l.name = n; if (wasOff) S.lightsOff.add(n);
-    lightsChanged();
+    lightsChanged(true);
   });
   $('#lcRange').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; l.range = Math.max(1, Math.min(40, Number($('#lcRange').value) || l.range)); $('#lcRange').value = l.range; lightsChanged(); });
-  $('#lcFlicker').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; if ($('#lcFlicker').checked) l.flicker = true; else delete l.flicker; lightsChanged(); });
+  $('#lcFlicker').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; if ($('#lcFlicker').checked) l.flicker = true; else delete l.flicker; lightsChanged(true); });
   $('#lcOn').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; if ($('#lcOn').checked) { delete l.on; S.lightsOff.delete(l.id); } else { l.on = false; S.lightsOff.add(l.id); } lightsChanged(); });
   $('#lcDelete').addEventListener('click', () => { const l = S.selectedLight; if (l) { S.selectedLight = null; positionLightCard(); deleteLight(l); } });
   $('#lcDone').addEventListener('click', () => { S.selectedLight = null; positionLightCard(); requestRender(); });
