@@ -596,10 +596,12 @@ test('in a dark place the top of a boulder (a small closed wall ring) is reveale
     const L = loops[0], cx = L.reduce((a, p) => a + p.x, 0) / L.length, cy = L.reduce((a, p) => a + p.y, 0) / L.length;
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
     S.allLights.length = 0; S.mapLights = [];                                       // the map's own lights also light ground: leave only the token's own sight
+    { const sel = document.querySelector('#lightLevel'); sel.value = 'dark'; sel.dispatchEvent(new Event('change')); }       // the test is about a dark place, whatever this map is set to
     S.tokens.length = 0; S.tokens.push({ x: cx + 6 * cs, y: cy, id: 't' });         // six squares (30 ft) from the ring, with line of sight along the open ground
     const setDv = (v) => { const sel = document.querySelector('#testDv'); sel.value = v; sel.dispatchEvent(new Event('change')); };
     const setLight = (v) => { const e = document.querySelector('#testLight'); e.value = v; e.dispatchEvent(new Event('input')); };
     const out = { light: S.light, loops: loops.length, cases: [] };
+    out.light = S.light;
     for (const [dv, lt, tops] of [['0', '0', false], ['0', '0', true], ['60', '0', true], ['60', '0', false]]) {
       const cb = document.querySelector('#objectTops'); cb.checked = tops; cb.dispatchEvent(new Event('change'));        // a change starts the explored layer again
       setLight(lt); setDv(dv); window.mapTest.revealFog(); await wait(500);
