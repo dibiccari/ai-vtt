@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { startServer } from '../helpers/sandbox.mjs';
 import { launchChrome, skipReason } from '../helpers/chrome.mjs';
 import { ID } from '../helpers/ids.mjs';
+import { installTerrainLights } from '../helpers/terrain-lights.mjs';
 
 const skip = skipReason();
 const LOST = 'lost-mine-of-phandelver';
@@ -1073,6 +1074,7 @@ test('watch mode (?watch=1): the page refuses every write, so a spectator can ne
 });
 
 test('the tabletop animates the stream of Terrain Test Grounds and its brazier starts unlit', opts, async () => {
+  await installTerrainLights(server);
   await page.eval(setup);
   const r = await page.eval(`(async () => {
     const s = vtt.state;

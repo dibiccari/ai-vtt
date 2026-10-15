@@ -3,6 +3,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from '../helpers/sandbox.mjs';
 import { launchChrome, skipReason } from '../helpers/chrome.mjs';
+import { installTerrainLights } from '../helpers/terrain-lights.mjs';
 
 const skip = skipReason();
 const MAP = 'lmop-goblin-ambush.png';
@@ -373,6 +374,7 @@ test('the Campaign filter under Publisher lists campaigns and narrows the map li
 });
 
 test('Terrain Test Grounds: a running stream is animated and the brazier starts unlit and can be lit from the list and by a click', opts, async () => {
+  await installTerrainLights(server);
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
   const out = await page.eval(`(async () => {
@@ -402,6 +404,7 @@ test('Terrain Test Grounds: a running stream is animated and the brazier starts 
 });
 
 test('Terrain Test Grounds: a running stream is animated and the brazier starts unlit and can be lit from the list and by a click', opts, async () => {
+  await installTerrainLights(server);
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
   const out = await page.eval(`(async () => {
@@ -459,6 +462,7 @@ test('Show places: in the Player view of a regional map the named places are dra
 });
 
 test('Map lights can be added and deleted in the DM view and the list is saved with the map', opts, async () => {
+  await installTerrainLights(server);
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
   const r = await page.eval(`(async () => {

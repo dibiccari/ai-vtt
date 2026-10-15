@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 3,
+  "version": 5,
   "id": "43116342-592e-4b8b-bd49-7b34ef1f5a5a",
   "slug": "vtt-pack-agathas-lair-copy",
   "name": "Agatha's Lair",
@@ -426,11 +426,12 @@
               "color": "ff0b0905"
             }
           ],
-          "ambient": "ffffffff",
+          "ambient": "",
           "ambience": "forest",
           "mood": ""
         }
-      ]
+      ],
+      "fog": false
     }
   ],
   "links": [],
