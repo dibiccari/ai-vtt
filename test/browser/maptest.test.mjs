@@ -584,33 +584,34 @@ test('the Walls tool draws fences and doors as well as walls: a Draw select pick
   assert.ok(r.fence.length >= 1 && r.fence.every((t) => t === 'fence'), 'fence: ' + r.fence); assert.ok(r.door.every((t) => t === 'door'), 'door: ' + r.door); assert.ok(r.wall.every((t) => t === 'wall'), 'wall: ' + r.wall);
 });
 
-test('in a dark place the top of a boulder (a small closed wall ring) is revealed only within darkvision or the carried light', opts, async () => {
+test('in a dark place the top of a boulder (a small closed wall ring) is revealed only within darkvision or the carried light, and only when the map shows ring tops', opts, async () => {
   const MAPSET = '?set=fe449df8-3c8b-4e23-92b8-71722160d4b7';          // Cragmaw Hideout: a dark map with small wall rings
   await page.goto(`${server.base}/map-test.html${MAPSET}`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.walls.length');
   const r = await page.eval(`(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-    const S = window.mapTest.state, out = { light: S.light };
+    const S = window.mapTest.state;
     const cs = S.W / S.squares, loops = WallObjects.loops(S.walls, 9 * cs, S.rooms || []);
-    if (!loops.length) return { light: S.light, loops: 0 };
+    if (!loops.length) return { loops: 0 };
     const L = loops[0], cx = L.reduce((a, p) => a + p.x, 0) / L.length, cy = L.reduce((a, p) => a + p.y, 0) / L.length;
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
+    S.allLights.length = 0; S.mapLights = [];                                       // the map's own lights also light ground: leave only the token's own sight
     S.tokens.length = 0; S.tokens.push({ x: cx + 6 * cs, y: cy, id: 't' });         // six squares (30 ft) from the ring, with line of sight along the open ground
-    const alphaAt = () => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; const x = c.getContext('2d'); x.drawImage(document.querySelector('canvas'), 0, 0, 1, 1, 0, 0, 1, 1); return 0; };
-    const sh = (x, y) => window.mapTest.fogAlphaAt ? window.mapTest.fogAlphaAt(x, y) : null;
     const setDv = (v) => { const sel = document.querySelector('#testDv'); sel.value = v; sel.dispatchEvent(new Event('change')); };
     const setLight = (v) => { const e = document.querySelector('#testLight'); e.value = v; e.dispatchEvent(new Event('input')); };
-    out.cases = {};
-    { const cb = document.querySelector('#objectTops'); if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); } }          // this map ships with the tops off: switch them on for the first two cases
-    for (const [name, dv, light] of [['none', '0', '0'], ['dv60', '60', '0'], ['dv60-off', '60', '0']]) {
-      if (name === 'dv60-off') { const cb = document.querySelector('#objectTops'); cb.checked = false; cb.dispatchEvent(new Event('change')); } setLight(light); setDv(dv); window.mapTest.revealFog(); await wait(500); out.cases[name] = sh(cx, cy); }
+    const out = { light: S.light, loops: loops.length, cases: [] };
+    for (const [dv, lt, tops] of [['0', '0', false], ['0', '0', true], ['60', '0', true], ['60', '0', false]]) {
+      const cb = document.querySelector('#objectTops'); cb.checked = tops; cb.dispatchEvent(new Event('change'));        // a change starts the explored layer again
+      setLight(lt); setDv(dv); window.mapTest.revealFog(); await wait(500);
+      out.cases.push(window.mapTest.fogAlphaAt(cx, cy));
+    }
     return out;
   })()`);
-  assert.notEqual(r.loops, 0, 'the map has small wall rings');
-  assert.equal(r.light, 'dark');
-  assert.ok(r.cases.none >= 200, 'with no darkvision and no light the ring stays under the fog: ' + JSON.stringify(r.cases));
-  assert.ok(r.cases.dv60 < 120, 'with darkvision 60 ft the ring (30 ft away, in sight) is revealed: ' + JSON.stringify(r.cases));
-  assert.ok(r.cases['dv60-off'] >= 200, 'with Show the tops of closed wall rings unticked the inside stays hidden: ' + JSON.stringify(r.cases));
+  assert.notEqual(r.loops, 0, 'the map has small wall rings'); assert.equal(r.light, 'dark');
+  const [offNone, onNone, onDv, offDv] = r.cases;
+  assert.ok(offNone >= 200 && onNone >= 200, 'with no darkvision and no light the ring stays under the fog: ' + JSON.stringify(r.cases));
+  assert.ok(onDv < 120, 'with darkvision 60 ft and ring tops on, the ring (30 ft away, in sight) is revealed: ' + JSON.stringify(r.cases));
+  assert.ok(offDv >= 200, 'with Show the tops of closed wall rings unticked the inside stays hidden: ' + JSON.stringify(r.cases));
   const saved = (await server.get('/api/map-config?map=vtt-pack-cragmaw-hideout-copy.png')).json.config;
-  assert.equal(saved.objectTops, false, 'the choice is saved with the map');
+  assert.equal(saved.objectTops, false, 'the last choice (off) is saved with the map');
 });
