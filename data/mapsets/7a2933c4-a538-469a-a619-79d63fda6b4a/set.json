@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 111,
+  "version": 113,
   "id": "7a2933c4-a538-469a-a619-79d63fda6b4a",
   "slug": "vtt-pack-wave-echo-cave-copy",
   "name": "Wave Echo Cave",
@@ -1013,8 +1013,7 @@
           "ambience": "cave",
           "mood": ""
         }
-      ],
-      "fog": false
+      ]
     }
   ],
   "links": [],

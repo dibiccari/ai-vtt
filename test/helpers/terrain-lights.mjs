@@ -7,9 +7,13 @@ export const TERRAIN_LIGHTS = [
 ];
 export async function installTerrainLights(server) {
   for (const file of ['vtt-terrain-test.png', 'vtt-terrain-test-night.png']) {
-    const cur = (await server.get('/api/map-config?map=' + file)).json;
-    if (!cur.config) continue;
-    const r = await server.put('/api/map-config?map=' + file, { ...cur.config, lights: TERRAIN_LIGHTS, lightsEdited: true, baseVersion: cur.setVersion });
-    if (r.status !== 200) throw new Error('could not install the Terrain Test lights: ' + r.text);
+    for (let attempt = 0; attempt < 5; attempt++) {                                  // a page from an earlier test may still be saving: try again when the version moved
+      const cur = (await server.get('/api/map-config?map=' + file)).json;
+      if (!cur.config) break;
+      const r = await server.put('/api/map-config?map=' + file, { ...cur.config, lights: TERRAIN_LIGHTS, lightsEdited: true, baseVersion: cur.setVersion });
+      if (r.status === 200) break;
+      if (r.status !== 409 || attempt === 4) throw new Error('could not install the Terrain Test lights: ' + r.text);
+      await new Promise((res) => setTimeout(res, 400));
+    }
   }
 }

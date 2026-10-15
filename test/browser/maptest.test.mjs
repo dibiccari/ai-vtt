@@ -57,7 +57,7 @@ test('the eraser takes squares away along its stroke, a right-click drag erases 
 });
 
 
-test('DM | Player: the player view hides pins and secrets, the DM view shows them, and Make the DM version saves a picture the server serves back', opts, async () => {
+test('DM | Player: the player view hides pins and secrets and the DM view shows them', opts, async () => {
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
   await page.waitFor('document.querySelector("#viewSwitch") && document.querySelector("#banner").textContent.includes("px")');
   const r = await page.eval(`(async () => {
@@ -73,23 +73,15 @@ test('DM | Player: the player view hides pins and secrets, the DM view shows the
     out.toolsDm = ['start', 'terrain', 'eraser', 'token', 'toggle', 'pan'].map(vis);
     const firstInBar = document.querySelector('#stageBar').firstElementChild; // the switches sit in a .view-stack wrapper now
     out.firstInBar = firstInBar.id || firstInBar.firstElementChild.id;
-    const before = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
-    document.querySelector('#makeDmBtn').click(); await wait(2500);
-    const after = await fetch('/api/dm-map?map=vtt-terrain-test.png');
-    out.dmMap = [before, after.status, after.headers.get('content-type'), (await after.blob()).size > 5000];
-    out.status = document.querySelector('#dmStatus').textContent; out.noteDm = document.querySelector('#viewSwitch').title;
+    out.noteDm = document.querySelector('#viewSwitch').title;
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(300);
     out.notePlayer = document.querySelector('#viewSwitch').title;
-    window.confirm = () => true; document.querySelector('#dropDmBtn').click(); await wait(800);
-    out.dropped = (await fetch('/api/dm-map?map=vtt-terrain-test.png')).status;
     return out;
   })()`);
   assert.deepEqual(r.start, ['dm', true]); assert.deepEqual(r.player, ['player', false, false, 'What the table sees']); assert.deepEqual(r.dm, ['dm', true]);
   assert.deepEqual(r.toolsPlayer, [false, false, false, true, false, false], 'in the player view the Pins, Terrain and Eraser buttons are gone, Token stays, and there is no Open/Close or Pan button');
   assert.deepEqual(r.toolsDm, [true, true, true, true, false, false], 'the DM view has Pins, Terrain, Eraser and Token; doors are clicked directly, so there is no Open/Close or Pan button'); assert.equal(r.firstInBar, 'viewSwitch', 'the DM | Player switch is first in the line');
-  assert.equal(r.dmMap[0], 404, 'no DM version before'); assert.equal(r.dmMap[1], 200); assert.match(r.dmMap[2], /image\/jpeg/); assert.equal(r.dmMap[3], true);
-  assert.match(r.status, /Saved the DM version/); assert.match(r.noteDm, /DM version of the picture/); assert.equal(r.notePlayer, 'What the table sees');
-  assert.equal(r.dropped, 404, 'it can be removed again');
+  assert.match(r.noteDm, /Player picture with live DM marks|DM version of the picture/); assert.equal(r.notePlayer, 'What the table sees');
 });
 
 test('tiles: a regional map shows hexagons, a battle map squares, and one Show tiles box hides or shows either', opts, async () => {

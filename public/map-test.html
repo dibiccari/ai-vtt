@@ -90,8 +90,8 @@
     <p class="hint">Check walls, doors, line of sight and fog of war on any map before using it at the table.</p>
   </div>
 
-  <div class="group">
-    <h2>Map</h2>
+  <details class="group" id="mapGroup" open>
+    <summary><h2 style="display:inline">Map</h2></summary>
     <label class="field"><span>Publisher</span><select id="publisher" aria-label="Publisher"><option value="">All publishers</option><option>Explorer</option><option>Test</option><option>Wizards of the Coast</option><option>Map Adventurer</option><option>Market</option><option>Other</option></select></label>
     <label class="field"><span>Campaign</span><select id="campaignFilter" aria-label="Campaign"><option value="">All campaigns</option><option value="__none">Not in any campaign</option></select></label>
     <select id="mapSelect" aria-label="Map"></select>
@@ -114,7 +114,7 @@
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
-  </div>
+  </details>
 
   <div class="group">
     <h2>Fog and sight</h2>
@@ -136,22 +136,16 @@
   <div class="group">
     <h2>Place settings</h2>
     <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
-    <div id="mapLightsBox" hidden>
-      <div class="hint" style="margin:0 0 4px">Map lights: click one on the map, or tick it here, to light or put it out (a test only). The ✕ deletes a light from the map for good; Add a light, then click the map.</div>
+    <details id="mapLightsBox" hidden>
+      <summary style="cursor:pointer;font-size:13px;font-weight:700;margin:8px 0 4px">Light sources</summary>
+      <div class="hint" style="margin:0 0 4px">Edit a name here, tick Flicker for a flame, and On for a light that starts lit; ✕ deletes a light from the map for good. Clicking a light on the map lights or puts it out as a test. Add a light, then click the map.</div>
       <div id="mapLightsList" class="stacked"></div>
       <div class="row-inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
         <select id="newLightKind" title="The kind of light to add"><option value="torch">Torch</option><option value="brazier">Brazier</option><option value="campfire">Campfire</option><option value="small-campfire">Small campfire (less light)</option><option value="lantern">Lantern</option><option value="candle">Candle</option><option value="crystal">Glowing crystal</option></select>
         <button type="button" id="addLightBtn">Add a light</button>
         <button type="button" id="clearLightsBtn" class="danger" title="Delete every light of this map">Remove all</button>
       </div>
-    </div>
-  </div>
-
-  <div class="group">
-    <h2>DM and player versions</h2>
-    <p class="hint">Every map has two faces. <b>Player</b> is the picture the table shows. <b>DM</b> is the same map with the pins, the start area, area numbers, secret and locked doors and terrain marked, and it is what the AI DM is shown. Use the DM | Player switch above the map to look at each. "Make the DM version" draws the DM face from this map's set-up and saves it for the DM.</p>
-    <div class="row"><button id="makeDmBtn" type="button">Make the DM version</button><button id="dropDmBtn" type="button" class="danger" hidden>Remove it</button></div>
-    <p class="hint" id="dmStatus"></p>
+    </details>
   </div>
 
   <details class="group" id="doorsGroup">
@@ -1488,16 +1482,35 @@
     const box = $('#mapLightsBox'), list = $('#mapLightsList');
     box.hidden = !(S.viewAs === 'dm' && !noFog());
     list.innerHTML = '';
-    if (!S.allLights.length) { const none = document.createElement('div'); none.className = 'hint'; none.textContent = 'This map has no lights.'; list.appendChild(none); }
+    if (!S.allLights.length) { const none = document.createElement('div'); none.className = 'hint'; none.textContent = 'This map has no lights.'; list.appendChild(none); return; }
+    const table = document.createElement('table'); table.className = 'lights-table'; table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
+    const head = document.createElement('tr');
+    for (const h of ['Name', 'Flicker', 'On', '']) { const th = document.createElement('th'); th.textContent = h; th.style.cssText = 'text-align:left;color:var(--muted);font-weight:600;padding:2px 4px'; head.appendChild(th); }
+    table.appendChild(head);
     for (const l of S.allLights) {
-      const row = document.createElement('label'); row.className = 'check';
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !S.lightsOff.has(l.id); cb.dataset.light = l.id;
-      cb.addEventListener('change', () => { toggleMapLight(l.id, cb.checked); });
-      const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this light'; del.style.marginLeft = '6px';
+      const tr = document.createElement('tr');
+      const cell = (node) => { const td = document.createElement('td'); td.style.cssText = 'padding:2px 4px;vertical-align:middle'; td.appendChild(node); tr.appendChild(td); return td; };
+      const name = document.createElement('input'); name.type = 'text'; name.value = l.name || l.id; name.maxLength = 40; name.spellcheck = false; name.title = (l.kind ? l.kind + ': ' : '') + 'edit the name'; name.style.width = '100%';
+      name.addEventListener('change', () => renameLight(l, name.value, name));
+      cell(name).style.width = '100%';
+      const fl = document.createElement('input'); fl.type = 'checkbox'; fl.checked = l.flicker === true; fl.title = 'Flickers (animated flame)';
+      fl.addEventListener('change', () => { if (fl.checked) l.flicker = true; else delete l.flicker; lightsChanged(); });
+      cell(fl);
+      const on = document.createElement('input'); on.type = 'checkbox'; on.checked = !S.lightsOff.has(l.id); on.dataset.light = l.id; on.title = 'Lit: ticked lights start lit';
+      on.addEventListener('change', () => { if (on.checked) delete l.on; else l.on = false; toggleMapLight(l.id, on.checked); lightsChanged(); });
+      cell(on);
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this light';
       del.addEventListener('click', (ev) => { ev.preventDefault(); deleteLight(l); });
-      row.append(cb, document.createTextNode(' ' + l.id + (l.kind ? ' (' + l.kind + ')' : '')), del);
-      list.appendChild(row);
+      cell(del);
+      table.appendChild(tr);
     }
+    list.appendChild(table);
+  }
+  function renameLight(l, text, input) {
+    const n = pinSlug(text) || l.id;
+    if (S.allLights.some((x) => x !== l && x.id === n)) { input.value = l.name || l.id; setSavedNote('Another light already has that name.'); return; }
+    const wasOff = S.lightsOff.has(l.id); S.lightsOff.delete(l.id); l.id = n; l.name = n; if (wasOff) S.lightsOff.add(n);
+    lightsChanged();
   }
   function toggleMapLight(id, on) {
     if (on) S.lightsOff.delete(id); else S.lightsOff.add(id);
@@ -2093,6 +2106,8 @@
   $('#addLightBtn').addEventListener('click', () => { S.addingLight = !S.addingLight; $('#addLightBtn').textContent = S.addingLight ? 'Click the map… (cancel)' : 'Add a light'; cv.style.cursor = S.addingLight ? 'crosshair' : ''; });
   $('#clearLightsBtn').addEventListener('click', () => { if (!S.allLights.length) return; if (!confirm('Delete all ' + S.allLights.length + ' lights of this map? This is saved.')) return; S.allLights = []; S.lightsOff = new Set(); refreshLights(); setSavedNote('Deleted every light of this map.'); });
   $('#knownAll').addEventListener('click', () => setAllKnown(true)); $('#knownNone').addEventListener('click', () => setAllKnown(false));
+  { const mg = $('#mapGroup'); try { if (localStorage.getItem('vtt.maptest.mapOpen') === '0') mg.open = false; } catch (e) { /* open */ } mg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.mapOpen', mg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Map section is an accordion, open by default
+  { const lg = $('#mapLightsBox'); try { lg.open = localStorage.getItem('vtt.maptest.lightsOpen') === '1'; } catch (e) { /* closed */ } lg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.lightsOpen', lg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Light sources section is an accordion, closed by default
   { const dg = $('#doorsGroup'); try { dg.open = localStorage.getItem('vtt.maptest.doorsOpen') === '1'; } catch (e) { /* closed */ } dg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.doorsOpen', dg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Doors section is an accordion, remembered
   $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
@@ -2199,8 +2214,6 @@
   function updateViewUi() {
     document.querySelectorAll('#viewSwitch button[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.viewAs)));
     $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
-    $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
-    $('#dropDmBtn').hidden = !S.dmImg;
     renderMapLightsList(); updatePlacesHint();
     $('#placesRow').hidden = !(S.viewAs === 'player' && PlacePins.appliesTo(S.kind));          // Player view of a town or regional map: the players' places switch
     $('#showPlaces').checked = PlacePins.enabled();
@@ -2217,36 +2230,7 @@
     const keptFog = copyFog();
     updateViewUi(); resetFog(keptFog); requestRender();
   }
-  // Draw the DM version from the set-up: the player picture, then terrain, pins with their names, the start area, secret and locked doors, lights; saved for the AI DM (jpeg, at most 2400 px wide).
-  async function makeDmVersion() {
-    const st = $('#dmStatus'); st.textContent = 'Drawing…';
-    const k = Math.min(1, 2400 / S.W), W = Math.round(S.W * k), H = Math.round(S.H * k);
-    const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
-    x.drawImage(S.img, 0, 0, W, H); x.scale(k, k);
-    const px = 1 / k, cs = cell();
-    x.fillStyle = 'rgba(230, 130, 30, 0.34)'; for (const d of S.difficult) x.fillRect(d.x, d.y, d.w, d.h);
-    x.lineCap = 'round';
-    for (const w of S.walls) if (w.type === 'door' && (w.secret || w.locked)) { x.strokeStyle = w.secret ? '#d278ff' : '#ff963c'; x.lineWidth = 6 * px * k; x.setLineDash(w.secret ? [10, 8] : []); x.beginPath(); x.moveTo(w.x1, w.y1); x.lineTo(w.x2, w.y2); x.stroke(); x.setLineDash([]); }
-    const label = (text, lx, ly, size, color) => { x.font = '700 ' + size + 'px "Segoe UI", system-ui, sans-serif'; x.textBaseline = 'middle'; x.lineWidth = size / 4; x.strokeStyle = 'rgba(0,0,0,0.85)'; x.lineJoin = 'round'; x.strokeText(text, lx, ly); x.fillStyle = color; x.fillText(text, lx, ly); };
-    for (const s of S.starts) {
-      const isStart = s.name === 'start';
-      if (isStart && s.radius > 0) { x.fillStyle = 'rgba(63, 210, 127, 0.16)'; x.strokeStyle = 'rgba(63, 210, 127, 0.85)'; x.lineWidth = 3; x.setLineDash([10, 8]); x.beginPath(); x.arc(s.x, s.y, s.radius * cs, 0, 6.3); x.fill(); x.stroke(); x.setLineDash([]); }
-      x.fillStyle = isStart ? '#3fd27f' : '#4f9dff'; x.strokeStyle = '#000'; x.lineWidth = 2; x.beginPath(); x.arc(s.x, s.y, Math.max(7, cs * 0.16), 0, 6.3); x.fill(); x.stroke();
-      const area = /^area-(\d+)/.exec(s.name), size = Math.max(14, cs * 0.34);
-      const pretty = s.label || s.name.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');       // pin names are lower-case words joined by dashes
-      label(isStart ? 'START' : area ? area[1] + (s.desc ? '. ' + s.desc.split(/[.:;]/)[0].slice(0, 30) : '') : pretty, s.x + Math.max(12, cs * 0.24), s.y, size, isStart ? '#9dffc7' : '#fff6d8');
-    }
-    let n = 0; for (const w of S.walls) if (w.type === 'door') { n++; label(String(n), (w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2 - Math.max(10, cs * 0.22), Math.max(12, cs * 0.26), w.secret ? '#e6b3ff' : w.locked ? '#ffc08a' : '#ffe9a8'); }
-    const url = c.toDataURL('image/jpeg', 0.86);
-    try {
-      const res = await fetch('/api/dm-map?map=' + encodeURIComponent(mapName()), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
-      const data = await res.json().catch(() => ({})); if (!res.ok) throw new Error(data.error || res.statusText);
-      const msg = 'Saved the DM version (' + Math.round(data.bytes / 1024) + ' KB).'; loadDmVersion(); S.dmMsg = msg; updateViewUi();
-    } catch (err) { st.textContent = 'Could not save it: ' + err.message; }
-  }
   document.getElementById('viewSwitch').addEventListener('click', (e) => { const b = e.target.closest('button[data-view]'); if (b) setView(b.dataset.view); });
-  $('#makeDmBtn').addEventListener('click', makeDmVersion);
-  $('#dropDmBtn').addEventListener('click', async () => { if (!confirm('Remove the saved DM version of this picture?')) return; await fetch('/api/dm-map?map=' + encodeURIComponent(mapName()), { method: 'DELETE' }).catch(() => {}); loadDmVersion(); });
 
   /* ---------------- start ---------------- */
   new ResizeObserver(() => { resizeCanvas(); }).observe(stage);
