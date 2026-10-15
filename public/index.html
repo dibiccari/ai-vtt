@@ -446,6 +446,7 @@
 <script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
 <script src="/place-pins.js"></script>
+<script src="/fog-style.js"></script>
 <script src="/levelup-wizard.js"></script>
 <script src="/inventory-wizard.js"></script>
 <script src="/effects.js"></script>
@@ -1625,7 +1626,7 @@ function resetShroud() {
     c.height = state.map.height;
     cx.globalCompositeOperation = 'source-over';
   }
-  sctx.fillStyle = '#040508';
+  sctx.fillStyle = FogStyle.shroudFill(sctx, state.ambient === 'dark');         // cloudy white fog in a lit place, darkness in a dark one
   sctx.fillRect(0, 0, shroud.width, shroud.height);
 }
 
@@ -1679,7 +1680,7 @@ function revealFog() {
   const W = state.map.width, H = state.map.height;
   vctx.globalCompositeOperation = 'source-over';
   vctx.clearRect(0, 0, W, H);
-  vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
+  vctx.fillStyle = FogStyle.haze(anyDark());
   vctx.fillRect(0, 0, W, H);
   state.sight = [];
   const dark = anyDark();

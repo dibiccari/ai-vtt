@@ -248,6 +248,7 @@
 <script src="/wallobjects.js"></script>
 <script src="/flicker.js"></script>
 <script src="/place-pins.js"></script>
+<script src="/fog-style.js"></script>
 <script src="/effects.js"></script>
 <script>
 (function () {
@@ -419,7 +420,7 @@
       c.height = S.H;
       cx.globalCompositeOperation = 'source-over';
     }
-    sctx.fillStyle = '#040508';
+    sctx.fillStyle = FogStyle.shroudFill(sctx, S.light === 'dark');            // cloudy white fog in a lit place, darkness in a dark one
     sctx.fillRect(0, 0, S.W, S.H);
     if (keep instanceof HTMLCanvasElement && keep.width && keep.height) { sctx.clearRect(0, 0, S.W, S.H); sctx.drawImage(keep, 0, 0, S.W, S.H); }
     revealFog();
@@ -438,7 +439,7 @@
     vctx.globalCompositeOperation = 'source-over';
     vctx.clearRect(0, 0, S.W, S.H);
     const darkPlace = S.light === 'dark';
-    vctx.fillStyle = 'rgba(4, 5, 8, 0.55)';
+    vctx.fillStyle = FogStyle.haze(darkPlace);
     vctx.fillRect(0, 0, S.W, S.H);
     const radius = (visionNow() / FT_PER_SQUARE) * cell();
     const walls = sightWalls(S.walls);
@@ -1969,7 +1970,7 @@
   };
   $('#testDv').value = String(S.darkvisionFt);
   $('#testDv').addEventListener('change', (e) => { S.darkvisionFt = Number(e.target.value); store.set('vtt.maptest.dv', S.darkvisionFt); revealFog(); });
-  $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; showTestLight(); revealFog(); save(); });
+  $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; showTestLight(); resetFog(); save(); });       // the fog's colour follows the light, so the explored layer starts again
   $('#ambienceKind').addEventListener('change', (e) => { S.ambience = e.target.value; save(); });
   // Moods (from the Market's list): picking one also sets the light level and the ambient sound that go with it.
   let MOODS = [];
