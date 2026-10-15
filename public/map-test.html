@@ -105,6 +105,7 @@
     <label class="check"><input type="checkbox" id="fog" checked> Fog of war</label>
     <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
+    <label class="check" title="Draw how far each light reaches: the dashed circle is where its dim light ends, the solid one where its bright light ends (half as far). Includes the test token's own light on a dark map. DM view only."><input type="checkbox" id="showLightRadius"> Show light radius</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
@@ -643,6 +644,7 @@
     if (!noFog()) drawTokenLight();
     if (S.effects.length) Effects.draw(ctx, S.effects, performance.now() / 1000, cell());
     if (S.viewAs === 'dm') drawLightMarkers(px);
+    if (S.viewAs === 'dm' && S.showLightRadius) drawLightRadii(px);
     if (S.showWalls) drawWalls(px);
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
@@ -1043,6 +1045,21 @@
   }
 
   // DM view: a small ring on every map light, filled amber when lit.
+  // Show light radius: for every map light the dim reach (dashed) and the bright reach (solid, half as far); lights that are out are grey. On a dark map the test token's carried light is drawn too.
+  function drawLightRadii(px) {
+    const cs = cell();
+    const ring = (x, y, r, colour, dashed, width) => { ctx.save(); ctx.strokeStyle = colour; ctx.lineWidth = width * px; ctx.setLineDash(dashed ? [10 * px, 7 * px] : []); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); };
+    for (const l of S.allLights) {
+      const lit = !S.lightsOff.has(l.id), c = lit ? 'rgba(255, 210, 122, 0.95)' : 'rgba(150, 156, 168, 0.7)';
+      ring(l.x, l.y, l.range * cs, c, true, 2); ring(l.x, l.y, l.range * cs / 2, c, false, 2.5);
+      ctx.save(); ctx.font = '700 ' + (12 * px) + 'px "Segoe UI", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineWidth = 3 * px; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.fillStyle = lit ? '#fff1c9' : '#c8ccd4';
+      const label = Math.round(l.range * 5) + ' ft'; ctx.strokeText(label, l.x, l.y - l.range * cs - 4 * px); ctx.fillText(label, l.x, l.y - l.range * cs - 4 * px); ctx.restore();
+    }
+    if (S.light === 'dark') for (const t of S.tokens) {
+      const reach = (lightReachFt() / FT_PER_SQUARE) * cs;
+      if (reach > 0) { ring(t.x, t.y, reach, 'rgba(120, 220, 255, 0.95)', true, 2); ring(t.x, t.y, reach / 2, 'rgba(120, 220, 255, 0.95)', false, 2.5); }
+    }
+  }
   function drawLightMarkers(px) {
     for (const l of S.allLights) {
       const lit = !S.lightsOff.has(l.id);
@@ -2101,6 +2118,8 @@
   $('#moveTest').addEventListener('change', (e) => { S.moveTest = e.target.checked; requestRender(); });
   $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; requestRender(); updateReadout(); });
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
+  S.showLightRadius = store.get('vtt.maptest.lightRadius', false) === true; $('#showLightRadius').checked = S.showLightRadius;
+  $('#showLightRadius').addEventListener('change', (e) => { S.showLightRadius = e.target.checked; store.set('vtt.maptest.lightRadius', S.showLightRadius); requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
   $('#addLightBtn').addEventListener('click', () => { S.addingLight = !S.addingLight; $('#addLightBtn').textContent = S.addingLight ? 'Click the map… (cancel)' : 'Add a light'; cv.style.cursor = S.addingLight ? 'crosshair' : ''; });

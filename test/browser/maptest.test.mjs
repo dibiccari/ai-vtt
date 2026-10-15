@@ -543,3 +543,24 @@ test('a drag on empty ground pans the map with the Pins, Token and Lights tools 
   for (const tool of ['lights', 'start', 'token']) { assert.equal(r[tool].panned, '-96,64', tool + ' pans by the drag'); assert.equal(r[tool].added, 0); assert.equal(r[tool].pins, 0); }
   assert.equal(r.small, 'small-campfire:4:true', 'a small campfire: a short reach with a flame');
 });
+
+test('Show light radius (under Fog and sight) draws each light\'s dim and bright reach in the DM view only', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, out = {};
+    const box = document.querySelector('#showLightRadius');
+    out.exists = !!box; out.off = S.showLightRadius === false || S.showLightRadius === undefined;
+    const ctx = document.querySelector('canvas').getContext('2d'); let arcs = 0; const real = ctx.arc.bind(ctx);
+    ctx.arc = (...a) => { arcs++; return real(...a); };
+    S.allLights.length ? 0 : S.allLights.push({ x: 500, y: 500, range: 5, id: 'test', name: 'test' });
+    S.tokens.length = 0; arcs = 0; document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(250); out.arcsOff = arcs;
+    box.checked = true; box.dispatchEvent(new Event('change')); arcs = 0; await wait(250); out.arcsOn = arcs;
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(250); arcs = 0; box.dispatchEvent(new Event('change')); await wait(250); out.arcsPlayer = arcs;
+    out.lights = S.allLights.length; box.checked = false; box.dispatchEvent(new Event('change'));
+    document.querySelector('#viewSwitch button[data-view="dm"]').click();
+    return out;
+  })()`);
+  assert.equal(r.exists, true); assert.ok(r.arcsOn >= r.arcsOff + 2 * r.lights, 'two circles per light appear: ' + JSON.stringify(r)); assert.ok(r.arcsPlayer < r.arcsOn, 'the player view draws none of them');
+});
