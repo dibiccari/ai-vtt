@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 78,
+  "version": 96,
   "id": "fe449df8-3c8b-4e23-92b8-71722160d4b7",
   "slug": "vtt-pack-cragmaw-hideout-copy",
   "name": "Cragmaw Hideout",
@@ -1686,6 +1686,22 @@
               "intensity": 1,
               "color": "ffeccd8b",
               "name": "small-camp-fire"
+            },
+            {
+              "x": 345,
+              "y": 1201,
+              "range": 10,
+              "intensity": 1,
+              "color": "ffeccd8b",
+              "name": "daylight-1"
+            },
+            {
+              "x": 1040,
+              "y": 1216,
+              "range": 10,
+              "intensity": 1,
+              "color": "ffeccd8b",
+              "name": "daylight-2"
             }
           ],
           "ambient": "",
