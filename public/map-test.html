@@ -31,10 +31,10 @@
   hr.soft-rule { border:0; border-top:1px solid var(--border); margin:8px 0; width:100%; }
   .info-icon { cursor:help; color:var(--muted); margin-left:6px; font-size:13px; font-weight:400; }
   .info-icon:hover { color:var(--accent); }
-  details.group > summary { cursor:pointer; list-style:none; }
-  details.group > summary::-webkit-details-marker { display:none; }
-  details.group > summary::before { content:'▸'; color:var(--muted); display:inline-block; width:14px; transition:transform .12s; }
-  details.group[open] > summary::before { transform:rotate(90deg); }
+  details.group > summary, details#mapLightsBox > summary { cursor:pointer; list-style:none; }
+  details.group > summary::-webkit-details-marker, details#mapLightsBox > summary::-webkit-details-marker { display:none; }
+  details.group > summary::before, details#mapLightsBox > summary::before { content:'▸'; color:var(--muted); display:inline-block; width:14px; transition:transform .12s; }
+  details.group[open] > summary::before, details#mapLightsBox[open] > summary::before { transform:rotate(90deg); }
   /* a label with a dropdown sits on one line: the label, then the dropdown filling the rest (saves a row each) */
   label.field:has(> select) { flex-direction:row; align-items:center; gap:8px; }
   label.field:has(> select) > span { flex:0 0 auto; max-width:42%; }
@@ -139,7 +139,7 @@
   <div class="group">
     <h2>Place settings<span class="info-icon" title="Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.">ⓘ</span></h2>
     <details id="mapLightsBox" hidden>
-      <summary style="cursor:pointer;font-size:13px;font-weight:700;margin:8px 0 4px">Light sources<span class="info-icon" onclick="event.preventDefault()" title="Edit a name here, tick Flicker for a flame, and On for a light that starts lit; ✕ deletes a light from the map for good. Clicking a light on the map lights or puts it out as a test. Add a light, then click the map.">ⓘ</span></summary>
+      <summary style="margin:10px 0 4px"><h2 style="display:inline">Light sources</h2><span class="info-icon" onclick="event.preventDefault()" title="Edit a name here, tick Flicker for a flame, and On for a light that starts lit; ✕ deletes a light from the map for good. Clicking a light on the map lights or puts it out as a test. Add a light, then click the map.">ⓘ</span></summary>
       <div id="mapLightsList" class="stacked"></div>
       <div class="row-inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
         <select id="newLightKind" title="The kind of light to add"><option value="torch">Torch</option><option value="brazier">Brazier</option><option value="campfire">Campfire</option><option value="small-campfire">Small campfire (less light)</option><option value="lantern">Lantern</option><option value="candle">Candle</option><option value="crystal">Glowing crystal</option></select>
