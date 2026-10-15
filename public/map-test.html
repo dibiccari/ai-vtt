@@ -36,6 +36,12 @@
   .tests .pass { color:var(--ok); } .tests .fail { color:var(--danger); }
   #pinCard { position:absolute; z-index:6; width:240px; background:var(--panel); border:1px solid var(--accent); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
   #pinCard[hidden], #pinCard [hidden] { display:none; }
+  #lightCard { position:absolute; z-index:6; width:250px; background:var(--panel); border:1px solid #ffd27a; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  #lightCard[hidden] { display:none; }
+  #lightCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+  #lightCard label.check { flex-direction:row; align-items:center; gap:6px; }
+  #lightCard input[type=text], #lightCard input[type=number], #lightCard select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
+  #lightCard .lc-row { display:flex; gap:6px; } #lightCard .lc-row button { padding:5px 10px; font-size:12px; }
   .brush-box { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
   .brush-box[hidden] { display:none; }
   .brush-box input { width:110px; }
@@ -227,6 +233,7 @@
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
+    <button class="tool" data-tool="lights" aria-pressed="false" title="Lights: click a light to edit it (kind, size, flicker, lit at the start), drag it to move it, click empty ground to add one, right-click to delete it">Lights</button>
     <button class="tool" data-tool="walls" aria-pressed="false" title="Walls: click a point, then click where the wall ends (the next click carries on from there; Esc or a right-click stops), or drag from one point to another; click a wall to select it, drag its end to move it (corners that meet move together; hold Alt to move just one end), drag the middle to move the whole wall, drag on empty ground to draw a new wall (ends snap to other walls; hold Shift for straight lines), right-click a wall or press Delete to remove it. Ctrl+Z undoes.">Walls</button>
     <span class="view-switch" id="terrainPair">
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
@@ -1036,6 +1043,7 @@
     for (const l of S.allLights) {
       const lit = !S.lightsOff.has(l.id);
       ctx.save();
+      if (l === S.selectedLight) { ctx.strokeStyle = '#f0c048'; ctx.lineWidth = 3 * px; ctx.setLineDash([10 * px, 7 * px]); ctx.beginPath(); ctx.arc(l.x, l.y, l.range * cell(), 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); ctx.arc(l.x, l.y, l.range * cell() / 2, 0, Math.PI * 2); ctx.globalAlpha = 0.6; ctx.stroke(); ctx.globalAlpha = 1; }
       ctx.beginPath(); ctx.arc(l.x, l.y, Math.max(cell() * 0.3, 7 * px), 0, Math.PI * 2);
       ctx.fillStyle = lit ? 'rgba(255,190,80,0.55)' : 'rgba(20,20,24,0.55)'; ctx.fill();
       ctx.lineWidth = 2 * px; ctx.strokeStyle = lit ? '#ffd27a' : '#8a8f9a'; ctx.stroke();
@@ -1390,6 +1398,8 @@
   function setTool(tool) {
     S.tool = tool;
     if (tool !== 'start') S.selected = null;
+    if (tool !== 'lights') S.selectedLight = null;
+    positionLightCard();
     if (tool !== 'walls') { S.wallSel = null; S.wallPen = null; }
     if (tool === 'walls' && !S.showWalls) { S.showWalls = true; $('#showWalls').checked = true; }
     $('#wallBox').hidden = tool !== 'walls';
@@ -1476,7 +1486,7 @@
     renderMapLightsList(); revealFog(); requestRender();
   }
   // Editing the lights (DM view): add one where you click, delete one or all. The list is saved with the map; the table's own light switches stay separate.
-  const LIGHT_KINDS = { torch: { range: 6, flicker: true, color: 'ffffb060' }, brazier: { range: 8, flicker: true, color: 'ffff9a3c' }, campfire: { range: 9, flicker: true, color: 'ffff9a3c' }, lantern: { range: 5, flicker: false, color: 'ffffc070' }, candle: { range: 2, flicker: true, color: 'ffffd080' }, crystal: { range: 5, flicker: false, color: 'ff9fd8ff' } };
+  const LIGHT_KINDS = { torch: { range: 6, flicker: true, color: 'ffffb060' }, campfire: { range: 9, flicker: true, color: 'ffff9a3c' }, brazier: { range: 8, flicker: true, color: 'ffff9a3c' }, lantern: { range: 5, flicker: false, color: 'ffffc070' }, candle: { range: 2, flicker: true, color: 'ffffd080' }, crystal: { range: 5, flicker: false, color: 'ff9fd8ff' }, lava: { range: 7, flicker: true, color: 'ffff5a1e' }, daylight: { range: 10, flicker: false, color: 'ffeccd8b' } };
   function refreshLights() { S.lights = S.allLights.filter((l) => l.flicker === true); S.mapLights = S.allLights; S.lightsEdited = true; renderMapLightsList(); revealFog(); save(); requestRender(); }
   function deleteLight(l) { const i = S.allLights.indexOf(l); if (i < 0) return; S.allLights.splice(i, 1); S.lightsOff.delete(l.id); refreshLights(); setSavedNote('Deleted the light ' + l.id + '.'); }
   function addLightAt(p) {
@@ -1485,6 +1495,50 @@
     const l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, ...(d.flicker ? { flicker: true } : {}) };
     S.allLights.push(l); S.addingLight = false; $('#addLightBtn').textContent = 'Add a light'; cv.style.cursor = ''; refreshLights(); setSavedNote('Added ' + l.id + '.');
   }
+  /* ---- the Lights tool: a card to edit one light ---- */
+  const lightCard = document.createElement('div');
+  lightCard.id = 'lightCard'; lightCard.hidden = true;
+  lightCard.innerHTML = '<label>Kind <select id="lcKind">' + Object.keys(LIGHT_KINDS).map((k) => '<option value="' + k + '">' + k + '</option>').join('') + '<option value="">other</option></select></label>' +
+    '<label>Name <input type="text" id="lcName" maxlength="40" spellcheck="false"></label>' +
+    '<label>Reach (squares: dim light to this far, bright to half) <input type="number" id="lcRange" min="1" max="40" step="0.5"></label>' +
+    '<label class="check"><input type="checkbox" id="lcFlicker"> Flickers (animated flame)</label>' +
+    '<label class="check"><input type="checkbox" id="lcOn"> Lit at the start</label>' +
+    '<div class="lc-row"><button id="lcDelete" class="danger">Delete</button><button id="lcDone">Done</button></div>';
+  $('#stage').appendChild(lightCard);
+  function positionLightCard() {
+    const l = S.selectedLight;
+    if (!l || S.tool !== 'lights') { lightCard.hidden = true; return; }
+    const stage = $('#stage').getBoundingClientRect();
+    lightCard.hidden = false;
+    lightCard.style.left = clamp(S.view.ox + l.x * S.view.scale + 20, 8, Math.max(8, stage.width - 262)) + 'px';
+    lightCard.style.top = clamp(S.view.oy + l.y * S.view.scale - 14, 56, Math.max(56, stage.height - (lightCard.offsetHeight || 260) - 8)) + 'px';
+  }
+  function selectLight(l) {
+    S.selectedLight = l;
+    if (l) {
+      $('#lcKind').value = Object.prototype.hasOwnProperty.call(LIGHT_KINDS, l.kind) ? l.kind : '';
+      $('#lcName').value = l.name || l.id; $('#lcRange').value = l.range; $('#lcFlicker').checked = l.flicker === true; $('#lcOn').checked = !S.lightsOff.has(l.id);
+    }
+    positionLightCard(); requestRender();
+  }
+  function lightsChanged() { S.lights = S.allLights.filter((x) => x.flicker === true); S.mapLights = S.allLights; S.lightsEdited = true; renderMapLightsList(); revealFog(); save(); requestRender(); }
+  $('#lcKind').addEventListener('change', () => {          // a new kind brings its usual size, colour and flame; they can be changed after
+    const l = S.selectedLight; if (!l) return; const k = $('#lcKind').value, d = LIGHT_KINDS[k];
+    l.kind = k || undefined; if (!k) delete l.kind;
+    if (d) { l.range = d.range; l.color = d.color; if (d.flicker) l.flicker = true; else delete l.flicker; }
+    selectLight(l); lightsChanged();
+  });
+  $('#lcName').addEventListener('change', () => {
+    const l = S.selectedLight; if (!l) return; const n = pinSlug($('#lcName').value) || l.id;
+    if (S.allLights.some((x) => x !== l && x.id === n)) { $('#lcName').value = l.name || l.id; setSavedNote('Another light already has that name.'); return; }
+    const wasOff = S.lightsOff.has(l.id); S.lightsOff.delete(l.id); l.id = n; l.name = n; if (wasOff) S.lightsOff.add(n);
+    lightsChanged();
+  });
+  $('#lcRange').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; l.range = Math.max(1, Math.min(40, Number($('#lcRange').value) || l.range)); $('#lcRange').value = l.range; lightsChanged(); });
+  $('#lcFlicker').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; if ($('#lcFlicker').checked) l.flicker = true; else delete l.flicker; lightsChanged(); });
+  $('#lcOn').addEventListener('change', () => { const l = S.selectedLight; if (!l) return; if ($('#lcOn').checked) { delete l.on; S.lightsOff.delete(l.id); } else { l.on = false; S.lightsOff.add(l.id); } lightsChanged(); });
+  $('#lcDelete').addEventListener('click', () => { const l = S.selectedLight; if (l) { S.selectedLight = null; positionLightCard(); deleteLight(l); } });
+  $('#lcDone').addEventListener('click', () => { S.selectedLight = null; positionLightCard(); requestRender(); });
   const lightAt = (p) => S.allLights.find((l) => Math.hypot(l.x - p.x, l.y - p.y) <= Math.max(cell() * 0.6, 14 / S.view.scale)) || null;
 
   // The saved arrival spot under the pointer, if any.
@@ -1702,6 +1756,7 @@
 
     if (e.button === 2) {
       if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
+      if (S.tool === 'lights') { const hit = lightAt(p); if (hit) { if (S.selectedLight === hit) { S.selectedLight = null; positionLightCard(); } deleteLight(hit); } return; }
       if (S.tool === 'walls' && S.wallPen) { S.wallPen = null; syncWallBox(); requestRender(); return; }
       if (S.tool === 'walls') { const w = nearestWall(p, false); if (w) { wallSnapshot(); S.walls.splice(S.walls.indexOf(w), 1); if (S.wallSel === w) S.wallSel = null; afterWallEdit(); } return; }
       if (isTerrainTool()) {
@@ -1713,6 +1768,15 @@
       return;
     }
     if (e.button !== 0) return;
+    if (S.tool === 'lights') {                                           // the Lights tool: select (and drag) a light, or add one on empty ground
+      if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
+      const hit = lightAt(p);
+      if (hit) { selectLight(hit); S.drag = { kind: 'light', light: hit }; return; }
+      const kind = $('#newLightKind').value; let n = 1; while (S.allLights.some((x) => x.id === kind + '-' + n)) n++;
+      const d = LIGHT_KINDS[kind] || LIGHT_KINDS.torch, l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, ...(d.flicker ? { flicker: true } : {}) };
+      S.allLights.push(l); lightsChanged(); selectLight(l);
+      return;
+    }
     if (!isTerrainTool() && S.tool !== 'walls') {                       // a map light under the pointer is lit or put out by a click
       const lt = lightAt(p);
       if (lt && !(S.tool === 'start' && startAt(p)) && tokenAt(p) < 0) { toggleMapLight(lt.id, S.lightsOff.has(lt.id)); return; }
@@ -1797,6 +1861,8 @@
       S.drag.last = p;
     } else if (S.drag && ['wallpt', 'wallmove', 'wallnew'].includes(S.drag.kind)) {
       wallMove(e, p);
+    } else if (S.drag && S.drag.kind === 'light') {
+      S.drag.light.x = Math.round(clamp(p.x, 0, S.W)); S.drag.light.y = Math.round(clamp(p.y, 0, S.H)); positionLightCard();
     } else if (S.drag && S.drag.kind === 'start') {
       S.drag.spot.x = Math.round(clamp(p.x, 0, S.W));
       S.drag.spot.y = Math.round(clamp(p.y, 0, S.H));
@@ -1817,6 +1883,7 @@
     S.drag = null;
     try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (kind === 'token') save();
+    if (kind === 'light') lightsChanged();
     if (kind === 'start') { if (drag.spot.name === 'start') parkAtStart(); save(); renderStartList(); revealFog(); requestRender(); }
     if (kind === 'brush') { S.difficultSquares = null; save(); }
     if (['wallpt', 'wallmove', 'wallnew'].includes(kind)) wallUp(drag);
@@ -2151,6 +2218,7 @@
     const player = v === 'player';
     document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player;
     document.querySelectorAll('button.tool[data-tool="walls"]').forEach((b) => { b.hidden = player; });
+    document.querySelectorAll('button.tool[data-tool="lights"]').forEach((b) => { b.hidden = player; });
     if (player && ['start', 'terrain', 'eraser', 'walls'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
     if (player) $('#brushBox').hidden = true;
     const keptFog = copyFog();

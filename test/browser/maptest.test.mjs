@@ -484,3 +484,35 @@ test('Map lights can be added and deleted in the DM view and the list is saved w
   await new Promise((x) => setTimeout(x, 2500));
   assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0, 'Remove all deletes every light and the empty list is kept');
 });
+
+test('Lights tool: click to add, click a light to edit its kind, reach, flame and lit-at-start, drag to move, right-click to delete; all saved', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, out = {};
+    document.querySelector('#clearLightsBtn') && (window.confirm = () => true, document.querySelector('#clearLightsBtn').click()); await wait(300);
+    document.querySelector('button.tool[data-tool="lights"]').click();
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const at = (wx, wy) => ({ x: b.left + S.view.ox + wx * S.view.scale, y: b.top + S.view.oy + wy * S.view.scale });
+    const ptr = (type, pt, button = 0) => cv.dispatchEvent(new PointerEvent(type, { clientX: pt.x, clientY: pt.y, button, buttons: type === 'pointerup' ? 0 : 1 << button, pointerId: 1, bubbles: true }));
+    document.querySelector('#newLightKind').value = 'brazier';
+    ptr('pointerdown', at(600, 500)); ptr('pointerup', at(600, 500)); await wait(200);
+    out.added = S.allLights.map((l) => l.id + ':' + l.kind + ':' + l.range); out.cardShown = !document.querySelector('#lightCard').hidden;
+    document.querySelector('#lcKind').value = 'campfire'; document.querySelector('#lcKind').dispatchEvent(new Event('change'));
+    document.querySelector('#lcRange').value = '12'; document.querySelector('#lcRange').dispatchEvent(new Event('change'));
+    document.querySelector('#lcOn').checked = false; document.querySelector('#lcOn').dispatchEvent(new Event('change'));
+    out.edited = S.allLights.map((l) => [l.kind, l.range, l.flicker === true, l.on === false]);
+    ptr('pointerdown', at(600, 500)); ptr('pointermove', at(900, 700)); ptr('pointerup', at(900, 700)); await wait(300);
+    out.moved = [S.allLights[0].x, S.allLights[0].y];
+    await wait(2200);
+    ptr('pointerdown', at(900, 700), 2); ptr('pointerup', at(900, 700), 2); await wait(2200);
+    out.afterDelete = S.allLights.length;
+    return out;
+  })()`);
+  assert.deepEqual(r.added, ['brazier-1:brazier:8']); assert.equal(r.cardShown, true);
+  assert.deepEqual(r.edited, [['campfire', 12, true, true]]);
+  assert.ok(Math.abs(r.moved[0] - 900) < 6 && Math.abs(r.moved[1] - 700) < 6, 'the light follows the drag: ' + r.moved);
+  assert.equal(r.afterDelete, 0);
+  assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0);
+});
