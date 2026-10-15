@@ -112,6 +112,8 @@
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
       <input type="number" id="squares" min="5" max="400" step="1" value="50">
     </label>
+    <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
+    <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
   </div>
 
   <div class="group">
@@ -129,8 +131,6 @@
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
     <label class="field"><span>Test token image</span><select id="testTokenImage" aria-label="Test token image"><option value="">Numbered marker</option></select></label>
-    <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
-    <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
   </div>
 
   <div class="group">
