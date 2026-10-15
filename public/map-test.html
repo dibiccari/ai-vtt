@@ -28,6 +28,9 @@
   [hidden] { display:none !important; }       /* a hidden control is really hidden, whatever display its class gives it */
   label.field { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
   label.field b { color:var(--text); }
+  hr.soft-rule { border:0; border-top:1px solid var(--border); margin:8px 0; width:100%; }
+  .info-icon { cursor:help; color:var(--muted); margin-left:6px; font-size:13px; font-weight:400; }
+  .info-icon:hover { color:var(--accent); }
   details.group > summary { cursor:pointer; list-style:none; }
   details.group > summary::-webkit-details-marker { display:none; }
   details.group > summary::before { content:'▸'; color:var(--muted); display:inline-block; width:14px; transition:transform .12s; }
@@ -96,7 +99,8 @@
     <label class="field"><span>Campaign</span><select id="campaignFilter" aria-label="Campaign"><option value="">All campaigns</option><option value="__none">Not in any campaign</option></select></label>
     <select id="mapSelect" aria-label="Map"></select>
     <label class="field"><span>Type of map</span><select id="mapKind" aria-label="Type of map"><option value="battle">Battle map (squares)</option><option value="camp">Camp (squares)</option><option value="town">Town map (no tiles)</option><option value="regional">Regional map (hexagons, 5 miles)</option></select></label>
-    <label class="field"><span>Light level of this place</span>
+    <hr class="soft-rule">
+    <label class="field"><span>Light Level</span>
       <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
     </label>
     <label class="field"><span>Ambient sound</span>
@@ -116,8 +120,8 @@
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
   </details>
 
-  <div class="group">
-    <h2>Fog and sight</h2>
+  <details class="group" id="fogGroup" open>
+    <summary><h2 style="display:inline">Fog and sight</h2></summary>
     <label class="check" title="Saved with the map. Ticked (the default for a battle map): the players only see what their characters see and explored ground is remembered. Unticked: the players see this map whole, and the table has no fog on it."><input type="checkbox" id="fog" checked> Fog of war on this map</label>
     <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
@@ -131,32 +135,28 @@
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
     <label class="field"><span>Test token image</span><select id="testTokenImage" aria-label="Test token image"><option value="">Numbered marker</option></select></label>
-  </div>
+  </details>
 
   <div class="group">
     <h2>Place settings</h2>
     <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
     <details id="mapLightsBox" hidden>
-      <summary style="cursor:pointer;font-size:13px;font-weight:700;margin:8px 0 4px">Light sources</summary>
-      <div class="hint" style="margin:0 0 4px">Edit a name here, tick Flicker for a flame, and On for a light that starts lit; ✕ deletes a light from the map for good. Clicking a light on the map lights or puts it out as a test. Add a light, then click the map.</div>
+      <summary style="cursor:pointer;font-size:13px;font-weight:700;margin:8px 0 4px">Light sources<span class="info-icon" onclick="event.preventDefault()" title="Edit a name here, tick Flicker for a flame, and On for a light that starts lit; ✕ deletes a light from the map for good. Clicking a light on the map lights or puts it out as a test. Add a light, then click the map.">ⓘ</span></summary>
       <div id="mapLightsList" class="stacked"></div>
       <div class="row-inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
         <select id="newLightKind" title="The kind of light to add"><option value="torch">Torch</option><option value="brazier">Brazier</option><option value="campfire">Campfire</option><option value="small-campfire">Small campfire (less light)</option><option value="lantern">Lantern</option><option value="candle">Candle</option><option value="crystal">Glowing crystal</option></select>
         <button type="button" id="addLightBtn">Add a light</button>
-        <button type="button" id="clearLightsBtn" class="danger" title="Delete every light of this map">Remove all</button>
       </div>
     </details>
   </div>
 
   <details class="group" id="doorsGroup">
-    <summary><h2 style="display:inline">Doors</h2></summary>
-    <p class="hint">Each door can be normal, <b>locked</b> (the table will not open it until the DM unlocks it; set the DC of the lock) or <b>secret</b> (a plain wall to everyone until the DM reveals it; set the DC to spot it). Orange dots mark locked doors on the map, purple ones secret doors.</p>
+    <summary><h2 style="display:inline">Doors</h2><span class="info-icon" onclick="event.preventDefault()" title="Each door can be normal, locked (the table will not open it until the DM unlocks it; set the DC of the lock) or secret (a plain wall to everyone until the DM reveals it; set the DC to spot it). Orange dots mark locked doors on the map, purple ones secret doors.">ⓘ</span></summary>
     <div id="doorList"></div>
   </details>
 
-  <div class="group">
-    <h2>Pins</h2>
-    <p class="hint">Use the Pins tool. The green ring and circle is where the party starts (drag it, or set its circle size on its card); the blue pins are places the DM can narrate and send the party to. Click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named "start" (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.</p>
+  <details class="group" id="pinsGroup">
+    <summary><h2 style="display:inline">Pins</h2><span class="info-icon" onclick="event.preventDefault()" title="Use the Pins tool. The green ring and circle is where the party starts (drag it, or set its circle size on its card); the blue pins are places the DM can narrate and send the party to. Click empty ground to add a pin (it opens a card to name it), click a pin to rename it, add a note for the DM or remove it, or drag a pin to move it (all pins show while this tool is selected). Every battle map needs a pin named &quot;start&quot; (npm run check fails without one). Other pins are places the AI can send the party to, such as a back door; the AI is told their names. Saved with the map, so the players never need to see it to place themselves.">ⓘ</span></summary>
     <div id="knownRow" class="hint" hidden style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" title="On a town or regional map the players see only the places they know. These set the flag for every named place at once."><span>Players know the places from the start:</span><button type="button" id="knownAll" class="small">All</button><button type="button" id="knownNone" class="small">None</button></div>
     <div id="startList" class="hint"></div>
     <div id="areaBox" hidden>
@@ -167,7 +167,7 @@
       <select id="copyTarget" aria-label="Copy pins to this map"></select>
       <button id="copyPinsBtn" title="Copy this map's pins onto another map (for example the night version of the same place). Pins with the same name are replaced; the other map's walls are untouched.">Copy pins</button>
     </div>
-  </div>
+  </details>
 
   <div class="group">
     <h2>Under the cursor</h2>
@@ -997,23 +997,48 @@
     box.innerHTML = '';
     const plain = S.starts.filter((p) => !isAreaPin(p));
     if (!plain.length) { box.textContent = 'No arrival spots saved for this map. With the Pins tool selected, click the map to add one.'; renderAreaList(); return; }
+    const table = document.createElement('table'); table.className = 'pins-table'; table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
+    const head = document.createElement('tr');
+    for (const h of ['', 'Name', 'Known', 'DM only', '']) { const th = document.createElement('th'); th.textContent = h; th.title = h === 'Known' ? 'Players know this place from the start (town and regional maps)' : h === 'DM only' ? 'Never shown to the players' : ''; th.style.cssText = 'text-align:left;color:var(--muted);font-weight:600;padding:2px 4px'; head.appendChild(th); }
+    table.appendChild(head);
     plain.forEach((pin) => {
-      const row = document.createElement('div');
-      row.className = 'row';
-      const b = document.createElement('button');
-      b.textContent = pin.name + (pin === S.selected ? ' ✓' : '');
-      b.title = pin.desc || 'Select this pin';
-      b.addEventListener('click', () => {
+      const tr = document.createElement('tr');
+      if (pin === S.selected) tr.style.background = 'rgba(79,157,255,0.12)';
+      const cell = (node) => { const td = document.createElement('td'); td.style.cssText = 'padding:2px 4px;vertical-align:middle'; td.appendChild(node); tr.appendChild(td); return td; };
+      const go = document.createElement('button'); go.type = 'button'; go.className = 'small'; go.textContent = '◎'; go.title = pin.desc ? 'Go to this pin: ' + pin.desc : 'Go to this pin and select it';
+      go.addEventListener('click', () => {
         S.view.ox = $('#stage').clientWidth / 2 - pin.x * S.view.scale;
         S.view.oy = $('#stage').clientHeight / 2 - pin.y * S.view.scale;
         S.tool !== 'start' ? setTool('start') : null;
         selectPin(pin, false);
       });
-      row.appendChild(b);
-      if (pin.desc) { const d = document.createElement('span'); d.textContent = pin.desc; row.appendChild(d); }
-      box.appendChild(row);
+      cell(go);
+      const name = document.createElement('input'); name.type = 'text'; name.value = pin.name; name.maxLength = 40; name.spellcheck = false; name.title = pin.desc || 'Edit the name'; name.style.width = '100%';
+      name.addEventListener('change', () => renamePinTo(pin, name.value, name));
+      cell(name).style.width = '100%';
+      const isStart = pin.name === 'start';
+      const known = document.createElement('input'); known.type = 'checkbox'; known.checked = pin.known === true; known.disabled = isStart;
+      known.addEventListener('change', () => { if (known.checked) pin.known = true; else delete pin.known; save(); updatePlacesHint(); if (S.selected === pin) selectPin(pin, false); requestRender(); });
+      cell(known);
+      const dmOnly = document.createElement('input'); dmOnly.type = 'checkbox'; dmOnly.checked = pin.dmOnly === true; dmOnly.disabled = isStart;
+      dmOnly.addEventListener('change', () => { if (dmOnly.checked) pin.dmOnly = true; else delete pin.dmOnly; save(); if (S.selected === pin) selectPin(pin, false); requestRender(); });
+      cell(dmOnly);
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this pin';
+      del.addEventListener('click', () => removePin(pin));
+      cell(del);
+      table.appendChild(tr);
     });
+    box.appendChild(table);
     renderAreaList();
+  }
+  // Rename a pin from the table (the same rules as the pin card: a name is needed, and only one pin is called "start").
+  function renamePinTo(pin, text, input) {
+    const name = pinSlug(text);
+    if (!name || (name === 'start' && S.starts.some((x) => x !== pin && x.name === 'start'))) { input.value = pin.name; setSavedNote(name ? 'There is already a start pin: use Make start on the pin you want.' : 'A pin needs a name.'); return; }
+    if (name === pin.name) { input.value = name; return; }
+    pin.name = name;
+    if (S.selected === pin) { $('#pcName').value = name; $('#pcStart').hidden = name === 'start'; $('#pcRadiusRow').hidden = name !== 'start'; }
+    save(); renderStartList(); requestRender();
   }
 
   function drawWalls(px) {
@@ -2104,8 +2129,9 @@
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
   $('#addLightBtn').addEventListener('click', () => { S.addingLight = !S.addingLight; $('#addLightBtn').textContent = S.addingLight ? 'Click the map… (cancel)' : 'Add a light'; cv.style.cursor = S.addingLight ? 'crosshair' : ''; });
-  $('#clearLightsBtn').addEventListener('click', () => { if (!S.allLights.length) return; if (!confirm('Delete all ' + S.allLights.length + ' lights of this map? This is saved.')) return; S.allLights = []; S.lightsOff = new Set(); refreshLights(); setSavedNote('Deleted every light of this map.'); });
   $('#knownAll').addEventListener('click', () => setAllKnown(true)); $('#knownNone').addEventListener('click', () => setAllKnown(false));
+  { const fg = $('#fogGroup'); try { if (localStorage.getItem('vtt.maptest.fogOpen') === '0') fg.open = false; } catch (e) { /* open */ } fg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.fogOpen', fg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Fog and sight section is an accordion, open by default
+  { const pg = $('#pinsGroup'); try { pg.open = localStorage.getItem('vtt.maptest.pinsOpen') === '1'; } catch (e) { /* closed */ } pg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.pinsOpen', pg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Pins section is an accordion, closed by default
   { const mg = $('#mapGroup'); try { if (localStorage.getItem('vtt.maptest.mapOpen') === '0') mg.open = false; } catch (e) { /* open */ } mg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.mapOpen', mg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Map section is an accordion, open by default
   { const lg = $('#mapLightsBox'); try { lg.open = localStorage.getItem('vtt.maptest.lightsOpen') === '1'; } catch (e) { /* closed */ } lg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.lightsOpen', lg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Light sources section is an accordion, closed by default
   { const dg = $('#doorsGroup'); try { dg.open = localStorage.getItem('vtt.maptest.doorsOpen') === '1'; } catch (e) { /* closed */ } dg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.doorsOpen', dg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Doors section is an accordion, remembered

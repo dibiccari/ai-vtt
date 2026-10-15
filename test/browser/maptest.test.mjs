@@ -444,9 +444,9 @@ test('Map lights can be added and deleted in the DM view and the list is saved w
   assert.equal(r.boxShown, true); assert.equal(r.afterDelete.length, r.before.length - 1); assert.ok(r.afterAdd.some((x) => /^lantern-1:lantern/.test(x))); assert.equal(r.playerBox, false, 'the players never see the lights list');
   const saved = (await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights;
   assert.equal(saved.length, r.before.length, 'one deleted, one added'); assert.ok(saved.some((l) => l.kind === 'lantern' && l.name === 'lantern-1'));
-  await page.eval(`window.confirm = () => true; document.querySelector('#clearLightsBtn').click()`);
+  await page.eval(`(async () => { for (let i = 0; i < 20 && document.querySelector('#mapLightsList button.danger'); i++) { document.querySelector('#mapLightsList button.danger').click(); await new Promise((r) => setTimeout(r, 150)); } })()`);       // delete the rest one by one with the X
   await new Promise((x) => setTimeout(x, 2500));
-  assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0, 'Remove all deletes every light and the empty list is kept');
+  assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0, 'deleting every light with the X keeps the empty list');
 });
 
 test('Lights tool: click to add, click a light to edit its kind, reach, flame and lit-at-start, drag to move, right-click to delete; all saved', opts, async () => {
@@ -455,7 +455,7 @@ test('Lights tool: click to add, click a light to edit its kind, reach, flame an
   const r = await page.eval(`(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const S = window.mapTest.state, out = {};
-    document.querySelector('#clearLightsBtn') && (window.confirm = () => true, document.querySelector('#clearLightsBtn').click()); await wait(300);
+    for (let i = 0; i < 20 && document.querySelector('#mapLightsList button.danger'); i++) { document.querySelector('#mapLightsList button.danger').click(); await wait(100); }          // start with no lights
     document.querySelector('button.tool[data-tool="lights"]').click();
     const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
     const at = (wx, wy) => ({ x: b.left + S.view.ox + wx * S.view.scale, y: b.top + S.view.oy + wy * S.view.scale });

@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 74,
+  "version": 93,
   "id": "b0f61f20-0b90-461a-bf44-32dd01c42bff",
   "slug": "vtt-terrain-test",
   "name": "Terrain Test",
@@ -9,7 +9,7 @@
   "hexSize": 0,
   "description": "",
   "theme": "",
-  "mood": "",
+  "mood": "forest-road",
   "createdAt": "2026-10-08T02:58:26.380Z",
   "levels": [
     {
@@ -1581,13 +1581,14 @@
           "light": "bright",
           "lights": [
             {
-              "x": 353,
-              "y": 623,
-              "range": 4,
+              "x": 354,
+              "y": 624,
+              "range": 9,
               "intensity": 1,
               "color": "ffff9a3c",
-              "flicker": true,
-              "name": "torch-1"
+              "on": false,
+              "kind": "campfire",
+              "name": "campfire-1"
             }
           ],
           "ambient": "",
@@ -1602,14 +1603,14 @@
           "light": "dark",
           "lights": [
             {
-              "x": 347,
-              "y": 626,
-              "range": 6,
+              "x": 356,
+              "y": 621,
+              "range": 9,
               "intensity": 1,
-              "color": "ffffb060",
+              "color": "ffff9a3c",
               "flicker": true,
-              "kind": "torch",
-              "name": "torch-1"
+              "kind": "campfire",
+              "name": "campfire-1"
             }
           ],
           "ambient": "",
@@ -3427,8 +3428,7 @@
           ],
           "speed": 1
         }
-      ],
-      "fog": false
+      ]
     }
   ],
   "links": [],
