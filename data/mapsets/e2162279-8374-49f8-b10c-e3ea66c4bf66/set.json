@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 2,
+  "version": 3,
   "id": "e2162279-8374-49f8-b10c-e3ea66c4bf66",
   "slug": "lmop-thundertree",
   "name": "Thundertree",
@@ -2063,7 +2063,36 @@
           "player": "lmop-thundertree.png",
           "dm": null,
           "light": "bright",
-          "lights": [],
+          "lights": [
+            {
+              "x": 3375.23,
+              "y": 819.3,
+              "range": 11,
+              "intensity": 0.7,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 2348.22,
+              "y": 1457.47,
+              "range": 6.5,
+              "intensity": 0.7,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1109.96,
+              "y": 692.18,
+              "range": 6.5,
+              "intensity": 0.7,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1464.69,
+              "y": 2012.56,
+              "range": 6.5,
+              "intensity": 0.7,
+              "color": "ffeccd8b"
+            }
+          ],
           "ambient": "ffffffff",
           "ambience": "",
           "mood": ""

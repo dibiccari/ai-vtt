@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 2,
+  "version": 3,
   "id": "1425666d-2a54-416b-b706-da05698e3133",
   "slug": "vtt-pack-goblin-ambush-copy",
   "name": "Goblin Ambush",
@@ -60,7 +60,36 @@
           "player": "vtt-pack-goblin-ambush-copy.png",
           "dm": null,
           "light": "bright",
-          "lights": [],
+          "lights": [
+            {
+              "x": 851.45,
+              "y": 832.28,
+              "range": 20,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1358.99,
+              "y": 1162.88,
+              "range": 6.7,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 983.54,
+              "y": 1722.2,
+              "range": 5.7,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            },
+            {
+              "x": 1138.86,
+              "y": 466.58,
+              "range": 5.7,
+              "intensity": 0.5,
+              "color": "ffeccd8b"
+            }
+          ],
           "ambient": "ffffffff",
           "ambience": "forest",
           "mood": ""

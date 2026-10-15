@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 2,
+  "version": 3,
   "id": "85ef7447-d0ba-462b-9530-deda53fc4c24",
   "slug": "lmop-wave-echo-cave",
   "name": "Wave Echo Cave",
@@ -937,7 +937,561 @@
           "player": "lmop-wave-echo-cave.png",
           "dm": null,
           "light": "dark",
-          "lights": [],
+          "lights": [
+            {
+              "x": 3736.77,
+              "y": 4277.14,
+              "range": 2.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4553.45,
+              "y": 5104.01,
+              "range": 2.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4183.02,
+              "y": 4700.06,
+              "range": 2.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4329.58,
+              "y": 4819.64,
+              "range": 6,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4085.21,
+              "y": 4432.48,
+              "range": 5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3831.46,
+              "y": 4458.73,
+              "range": 5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3718.86,
+              "y": 4264.78,
+              "range": 2.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4167.3,
+              "y": 4697.9,
+              "range": 2.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4578.55,
+              "y": 5124.46,
+              "range": 2.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3112.18,
+              "y": 2212.01,
+              "range": 3,
+              "intensity": 1.1,
+              "color": "ff3cb054"
+            },
+            {
+              "x": 3106.55,
+              "y": 2204.53,
+              "range": 5.5,
+              "intensity": 1.1,
+              "color": "ff3cb054"
+            },
+            {
+              "x": 4048.05,
+              "y": 3392.84,
+              "range": 2,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4217.23,
+              "y": 3597.73,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4233.25,
+              "y": 3818.66,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3947.43,
+              "y": 3853.66,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3803.05,
+              "y": 3716.59,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3836.6,
+              "y": 3475.96,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4129.73,
+              "y": 3063.27,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4603.68,
+              "y": 3146.39,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4207,
+              "y": 3254.29,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4376.18,
+              "y": 3072.02,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4636.13,
+              "y": 3348.35,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3989.73,
+              "y": 2927.64,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4081.6,
+              "y": 2736.59,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3997,
+              "y": 2440.55,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4119.5,
+              "y": 2498.88,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4116.6,
+              "y": 2208.67,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4342.62,
+              "y": 2215.97,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4465.12,
+              "y": 2093.47,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4153.87,
+              "y": 3442.33,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4124.34,
+              "y": 3772.64,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4223.13,
+              "y": 2251.97,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4477.62,
+              "y": 3183.85,
+              "range": 6,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4040.12,
+              "y": 2886.35,
+              "range": 6,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4105.75,
+              "y": 2304.47,
+              "range": 4,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4447,
+              "y": 2155.72,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3812.62,
+              "y": 3479.16,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3873.87,
+              "y": 3853.23,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4202,
+              "y": 3420.1,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4188.87,
+              "y": 3883.85,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4523.56,
+              "y": 3280.1,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4070.75,
+              "y": 2911.51,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4020.43,
+              "y": 2491.5,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4374.81,
+              "y": 2191.81,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4053.82,
+              "y": 3371.62,
+              "range": 4.5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4393.73,
+              "y": 3368.7,
+              "range": 2.5,
+              "intensity": 1.1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4514.37,
+              "y": 2700.13,
+              "range": 2,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4513.82,
+              "y": 2696.3,
+              "range": 0.5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4517.11,
+              "y": 2694.66,
+              "range": 0.5,
+              "intensity": 0.9,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4507.86,
+              "y": 2650.37,
+              "range": 1,
+              "intensity": 2.1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4513.14,
+              "y": 2696.13,
+              "range": 0.5,
+              "intensity": 2.1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4113.13,
+              "y": 4697.08,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4339.18,
+              "y": 4682.48,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4556.48,
+              "y": 5124.36,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4365.43,
+              "y": 4981.46,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3733.98,
+              "y": 4297.48,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3821.48,
+              "y": 4462.28,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4057.73,
+              "y": 4405.41,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3715,
+              "y": 4646.03,
+              "range": 3,
+              "intensity": 1,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 3142.62,
+              "y": 2268.27,
+              "range": 5,
+              "intensity": 0.7,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 4515.27,
+              "y": 2709.85,
+              "range": 3.5,
+              "intensity": 1.4,
+              "color": "ff4dd569"
+            },
+            {
+              "x": 2493.09,
+              "y": 4176.27,
+              "range": 5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 2705.28,
+              "y": 3393.14,
+              "range": 5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 2267.78,
+              "y": 2841.89,
+              "range": 5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 2477.78,
+              "y": 4167.52,
+              "range": 2.5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 2694.34,
+              "y": 3399.7,
+              "range": 2.5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 2265.59,
+              "y": 2835.33,
+              "range": 2.5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 574.01,
+              "y": 619.22,
+              "range": 2.5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 588.42,
+              "y": 620.53,
+              "range": 4,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 950.82,
+              "y": 596.64,
+              "range": 2.5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 961.76,
+              "y": 584.6,
+              "range": 3.5,
+              "intensity": 1,
+              "color": "ffffad58"
+            },
+            {
+              "x": 3936,
+              "y": 3860.61,
+              "range": 3.5,
+              "intensity": 1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 3828.1,
+              "y": 3468.31,
+              "range": 3.5,
+              "intensity": 1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4609.75,
+              "y": 3185.38,
+              "range": 3.5,
+              "intensity": 1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4042.47,
+              "y": 2953.51,
+              "range": 3.5,
+              "intensity": 1,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4393.92,
+              "y": 2234.56,
+              "range": 5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4017.67,
+              "y": 2444.56,
+              "range": 5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4140.91,
+              "y": 3463.2,
+              "range": 5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            },
+            {
+              "x": 4184.66,
+              "y": 3898.51,
+              "range": 5,
+              "intensity": 0.8,
+              "color": "ff80beff"
+            }
+          ],
           "ambient": "ff8a95a9",
           "ambience": "cave",
           "mood": ""
