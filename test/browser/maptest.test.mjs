@@ -601,6 +601,7 @@ test('in a dark place the top of a boulder (a small closed wall ring) is reveale
     const setDv = (v) => { const sel = document.querySelector('#testDv'); sel.value = v; sel.dispatchEvent(new Event('change')); };
     const setLight = (v) => { const e = document.querySelector('#testLight'); e.value = v; e.dispatchEvent(new Event('input')); };
     out.cases = {};
+    { const cb = document.querySelector('#objectTops'); if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); } }          // this map ships with the tops off: switch them on for the first two cases
     for (const [name, dv, light] of [['none', '0', '0'], ['dv60', '60', '0'], ['dv60-off', '60', '0']]) {
       if (name === 'dv60-off') { const cb = document.querySelector('#objectTops'); cb.checked = false; cb.dispatchEvent(new Event('change')); } setLight(light); setDv(dv); window.mapTest.revealFog(); await wait(500); out.cases[name] = sh(cx, cy); }
     return out;
