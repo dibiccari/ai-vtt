@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 2,
+  "version": 11,
   "id": "02cbf28d-57ee-4746-a10f-4926fdf6b92e",
   "slug": "vtt-pack-redbrand-hideout-copy",
   "name": "Redbrand Hideout",
@@ -3070,9 +3070,9 @@
       "starts": [
         {
           "name": "start",
-          "x": 2089,
-          "y": 1293,
-          "radius": 2
+          "x": 2066,
+          "y": 1290,
+          "radius": 0.5
         },
         {
           "name": "south-passage",

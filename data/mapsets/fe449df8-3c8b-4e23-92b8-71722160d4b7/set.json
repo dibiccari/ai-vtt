@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 153,
+  "version": 154,
   "id": "fe449df8-3c8b-4e23-92b8-71722160d4b7",
   "slug": "vtt-pack-cragmaw-hideout-copy",
   "name": "Cragmaw Hideout",
@@ -1677,7 +1677,7 @@
           "time": "main",
           "player": "vtt-pack-cragmaw-hideout-copy.png",
           "dm": null,
-          "light": "dark",
+          "light": "dim",
           "lights": [
             {
               "x": 1656,
