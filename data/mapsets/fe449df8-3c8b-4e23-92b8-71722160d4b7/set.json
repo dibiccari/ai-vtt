@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 1,
+  "version": 10,
   "id": "fe449df8-3c8b-4e23-92b8-71722160d4b7",
   "slug": "vtt-pack-cragmaw-hideout-copy",
   "name": "Cragmaw Hideout",
@@ -1517,8 +1517,8 @@
         {
           "x1": 306,
           "y1": 446,
-          "x2": 368,
-          "y2": 411,
+          "x2": 376,
+          "y2": 429,
           "type": "wall",
           "open": false
         },

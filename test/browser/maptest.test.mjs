@@ -457,3 +457,30 @@ test('Show places: in the Player view of a regional map the named places are dra
   assert.ok(r.drawn >= 10, 'the named places are drawn'); assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.stored, '0'); assert.equal(r.drawnOn, r.drawn);
   assert.equal(r.afterHide, r.total - 1, 'a pin marked Hide from players is not drawn'); assert.equal(r.dmAgain, false);
 });
+
+test('Map lights can be added and deleted in the DM view and the list is saved with the map', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.allLights.length');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = window.mapTest.state, out = { before: S.allLights.map((l) => l.id) };
+    out.boxShown = !document.querySelector('#mapLightsBox').hidden;
+    document.querySelector('#mapLightsList button.danger').click(); await wait(2200);          // the first light's X
+    out.afterDelete = S.allLights.map((l) => l.id);
+    document.querySelector('#newLightKind').value = 'lantern'; document.querySelector('#addLightBtn').click();
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const ev = (type) => cv.dispatchEvent(new PointerEvent(type, { clientX: b.left + 300, clientY: b.top + 300, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, bubbles: true }));
+    ev('pointerdown'); ev('pointerup'); await wait(2200);
+    out.afterAdd = S.allLights.map((l) => l.id + ':' + l.kind);
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200);
+    out.playerBox = !document.querySelector('#mapLightsBox').hidden;
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
+    return out;
+  })()`);
+  assert.equal(r.boxShown, true); assert.equal(r.afterDelete.length, r.before.length - 1); assert.ok(r.afterAdd.some((x) => /^lantern-1:lantern/.test(x))); assert.equal(r.playerBox, false, 'the players never see the lights list');
+  const saved = (await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights;
+  assert.equal(saved.length, r.before.length, 'one deleted, one added'); assert.ok(saved.some((l) => l.kind === 'lantern' && l.name === 'lantern-1'));
+  await page.eval(`window.confirm = () => true; document.querySelector('#clearLightsBtn').click()`);
+  await new Promise((x) => setTimeout(x, 2500));
+  assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0, 'Remove all deletes every light and the empty list is kept');
+});

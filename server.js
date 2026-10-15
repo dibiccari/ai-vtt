@@ -713,7 +713,8 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
     const hit = index.get(currentMapName(file));
     if (hit && (hit.set.version || 1) !== req.body.baseVersion) return res.status(409).json({ error: 'This map was changed somewhere else since this page loaded it. Reload the page, then make your change again.', version: hit.set.version || 1 });
   }
-  // The Map Test page does not know about lights: keep the ones already saved.
+  // Map Test sends `lightsEdited` when the lights were changed there (added, deleted, all removed): then its list is the truth, even an empty one. Otherwise keep the ones already saved.
+  if (req.body?.lightsEdited === true && !config.lights) config.lights = [];
   if (!config.lights) {
     try {
       const old = await readMapConfig(file); if (!old) throw new Error('none');

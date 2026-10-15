@@ -114,8 +114,13 @@
       <input type="text" id="groupName" maxlength="40" spellcheck="false" placeholder="e.g. cragmaw-castle">
     </label>
     <div id="mapLightsBox" hidden>
-      <div class="hint" style="margin:0 0 4px">Map lights: click one on the map, or tick it here, to light or put it out (a test only: nothing is saved).</div>
+      <div class="hint" style="margin:0 0 4px">Map lights: click one on the map, or tick it here, to light or put it out (a test only). The ✕ deletes a light from the map for good; Add a light, then click the map.</div>
       <div id="mapLightsList" class="stacked"></div>
+      <div class="row-inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
+        <select id="newLightKind" title="The kind of light to add"><option value="torch">Torch</option><option value="brazier">Brazier</option><option value="campfire">Campfire</option><option value="lantern">Lantern</option><option value="candle">Candle</option><option value="crystal">Glowing crystal</option></select>
+        <button type="button" id="addLightBtn">Add a light</button>
+        <button type="button" id="clearLightsBtn" class="danger" title="Delete every light of this map">Remove all</button>
+      </div>
     </div>
     <label class="field"><span>Light level of this place</span>
       <select id="lightLevel"><option value="">Bright (default)</option><option value="bright">Bright (daylight)</option><option value="dim">Dim (lit room, dusk)</option><option value="dark">Dark (only light sources and darkvision)</option></select>
@@ -351,7 +356,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind}));;
+    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
     pendingSave = () => { saveChain = saveChain.then(sendSave, sendSave); return saveChain; };
     const sendSave = async () => {
       if (S.stale) { setSavedNote('Not saved: this map was changed elsewhere. Reload the page.'); return; }
@@ -1192,6 +1197,7 @@
         }
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.allLights = (remote && Array.isArray(remote.lights) ? remote.lights : []).filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0).map((l, i) => ({ ...l, id: l.name || 'light-' + i }));
+        S.lightsEdited = false;
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
         S.lights = S.allLights.filter((l) => l.flicker === true);
@@ -1451,19 +1457,32 @@
   S.lightsOff = new Set(); S.allLights = []; S.effects = [];
   function renderMapLightsList() {
     const box = $('#mapLightsBox'), list = $('#mapLightsList');
-    box.hidden = !S.allLights.length;
+    box.hidden = !(S.viewAs === 'dm' && !noFog());
     list.innerHTML = '';
+    if (!S.allLights.length) { const none = document.createElement('div'); none.className = 'hint'; none.textContent = 'This map has no lights.'; list.appendChild(none); }
     for (const l of S.allLights) {
       const row = document.createElement('label'); row.className = 'check';
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !S.lightsOff.has(l.id); cb.dataset.light = l.id;
       cb.addEventListener('change', () => { toggleMapLight(l.id, cb.checked); });
-      row.append(cb, document.createTextNode(' ' + l.id + (l.kind ? ' (' + l.kind + ')' : '')));
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this light'; del.style.marginLeft = '6px';
+      del.addEventListener('click', (ev) => { ev.preventDefault(); deleteLight(l); });
+      row.append(cb, document.createTextNode(' ' + l.id + (l.kind ? ' (' + l.kind + ')' : '')), del);
       list.appendChild(row);
     }
   }
   function toggleMapLight(id, on) {
     if (on) S.lightsOff.delete(id); else S.lightsOff.add(id);
     renderMapLightsList(); revealFog(); requestRender();
+  }
+  // Editing the lights (DM view): add one where you click, delete one or all. The list is saved with the map; the table's own light switches stay separate.
+  const LIGHT_KINDS = { torch: { range: 6, flicker: true, color: 'ffffb060' }, brazier: { range: 8, flicker: true, color: 'ffff9a3c' }, campfire: { range: 9, flicker: true, color: 'ffff9a3c' }, lantern: { range: 5, flicker: false, color: 'ffffc070' }, candle: { range: 2, flicker: true, color: 'ffffd080' }, crystal: { range: 5, flicker: false, color: 'ff9fd8ff' } };
+  function refreshLights() { S.lights = S.allLights.filter((l) => l.flicker === true); S.mapLights = S.allLights; S.lightsEdited = true; renderMapLightsList(); revealFog(); save(); requestRender(); }
+  function deleteLight(l) { const i = S.allLights.indexOf(l); if (i < 0) return; S.allLights.splice(i, 1); S.lightsOff.delete(l.id); refreshLights(); setSavedNote('Deleted the light ' + l.id + '.'); }
+  function addLightAt(p) {
+    const kind = $('#newLightKind').value, d = LIGHT_KINDS[kind] || LIGHT_KINDS.torch;
+    let n = 1; while (S.allLights.some((x) => x.id === kind + '-' + n)) n++;
+    const l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, ...(d.flicker ? { flicker: true } : {}) };
+    S.allLights.push(l); S.addingLight = false; $('#addLightBtn').textContent = 'Add a light'; cv.style.cursor = ''; refreshLights(); setSavedNote('Added ' + l.id + '.');
   }
   const lightAt = (p) => S.allLights.find((l) => Math.hypot(l.x - p.x, l.y - p.y) <= Math.max(cell() * 0.6, 14 / S.view.scale)) || null;
 
@@ -1673,6 +1692,7 @@
     try { cv.setPointerCapture(e.pointerId); } catch { /* a replayed click has no live pointer */ }
     const p = toWorld(e);
 
+    if (S.addingLight && e.button === 0 && S.viewAs === 'dm') { addLightAt(p); return; }
     if (e.button === 1 || S.spaceDown) {
       S.drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy };
       cv.style.cursor = 'grabbing';
@@ -2011,6 +2031,8 @@
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   $('#showPoly').addEventListener('change', (e) => { S.showPoly = e.target.checked; requestRender(); });
   $('#showWalls').addEventListener('change', (e) => { S.showWalls = e.target.checked; requestRender(); });
+  $('#addLightBtn').addEventListener('click', () => { S.addingLight = !S.addingLight; $('#addLightBtn').textContent = S.addingLight ? 'Click the map… (cancel)' : 'Add a light'; cv.style.cursor = S.addingLight ? 'crosshair' : ''; });
+  $('#clearLightsBtn').addEventListener('click', () => { if (!S.allLights.length) return; if (!confirm('Delete all ' + S.allLights.length + ' lights of this map? This is saved.')) return; S.allLights = []; S.lightsOff = new Set(); refreshLights(); setSavedNote('Deleted every light of this map.'); });
   $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
@@ -2118,6 +2140,7 @@
     $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
     $('#dmStatus').textContent = (S.dmMsg ? S.dmMsg + ' ' : '') + (S.dmImg ? 'A DM version is saved: the AI DM is shown it with every message on this map.' : 'No DM version saved yet.');
     $('#dropDmBtn').hidden = !S.dmImg;
+    renderMapLightsList();
     $('#placesRow').hidden = !(S.viewAs === 'player' && PlacePins.appliesTo(S.kind));          // Player view of a town or regional map: the players' places switch
     $('#showPlaces').checked = PlacePins.enabled();
   }
