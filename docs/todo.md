@@ -15,6 +15,7 @@
 - Merchant agent: remember a merchant between visits (stock, mood, prices), merchant stock lists per campaign, selling magic items.
 
 ## Light and vision
+- Light zones inside one map (user request, 2026-10-15): today a whole map is bright, dim or dark. Cragmaw Hideout has an outdoor part that should be bright in the daytime while the cave stays dark. Draw areas (polygons) with their own ambient light: an "outside" zone follows the time of day (bright by day, dark at night, from the game clock and the Day or Night look) and an "inside" zone is always dark. Today the workaround is daylight map lights, but a lantern or torch still lights ground that should simply be daytime. A zone needs: a Map Test tool to draw it, the light level per zone (and whether it follows the time of day), `lightLevelAt()` and the fog and sight code reading the zone at each point, the DM seeing the zones in the board state, and the saved set format. (Light zones were built once and removed in Oct 2026 because the purchased maps had none; this is the reason to bring them back.)
 - Lights tool in Map Test (place, move, light and snuff lights such as a brazier) and a "light the brazier" player action.
 - Torch from gear: an equipped torch sets the token's light; swapping back to a weapon costs an action.
 - DM prompt rule for improvised fire hazards (a lantern thrown into a fire).
