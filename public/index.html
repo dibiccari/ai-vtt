@@ -1608,7 +1608,7 @@ function endTurn() {
 
 function serializeToken(t) {
   return { where: isElsewhere(t) ? t.where.trim() : '', readied: t.readied || '', delayed: Boolean(t.delayed), actsAfter: t.actsAfter || '', dmNote: t.dmNote || '', id: t.id, name: t.name, col: t.col, row: t.row, color: t.color, isPC: t.isPC, characterId: t.characterId, speed: t.speed, movementRemaining: t.movementRemaining, image: t.image || '', hidden: Boolean(t.hidden), kind: t.kind === 'trap' ? 'trap' : 'creature', size: TokenSize.normalize(t.size), footprint: fp(t), flySpeed: t.flySpeed || 0, hover: Boolean(t.hover), elevation: Number(t.elevation) || 0, ...(Number(t.elevation) > 0 ? { elevationNote: `${t.elevation} ft up: a melee attacker needs a reach of at least ${t.elevation} ft to hit it (5 ft reach cannot); brought down it falls ${TokenSize.fallDice(t.elevation)}d6 bludgeoning and lands prone` } : {}), speedNow: effectiveSpeed(t), effectiveAc: effAcOf(t), conditions: tokenConditions(t).map((c) => ({ name: c.name, rounds: c.rounds, ...(c.armed ? { armed: true } : {}), ...(Number.isFinite(c.untilMin) ? { untilMin: c.untilMin, minutesLeft: minutesLeft(c) } : {}), ...(c.source ? { source: c.source } : {}), ...(c.concentration ? { concentration: true } : {}) })),
-    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null, squeezed: Boolean(t.squeezed) };
+    summon: t.summon || null, lightKind: t.lightKind || '', hp: t.hp, maxHp: t.maxHp, ac: t.ac, monster: t.monster || '', dexMod: t.dexMod, passivePerception: t.passivePerception || undefined, xp: t.xp || undefined, xpAwarded: t.xpAwarded ? true : undefined, initiative: t.initiative, dead: Boolean(t.dead), stable: Boolean(t.stable), deathSaves: t.deathSaves || null, spent: t.spent || null, squeezed: Boolean(t.squeezed) };
 }
 
 /* =====================================================================
@@ -3375,8 +3375,29 @@ function resumeTurn(t) {
   return true;
 }
 
+// Experience for the creatures defeated: the table adds up their XP (the SRD value, or the module's) and shares it among the party when the fight ends, so it does not depend on the DM remembering.
+// Each fallen creature is counted once. The DM is told so that it does not award the same XP again.
+async function awardDefeatedXp() {
+  const fallen = state.tokens.filter((t) => !t.isPC && !t.summon && t.kind !== 'trap' && Number(t.xp) > 0 && (t.dead || t.hp <= 0) && !t.xpAwarded);
+  if (!fallen.length || window.WATCH === true) return;
+  const total = fallen.reduce((n, t) => n + Number(t.xp), 0);
+  for (const t of fallen) t.xpAwarded = true;
+  try {
+    const out = await jsonPost('/api/party/xp', { target: 'party', amount: total, split: true });
+    const names = fallen.map((t) => t.name).join(', ');
+    addChat('system', `⭐ ${total} XP shared by the party for ${names}`);
+    for (const n of out.notes || []) addChat('system', '↳ ' + n);
+    state.pendingNotes.push(`The table awarded ${total} XP (shared equally by the party) for the defeated: ${names}. Do not award XP for these again.${(out.notes || []).some((n) => /level/i.test(n)) ? ' ' + (out.notes || []).filter((n) => /level/i.test(n)).join(' ') : ''}`);
+    await loadCharacters();
+  } catch (err) {
+    for (const t of fallen) t.xpAwarded = false;
+    toast(`Could not award XP: ${err.message}`, 'error');
+  }
+}
+
 function endCombat() {
   if (!state.combat.active) return;
+  awardDefeatedXp();
   state.combat = { active: false, round: 0, order: [] };
   for (const t of state.tokens) { t.initiative = null; t.spent = null; t.delayed = false; }
   addChat('system', '⚔ Combat ends');
@@ -4445,6 +4466,7 @@ async function applyMapUpdates(updates) {
           if (/^\/tokens\/[\w.-]+$/.test(String(u.image || ''))) token.image = u.image;
           if (Number.isFinite(Number(u.dexMod))) token.dexMod = Number(u.dexMod);
           if (Number(u.passivePerception) > 0) token.passivePerception = Number(u.passivePerception);
+          if (Number(u.xp) > 0) token.xp = Number(u.xp);
           // Several creatures with the same name get their id number ("Goblin 1", "Goblin 2") so the chat, the rolls and the tracker can tell them apart.
           const numbered = (x) => { const m = /-(\d+)$/.exec(String(x.id)); return m ? m[1] : ''; };
           const twins = state.tokens.filter((x) => !x.isPC && x.name === token.name && numbered(x));

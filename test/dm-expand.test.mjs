@@ -134,3 +134,13 @@ test('token action discover becomes a discoverPlace update with the place name a
   assert.deepEqual(out.map((u) => [u.type, u.place, u.on]), [['discoverPlace', 'Thundertree', true], ['discoverPlace', 'Conyberry', false]]);
   assert.ok(DM_SCHEMA.properties.mapUpdates.items.anyOf[0].properties.action.enum.includes('discover'));
 });
+
+test('a creature added from the SRD or the module carries its XP (the table pays it when the fight ends)', async () => {
+  const add = (monster) => ({ type: 'token', action: 'add', tokenId: 'x', name: '', col: 1, row: 1, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster, value: 0, ac: 0 });
+  const adv = [{ index: 'redbrand-ruffian', name: 'Redbrand Ruffian', hit_points: 16, armor_class: 14, speed: '30 ft.', dexterity: 11, xp: 100, size: 'Medium' }];
+  const [goblin] = await expandTokenUpdates([add('goblin')], []);
+  const [ruffian] = await expandTokenUpdates([add('redbrand-ruffian')], adv);
+  assert.equal(goblin.xp, 50); assert.equal(ruffian.xp, 100);
+  const [nobody] = await expandTokenUpdates([add('')], []);
+  assert.equal(nobody.xp, 0, 'a creature the table knows nothing about is worth nothing automatically');
+});

@@ -1158,3 +1158,31 @@ test('light passes through a fence or window but not through a wall', opts, asyn
   })()`);
   assert.ok(r.fence > 0, 'light reaches the far side of a fence'); assert.equal(r.wall, 0, 'a wall stops the light'); assert.ok(r.open > 0);
 });
+
+test('XP: when a fight ends the table shares the XP of the creatures it saw fall, once, and tells the DM', opts, async () => {
+  const xpPage = await launchChrome();
+  try {
+    await xpPage.goto(`${server.base}/?nosave=1`);
+    await xpPage.waitFor('window.vtt && vtt.state && vtt.state.tokens.length');
+    const r = await xpPage.eval(`(async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const xps = async () => (await (await fetch('/api/party')).json()).characters.map((c) => c.rules.xp);
+      const s = vtt.state; s.pendingNotes = [];
+      const before = await xps();
+      const mk = (id, xp) => Object.assign(makeToken({ id, name: 'Goblin ' + id, color: '#0a0', isPC: false, col: 12, row: 10 }), { hp: 7, maxHp: 7, ac: 15, dexMod: 2, xp, monster: 'goblin' });
+      const a = mk('a', 50), b = mk('b', 50), alive = mk('c', 100);
+      s.tokens.push(a, b, alive);
+      s.combat = { active: true, round: 1, order: [] };
+      vtt.changeHp(a, -99); vtt.changeHp(b, -99);                         // two defeated, one still standing
+      vtt.endCombat(); await wait(1500);
+      const after = await xps();
+      s.combat = { active: true, round: 1, order: [] }; vtt.endCombat(); await wait(800);          // a second end of combat must not pay again
+      const again = await xps();
+      return { before, after, again, notes: s.pendingNotes.join(' | '), flags: [a.xpAwarded, b.xpAwarded, alive.xpAwarded === true] };
+    })()`);
+    const gain = r.after.map((x, i) => x - r.before[i]);
+    assert.ok(gain.every((g) => g === 25), '100 XP shared by four characters: ' + gain.join(','));
+    assert.deepEqual(r.again, r.after, 'the same creatures are never paid twice'); assert.deepEqual(r.flags, [true, true, false]);
+    assert.match(r.notes, /awarded 100 XP/); assert.match(r.notes, /Do not award XP for these again/);
+  } finally { await xpPage.close(); }
+});

@@ -350,7 +350,8 @@ try {
     if (step.id === 'time') {
       // The server applies the time action itself (it is not in mapUpdates), so the clock tells what the DM sent.
       const after = await clockNow(), mins = after - T.clock0;
-      check(mins >= 3 && mins <= 20, `time: the DM advanced the clock with the time action (${mins} min for about five minutes of story)`);
+      // The DM is no longer asked to account for a few minutes of talk (the table moves the clock for rounds and rests): this is information, not a pass or fail.
+      console.log(`INFO time: the clock moved ${mins} min for about five minutes of story`);
       const wrong = upd(j).filter((u) => u.type === 'removeCondition' && ['pc-thorin', 'pc-vex'].includes(u.tokenId) && /shield of faith|concentrating/.test(condOf(u)));
       check(wrong.length === 0, 'time: the DM did not remove the 10 minute effect that is still running (a finished fight ends nothing)', wrong.map((u) => u.tokenId + ':' + condOf(u)).join(', '));
     }
