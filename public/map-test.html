@@ -106,10 +106,9 @@
     <label class="field"><span>Ambient sound</span>
       <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
     </label>
-    <label class="field"><span>Mood theme</span>
+    <label class="field"><span>Mood theme<span class="info-icon" title="A mood sets the light level and the ambient sound together; you can still change either one above afterwards.">ⓘ</span></span>
       <select id="moodSel"><option value="">No mood</option></select>
     </label>
-    <p class="hint">A mood sets the light level and the ambient sound together; you can still change either one above afterwards.</p>
     <p class="hint" id="scaleNote"></p>
     <div class="readout" id="sizeNote"></div>
     <p class="hint">One entry for each place: its day and night looks and its DM and player pictures are in the same entry (use the Day | Night and DM | Player buttons above the map).</p>
@@ -138,8 +137,7 @@
   </details>
 
   <div class="group">
-    <h2>Place settings</h2>
-    <p class="hint">Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.</p>
+    <h2>Place settings<span class="info-icon" title="Turn on the grid, then change this until the grid lines up with the squares printed on the map. One square is 5 ft.">ⓘ</span></h2>
     <details id="mapLightsBox" hidden>
       <summary style="cursor:pointer;font-size:13px;font-weight:700;margin:8px 0 4px">Light sources<span class="info-icon" onclick="event.preventDefault()" title="Edit a name here, tick Flicker for a flame, and On for a light that starts lit; ✕ deletes a light from the map for good. Clicking a light on the map lights or puts it out as a test. Add a light, then click the map.">ⓘ</span></summary>
       <div id="mapLightsList" class="stacked"></div>
