@@ -245,6 +245,7 @@
     <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
     </span>
     <span id="wallBox" class="brush-box" hidden>
+      <label class="inline-label" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)" title="What the next walls you draw will be">Draw <select id="wallDrawType"><option value="wall">walls</option><option value="fence">fences / windows</option><option value="door">doors</option></select></label>
       <select id="wallType" title="What the selected wall is" disabled><option value="wall">Wall</option><option value="door">Door</option><option value="fence">Fence / window</option></select>
       <button id="wallDelete" disabled title="Delete the selected wall (Delete key)">Delete</button>
       <button id="wallUndo" disabled title="Undo the last wall change (Ctrl+Z)">Undo</button>
@@ -1632,7 +1633,7 @@
       const t = penEnd(e, p);
       if (Math.hypot(t.x - S.wallPen.x, t.y - S.wallPen.y) >= 4 / S.view.scale) {
         wallSnapshot();
-        const w = { x1: S.wallPen.x, y1: S.wallPen.y, x2: t.x, y2: t.y, type: 'wall', open: false };
+        const w = { x1: S.wallPen.x, y1: S.wallPen.y, x2: t.x, y2: t.y, type: drawType(), open: false };
         S.walls.push(w); S.wallSel = w; S.wallPen = { x: t.x, y: t.y };
         afterWallEdit();
       }
@@ -1685,7 +1686,7 @@
     if (d.kind === 'wallnew') {
       if (Math.hypot(d.x2 - d.x1, d.y2 - d.y1) < 4 / S.view.scale) { S.wallPen = { x: d.x1, y: d.y1 }; $('#wallInfo').textContent = 'Click where the wall ends (Esc stops)'; requestRender(); return; }
       S.wallUndo.push(d.snap);
-      const w = { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, type: 'wall', open: false };
+      const w = { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, type: drawType(), open: false };
       S.walls.push(w); S.wallSel = w;
     } else S.wallUndo.push(d.snap);
     S.walls = S.walls.filter((w) => Math.hypot(w.x2 - w.x1, w.y2 - w.y1) > 0.5);       // a wall dragged down to nothing is gone
@@ -1752,6 +1753,7 @@
   $('#wallProblems').addEventListener('click', nextProblem);
   $('#wallDelete').addEventListener('click', deleteWall);
   $('#wallUndo').addEventListener('click', wallUndo);
+  function drawType() { const v = $('#wallDrawType').value; return v === 'fence' || v === 'door' ? v : 'wall'; }       // what the walls drawn next are (a fence stops movement but not sight)
   $('#wallType').addEventListener('change', (e) => {
     const w = S.wallSel; if (!w) return;
     wallSnapshot();
