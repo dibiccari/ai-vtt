@@ -1147,3 +1147,14 @@ test('place pins: players see the named places on a regional map, with a Show pl
   assert.equal(r.stored, '0'); assert.equal(r.storedAgain, '1'); assert.equal(r.noStartOrArea, true);
   assert.equal(r.battleBoxShown, false, 'on a battle map the pins are the DM\'s notes and there is no switch');
 });
+
+test('light passes through a fence or window but not through a wall', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const s = vtt.state; s.ambient = 'dark'; s.ambientOverride = ''; s.lightsOff = {};
+    s.lights = [{ id: 'torch', name: 'torch', x: 300, y: 300, bright: 120, dim: 240, on: true }];
+    const setWall = (type) => { s.walls = [{ x1: 400, y1: 0, x2: 400, y2: 800, type, open: false }]; s.wallsVersion++; return vtt.lightLevelAt(480, 300); };
+    return { fence: setWall('fence'), wall: setWall('wall'), open: (() => { s.walls = []; s.wallsVersion++; return vtt.lightLevelAt(480, 300); })() };
+  })()`);
+  assert.ok(r.fence > 0, 'light reaches the far side of a fence'); assert.equal(r.wall, 0, 'a wall stops the light'); assert.ok(r.open > 0);
+});
