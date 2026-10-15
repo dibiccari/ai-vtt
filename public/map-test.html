@@ -537,8 +537,11 @@
 
   // The top of a small closed object (tent, boulder, crate) shows when its edge is in sight, instead of staying black.
   let objectCache = { key: '', loops: [] };
-  function revealObjectTops(radius) {
+  function revealObjectTops(visionRadius) {
     if (!S.polys.length) return;
+    // In a dark place a boulder's top is only seen where the token can see: within its darkvision or its carried light (never just because it is inside the vision range).
+    const radius = S.light === 'dark' ? Math.min(visionRadius, Math.max((S.darkvisionFt / FT_PER_SQUARE) * cell(), (lightReachFt() / FT_PER_SQUARE) * cell())) : visionRadius;
+    if (radius <= 0) return;
     const k = S.walls.length + ':' + (S.walls[0] ? S.walls[0].x1 + ',' + S.walls[0].y1 : '') + ':' + cell();
     if (objectCache.key !== k) objectCache = { key: k, loops: WallObjects.loops(S.walls, 9 * cell(), S.rooms) };
     for (const loop of objectCache.loops) {
@@ -2287,7 +2290,7 @@
   loadTestTokenImages();
   loadMapList(true);
 
-  window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap, revealFog };
+  window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
 })();
 </script>
 </body>
