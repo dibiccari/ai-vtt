@@ -28,6 +28,7 @@
   [hidden] { display:none !important; }       /* a hidden control is really hidden, whatever display its class gives it */
   label.field { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); font-weight:600; }
   label.field b { color:var(--text); }
+  label.check:has(> input:disabled) { color:var(--faint, #6b778a); cursor:not-allowed; }
   hr.soft-rule { border:0; border-top:1px solid var(--border); margin:8px 0; width:100%; }
   .info-icon { cursor:help; color:var(--muted); margin-left:6px; font-size:13px; font-weight:400; }
   .info-icon:hover { color:var(--accent); }
@@ -111,7 +112,6 @@
     </label>
     <hr class="soft-rule">
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
-      <input type="number" id="squares" min="5" max="400" step="1" value="50">
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
@@ -127,7 +127,7 @@
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
-    <label class="check"><input type="checkbox" id="moveTest"> Movement range of the test token: 30 ft (walls block, difficult terrain costs double)</label>
+    <label class="check"><input type="checkbox" id="moveTest"> Movement range<span class="info-icon" title="walls block, difficult terrain costs double">ⓘ</span></label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
       <input type="range" id="vision" min="10" max="200" step="5" value="60">
     </label>
@@ -862,7 +862,9 @@
   }
   document.querySelector('#timeSwitch').addEventListener('click', async (e) => {
     const b = e.target.closest('button[data-time]'); if (!b || b.disabled) return;
-    const mate = (S.group ? S.configs.filter((c) => c.group === S.group) : []).find((c) => c.variant === b.dataset.time);
+    const findMate = () => (S.group ? S.configs.filter((c) => c.group === S.group) : []).find((c) => c.variant === b.dataset.time);
+    let mate = findMate();
+    if (!mate) { await refreshVariants(); mate = findMate(); }       // the list of looks can be mid-refresh when the click lands
     if (!mate) return;
     const url = '/uploads/' + mate.map;
     if (url === S.url) return;
@@ -1211,9 +1213,11 @@
   function loadMap(url) {
     if (!url) return Promise.resolve();
     $('#banner').textContent = 'Loading map...';
+    const seq = S.loadSeq = (S.loadSeq || 0) + 1;                 // a slower, older load must not overwrite a newer one
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = async () => {
+        if (seq !== S.loadSeq) { resolve(); return; }
         const keptFog = S.url && S.img && S.placeOf && S.placeOf.get(S.url) && S.placeOf.get(S.url) === S.placeOf.get(url) && shroud.width ? copyFog() : null;       // switching day and night keeps what was explored
         const sameSpot = S.url && S.img && S.tokens && S.tokens[0] && S.placeOf && S.placeOf.get(S.url) && S.placeOf.get(S.url) === S.placeOf.get(url) ? { fx: S.tokens[0].x / S.W, fy: S.tokens[0].y / S.H } : null;       // day to night of one place: the token stays where it stands
         S.url = url;
@@ -1234,6 +1238,7 @@
         // The server's copy of the walls and grid wins over this browser's copy.
         await flushSave();
         const remote = await fetchServerConfig(mapName());
+        if (seq !== S.loadSeq) { resolve(); return; }
         S.source = remote && remote.source === 'dd2vtt' ? 'dd2vtt' : null;
         if (remote && Array.isArray(remote.walls)) {
           S.walls = cleanWalls(remote.walls);
@@ -1242,7 +1247,7 @@
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.allLights = (remote && Array.isArray(remote.lights) ? remote.lights : []).filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0).map((l, i) => ({ ...l, id: l.name || 'light-' + i }));
         S.lightsEdited = false;
-        S.fog = !(remote && remote.fog === false); $('#fog').checked = S.fog;
+        S.fog = !(remote && remote.fog === false); $('#fog').checked = S.fog; syncDmBox();
         S.objectTops = !(remote && remote.objectTops === false); $('#objectTops').checked = S.objectTops;
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
@@ -1384,7 +1389,6 @@
   /* ---------------- controls ---------------- */
   function syncControls() {
     renderDoorList();
-    $('#squares').value = S.squares;
     $('#squaresVal').textContent = S.squares;
     $('#vision').value = S.visionFt;
     $('#visionVal').textContent = S.visionFt;
@@ -1406,12 +1410,13 @@
     const plain = noFog();
     for (const el of [$('#fog').closest('label'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
     if (plain && S.tool === 'token') setTool('start');
+    syncDmBox();
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
     $('#showTilesRow').hidden = S.tiles === 'none';
     updateScaleNote();
     $('#showTilesText').textContent = S.tiles === 'hex' ? 'Show hexagons (5 miles each)' : 'Show squares (5 ft each)';
     const squareMap = S.tiles === 'square';
-    for (const id of ['squares']) { const row = $('#' + id).closest('label') || $('#' + id).parentElement; if (row) row.hidden = !squareMap; }
+    { const row = $('#squaresVal').closest('label'); if (row) row.hidden = !squareMap; }
     $('#moveTest').closest('label').hidden = !squareMap;
   }
 
@@ -2103,15 +2108,6 @@
     save();
   });
 
-  $('#squares').addEventListener('input', (e) => {
-    const n = clamp(Math.round(Number(e.target.value)), 5, 400);
-    if (!isFinite(n)) return;
-    S.squares = n;
-    $('#squaresVal').textContent = n;
-    save();
-    updateStats();
-    resetFog();
-  });
   $('#vision').addEventListener('input', (e) => {
     S.visionFt = Number(e.target.value);
     $('#visionVal').textContent = S.visionFt;
@@ -2120,7 +2116,9 @@
     revealFog();
   });
   $('#moveTest').addEventListener('change', (e) => { S.moveTest = e.target.checked; requestRender(); });
-  $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; save(); requestRender(); updateReadout(); });       // saved: the tabletop reads it too
+  $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; syncDmBox(); save(); requestRender(); updateReadout(); });       // saved: the tabletop reads it too
+  // DM view (see through fog) only means something while fog of war is on: with the fog off (or on a map that has none) the box is unticked and inactive.
+  function syncDmBox() { const on = S.fog && !noFog(); const box = $('#dm'); box.disabled = !on; box.checked = on && S.dm; box.title = on ? '' : 'Only used while Fog of war is on'; }
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   S.showLightRadius = store.get('vtt.maptest.lightRadius', false) === true; $('#showLightRadius').checked = S.showLightRadius;
   $('#objectTops').addEventListener('change', (e) => { S.objectTops = e.target.checked; save(); resetFog(); });       // explored ground is remembered, so the layer starts again
@@ -2244,7 +2242,7 @@
     $('#showPlaces').checked = PlacePins.enabled();
   }
   function setView(v) {
-    S.viewAs = v; S.dm = v === 'dm'; $('#dm').checked = S.dm;
+    S.viewAs = v; S.dm = v === 'dm'; syncDmBox();
     // The player view has no editing of pins or terrain: those buttons go away, and a tool that is no longer there gives way to the Token tool.
     const player = v === 'player';
     document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player;

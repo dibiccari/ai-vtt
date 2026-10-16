@@ -615,7 +615,7 @@ test('sizes: picking up, sight and areas use the whole body; reach is edge to ed
     ogre.col = 7; out.sphereMisses = vtt.insideTemplateFp(tp, ogre);
     // fog: a big creature is seen when any square of its body is in sight; the sight starts at the observer's footprint centre
     const wall = { x1: 600, y1: 0, x2: 600, y2: 260, type: 'wall', open: false };
-    s.walls = [wall]; s.wallsVersion++; s.fogEnabled = true; hero.col = 14; hero.row = 5; ogre.col = 10; ogre.row = 4; vtt.revealFog();
+    s.walls = [wall]; s.wallsVersion++; s.fogEnabled = true; s.mapFog = true; hero.col = 14; hero.row = 5; ogre.col = 10; ogre.row = 4; vtt.revealFog();
     out.partlySeen = vtt.seenByParty(ogre);
     ogre.col = 10; ogre.row = 0; vtt.revealFog(); out.hiddenBehind = vtt.seenByParty(ogre);
     s.fogEnabled = false; s.walls = []; s.wallsVersion++; s.combat = { active: false, round: 0, order: [] }; s.tokens = [hero];

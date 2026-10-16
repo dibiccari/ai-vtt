@@ -90,7 +90,7 @@ test('tiles: a regional map shows hexagons, a battle map squares, and one Show t
     await page.waitFor('document.querySelector("#mapKind") && document.querySelector("#banner").textContent.includes("px")');
     return page.eval(`(async () => { const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const S = window.mapTest.state, box = document.querySelector('#showGrid');
       await wait(900);       // the picture and the first draw are done before the pixels are counted
-      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRowBefore: document.querySelector('#hexRow').offsetParent !== null, order: [...document.querySelectorAll('#showTilesRow, #hexRow, #vision')].map((e) => e.id || 'vision'), showRow: document.querySelector('#showTilesRow').offsetParent !== null, squaresRow: document.querySelector('#squares').closest('label').offsetParent !== null, label: document.querySelector('#showTilesText').textContent, scale: document.querySelector('#scaleNote').textContent, size: document.querySelector('#sizeNote').textContent, kindAfterSelect: !!document.querySelector('#mapSelect').nextElementSibling.querySelector('#mapKind'), showing: box.checked };
+      const out = { tiles: S.tiles, select: document.querySelector('#mapKind').value, hexRowBefore: document.querySelector('#hexRow').offsetParent !== null, order: [...document.querySelectorAll('#showTilesRow, #hexRow, #vision')].map((e) => e.id || 'vision'), showRow: document.querySelector('#showTilesRow').offsetParent !== null, squaresRow: document.querySelector('#squaresVal').closest('label').offsetParent !== null, label: document.querySelector('#showTilesText').textContent, scale: document.querySelector('#scaleNote').textContent, size: document.querySelector('#sizeNote').textContent, kindAfterSelect: !!document.querySelector('#mapSelect').nextElementSibling.querySelector('#mapKind'), showing: box.checked };
       const count = () => { const cv = document.querySelector('canvas'), x = cv.getContext('2d'), d = x.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) n += d[i] + d[i + 1] + d[i + 2]; return n; };       // the picture's total brightness: lines drawn over it change it
       box.checked = true; box.dispatchEvent(new Event('change')); await wait(300); out.on = count(); out.hexRow = document.querySelector('#hexRow').offsetParent !== null;
       box.checked = false; box.dispatchEvent(new Event('change')); await wait(300); out.off = count();
@@ -247,7 +247,7 @@ test('the Walls tool also draws by clicking one point and then another, and carr
 
 test('what the token explored stays explored when switching Day to Night', opts, async () => {
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
-  await page.waitFor('document.querySelector("#timeSwitch") && document.querySelector("#banner").textContent.includes("px")');
+  await page.waitFor('document.querySelector("#timeSwitch") && document.querySelector("#banner").textContent.includes("px") && document.querySelector("#timeSwitch button[data-time=night]") && !document.querySelector("#timeSwitch button[data-time=night]").hidden');          // the Night button appears once the page knows the place has a night look
   const out = await page.eval(`(async () => {
     const S = window.mapTest.state;
     S.tokens = [{ x: 300, y: 700 }]; window.mapTest.revealFog();
@@ -259,7 +259,7 @@ test('what the token explored stays explored when switching Day to Night', opts,
     return { before, after: window.mapTest.fogStateAt(300, 700), url: S.url };
   })()`);
   assert.equal(out.before, 'explored', JSON.stringify(out));
-  assert.ok(out.url.includes('night'), 'the night look is showing');
+  assert.ok(out.url.includes('night'), 'the night look is showing: ' + JSON.stringify(out));
   assert.equal(out.after, 'explored', 'the explored ground is still explored at night: ' + JSON.stringify(out));
 });
 
@@ -637,4 +637,26 @@ test('toggling a light\'s Flicker over and over does not wear the soft edge of t
     return { edge, after };
   })()`);
   r.edge.forEach((a, i) => assert.ok(Math.abs(a - r.after[i]) <= 6, 'the fog edge stays as it was: ' + JSON.stringify(r)));
+});
+
+test('DM view (see through fog) is unticked and inactive while Fog of war is off, and comes back with it', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const fog = document.querySelector('#fog'), dm = document.querySelector('#dm'), out = {};
+    fog.checked = true; fog.dispatchEvent(new Event('change')); await wait(100);                 // the map in the real data may have been saved with fog off
+    out.start = [fog.checked, dm.checked, dm.disabled];
+    fog.checked = false; fog.dispatchEvent(new Event('change')); await wait(100);
+    out.fogOff = [dm.checked, dm.disabled];
+    fog.checked = true; fog.dispatchEvent(new Event('change')); await wait(100);
+    out.fogOn = [dm.checked, dm.disabled];
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(100);
+    out.player = [dm.checked, dm.disabled];
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(100);
+    return out;
+  })()`);
+  assert.deepEqual(r.start, [true, true, false]); assert.deepEqual(r.fogOff, [false, true], 'fog off: unticked and inactive');
+  assert.deepEqual(r.fogOn, [true, false], 'fog on again: it follows the DM view again'); assert.deepEqual(r.player, [false, false]);
+  await page.eval(`(async () => { const fog = document.querySelector('#fog'); fog.checked = true; fog.dispatchEvent(new Event('change')); })()`);
 });
