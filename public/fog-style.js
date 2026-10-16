@@ -2,7 +2,7 @@
 // in a dark place the same layers are black, because there the cover is darkness. Shared by the tabletop and Map Test.
 (function () {
   'use strict';
-  var tile = null;
+  var tile = null, layer = null;
   // A seamless tile of soft clouds: value noise at four scales, wrapped so the edges meet.
   function makeTile() {
     var n = 256, c = document.createElement('canvas'); c.width = n; c.height = n;
@@ -34,6 +34,33 @@
       var pat = ctx.createPattern(tile, 'repeat');
       if (pat && pat.setTransform && typeof DOMMatrix !== 'undefined') pat.setTransform(new DOMMatrix([3, 0, 0, 3, 0, 0]));
       return pat || '#dde3ec';
+    },
+    // True when the white fog should move (a lit place, and the viewer has not asked for less motion).
+    moves: function (dark) {
+      if (dark) return false;
+      try { if (localStorage.getItem('vtt.fogMotion') === 'off') return false; } catch (e) {}
+      try { return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return true; }
+    },
+    // Draws the explored layer. In a lit place two cloud layers drift slowly across the fog that is still there (the fog's own shape is kept); in the dark it is drawn as it is.
+    // ctx carries the map-to-screen transform; the clouds are laid in screen space so they stay the same size when you zoom.
+    draw: function (ctx, shroud, dark, now) {
+      if (!FogStyle.moves(dark) || !ctx.getTransform) { ctx.drawImage(shroud, 0, 0); return; }
+      if (!tile) tile = makeTile();
+      var cv = ctx.canvas, m = ctx.getTransform(), a = ctx.globalAlpha;
+      if (!layer) layer = document.createElement('canvas');
+      if (layer.width !== cv.width || layer.height !== cv.height) { layer.width = cv.width; layer.height = cv.height; }
+      var x = layer.getContext('2d');
+      x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, layer.width, layer.height);
+      x.setTransform(m); x.drawImage(shroud, 0, 0);
+      x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop';
+      var t = (now || 0) / 1000, passes = [[2.2, 9, 3, 0.32], [3.4, -6, 5, 0.26]];
+      for (var i = 0; i < passes.length; i++) {
+        var p = passes[i], pat = x.createPattern(tile, 'repeat');
+        if (!pat || !pat.setTransform) break;
+        pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
+        x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, layer.width, layer.height);
+      }
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.drawImage(layer, 0, 0); ctx.restore();
     },
     // The thin cover over ground that was seen before but is out of sight now.
     haze: function (dark) { return dark ? 'rgba(4, 5, 8, 0.55)' : 'rgba(228, 234, 243, 0.6)'; }

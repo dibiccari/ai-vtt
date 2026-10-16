@@ -39,6 +39,8 @@ export async function launchChrome() {
   };
   const send = (method, params = {}) => new Promise((resolve, reject) => { const n = ++id; pending.set(n, { resolve, reject }); ws.send(JSON.stringify({ id: n, method, params })); });
   await send('Runtime.enable'); await send('Page.enable');
+  // The drifting fog redraws the whole map many times a second, which starves a software-rendered headless page; tests look at the fog's shape, not its motion.
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: "try { localStorage.setItem('vtt.fogMotion', 'off'); } catch (e) {}" });
   const api = {
     problems,
     // Script run in every page before its own scripts (to fake the microphone and speech recognition, for example).

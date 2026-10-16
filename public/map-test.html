@@ -115,6 +115,8 @@
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
+    <p class="hint" id="scaleNote"></p>
+    <div class="readout" id="sizeNote"></div>
   </details>
 
   <details class="group" id="fogGroup" open>
@@ -174,8 +176,6 @@
     <div class="readout" id="stats"></div>
     <p class="hint" id="saved" aria-live="polite"></p>
     <p class="hint">Walls and the grid setting save to the server automatically (data/maps/).</p>
-    <p class="hint" id="scaleNote"></p>
-    <div class="readout" id="sizeNote"></div>
   </div>
 
   <div class="group">
@@ -544,7 +544,7 @@
   }
 
   // Keep a flickering fire animating even when nothing else is happening (redraw about 15 times a second).
-  setInterval(() => { if (document.visibilityState === 'visible' && S.img && (S.lights.length || S.effects.length)) requestRender(); }, 66);
+  setInterval(() => { if (document.visibilityState === 'visible' && S.img && (S.lights.length || S.effects.length || fogMoves())) requestRender(); }, 66);
 
   let revealQueued = false;
   function queueReveal() {
@@ -566,6 +566,7 @@
 
   /* ---------------- drawing ---------------- */
   let renderQueued = false;
+  function fogMoves() { return S.fog && !noFog() && S.tokens.length && FogStyle.moves(S.light === 'dark'); }
   function requestRender() {
     if (renderQueued) return;
     renderQueued = true;
@@ -598,7 +599,7 @@
     if (S.fog && S.tokens.length && !noFog()) {
       ctx.save();
       ctx.globalAlpha = S.dm ? 0.5 : 1;
-      ctx.drawImage(shroud, 0, 0);
+      FogStyle.draw(ctx, shroud, S.light === 'dark', performance.now());
       ctx.drawImage(vision, 0, 0);
       ctx.restore();
     }
