@@ -215,7 +215,7 @@
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
     <button class="tool" data-tool="lights" aria-pressed="false" title="Lights: click a light to edit it (kind, size, flicker, lit at the start), drag it to move it, click empty ground to add one, right-click to delete it">Lights</button>
-    <button class="tool" data-tool="walls" aria-pressed="false" title="Walls: click a point, then click where the wall ends (the next click carries on from there; Esc or a right-click stops), or drag from one point to another; click a wall to select it, drag its end to move it (corners that meet move together; hold Alt to move just one end), drag the middle to move the whole wall, drag on empty ground to draw a new wall (ends snap to other walls; hold Shift for straight lines), right-click a wall or press Delete to remove it. Ctrl+Z undoes.">Walls</button>
+    <button class="tool" data-tool="walls" aria-pressed="false" title="Walls: drag empty ground to pan the map; click a point, then click where the wall ends (the next click carries on from there; Esc or a right-click stops), or hold Alt and drag from one point to another; click a wall to select it, drag its end to move it (corners that meet move together; hold Alt to move just one end), drag the middle to move the whole wall, Alt + drag on empty ground draws a new wall (ends snap to other walls; hold Shift for straight lines), right-click a wall or press Delete to remove it. Ctrl+Z undoes.">Walls</button>
     <span class="view-switch" id="terrainPair">
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
     <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
@@ -1909,11 +1909,11 @@
     w.open = !w.open; wallsChanged();
   }
 
-  // Click and drag on empty ground pans the map in the Pins and Token tools: a press on empty ground waits to see whether it becomes a drag (pan) or stays a click (the tool's own action).
+  // Click and drag on empty ground pans the map in the Pins, Token, Lights and Walls tools (in Walls, Alt + drag draws a wall; clicking a point and then another draws one too): a press on empty ground waits to see whether it becomes a drag (pan) or stays a click (the tool's own action).
   cv.addEventListener('pointerdown', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
-    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : false);       // empty ground: a click does the tool's action, a drag pans the map
+    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : S.tool === 'walls' ? S.viewAs === 'dm' && !S.wallPen && !e.altKey && !endpointAt(p) && !nearestWall(p, false) : false);       // empty ground: a click does the tool's action, a drag pans the map
     if (!empty) { handleDown(e); return; }
     try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     S.drag = { kind: 'pending', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy, press: { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, shiftKey: e.shiftKey } };

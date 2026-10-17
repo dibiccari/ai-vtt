@@ -209,9 +209,9 @@ test('the Walls tool draws a wall, finds crossings, moves an end and undoes', op
   await page.eval(`(() => { const S = window.mapTest.state; S.walls = []; S.wallUndo = []; document.querySelector('button.tool[data-tool="walls"]').click(); })()`);
   const base = await page.eval(`window.mapTest.state.walls.length`);
   assert.equal(base, 0);
-  const a = await page.eval(wallDrag(300, 300, 500, 300));
+  const a = await page.eval(wallDrag(300, 300, 500, 300, '{ alt: true }'));
   assert.equal(a.n, 1, 'a drag on empty ground draws a wall'); assert.ok(a.sel, 'the new wall is selected');
-  const b = await page.eval(wallDrag(400, 200, 400, 400));
+  const b = await page.eval(wallDrag(400, 200, 400, 400, '{ alt: true }'));
   assert.equal(b.n, 2);
   const probs = await page.eval(`(() => { document.querySelector('#wallProblems').click(); const S = window.mapTest.state; return { n: S.problems.length, kinds: S.problems.map((p) => p.kind), info: document.querySelector('#wallInfo').textContent }; })()`);
   assert.deepEqual(probs.kinds, ['cross'], 'two walls that cross are found: ' + JSON.stringify(probs));
@@ -537,7 +537,7 @@ test('the Walls tool draws fences and doors as well as walls: a Draw select pick
     const S = window.mapTest.state, out = {};
     document.querySelector('button.tool[data-tool="walls"]').click();
     const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
-    const ptr = (type, wx, wy) => cv.dispatchEvent(new PointerEvent(type, { clientX: b.left + S.view.ox + wx * S.view.scale, clientY: b.top + S.view.oy + wy * S.view.scale, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, bubbles: true }));
+    const ptr = (type, wx, wy) => cv.dispatchEvent(new PointerEvent(type, { clientX: b.left + S.view.ox + wx * S.view.scale, clientY: b.top + S.view.oy + wy * S.view.scale, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, bubbles: true, altKey: true }));
     const draw = async (kind, x1, y1, x2, y2) => { document.querySelector('#wallKinds button[data-kind="' + kind + '"]').click(); const n = S.walls.length;
       ptr('pointerdown', x1, y1); for (let i = 1; i <= 8; i++) ptr('pointermove', x1 + (x2 - x1) * i / 8, y1 + (y2 - y1) * i / 8); ptr('pointerup', x2, y2); await wait(250); return S.walls.slice(n).map((w) => w.type); };
     out.fence = await draw('fence', 200, 1200, 600, 1200);
@@ -673,4 +673,23 @@ test('DM view (see through fog) is unticked and inactive while Fog of war is off
   assert.deepEqual(r.mapFogOff, [true, false, true, 'not-allowed'], 'no fog on the map: Show Fog is unticked and greyed out'); assert.deepEqual(r.mapFogBack, [false, true]);
   assert.deepEqual(r.fogOn, [true, false], 'fog on again: it follows the DM view again'); assert.deepEqual(r.player, [false, false]);
   await page.eval(`(async () => { const fog = document.querySelector('#fog'); fog.checked = true; fog.dispatchEvent(new Event('change')); })()`);
+});
+
+test('in the Walls tool a plain drag on empty ground pans the map (no wall is drawn); Alt + drag draws', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    document.querySelector('button.tool[data-tool="walls"]').click();
+    S.walls = []; S.wallUndo = []; S.wallPen = null;
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const drag = async (x0, y0, x1, y1, alt) => { const ev = (t, x, y) => cv.dispatchEvent(new PointerEvent(t, { clientX: b.left + x, clientY: b.top + y, button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 3, bubbles: true, altKey: alt })); ev('pointerdown', x0, y0); for (let i = 1; i <= 8; i++) ev('pointermove', x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8); ev('pointerup', x1, y1); await wait(250); };
+    const ox = S.view.ox;
+    await drag(300, 500, 200, 500, false);
+    const panned = { moved: S.view.ox !== ox, walls: S.walls.length };
+    await drag(300, 500, 500, 500, true);
+    return { panned, drawn: S.walls.length };
+  })()`);
+  assert.ok(r.panned.moved && r.panned.walls === 0, 'a plain drag pans and draws nothing: ' + JSON.stringify(r));
+  assert.equal(r.drawn, 1, 'Alt + drag draws a wall');
 });
