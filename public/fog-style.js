@@ -53,10 +53,12 @@
       var x = layer.getContext('2d');
       x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, layer.width, layer.height);
       x.setTransform(m); x.drawImage(shroud, 0, 0);
-      x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop';
-      var t = (now || 0) / 1000, passes = [[2.2, 34, 10, 0.26], [3.4, -22, 16, 0.2]];
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'source-in'; x.fillStyle = '#b4bfcf'; x.fillRect(0, 0, layer.width, layer.height);       // the fog's shape (its alpha) in one flat grey, so every bit of cloud you see is the moving part
+      x.globalCompositeOperation = 'source-atop';
+      var t = (now || 0) / 1000, passes = [[2.2, 34, 10, 0.85], [3.4, -22, 16, 0.5]];
       for (var i = 0; i < passes.length; i++) {
-        var p = passes[i], pat = x.createPattern(shadeTile, 'repeat');
+        var p = passes[i], pat = x.createPattern(i === 0 ? tile : shadeTile, 'repeat');
         if (!pat || !pat.setTransform) break;
         pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
         x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, layer.width, layer.height);
