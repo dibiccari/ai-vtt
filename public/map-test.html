@@ -221,8 +221,12 @@
     <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
     </span>
     <span id="wallBox" class="brush-box" hidden>
-      <label class="inline-label" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)" title="What the next walls you draw will be">Draw <select id="wallDrawType"><option value="wall">walls</option><option value="fence">fences / windows</option><option value="door">doors</option></select></label>
-      <select id="wallType" title="What the selected wall is" disabled><option value="wall">Wall</option><option value="door">Door</option><option value="fence">Fence / window</option></select>
+      <span class="vnote">Kind</span>
+      <span class="view-switch" id="wallKinds" role="group" aria-label="Kind of wall to draw, or to change the selected wall into">
+        <button type="button" data-kind="wall" aria-pressed="true" title="Wall: stops movement, sight and light">Wall</button>
+        <button type="button" data-kind="door" aria-pressed="false" title="Door: click it to open or close it; set locked, secret and the DC in the Doors list">Door</button>
+        <button type="button" data-kind="fence" aria-pressed="false" title="Fence or window: stops movement but not sight or light">Fence / window</button>
+      </span>
       <button id="wallDelete" disabled title="Delete the selected wall (Delete key)">Delete</button>
       <button id="wallUndo" disabled title="Undo the last wall change (Ctrl+Z)">Undo</button>
       <button id="wallProblems" title="Find walls that cross, or almost meet but do not touch">Find problems</button>
@@ -260,7 +264,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', drawKind: 'wall', fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     tokenImage: store.get('vtt.maptest.tokenImage', '/tokens/human-warrior-stern-a8268.png'),
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
@@ -1638,8 +1642,9 @@
   }
   function syncWallBox() {
     const sel = S.wallSel;
-    $('#wallType').disabled = !sel; $('#wallDelete').disabled = !sel; $('#wallUndo').disabled = !S.wallUndo.length;
-    if (sel) $('#wallType').value = sel.type === 'door' ? 'door' : sel.type === 'fence' ? 'fence' : 'wall';
+    $('#wallDelete').disabled = !sel; $('#wallUndo').disabled = !S.wallUndo.length;
+    const shown = sel ? (sel.type === 'door' ? 'door' : sel.type === 'fence' ? 'fence' : 'wall') : S.drawKind;       // the selected wall's kind, else what the next one drawn will be
+    for (const k of document.querySelectorAll('#wallKinds button')) k.setAttribute('aria-pressed', String(k.dataset.kind === shown));
     if (!S.problems.length) $('#wallInfo').textContent = sel ? Math.round(Math.hypot(sel.x2 - sel.x1, sel.y2 - sel.y1) / cell() * 5) + ' ft long' : S.walls.length + ' walls';
   }
   // The wall end under the pointer (within a few screen pixels), as {w, k} where k is 1 or 2.
@@ -1795,13 +1800,17 @@
   $('#wallProblems').addEventListener('click', nextProblem);
   $('#wallDelete').addEventListener('click', deleteWall);
   $('#wallUndo').addEventListener('click', wallUndo);
-  function drawType() { const v = $('#wallDrawType').value; return v === 'fence' || v === 'door' ? v : 'wall'; }       // what the walls drawn next are (a fence stops movement but not sight)
-  $('#wallType').addEventListener('change', (e) => {
-    const w = S.wallSel; if (!w) return;
-    wallSnapshot();
-    w.type = e.target.value;
-    if (w.type !== 'door') { w.open = false; delete w.locked; delete w.secret; delete w.dc; }
-    afterWallEdit();
+  function drawType() { return S.drawKind === 'fence' || S.drawKind === 'door' ? S.drawKind : 'wall'; }       // what the walls drawn next are (a fence stops movement but not sight)
+  $('#wallKinds').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-kind]'); if (!b) return;
+    S.drawKind = b.dataset.kind;                       // the next wall you draw
+    const w = S.wallSel;
+    if (w && w.type !== (S.drawKind === 'wall' ? 'wall' : S.drawKind)) {       // and the selected wall changes too
+      wallSnapshot();
+      w.type = S.drawKind;
+      if (w.type !== 'door') { w.open = false; delete w.locked; delete w.secret; delete w.dc; }
+      afterWallEdit();
+    } else syncWallBox();
   });
 
   /* ---------------- pointer input ---------------- */

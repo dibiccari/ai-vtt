@@ -538,14 +538,20 @@ test('the Walls tool draws fences and doors as well as walls: a Draw select pick
     document.querySelector('button.tool[data-tool="walls"]').click();
     const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
     const ptr = (type, wx, wy) => cv.dispatchEvent(new PointerEvent(type, { clientX: b.left + S.view.ox + wx * S.view.scale, clientY: b.top + S.view.oy + wy * S.view.scale, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, bubbles: true }));
-    const draw = async (kind, x1, y1, x2, y2) => { const sel = document.querySelector('#wallDrawType'); sel.value = kind; sel.dispatchEvent(new Event('change')); const n = S.walls.length;
+    const draw = async (kind, x1, y1, x2, y2) => { document.querySelector('#wallKinds button[data-kind="' + kind + '"]').click(); const n = S.walls.length;
       ptr('pointerdown', x1, y1); for (let i = 1; i <= 8; i++) ptr('pointermove', x1 + (x2 - x1) * i / 8, y1 + (y2 - y1) * i / 8); ptr('pointerup', x2, y2); await wait(250); return S.walls.slice(n).map((w) => w.type); };
     out.fence = await draw('fence', 200, 1200, 600, 1200);
     out.door = await draw('door', 200, 1250, 260, 1250);
     out.wall = await draw('wall', 200, 1300, 600, 1300);
+    const last = S.walls[S.walls.length - 1]; S.wallSel = last; window.mapTest.syncWallBox && window.mapTest.syncWallBox();
+    document.querySelector('#wallKinds button[data-kind="door"]').click(); await wait(100);
+    out.changed = [last.type, document.querySelector('#wallKinds button[data-kind="door"]').getAttribute('aria-pressed')];
+    document.querySelector('#wallKinds button[data-kind="wall"]').click(); await wait(100);
+    out.changedBack = last.type;
     return out;
   })()`);
   assert.ok(r.fence.length >= 1 && r.fence.every((t) => t === 'fence'), 'fence: ' + r.fence); assert.ok(r.door.every((t) => t === 'door'), 'door: ' + r.door); assert.ok(r.wall.every((t) => t === 'wall'), 'wall: ' + r.wall);
+  assert.deepEqual(r.changed, ['door', 'true'], 'a kind button changes the selected wall'); assert.equal(r.changedBack, 'wall');
 });
 
 test('in a dark place the top of a boulder (a small closed wall ring) is revealed only within darkvision or the carried light, and only when the map shows ring tops', opts, async () => {
