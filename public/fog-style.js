@@ -20,7 +20,7 @@
         var top = at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx, bot = at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx;
         v += (top * (1 - ty) + bot * ty) * o.a;
       }
-      var t = Math.max(0, Math.min(1, (v - 0.3) / 0.42)), j = (py * n + px) * 4;       // a steeper curve: more billowy light and shadow
+      var t = Math.max(0, Math.min(1, (v - 0.33) / 0.34)), j = (py * n + px) * 4;       // a steeper curve: more billowy light and shadow
       var lo = shade ? 70 : 0; img.data[j] = 150 - lo + 100 * t; img.data[j + 1] = 160 - lo + 92 * t; img.data[j + 2] = 178 - lo + 77 * t; img.data[j + 3] = 255;     // grey-blue shadows to white tops
     }
     x.putImageData(img, 0, 0);
@@ -56,9 +56,9 @@
       x.setTransform(1, 0, 0, 1, 0, 0);
       x.globalCompositeOperation = 'source-in'; x.fillStyle = '#b4bfcf'; x.fillRect(0, 0, layer.width, layer.height);       // the fog's shape (its alpha) in one flat grey, so every bit of cloud you see is the moving part
       x.globalCompositeOperation = 'source-atop';
-      var t = (now || 0) / 1000, passes = [[2.2, 34, 10, 0.85], [3.4, -22, 16, 0.5]];
+      var t = (now || 0) / 1000, passes = [[1.6, 26, 8, 0.8], [2.6, -20, 12, 0.6], [4.2, 12, -9, 0.45]];
       for (var i = 0; i < passes.length; i++) {
-        var p = passes[i], pat = x.createPattern(i === 0 ? tile : shadeTile, 'repeat');
+        var p = passes[i], pat = x.createPattern(i === 1 ? shadeTile : tile, 'repeat');
         if (!pat || !pat.setTransform) break;
         pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
         x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, layer.width, layer.height);
