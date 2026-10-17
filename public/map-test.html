@@ -1650,7 +1650,7 @@
   }
   // The wall end under the pointer (within a few screen pixels), as {w, k} where k is 1 or 2.
   function endpointAt(p) {
-    const tol = 9 / S.view.scale;
+    const tol = 14 / S.view.scale;
     let best = null, bd = tol;
     const order = S.wallSel ? [S.wallSel, ...S.walls] : S.walls;
     for (const w of order) for (const k of [1, 2]) {
@@ -1660,8 +1660,18 @@
     return best;
   }
   // Snap a point to a nearby wall end (not one of the ends being moved), so corners meet exactly.
+  // The wall end a point would snap to, or null when it is not near one.
+  function snapToEndOnly(p, skip) {
+    const tol = 16 / S.view.scale; let best = null, bd = tol;
+    for (const w of S.walls) for (const k of [1, 2]) {
+      if (skip && skip.some((g) => g.w === w && g.k === k)) continue;
+      const d = Math.hypot(p.x - w['x' + k], p.y - w['y' + k]);
+      if (d < bd) { bd = d; best = { x: w['x' + k], y: w['y' + k] }; }
+    }
+    return best;
+  }
   function snapToEnds(p, skip) {
-    const tol = 10 / S.view.scale;
+    const tol = 16 / S.view.scale;
     let best = null, bd = tol;
     for (const w of S.walls) for (const k of [1, 2]) {
       if (skip && skip.some((g) => g.w === w && g.k === k)) continue;
@@ -1746,7 +1756,12 @@
     ctx.lineCap = 'round';
     for (const w of S.walls) for (const k of [1, 2]) {
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.fillRect(w['x' + k] - 2.5 * px, w['y' + k] - 2.5 * px, 5 * px, 5 * px);
+      ctx.fillRect(w['x' + k] - 3.5 * px, w['y' + k] - 3.5 * px, 7 * px, 7 * px);
+    }
+    if (S.hover && S.viewAs === 'dm') {                    // the wall end a click or a drop would join: a gold ring, so a wall, a door and the next wall meet exactly
+      const skip = S.drag && S.drag.kind === 'wallpt' ? S.drag.group : null;
+      const ep = S.drag && ['wallpt', 'wallnew'].includes(S.drag.kind) || S.wallPen ? snapToEndOnly(S.hover, skip) : (!S.drag ? (endpointAt(S.hover) ? { x: endpointAt(S.hover).w['x' + endpointAt(S.hover).k], y: endpointAt(S.hover).w['y' + endpointAt(S.hover).k] } : null) : null);
+      if (ep) { ctx.strokeStyle = 'rgba(255, 214, 80, 0.95)'; ctx.lineWidth = 2.5 * px; ctx.beginPath(); ctx.arc(ep.x, ep.y, 9 * px, 0, Math.PI * 2); ctx.stroke(); }
     }
     const hov = S.hover && !S.drag ? nearestWall(S.hover, false) : null;
     if (hov && hov !== S.wallSel) { ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 7 * px; ctx.beginPath(); ctx.moveTo(hov.x1, hov.y1); ctx.lineTo(hov.x2, hov.y2); ctx.stroke(); }
@@ -1858,7 +1873,7 @@
     }
     {                                                                    // a pin or the token under the pointer wins; otherwise a door is clicked open or shut
       const door = doorUnder(p);
-      if (door && !(S.tool === 'start' && startAt(p)) && tokenAt(p) < 0 && !(S.tool === 'start' && S.viewAs === 'dm' && startAt(p))) { clickDoor(door); return; }
+      if (door && S.tool !== 'walls' && !(S.tool === 'start' && startAt(p)) && tokenAt(p) < 0 && !(S.tool === 'start' && S.viewAs === 'dm' && startAt(p))) { clickDoor(door); return; }
     }
 
     if (S.tool === 'token') {

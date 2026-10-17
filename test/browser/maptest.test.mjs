@@ -693,3 +693,23 @@ test('in the Walls tool a plain drag on empty ground pans the map (no wall is dr
   assert.ok(r.panned.moved && r.panned.walls === 0, 'a plain drag pans and draws nothing: ' + JSON.stringify(r));
   assert.equal(r.drawn, 1, 'Alt + drag draws a wall');
 });
+
+test('in the Walls tool a click on a door edits it like a wall (it does not open the door), so walls and doors join end to end', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    document.querySelector('button.tool[data-tool="walls"]').click();
+    S.walls = [{ x1: 300, y1: 700, x2: 400, y2: 700, type: 'wall', open: false }, { x1: 400, y1: 700, x2: 700, y2: 700, type: 'door', open: false }, { x1: 700, y1: 700, x2: 800, y2: 700, type: 'wall', open: false }];
+    S.wallUndo = []; S.wallPen = null; S.wallSel = null;
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const at = (x, y) => ({ clientX: b.left + S.view.ox + x * S.view.scale, clientY: b.top + S.view.oy + y * S.view.scale });
+    const click = (x, y) => { for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { ...at(x, y), button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 5, bubbles: true })); };
+    click(550, 700); await wait(250);
+    const mid = { open: S.walls[1].open, selType: S.wallSel && S.wallSel.type };
+    S.wallSel = null; click(700, 700); await wait(250);
+    return { mid, doorOpen: S.walls[1].open };
+  })()`);
+  assert.equal(r.mid.open, false, 'the door stays shut: ' + JSON.stringify(r)); assert.equal(r.mid.selType, 'door', 'the door is selected for editing');
+  assert.equal(r.doorOpen, false);
+});
