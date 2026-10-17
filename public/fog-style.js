@@ -54,7 +54,7 @@
       x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, layer.width, layer.height);
       x.setTransform(m); x.drawImage(shroud, 0, 0);
       x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop';
-      var t = (now || 0) / 1000, passes = [[2.2, 9, 3, 0.22], [3.4, -6, 5, 0.16]];
+      var t = (now || 0) / 1000, passes = [[2.2, 34, 10, 0.26], [3.4, -22, 16, 0.2]];
       for (var i = 0; i < passes.length; i++) {
         var p = passes[i], pat = x.createPattern(shadeTile, 'repeat');
         if (!pat || !pat.setTransform) break;
