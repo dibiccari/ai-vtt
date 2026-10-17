@@ -209,7 +209,7 @@
         <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
       </span>
     </span>
-    <label class="vnote" id="lightBox" title="The light the test token carries. How far the token sees is the Vision range. By the 5e rules, in a dark place only a light (torch 20/40 ft, lantern 30/60, candle 5/10) or darkvision (dark counts as dim, out to its range) lets the token see: clear inside the light's bright circle, dim to its dim radius. No light and no darkvision: nothing. It makes no difference in bright or dim places.">Darkvision <select id="testDv"><option value="0">none</option><option value="30">30 ft</option><option value="60">60 ft</option><option value="120">120 ft</option></select> Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label>
+    <span id="lightBox" style="display:flex;gap:8px;align-items:center"><label class="vnote" title="The light the test token carries. How far the token sees is the Vision range. By the 5e rules, in a dark place only a light (torch 20/40 ft, lantern 30/60, candle 5/10) or darkvision (dark counts as dim, out to its range) lets the token see: clear inside the light's bright circle, dim to its dim radius. No light and no darkvision: nothing. It makes no difference in bright or dim places.">Darkvision <select id="testDv" style="width:84px"><option value="0">None</option><option value="30">30 ft</option><option value="60">60 ft</option><option value="120">120 ft</option></select></label><label class="vnote" title="The light the test token carries. How far the token sees is the Vision range. By the 5e rules, in a dark place only a light (torch 20/40 ft, lantern 30/60, candle 5/10) or darkvision (dark counts as dim, out to its range) lets the token see: clear inside the light's bright circle, dim to its dim radius. No light and no darkvision: nothing. It makes no difference in bright or dim places.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label></span>
     <span class="tool-sep" aria-hidden="true"></span>
     <button id="resetFogBtn" title="Cover the map in fog again: explored areas are forgotten">Reset explored</button>
     <span class="tool-sep" aria-hidden="true"></span>
@@ -427,7 +427,7 @@
   const visionNow = () => S.visionFt;
   S.darkvisionFt = [0, 30, 60, 120].includes(Number(store.get('vtt.maptest.dv', 0))) ? Number(store.get('vtt.maptest.dv', 0)) : 0;
   const lightReachFt = () => LIGHT_TEST[S.testLight][1];
-  function showTestLight() { $('#testLight').value = String(S.testLight); $('#testLightText').textContent = LIGHT_TEST[S.testLight][0] + (S.light === 'dark' ? '' : ' (how well it sees, not how far)'); }
+  function showTestLight() { $('#testLight').value = String(S.testLight); const nm = LIGHT_TEST[S.testLight][0]; $('#testLightText').textContent = nm.charAt(0).toUpperCase() + nm.slice(1); }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
