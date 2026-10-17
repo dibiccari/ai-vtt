@@ -2,9 +2,9 @@
 // in a dark place the same layers are black, because there the cover is darkness. Shared by the tabletop and Map Test.
 (function () {
   'use strict';
-  var tile = null, layer = null;
+  var tile = null, shadeTile = null, layer = null;
   // A seamless tile of soft clouds: value noise at four scales, wrapped so the edges meet.
-  function makeTile() {
+  function makeTile(shade) {
     var n = 256, c = document.createElement('canvas'); c.width = n; c.height = n;
     var x = c.getContext('2d'), img = x.createImageData(n, n);
     var seed = 20261015; var rnd = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -20,8 +20,8 @@
         var top = at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx, bot = at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx;
         v += (top * (1 - ty) + bot * ty) * o.a;
       }
-      var t = Math.max(0, Math.min(1, (v - 0.25) / 0.6)), j = (py * n + px) * 4;
-      img.data[j] = 196 + 54 * t; img.data[j + 1] = 205 + 47 * t; img.data[j + 2] = 218 + 36 * t; img.data[j + 3] = 255;     // grey-blue shadows to white tops
+      var t = Math.max(0, Math.min(1, (v - 0.3) / 0.42)), j = (py * n + px) * 4;       // a steeper curve: more billowy light and shadow
+      var lo = shade ? 70 : 0; img.data[j] = 150 - lo + 100 * t; img.data[j + 1] = 160 - lo + 92 * t; img.data[j + 2] = 178 - lo + 77 * t; img.data[j + 3] = 255;     // grey-blue shadows to white tops
     }
     x.putImageData(img, 0, 0);
     return c;
@@ -46,6 +46,7 @@
     draw: function (ctx, shroud, dark, now) {
       if (!FogStyle.moves(dark) || !ctx.getTransform) { ctx.drawImage(shroud, 0, 0); return; }
       if (!tile) tile = makeTile();
+      if (!shadeTile) shadeTile = makeTile(true);
       var cv = ctx.canvas, m = ctx.getTransform(), a = ctx.globalAlpha;
       if (!layer) layer = document.createElement('canvas');
       if (layer.width !== cv.width || layer.height !== cv.height) { layer.width = cv.width; layer.height = cv.height; }
@@ -53,9 +54,9 @@
       x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, layer.width, layer.height);
       x.setTransform(m); x.drawImage(shroud, 0, 0);
       x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop';
-      var t = (now || 0) / 1000, passes = [[2.2, 9, 3, 0.32], [3.4, -6, 5, 0.26]];
+      var t = (now || 0) / 1000, passes = [[2.2, 9, 3, 0.22], [3.4, -6, 5, 0.16]];
       for (var i = 0; i < passes.length; i++) {
-        var p = passes[i], pat = x.createPattern(tile, 'repeat');
+        var p = passes[i], pat = x.createPattern(shadeTile, 'repeat');
         if (!pat || !pat.setTransform) break;
         pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
         x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, layer.width, layer.height);
