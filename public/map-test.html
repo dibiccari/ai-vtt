@@ -111,6 +111,7 @@
       <select id="moodSel"><option value="">No mood</option></select>
     </label>
     <hr class="soft-rule">
+    <label class="check" id="mapFogRow"><input type="checkbox" id="mapFog" checked> Fog of war on this map<span class="info-icon" title="Saved with the map. Ticked (the default for a battle map): the players only see what their characters see and explored ground is remembered. Unticked: the players see this map whole, and the table has no fog on it.">ⓘ</span></label>
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
@@ -121,7 +122,7 @@
 
   <details class="group" id="fogGroup" open>
     <summary><h2 style="display:inline">Fog and sight</h2></summary>
-    <label class="check" title="Saved with the map. Ticked (the default for a battle map): the players only see what their characters see and explored ground is remembered. Unticked: the players see this map whole, and the table has no fog on it."><input type="checkbox" id="fog" checked> Fog of war on this map</label>
+    <label class="check" title="Only for looking: show or hide the fog while you work. It does not change whether the map has fog."><input type="checkbox" id="fog" checked> Show Fog</label>
     <label class="check"><input type="checkbox" id="dm" checked> DM view (see through fog)</label>
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check" title="A small closed ring of walls (a boulder, a tent, a tree crown): ticked, its top shows once the ring is seen; unticked, the inside stays hidden like any other walled-off space. Saved with the map."><input type="checkbox" id="objectTops" checked> Show the tops of closed wall rings</label>
@@ -258,7 +259,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     tokenImage: store.get('vtt.maptest.tokenImage', '/tokens/human-warrior-stern-a8268.png'),
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
@@ -344,7 +345,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, ...(S.fog === false ? { fog: false } : {}), ...(S.objectTops === false ? { objectTops: false } : {}), ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
+    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, ...(S.mapFog === false ? { fog: false } : {}), ...(S.objectTops === false ? { objectTops: false } : {}), ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
     pendingSave = () => { saveChain = saveChain.then(sendSave, sendSave); return saveChain; };
     const sendSave = async () => {
       if (S.stale) { setSavedNote('Not saved: this map was changed elsewhere. Reload the page.'); return; }
@@ -1249,7 +1250,7 @@
         S.light = remote && ['bright', 'dim', 'dark'].includes(remote.light) ? remote.light : '';
         S.allLights = (remote && Array.isArray(remote.lights) ? remote.lights : []).filter((l) => l && isFinite(l.x) && isFinite(l.y) && l.range > 0).map((l, i) => ({ ...l, id: l.name || 'light-' + i }));
         S.lightsEdited = false;
-        S.fog = !(remote && remote.fog === false); $('#fog').checked = S.fog; syncDmBox();
+        S.mapFog = !(remote && remote.fog === false); $('#mapFog').checked = S.mapFog; S.fog = S.mapFog; $('#fog').checked = S.fog; syncDmBox();       // Show Fog starts as the players will have it; it is only a way of looking
         S.objectTops = !(remote && remote.objectTops === false); $('#objectTops').checked = S.objectTops;
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
@@ -1410,7 +1411,7 @@
   function applyKindUi() {
     $('#mapKind').value = S.kind;
     const plain = noFog();
-    for (const el of [$('#fog').closest('label'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
+    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
@@ -2118,9 +2119,10 @@
     revealFog();
   });
   $('#moveTest').addEventListener('change', (e) => { S.moveTest = e.target.checked; requestRender(); });
-  $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; syncDmBox(); save(); requestRender(); updateReadout(); });       // saved: the tabletop reads it too
+  $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; syncDmBox(); requestRender(); updateReadout(); });       // only a way of looking: nothing is saved
+  $('#mapFog').addEventListener('change', (e) => { S.mapFog = e.target.checked; S.fog = S.mapFog; $('#fog').checked = S.fog; syncDmBox(); save(); requestRender(); updateReadout(); });       // saved with the map: the tabletop reads it
   // DM view (see through fog) only means something while fog of war is on: with the fog off (or on a map that has none) the box is unticked and inactive.
-  function syncDmBox() { const on = S.fog && !noFog(); const box = $('#dm'); box.disabled = !on; box.checked = on && S.dm; box.title = on ? '' : 'Only used while Fog of war is on'; }
+  function syncDmBox() { const on = S.fog && !noFog(); const box = $('#dm'); box.disabled = !on; box.checked = on && S.dm; box.title = on ? '' : 'Only used while Show Fog is on'; }
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   S.showLightRadius = store.get('vtt.maptest.lightRadius', false) === true; $('#showLightRadius').checked = S.showLightRadius;
   $('#objectTops').addEventListener('change', (e) => { S.objectTops = e.target.checked; save(); resetFog(); });       // explored ground is remembered, so the layer starts again

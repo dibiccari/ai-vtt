@@ -582,16 +582,18 @@ test('in a dark place the top of a boulder (a small closed wall ring) is reveale
   assert.equal(saved.objectTops, false, 'the last choice (off) is saved with the map');
 });
 
-test('Fog of war on this map: the checkbox in Map Tools is saved with the map and read back', opts, async () => {
+test('Fog of war on this map: the setting under Mood theme is saved (Show Fog is only a way of looking) with the map and read back', opts, async () => {
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
-  await page.eval(`(async () => { const cb = document.querySelector('#fog'); cb.checked = false; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
+  await page.eval(`(async () => { const cb = document.querySelector('#mapFog'); cb.checked = false; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
   assert.equal((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.fog, false);
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
-  assert.equal(await page.eval(`document.querySelector('#fog').checked`), false, 'the box comes back unticked');
-  await page.eval(`(async () => { const cb = document.querySelector('#fog'); cb.checked = true; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
+  assert.equal(await page.eval(`document.querySelector('#mapFog').checked`), false, 'the box comes back unticked');
+  await page.eval(`(async () => { const cb = document.querySelector('#mapFog'); cb.checked = true; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
   assert.equal((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.fog, undefined, 'fog on is the default and is not stored');
+  await page.eval(`(async () => { const cb = document.querySelector('#fog'); cb.checked = false; cb.dispatchEvent(new Event('change')); await new Promise((r) => setTimeout(r, 2200)); })()`);
+  assert.equal((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.fog, undefined, 'Show Fog saves nothing');
 });
 
 test('Show places on a town map: with no place known from the start the Player view says so, and the All button makes them show', opts, async () => {
