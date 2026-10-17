@@ -647,7 +647,8 @@ test('DM view (see through fog) is unticked and inactive while Fog of war is off
   const r = await page.eval(`(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const fog = document.querySelector('#fog'), dm = document.querySelector('#dm'), out = {};
-    fog.checked = true; fog.dispatchEvent(new Event('change')); await wait(100);                 // the map in the real data may have been saved with fog off
+    const mapFog = document.querySelector('#mapFog'); mapFog.checked = true; mapFog.dispatchEvent(new Event('change')); await wait(100);       // the map in the real data may have been saved with fog off
+    out.showBoxOn = !fog.disabled;
     out.start = [fog.checked, dm.checked, dm.disabled];
     fog.checked = false; fog.dispatchEvent(new Event('change')); await wait(100);
     out.fogOff = [dm.checked, dm.disabled];
@@ -656,9 +657,14 @@ test('DM view (see through fog) is unticked and inactive while Fog of war is off
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(100);
     out.player = [dm.checked, dm.disabled];
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(100);
+    mapFog.checked = false; mapFog.dispatchEvent(new Event('change')); await wait(100);
+    out.mapFogOff = [fog.disabled, fog.checked, dm.disabled, getComputedStyle(fog.closest('label')).cursor];
+    mapFog.checked = true; mapFog.dispatchEvent(new Event('change')); await wait(100);
+    out.mapFogBack = [fog.disabled, fog.checked];
     return out;
   })()`);
   assert.deepEqual(r.start, [true, true, false]); assert.deepEqual(r.fogOff, [false, true], 'fog off: unticked and inactive');
+  assert.deepEqual(r.mapFogOff, [true, false, true, 'not-allowed'], 'no fog on the map: Show Fog is unticked and greyed out'); assert.deepEqual(r.mapFogBack, [false, true]);
   assert.deepEqual(r.fogOn, [true, false], 'fog on again: it follows the DM view again'); assert.deepEqual(r.player, [false, false]);
   await page.eval(`(async () => { const fog = document.querySelector('#fog'); fog.checked = true; fog.dispatchEvent(new Event('change')); })()`);
 });

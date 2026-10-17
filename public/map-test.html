@@ -112,6 +112,7 @@
     </label>
     <hr class="soft-rule">
     <label class="check" id="mapFogRow"><input type="checkbox" id="mapFog" checked> Fog of war on this map<span class="info-icon" title="Saved with the map. Ticked (the default for a battle map): the players only see what their characters see and explored ground is remembered. Unticked: the players see this map whole, and the table has no fog on it.">ⓘ</span></label>
+    <hr class="soft-rule" id="mapFogRule">
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
     </label>
     <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
@@ -1411,7 +1412,7 @@
   function applyKindUi() {
     $('#mapKind').value = S.kind;
     const plain = noFog();
-    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
+    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
@@ -2122,7 +2123,10 @@
   $('#fog').addEventListener('change', (e) => { S.fog = e.target.checked; syncDmBox(); requestRender(); updateReadout(); });       // only a way of looking: nothing is saved
   $('#mapFog').addEventListener('change', (e) => { S.mapFog = e.target.checked; S.fog = S.mapFog; $('#fog').checked = S.fog; syncDmBox(); save(); requestRender(); updateReadout(); });       // saved with the map: the tabletop reads it
   // DM view (see through fog) only means something while fog of war is on: with the fog off (or on a map that has none) the box is unticked and inactive.
-  function syncDmBox() { const on = S.fog && !noFog(); const box = $('#dm'); box.disabled = !on; box.checked = on && S.dm; box.title = on ? '' : 'Only used while Show Fog is on'; }
+  function syncDmBox() {
+    const showBox = $('#fog'); showBox.disabled = !S.mapFog; showBox.title = S.mapFog ? 'Only for looking: show or hide the fog while you work. It does not change whether the map has fog.' : 'This map has no fog (Fog of war on this map is off)';
+    if (!S.mapFog) { S.fog = false; showBox.checked = false; }
+    const on = S.fog && !noFog(); const box = $('#dm'); box.disabled = !on; box.checked = on && S.dm; box.title = on ? '' : 'Only used while Show Fog is on'; }
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
   S.showLightRadius = store.get('vtt.maptest.lightRadius', false) === true; $('#showLightRadius').checked = S.showLightRadius;
   $('#objectTops').addEventListener('change', (e) => { S.objectTops = e.target.checked; save(); resetFog(); });       // explored ground is remembered, so the layer starts again
