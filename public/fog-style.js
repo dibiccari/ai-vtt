@@ -2,7 +2,7 @@
 // in a dark place the same layers are black, because there the cover is darkness. Shared by the tabletop and Map Test.
 (function () {
   'use strict';
-  var tile = null, shadeTile = null, layer = null, clouds = null;
+  var tile = null, shadeTile = null, layer = null;
   // A seamless tile of soft clouds: value noise at four scales, wrapped so the edges meet.
   function makeTile(shade) {
     var n = 256, c = document.createElement('canvas'); c.width = n; c.height = n;
@@ -53,21 +53,16 @@
       var x = layer.getContext('2d');
       x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, layer.width, layer.height);
       x.setTransform(m); x.drawImage(shroud, 0, 0);
-      // The clouds are made at a third of the size (they are soft anyway) and stretched over the fog's shape: far cheaper than painting them at full size every frame.
-      var k = 3, cw = Math.ceil(layer.width / k), ch = Math.ceil(layer.height / k);
-      if (!clouds) clouds = document.createElement('canvas');
-      if (clouds.width !== cw || clouds.height !== ch) { clouds.width = cw; clouds.height = ch; }
-      var y = clouds.getContext('2d');
-      y.globalCompositeOperation = 'source-over'; y.globalAlpha = 1; y.fillStyle = '#b4bfcf'; y.fillRect(0, 0, cw, ch);       // one flat grey: every bit of cloud you see is the moving part
-      var t = (now || 0) / 1000, passes = [[1.6, 26, 8, 0.8], [2.6, -20, 12, 0.6], [4.2, 12, -9, 0.45]];
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'source-in'; x.fillStyle = '#b4bfcf'; x.fillRect(0, 0, layer.width, layer.height);       // the fog's shape (its alpha) in one flat grey, so every bit of cloud you see is the moving part
+      x.globalCompositeOperation = 'source-atop';
+      var t = (now || 0) / 1000, passes = [[2.2, 34, 10, 0.85], [3.4, -22, 16, 0.5]];
       for (var i = 0; i < passes.length; i++) {
-        var p = passes[i], pat = y.createPattern(i === 1 ? shadeTile : tile, 'repeat');
+        var p = passes[i], pat = x.createPattern(i === 0 ? tile : shadeTile, 'repeat');
         if (!pat || !pat.setTransform) break;
-        pat.setTransform(new DOMMatrix([p[0] / k, 0, 0, p[0] / k, t * p[1] / k, t * p[2] / k]));
-        y.globalAlpha = p[3]; y.fillStyle = pat; y.fillRect(0, 0, cw, ch);
+        pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
+        x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, layer.width, layer.height);
       }
-      x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-in'; x.globalAlpha = 1;
-      x.imageSmoothingEnabled = true; x.drawImage(clouds, 0, 0, layer.width, layer.height);       // keeps the fog's shape (its alpha), takes the clouds' colour
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.drawImage(layer, 0, 0); ctx.restore();
     },
     // The thin cover over ground that was seen before but is out of sight now.
