@@ -1709,6 +1709,7 @@ function revealFog() {
       c.save();
       c.globalCompositeOperation = 'destination-out';
       if (simple) {
+        c.filter = 'blur(' + Math.round(GRID * 0.5) + 'px)';        // a soft edge where sight ends, not a hard cut (ignored by browsers without canvas filters)
         c.fillStyle = '#000';
         c.beginPath();
         c.moveTo(s.poly[0].x, s.poly[0].y);

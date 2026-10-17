@@ -443,10 +443,11 @@
         c.globalCompositeOperation = 'destination-out';
         // 5e: in the dark only darkvision sees without a light (dark counts as dim, out to its range); otherwise the Vision range decides.
         const seeR = darkPlace ? Math.min(radius, (S.darkvisionFt / FT_PER_SQUARE) * cell()) : radius;
-        const grad = c.createRadialGradient(t.x, t.y, seeR * 0.65, t.x, t.y, Math.max(seeR, 1));
+        const grad = c.createRadialGradient(t.x, t.y, seeR * 0.45, t.x, t.y, Math.max(seeR, 1));
         const seeing = darkPlace ? 0.4 : 1;
         grad.addColorStop(0, 'rgba(0,0,0,' + seeing + ')'); grad.addColorStop(1, 'rgba(0,0,0,0)');
         c.fillStyle = grad;
+        c.filter = 'blur(' + Math.round(cell() * 0.5) + 'px)';        // a soft edge where sight ends
         c.beginPath();
         c.moveTo(poly[0].x, poly[0].y);
         for (let i = 1; i < poly.length; i++) c.lineTo(poly[i].x, poly[i].y);
@@ -532,7 +533,7 @@
           for (let k = 1; k < loop.length; k++) c.lineTo(loop[k].x, loop[k].y);
           c.closePath();
           c.clip();
-          const grad = c.createRadialGradient(t.x, t.y, radius * 0.65, t.x, t.y, radius);
+          const grad = c.createRadialGradient(t.x, t.y, radius * 0.45, t.x, t.y, radius);
           grad.addColorStop(0, 'rgba(0,0,0,1)');
           grad.addColorStop(1, 'rgba(0,0,0,0)');
           c.fillStyle = grad;
