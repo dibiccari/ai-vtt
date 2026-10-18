@@ -752,3 +752,19 @@ test('the speaker button next to Ambient sound plays and stops the selected soun
   assert.deepEqual(r.calls.filter((c) => c.startsWith('scene:')), ['scene:rain', 'scene:wind'], 'it plays the chosen sound, and follows a change while playing: ' + JSON.stringify(r.calls));
   assert.ok(r.calls.includes('stop:scene'), 'the second click stops it');
 });
+
+test('each door in the Doors list has a delete button, and Undo brings the door back', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    S.walls = [{ x1: 300, y1: 700, x2: 400, y2: 700, type: 'door', open: false }, { x1: 500, y1: 700, x2: 600, y2: 700, type: 'door', open: false }, { x1: 0, y1: 0, x2: 100, y2: 0, type: 'wall', open: false }];
+    S.wallUndo = []; window.mapTest.renderDoorList();
+    const out = { buttons: document.querySelectorAll('#doorList button[aria-label^="Delete door"]').length };
+    document.querySelector('#doorList button[aria-label="Delete door 1"]').click(); await wait(100);
+    out.after = S.walls.map((w) => w.type + ':' + w.x1); out.rows = document.querySelectorAll('#doorList button[aria-label^="Delete door"]').length;
+    document.querySelector('#wallUndo').click(); await wait(100);
+    out.undone = S.walls.length; return out;
+  })()`);
+  assert.equal(r.buttons, 2); assert.deepEqual(r.after, ['door:500', 'wall:0'], 'only the first door is gone'); assert.equal(r.rows, 1); assert.equal(r.undone, 3, 'Undo brings it back');
+});

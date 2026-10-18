@@ -1396,7 +1396,9 @@
         dc.hidden = !sel.value; wallsChanged(); requestRender();
       };
       sel.addEventListener('change', apply); dc.addEventListener('change', apply);
-      row.append(label, sel, dc); box.appendChild(row);
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this door'; del.setAttribute('aria-label', 'Delete door ' + (i + 1));
+      del.addEventListener('click', (ev) => { ev.preventDefault(); wallSnapshot(); const k = S.walls.indexOf(d); if (k >= 0) S.walls.splice(k, 1); if (S.wallSel === d) S.wallSel = null; afterWallEdit(); });       // Undo in the Walls tool brings it back
+      row.append(label, sel, dc, del); box.appendChild(row);
     });
   }
 
@@ -1633,7 +1635,7 @@
   /* ---------------- wall editor (Walls tool) ---------------- */
   const round1 = (v) => Math.round(v * 10) / 10;
   function wallSnapshot() { S.wallUndo.push(JSON.stringify(S.walls)); if (S.wallUndo.length > 80) S.wallUndo.shift(); syncWallBox(); }
-  function afterWallEdit() { S.problems = []; S.problemIx = -1; wallsChanged(); syncWallBox(); requestRender(); }
+  function afterWallEdit() { S.problems = []; S.problemIx = -1; wallsChanged(); renderDoorList(); syncWallBox(); requestRender(); }
   function wallUndo() {
     const snap = S.wallUndo.pop();
     if (!snap) return;
@@ -2325,7 +2327,7 @@
   loadTestTokenImages();
   loadMapList(true);
 
-  window.mapTest = { state: S, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
+  window.mapTest = { state: S, renderDoorList, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
 })();
 </script>
 </body>
