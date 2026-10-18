@@ -790,7 +790,7 @@ function pointSegmentDistance(px, py, w) {
 const blockingWalls = () => state.walls.filter((w) => !(w.type === 'door' && w.open && !w.secret));       // stops movement (a secret door is a wall until the DM reveals it)
 // a flyer goes over low fences, windows and chasm bars, but not walls or closed doors
 const flyerWalls = () => blockingWalls().filter((w) => w.type !== 'fence' && w.type !== 'window' && w.type !== 'bars');
-const sightWalls = () => blockingWalls().filter((w) => w.type !== 'fence');                   // stops sight (a fence or a window stops movement only)
+const sightWalls = () => blockingWalls().filter((w) => w.type !== 'fence' && w.type !== 'window');                   // stops sight (a fence or a window stops movement only)
 
 // Visibility polygon: cast rays at every wall endpoint (±epsilon) plus a uniform fan.
 function visibilityPolygon(ox, oy) {
@@ -1638,7 +1638,7 @@ function resetShroud() {
 let objectCache = { version: -1, loops: [] };
 function objectLoops() {
   if (objectCache.version === state.wallsVersion) return objectCache.loops;
-  objectCache = { version: state.wallsVersion, loops: WallObjects.loops(state.walls.filter((w) => w.type !== 'fence'), 9 * GRID, state.rooms) };
+  objectCache = { version: state.wallsVersion, loops: WallObjects.loops(state.walls.filter((w) => w.type !== 'fence' && w.type !== 'window'), 9 * GRID, state.rooms) };
   return objectCache.loops;
 }
 
@@ -1938,7 +1938,7 @@ async function serverWalls() {
     state.wallsInPicture = config.source === 'dd2vtt';        // the picture already shows its own walls: only doors are marked on top
     const f = state.map.drawW / state.map.img.naturalWidth;
     return config.walls.map((w) => ({
-      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open),
+      x1: w.x1 * f, y1: w.y1 * f, x2: w.x2 * f, y2: w.y2 * f, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : w.type === 'window' ? 'window' : 'wall', open: Boolean(w.open),
       ...(w.type === 'door' && w.locked ? { locked: true } : {}), ...(w.type === 'door' && w.secret ? { secret: true } : {}), ...(w.type === 'door' && w.dc ? { dc: w.dc } : {})
     }));
   } catch {

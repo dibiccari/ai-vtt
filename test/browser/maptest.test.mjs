@@ -543,6 +543,7 @@ test('the Walls tool draws fences and doors as well as walls: a Draw select pick
     out.fence = await draw('fence', 200, 1200, 600, 1200);
     out.door = await draw('door', 200, 1250, 260, 1250);
     out.wall = await draw('wall', 200, 1300, 600, 1300);
+    out.window = await draw('window', 200, 1350, 600, 1350);
     const last = S.walls[S.walls.length - 1]; S.wallSel = last; window.mapTest.syncWallBox && window.mapTest.syncWallBox();
     document.querySelector('#wallKinds button[data-kind="door"]').click(); await wait(100);
     out.changed = [last.type, document.querySelector('#wallKinds button[data-kind="door"]').getAttribute('aria-pressed')];
@@ -550,7 +551,7 @@ test('the Walls tool draws fences and doors as well as walls: a Draw select pick
     out.changedBack = last.type;
     return out;
   })()`);
-  assert.ok(r.fence.length >= 1 && r.fence.every((t) => t === 'fence'), 'fence: ' + r.fence); assert.ok(r.door.every((t) => t === 'door'), 'door: ' + r.door); assert.ok(r.wall.every((t) => t === 'wall'), 'wall: ' + r.wall);
+  assert.ok(r.fence.length >= 1 && r.fence.every((t) => t === 'fence'), 'fence: ' + r.fence); assert.ok(r.door.every((t) => t === 'door'), 'door: ' + r.door); assert.ok(r.wall.every((t) => t === 'wall'), 'wall: ' + r.wall); assert.ok(r.window.length >= 1 && r.window.every((t) => t === 'window'), 'window: ' + r.window);
   assert.deepEqual(r.changed, ['door', 'true'], 'a kind button changes the selected wall'); assert.equal(r.changedBack, 'wall');
 });
 
@@ -902,4 +903,28 @@ test('light zones: in a dark map a bright zone has pale cloud fog and the dark r
   assert.ok(r.litFog > 120, 'pale fog over the bright zone: ' + JSON.stringify(r)); assert.ok(r.darkFog < 40, 'black fog over the dark ground: ' + JSON.stringify(r));
   assert.ok(r.seen < 60, 'what the token sees is clear'); assert.ok(r.behindWall > 200, 'nothing behind the wall is revealed');
   assert.ok(r.edgeDark > 200 && r.cornerFar > 200, 'the map edge in the dark part stays fogged: ' + JSON.stringify(r));
+});
+
+test('light zones can be reshaped: drag a corner, Alt + click an edge adds a corner, right-click a corner removes it (never below three)', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    S.lightZones = [{ id: 'z1', name: 'Z', level: 'dark', points: [{ x: 600, y: 300 }, { x: 1200, y: 300 }, { x: 1200, y: 800 }, { x: 600, y: 800 }] }]; S.zoneSel = null;
+    document.querySelector('button.tool[data-tool="zones"]').click(); S.zoneSel = S.lightZones[0]; await wait(100);
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const at = (x, y) => ({ clientX: b.left + S.view.ox + x * S.view.scale, clientY: b.top + S.view.oy + y * S.view.scale });
+    const ev = (t, x, y, o = {}) => cv.dispatchEvent(new PointerEvent(t, { ...at(x, y), button: o.button ?? 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 11, bubbles: true, altKey: !!o.alt }));
+    ev('pointerdown', 1200, 300); for (let i = 1; i <= 6; i++) ev('pointermove', 1200 + i * 20, 300 - i * 10); ev('pointerup', 1320, 240); await wait(250);
+    out.moved = S.lightZones[0].points.map((q) => [q.x, q.y])[1];
+    ev('pointerdown', 900, 300, { alt: true }); ev('pointerup', 900, 300); await wait(250);
+    out.added = S.lightZones[0].points.length;
+    cv.dispatchEvent(new PointerEvent('pointerdown', { ...at(1320, 240), button: 2, buttons: 2, pointerId: 11, bubbles: true })); cv.dispatchEvent(new PointerEvent('pointerup', { ...at(1320, 240), button: 2, buttons: 0, pointerId: 11, bubbles: true })); await wait(250);
+    out.removed = S.lightZones[0].points.length;
+    S.lightZones[0].points = S.lightZones[0].points.slice(0, 3);
+    cv.dispatchEvent(new PointerEvent('pointerdown', { ...at(S.lightZones[0].points[0].x, S.lightZones[0].points[0].y), button: 2, buttons: 2, pointerId: 11, bubbles: true })); cv.dispatchEvent(new PointerEvent('pointerup', { ...at(600, 300), button: 2, buttons: 0, pointerId: 11, bubbles: true })); await wait(250);
+    out.minimum = S.lightZones[0].points.length;
+    return out;
+  })()`);
+  assert.deepEqual(r.moved, [1320, 240], 'dragging a corner moves it'); assert.equal(r.added, 5, 'Alt + click on an edge adds a corner'); assert.equal(r.removed, 4, 'right-click on a corner removes it'); assert.equal(r.minimum, 3, 'a zone keeps at least three corners');
 });

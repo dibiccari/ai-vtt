@@ -95,7 +95,7 @@ test('map configs: list, areas, config read, save round trip with cleaning (and 
   const body = { squares: 9999, walls: [{ x1: 1.234, y1: 2, x2: 30, y2: 2, type: 'window' }, { x1: 'x', y1: 0, x2: 1, y2: 1 }, { x1: 0, y1: 0, x2: 5, y2: 0, type: 'door', open: true }], starts: [{ name: 'Start!', x: 5, y: 6 }, { name: 'start', x: 1, y: 1 }, { name: '', x: 1, y: 1 }], light: 'dark', ambience: 'jazz', difficult: [{ x: 0, y: 0, w: 0, h: 5 }, { x: 1, y: 1, w: 50, h: 50 }] };
   const put = await s.put('/api/map-config?map=lmop-thundertree.png', body); ok(put); assert.equal(put.json.walls, 2);
   const back = (await s.get('/api/map-config?map=lmop-thundertree.png')).json.config;
-  assert.equal(back.squares, 400); assert.deepEqual(back.walls.map((w) => w.type), ['fence', 'door']); assert.equal(back.walls[0].x1, 1.23);
+  assert.equal(back.squares, 400); assert.deepEqual(back.walls.map((w) => w.type), ['window', 'door']); assert.equal(back.walls[0].x1, 1.23);
   assert.equal(back.starts.filter((p) => p.name === 'start').length, 1, 'names are cleaned and only one start pin is kept'); assert.ok(back.starts.some((p) => p.name === 'start' && p.x === 5 && p.y === 6));
   assert.equal(back.light, 'dark'); assert.equal(back.ambience, undefined); assert.equal(back.difficult.length, 1);
   assert.equal((await s.put('/api/map-config?map=notes.txt', body)).status, 400);

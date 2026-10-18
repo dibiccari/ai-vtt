@@ -33,7 +33,7 @@
 ## Map Test editing (user, Nov 2026)
 - DONE (Nov 2026): door card (select a door in the Walls tool: State, DC, Starts open, Delete) and, with the Door kind picked, a click on a wall makes a one-square door in it. With a wall selected the Door button still turns the whole wall into a door.
 - DONE (Nov 2026): the AI DM decides day or night (token action timeofday) and the picture darkens with a wash at night. Still open: showing the place's Night look picture instead of the wash when it has one (the pictures can differ in size and have their own lights), and a Day | Night control for you at the table.
-- Window as its own kind (today a window is stored as a fence: both stop movement, not sight or light); the DM would then say "window" rather than "fence".
+- DONE (Nov 2026): a window is its own kind (type 'window', purple in Map Test, Window button) beside Fence; both stop movement but not sight or light. Zone corners can be dragged, added (Alt + click an edge) and removed (right-click).
 - Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 
 ## Characters

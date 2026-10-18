@@ -227,7 +227,7 @@
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
-    <button class="tool" data-tool="zones" aria-pressed="false" title="Light zones: areas of this map with their own light, for example an outdoor part that is bright by day and a cave that is always dark. Press Draw a zone, click the corners, click the first corner (or press Enter) to finish; click a zone to edit it">Zones</button>
+    <button class="tool" data-tool="zones" aria-pressed="false" title="Light zones: areas of this map with their own light, for example an outdoor part that is bright by day and a cave that is always dark. Press Draw a zone, click the corners, click the first corner (or press Enter) to finish. Click a zone to edit it: drag a corner to reshape it, Alt + click an edge to add a corner, right-click a corner to remove it">Zones</button>
     <button class="tool" data-tool="lights" aria-pressed="false" title="Lights: click a light to edit it (kind, size, flicker, lit at the start), drag it to move it, click empty ground to add one, right-click to delete it">Lights</button>
     <button class="tool" data-tool="walls" aria-pressed="false" title="Walls: drag empty ground to pan the map; click a point, then click where the wall ends (the next click carries on from there; Esc or a right-click stops), or hold Alt and drag from one point to another; click a wall to select it, drag its end to move it (corners that meet move together; hold Alt to move just one end), drag the middle to move the whole wall, Alt + drag on empty ground draws a new wall (ends snap to other walls; hold Shift for straight lines), right-click a wall or press Delete to remove it. Ctrl+Z undoes.">Walls</button>
     <span class="view-switch" id="terrainPair">
@@ -243,7 +243,8 @@
       <span class="view-switch" id="wallKinds" role="group" aria-label="Kind of wall to draw, or to change the selected wall into">
         <button type="button" data-kind="wall" aria-pressed="true" title="Wall: stops movement, sight and light">Wall</button>
         <button type="button" data-kind="door" aria-pressed="false" title="Door: click it to open or close it; set locked, secret and the DC in the Doors list">Door</button>
-        <button type="button" data-kind="fence" aria-pressed="false" title="Fence or window: stops movement but not sight or light">Fence / window</button>
+        <button type="button" data-kind="fence" aria-pressed="false" title="Fence: stops movement but not sight or light">Fence</button>
+        <button type="button" data-kind="window" aria-pressed="false" title="Window: stops movement but not sight or light (the DM calls it a window)">Window</button>
       </span>
       <button id="wallDelete" disabled title="Delete the selected wall (Delete key)">Delete</button>
       <button id="wallUndo" disabled title="Undo the last wall change (Ctrl+Z)">Undo</button>
@@ -329,7 +330,7 @@
   }
 
   const blockingWalls = (walls) => walls.filter((w) => !(w.type === 'door' && w.open && !w.secret));       // stops movement (a secret door is a wall)
-  const sightWalls = (walls) => blockingWalls(walls).filter((w) => w.type !== 'fence');       // stops sight: a fence or a window does not
+  const sightWalls = (walls) => blockingWalls(walls).filter((w) => w.type !== 'fence' && w.type !== 'window');       // stops sight: a fence or a window does not
 
   // Cast rays at every wall endpoint (+/- epsilon) plus a uniform fan; `walls` must already exclude open doors.
   function visibilityPolygon(ox, oy, walls, W, H) {
@@ -418,7 +419,7 @@
 
   function cleanWalls(list) {
     return (Array.isArray(list) ? list : []).filter(validWall).map((w) => ({
-      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : 'wall', open: Boolean(w.open) && !(w.type === 'door' && w.secret),
+      x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : w.type === 'fence' ? 'fence' : w.type === 'window' ? 'window' : 'wall', open: Boolean(w.open) && !(w.type === 'door' && w.secret),
       ...(w.type === 'door' && w.locked ? { locked: true } : {}), ...(w.type === 'door' && w.secret ? { secret: true } : {}), ...(w.type === 'door' && w.dc ? { dc: w.dc } : {})
     }));
   }
@@ -450,6 +451,24 @@
   // A zone is bright, dim, dark, or "time": it follows the look that is showing (the Day look is bright, the Night look dark). Later zones win where they overlap.
   const zoneLevel = (z) => (z.level === 'time' ? (S.variant === 'night' ? 'dark' : 'bright') : z.level);
   const zoneAt = (p) => { for (let i = S.lightZones.length - 1; i >= 0; i--) if (inside(S.lightZones[i].points, p.x, p.y)) return S.lightZones[i]; return null; };
+  // A corner of the selected zone under the pointer (within a few screen pixels).
+  function zoneCornerAt(p) {
+    const z = S.zoneSel; if (!z) return null;
+    const tol = 12 / S.view.scale; let best = null, bd = tol;
+    z.points.forEach((q, i) => { const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = { z, i }; } });
+    return best;
+  }
+  // The edge of the selected zone nearest the pointer, with the point on it, for adding a corner (Alt + click).
+  function zoneEdgeAt(p) {
+    const z = S.zoneSel; if (!z) return null;
+    const tol = 12 / S.view.scale; let best = null, bd = tol;
+    for (let i = 0; i < z.points.length; i++) {
+      const a = z.points[i], b = z.points[(i + 1) % z.points.length], dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)), x = a.x + t * dx, y = a.y + t * dy, d = Math.hypot(p.x - x, p.y - y);
+      if (d < bd) { bd = d; best = { z, after: i, x: Math.round(x), y: Math.round(y) }; }
+    }
+    return best;
+  }
   const cloneCanvas = (c) => { const n = document.createElement('canvas'); n.width = c.width; n.height = c.height; n.getContext('2d').drawImage(c, 0, 0); return n; };
   function zonePath(c, pts) { c.beginPath(); c.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y); c.closePath(); }
   // Two masks (white where it counts): the lit part of the map and the dark part. The edge is sharp: a zone is a polygon, and a blurred mask would let a pass leak at the map's border.
@@ -1064,7 +1083,7 @@
       const door = w.type === 'door';
       ctx.lineWidth = (door ? 5 : 4) * px;
       const dmSees = S.viewAs === 'dm';
-      ctx.strokeStyle = door && w.secret && dmSees ? 'rgba(210, 120, 255, 0.95)' : door && w.secret ? 'rgba(255, 90, 90, 0.95)' : door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : w.locked ? 'rgba(255, 150, 60, 0.98)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
+      ctx.strokeStyle = door && w.secret && dmSees ? 'rgba(210, 120, 255, 0.95)' : door && w.secret ? 'rgba(255, 90, 90, 0.95)' : door ? (w.open ? 'rgba(63, 210, 127, 0.95)' : w.locked ? 'rgba(255, 150, 60, 0.98)' : 'rgba(240, 192, 72, 0.95)') : w.type === 'fence' ? 'rgba(80, 200, 255, 0.95)' : w.type === 'window' ? 'rgba(190, 150, 255, 0.95)' : 'rgba(255, 90, 90, 0.95)';
       ctx.setLineDash(door && (w.open || (w.secret && dmSees)) ? [10 * px, 8 * px] : []);
       ctx.beginPath();
       ctx.moveTo(w.x1, w.y1);
@@ -1629,6 +1648,7 @@
       const label = (z.name || z.id) + ' · ' + (z.level === 'time' ? 'time of day (' + lv + ' now)' : lv);
       ctx.strokeText(label, cx, cy); ctx.fillText(label, cx, cy);
     }
+    if (sel && !S.zonePen) { ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(122, 208, 255, 0.95)'; ctx.lineWidth = 2 * px; for (const q of sel.points) { ctx.beginPath(); ctx.rect(q.x - 5 * px, q.y - 5 * px, 10 * px, 10 * px); ctx.fill(); ctx.stroke(); } }
     const pen = S.zonePen;
     if (pen && pen.points.length) {
       ctx.strokeStyle = 'rgba(122, 208, 255, 0.95)'; ctx.lineWidth = 2.5 * px; ctx.setLineDash([8 * px, 6 * px]);
@@ -1756,7 +1776,7 @@
   function syncWallBox() {
     const sel = S.wallSel;
     $('#wallDelete').disabled = !sel; $('#wallUndo').disabled = !S.wallUndo.length;
-    const shown = sel ? (sel.type === 'door' ? 'door' : sel.type === 'fence' ? 'fence' : 'wall') : S.drawKind;       // the selected wall's kind, else what the next one drawn will be
+    const shown = sel ? (sel.type === 'door' ? 'door' : sel.type === 'fence' ? 'fence' : sel.type === 'window' ? 'window' : 'wall') : S.drawKind;       // the selected wall's kind, else what the next one drawn will be
     for (const k of document.querySelectorAll('#wallKinds button')) k.setAttribute('aria-pressed', String(k.dataset.kind === shown));
     positionDoorCard();
     if (!S.problems.length) $('#wallInfo').textContent = sel ? Math.round(Math.hypot(sel.x2 - sel.x1, sel.y2 - sel.y1) / cell() * 5) + ' ft long' : S.walls.length + ' walls';
@@ -1948,7 +1968,7 @@
   $('#wallProblems').addEventListener('click', nextProblem);
   $('#wallDelete').addEventListener('click', deleteWall);
   $('#wallUndo').addEventListener('click', wallUndo);
-  function drawType() { return S.drawKind === 'fence' || S.drawKind === 'door' ? S.drawKind : 'wall'; }       // what the walls drawn next are (a fence stops movement but not sight)
+  function drawType() { return S.drawKind === 'fence' || S.drawKind === 'window' || S.drawKind === 'door' ? S.drawKind : 'wall'; }       // what the walls drawn next are (a fence stops movement but not sight)
   $('#wallKinds').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-kind]'); if (!b) return;
     S.drawKind = b.dataset.kind;                       // the next wall you draw
@@ -1979,7 +1999,7 @@
     if (e.button === 2) {
       if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
       if (S.tool === 'lights') { const hit = lightAt(p); if (hit) { if (S.selectedLight === hit) { S.selectedLight = null; positionLightCard(); } deleteLight(hit); } return; }
-      if (S.tool === 'zones') { if (S.zonePen) { S.zonePen.points.pop(); updateZoneInfo(); requestRender(); } else { const hit = zoneAt(p); if (hit) deleteZone(hit); } return; }
+      if (S.tool === 'zones') { const cn = !S.zonePen && zoneCornerAt(p); if (cn) { if (cn.z.points.length > 3) { cn.z.points.splice(cn.i, 1); zonesChanged(); } else setSavedNote('A zone needs at least three corners; right-click inside it to delete the zone.'); return; } if (S.zonePen) { S.zonePen.points.pop(); updateZoneInfo(); requestRender(); } else { const hit = zoneAt(p); if (hit) deleteZone(hit); } return; }
       if (S.tool === 'walls' && S.wallPen) { S.wallPen = null; syncWallBox(); requestRender(); return; }
       if (S.tool === 'walls') { const w = nearestWall(p, false); if (w) { wallSnapshot(); S.walls.splice(S.walls.indexOf(w), 1); if (S.wallSel === w) S.wallSel = null; afterWallEdit(); } return; }
       if (isTerrainTool()) {
@@ -1997,6 +2017,9 @@
         if (first && pen.points.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) * S.view.scale <= 12) { finishZone(); return; }
         pen.points.push({ x: Math.round(clamp(p.x, 0, S.W)), y: Math.round(clamp(p.y, 0, S.H)) }); updateZoneInfo(); requestRender(); return;
       }
+      const corner = zoneCornerAt(p);
+      if (corner) { S.drag = { kind: 'zonept', z: corner.z, i: corner.i, moved: false }; return; }
+      if (e.altKey) { const edge = zoneEdgeAt(p); if (edge) { edge.z.points.splice(edge.after + 1, 0, { x: edge.x, y: edge.y }); S.drag = { kind: 'zonept', z: edge.z, i: edge.after + 1, moved: true }; requestRender(); return; } }
       S.zoneSel = zoneAt(p); positionZoneCard(); requestRender(); return;
     }
     if (S.tool === 'lights') {                                           // the Lights tool: select (and drag) a light, or add one on empty ground
@@ -2070,7 +2093,7 @@
   cv.addEventListener('pointerdown', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
-    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : S.tool === 'zones' ? !S.zonePen && !zoneAt(p) : S.tool === 'walls' ? S.viewAs === 'dm' && !S.wallPen && !e.altKey && !endpointAt(p) && !nearestWall(p, false) : false);       // empty ground: a click does the tool's action, a drag pans the map
+    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : S.tool === 'zones' ? !S.zonePen && !zoneAt(p) && !zoneCornerAt(p) : S.tool === 'walls' ? S.viewAs === 'dm' && !S.wallPen && !e.altKey && !endpointAt(p) && !nearestWall(p, false) : false);       // empty ground: a click does the tool's action, a drag pans the map
     if (!empty) { handleDown(e); return; }
     try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     S.drag = { kind: 'pending', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy, press: { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, shiftKey: e.shiftKey } };
@@ -2092,6 +2115,8 @@
       S.drag.last = p;
     } else if (S.drag && ['wallpt', 'wallmove', 'wallnew'].includes(S.drag.kind)) {
       wallMove(e, p);
+    } else if (S.drag && S.drag.kind === 'zonept') {
+      const q = S.drag.z.points[S.drag.i]; q.x = Math.round(clamp(p.x, 0, S.W)); q.y = Math.round(clamp(p.y, 0, S.H)); S.drag.moved = true; positionZoneCard(); requestRender();
     } else if (S.drag && S.drag.kind === 'light') {
       S.drag.light.x = Math.round(clamp(p.x, 0, S.W)); S.drag.light.y = Math.round(clamp(p.y, 0, S.H)); positionLightCard();
     } else if (S.drag && S.drag.kind === 'start') {
@@ -2115,6 +2140,7 @@
     try { cv.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (kind === 'token') save();
     if (kind === 'light') lightsChanged();
+    if (kind === 'zonept' && drag.moved) zonesChanged();
     if (kind === 'start') { if (drag.spot.name === 'start') parkAtStart(); save(); renderStartList(); revealFog(); requestRender(); }
     if (kind === 'brush') { S.difficultSquares = null; save(); }
     if (['wallpt', 'wallmove', 'wallnew'].includes(kind)) wallUp(drag);
