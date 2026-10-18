@@ -7,7 +7,7 @@
 
 ## Tabletop and DM
 - DONE (Nov 2026, later): live DM checks of the shop, place discovery and gear pass; table-side XP for defeated creatures; lighter clock duty; place pins for players with discovery and a Show places switch; Lights tool, light radius view, fence/door drawing, ring-top setting, white fog, panning with the left button.
-- Per-map fog-off setting (a battle map has fog on by default; no switch to turn it off yet). Place pin discovery refinements: the DM revealing pins by area, a regional label layer for roads and trails.
+- DONE (Nov 2026): per-map fog-off setting (Map Test, under Mood theme; Show Fog is only a viewing aid). Place pin discovery refinements still open: the DM revealing pins by area, a regional label layer for roads and trails.
 - DONE (Nov 2026): Party accordions and per-character pop-out with the full sheet, level-up wizard (+ Level-up Test page), inventory wizard with shop and coins, journal as a quest log without a clear button, tabletop and Map Test light follow the 5e rule, characters use GUID ids, DM purchases (gear buy) and the shop token action, the Merchant agent, the Bookkeeper agent, reply forms for fight and scene.
 - Orchestrator, next steps: decide when a service tool is worth its extra round trip (the DM once called buy_item with a fake item and, with a tool present, skipped a map change); next specialists: recurring NPCs, a rules and lookup service, combat bookkeeping last.
 - Level-up wizard gaps: multiclass characters, subclasses and feats beyond the SRD (typed by hand), spells for prepared casters beyond the choice counts, racial features.
@@ -22,13 +22,19 @@
 ## Map sets
 - Fog per level (one layer per set today).
 - Campaigns, the tabletop and the DM's changeMap to use GUIDs (characters already do).
-- Remove the Group and This version is called fields from Map Test.
+- DONE: the Group and This version is called fields are gone from Map Test.
 - The .vttmap container and the Market.
 - Import and trace scripts still write the old per-picture files in data/maps.
 
 
 - AI-written trail and label layer for regional maps (generation pipeline): Claude writes place names, positions and trail paths as data from the module text and the painted picture (grid overlay), code draws names and curved trail names over it; image models never paint the words. Needs a trails layer in map sets.
 - Better-looking generated maps: improve the map generation pipeline output (user request, 2026-10-14). Ideas on the table: regions and objects in the set so the layout drawing says what each area is, Gemini as the Method B painter, per-feature validation, a polished deterministic fallback renderer, an outdoor and a dungeon style guide, and a review gallery to compare outputs. See COLLABORATION.md.
+
+## Map Test editing (user, Nov 2026)
+- Door card: a small card on a selected door (Normal, Locked, Secret, DC, starts open) instead of only the Doors list; click a wall with the Door kind picked to turn that stretch into a door.
+- Window as its own kind (today a window is stored as a fence: both stop movement, not sight or light); the DM would then say "window" rather than "fence".
+- Restyle the run-time light glow like a baked glow: hot centre, warm falloff, tint on what it touches.
+- Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 
 ## Characters
 - The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.
