@@ -15,7 +15,7 @@
 - DONE (Nov 2026): the merchant remembers the party between visits (visits, how the last visit ended, the price; data/campaigns/<id>/merchants.json, cleared by Start over). Still open: stock lists per campaign, selling magic items.
 
 ## Light and vision
-- DONE (Nov 2026): light zones inside one map (Map Test > Zones tool; see CLAUDE.md). Still open: dragging a zone's corners (today delete and redraw), a Market/blueprint layer for zones, the tabletop swapping to the Night look by the clock, and a live DM check that the DM narrates a zone's light correctly.
+- DONE (Nov 2026): light zones inside one map (Map Test > Zones tool; see CLAUDE.md). Still open: dragging a zone's corners (today delete and redraw), a Market/blueprint layer for zones, the tabletop swapping to the Night look by the clock,. The DM does not have to narrate zones (they are a visual aid), so no live check is planned.
 - DONE (Nov 2026): light from gear, first version (public/light-data.json, lib/light-gear.js): torch, lantern, candle, Flame Tongue (40/80), Sun Blade (15/30), Lantern of Revealing and Mace of Disruption (held, shines by itself). The DM sees `lightItems` per character and lights or douses with the light action; the table refuses a magic kind the character does not wield. Still open: burn time of torches and lanterns, enforcing the bonus action cost, more SRD light items, a lit state on the item itself in the Party page, and a way for the player to light things without asking the DM.
 - DONE: DM prompt rule for improvised fire hazards (oil flask, burning torch, thrown lantern; 2014 rules).
 
