@@ -1478,8 +1478,9 @@
   function applyKindUi() {
     $('#mapKind').value = S.kind;
     const plain = noFog();
-    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]'), document.querySelector('button.tool[data-tool="zones"]'), $('#showZones').closest('label'), $('#showPoly').closest('label'), $('#showLightRadius').closest('label')]) if (el) el.hidden = plain;       // a sight outline is a line-of-sight tool: not on a town or regional map
-    if (plain && S.tool === 'zones') setTool('start');
+    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]'), document.querySelector('button.tool[data-tool="zones"]'), $('#showZones').closest('label'), $('#showPoly').closest('label'), $('#showLightRadius').closest('label'), $('#objectTops').closest('label'), $('#showWalls').closest('label'), $('#showTerrain').closest('label'), $('#doorsGroup')]) if (el) el.hidden = plain;
+    for (const el of [$('#terrainPair'), document.querySelector('button.tool[data-tool="walls"]'), document.querySelector('button.tool[data-tool="lights"]')]) if (el) el.hidden = plain || S.viewAs === 'player';       // the editing tools: not on a plain map, not in the Player view       // a sight outline is a line-of-sight tool: not on a town or regional map
+    if (plain && ['zones', 'walls', 'lights', 'terrain', 'eraser'].includes(S.tool)) setTool('start');       // a town or regional map is a plain picture: no walls, lights, terrain or zones to edit
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
     $('#showPlacesSideRow').hidden = !PlacePins.appliesTo(S.kind); $('#showPlacesSide').checked = PlacePins.enabled(); if (typeof syncPinTypeBox === 'function') syncPinTypeBox();
@@ -2515,10 +2516,10 @@
     S.viewAs = v; S.dm = v === 'dm'; syncDmBox();
     // The player view has no editing of pins or terrain: those buttons go away, and a tool that is no longer there gives way to the Token tool.
     const player = v === 'player';
-    document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player;
-    document.querySelectorAll('button.tool[data-tool="walls"]').forEach((b) => { b.hidden = player; });
-    document.querySelectorAll('button.tool[data-tool="lights"]').forEach((b) => { b.hidden = player; });
-    document.querySelectorAll('button.tool[data-tool="zones"]').forEach((b) => { b.hidden = player; });
+    document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player || noFog();
+    document.querySelectorAll('button.tool[data-tool="walls"]').forEach((b) => { b.hidden = player || noFog(); });
+    document.querySelectorAll('button.tool[data-tool="lights"]').forEach((b) => { b.hidden = player || noFog(); });
+    document.querySelectorAll('button.tool[data-tool="zones"]').forEach((b) => { b.hidden = player || noFog(); });
     if (player && ['start', 'terrain', 'eraser', 'walls', 'zones', 'lights'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
     if (player) $('#brushBox').hidden = true;
     const keptFog = copyFog();

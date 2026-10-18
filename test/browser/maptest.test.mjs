@@ -283,12 +283,12 @@ test('town and regional maps have no fog of war and no test token; battle maps k
     for (const k of ['town', 'regional', 'battle']) {
       sel.value = k; sel.dispatchEvent(new Event('change', { bubbles: true }));
       await new Promise((r) => setTimeout(r, 200));
-      res[k] = { fog: document.querySelector('#fog').closest('label').hidden, token: document.querySelector('button.tool[data-tool="token"]').hidden, reset: document.querySelector('#resetFogBtn').hidden, light: document.querySelector('#lightBox').hidden, outline: document.querySelector('#showPoly').closest('label').hidden, radius: document.querySelector('#showLightRadius').closest('label').hidden };
+      res[k] = { fog: document.querySelector('#fog').closest('label').hidden, token: document.querySelector('button.tool[data-tool="token"]').hidden, reset: document.querySelector('#resetFogBtn').hidden, light: document.querySelector('#lightBox').hidden, outline: document.querySelector('#showPoly').closest('label').hidden, radius: document.querySelector('#showLightRadius').closest('label').hidden, rings: document.querySelector('#objectTops').closest('label').hidden, walls: document.querySelector('#showWalls').closest('label').hidden, terrain: document.querySelector('#showTerrain').closest('label').hidden, doors: document.querySelector('#doorsGroup').hidden, tools: ['walls', 'lights', 'zones'].map((t) => document.querySelector('button.tool[data-tool="' + t + '"]').hidden).concat(document.querySelector('#terrainPair').hidden) };
     }
     return res;
   })()`);
-  for (const k of ['town', 'regional']) assert.deepEqual(out[k], { fog: true, token: true, reset: true, light: true, outline: true, radius: true }, k + ' hides them (and the sight outline): ' + JSON.stringify(out));
-  assert.deepEqual(out.battle, { fog: false, token: false, reset: false, light: false, outline: false, radius: false }, 'a battle map shows them: ' + JSON.stringify(out));
+  for (const k of ['town', 'regional']) assert.deepEqual(out[k], { fog: true, token: true, reset: true, light: true, outline: true, radius: true, rings: true, walls: true, terrain: true, doors: true, tools: [true, true, true, true] }, k + ' hides them (and the sight outline): ' + JSON.stringify(out));
+  assert.deepEqual(out.battle, { fog: false, token: false, reset: false, light: false, outline: false, radius: false, rings: false, walls: false, terrain: false, doors: false, tools: [false, false, false, false] }, 'a battle map shows them: ' + JSON.stringify(out));
 });
 
 test('a wall that lies off the map can still be picked, found by Find problems and deleted', opts, async () => {
