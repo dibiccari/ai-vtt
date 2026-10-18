@@ -511,6 +511,7 @@ const state = {
   mood: '',                          // a mood the DM asked for ('' = none; combat sets its own)
   ambient: 'bright',                 // the map's light level: 'bright', 'dim' or 'dark' (from its config)
   ambientOverride: '',               // the table's own choice, '' = use the map's
+  timeOfDay: 'day',                  // day, dawn, dusk or night: the AI DM decides it (token action timeofday); the picture darkens at night and light zones that follow the time of day change with it
   lights: [],                        // the map's own light sources
   lightZones: [],                    // parts of the map with their own light (bright, dim, dark or following the time of day), from its config
   effects: [],                       // animated regions over the picture (rivers, lava)
@@ -1226,11 +1227,7 @@ function renderGameClock() {
   const part = h < 5 ? 'night' : h < 8 ? 'dawn' : h < 12 ? 'morning' : h < 14 ? 'midday' : h < 18 ? 'afternoon' : h < 21 ? 'evening' : 'night';
   el.textContent = `Day ${Math.floor(m / 1440) + 1}, ${String(h).padStart(2, '0')}:${String(m % 60).padStart(2, '0')} ${part}`;
 }
-function setClockTotal(m) {
-  const before = (state.lightZones || []).some((z) => z.level === 'time') ? timeLevel() : null;
-  state.clockTotal = m; renderGameClock();
-  if (before !== null && before !== timeLevel() && typeof revealFog === 'function') { try { revealFog(); } catch { /* the board is not ready yet */ } }       // a zone that follows the time of day changed its light
-}
+function setClockTotal(m) { state.clockTotal = m; renderGameClock(); }
 async function refreshClock() { try { const j = await (await fetch('/api/party')).json(); if (j && j.clock && Number.isFinite(j.clock.minutes)) { setClockTotal(j.clock.minutes); expireTimedConditions(); } } catch { /* no clock: timed effects only count rounds */ } }
 // Live clock: the server announces every change to the party, clock or characters (a rest on the Party tab, another browser). Not in spectator mode (watch.js reloads there); with ?nosave=1 only when ?live=1.
 function connectLive() {
@@ -1993,6 +1990,24 @@ function requestRender() {
   requestAnimationFrame(render);
 }
 
+// Night, dusk and dawn over a day picture: a dark blue wash over the ground whose light follows the time of day (everywhere the map is not dark by itself, and the zones that follow the time of day;
+// a zone with a fixed light keeps it). A picture that is already a night one (the map's own light is dark) is left alone. Map lights glow on top because they are drawn after.
+const WASH = { night: 'rgba(8, 16, 52, 0.52)', dusk: 'rgba(70, 40, 70, 0.22)', dawn: 'rgba(90, 60, 70, 0.18)' };
+let washCache = { key: '', canvas: null };
+function drawNightWash() {
+  const colour = WASH[state.timeOfDay];
+  if (!colour || !state.map.width) return;
+  const zones = state.lightZones || [];
+  const key = state.timeOfDay + ':' + state.ambient + ':' + state.map.width + 'x' + state.map.height + ':' + zones.map((z) => z.id + z.level).join(',');
+  if (washCache.key !== key) {
+    const c = document.createElement('canvas'); c.width = state.map.width; c.height = state.map.height;
+    const x = c.getContext('2d'); x.fillStyle = colour;
+    if (state.ambient !== 'dark') x.fillRect(0, 0, c.width, c.height);
+    for (const z of zones) { x.globalCompositeOperation = z.level === 'time' ? 'source-over' : 'destination-out'; x.fillStyle = z.level === 'time' ? colour : '#000'; x.beginPath(); x.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) x.lineTo(z.points[i].x, z.points[i].y); x.closePath(); x.fill(); }
+    washCache = { key, canvas: c };
+  }
+  ctx.drawImage(washCache.canvas, 0, 0);
+}
 function render(now) {
   renderQueued = false;
   animating = false;
@@ -2003,6 +2018,7 @@ function render(now) {
   ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
 
   drawBackground();
+  drawNightWash();
   drawGrid();
   drawWallSegments(1);
   drawTokens(false, now);
@@ -2750,7 +2766,8 @@ function saveBoard() {
     combat: state.combat,
     dmPad: state.dmPad,
     lightsOff: state.lightsOff,
-    ambientOverride: state.ambientOverride
+    ambientOverride: state.ambientOverride,
+    timeOfDay: state.timeOfDay
   });
 }
 
@@ -2807,12 +2824,8 @@ function lightPoly(L) {
 }
 
 // 0 dark, 1 dim, 2 bright at a board point.
-// A light zone is bright, dim, dark, or follows the time of day: bright by day, dim at dawn (5 to 8) and in the evening (18 to 21), dark at night (21 to 5), from the game clock.
-function timeLevel() {
-  if (!Number.isFinite(state.clockTotal)) return 'bright';
-  const h = Math.floor((Math.round(state.clockTotal) % 1440) / 60);
-  return h < 5 || h >= 21 ? 'dark' : h < 8 || h >= 18 ? 'dim' : 'bright';
-}
+// A light zone is bright, dim, dark, or follows the time of day, which the AI DM sets: bright by day, dim at dawn and dusk, dark at night.
+function timeLevel() { return state.timeOfDay === 'night' ? 'dark' : state.timeOfDay === 'dawn' || state.timeOfDay === 'dusk' ? 'dim' : 'bright'; }
 const zoneLevel = (z) => (z.level === 'time' ? timeLevel() : z.level);
 // The table's own light override beats the zones; otherwise the last zone that holds the point wins, else the map's level.
 function ambientAt(x, y) {
@@ -3035,11 +3048,21 @@ function setMapLight(id, on) {
 }
 
 // Ambient sound and mood (public/ambience.js). The map can name its sound; otherwise it follows the kind of place and its light.
+// The AI DM says what part of the day it is. The picture darkens at night, light zones that follow the time of day change their light, and the ambient sound follows.
+function setTimeOfDay(v) {
+  v = ['day', 'dawn', 'dusk', 'night'].includes(v) ? v : 'day';
+  if (state.timeOfDay === v) return;
+  state.timeOfDay = v;
+  addChat('system', { day: '☀️ It is day.', dawn: '🌅 Dawn breaks.', dusk: '🌆 Dusk settles over the land.', night: '🌙 Night falls.' }[v]);
+  try { if (fogOn()) revealFog(); } catch { /* the board is not ready yet */ }
+  try { syncAmbience(); } catch { /* no sound engine */ }
+  requestRender(); commitBoard();
+}
 function ambienceScene() {
   if (state.ambience) return state.ambience;
   if (state.mapKind === 'regional') return 'wind';
   if (state.mapKind === 'town') return 'town';
-  if (state.mapKind === 'camp') return ambientNow() === 'dark' ? 'night' : 'forest';
+  if (state.mapKind === 'camp') return ambientNow() === 'dark' || state.timeOfDay === 'night' ? 'night' : 'forest';
   return ambientNow() === 'dark' ? 'dungeon' : 'wind';
 }
 function syncAmbience() {
@@ -3057,6 +3080,7 @@ function syncAmbienceUi() {
 
 const lightingForAi = () => ({
   ambient: ambientNow(),
+  timeOfDay: state.timeOfDay,
   ...((state.lightZones || []).length && !state.ambientOverride ? { zones: state.lightZones.slice(0, 20).map((z) => ({ name: z.name, light: zoneLevel(z), followsTimeOfDay: z.level === 'time' })) } : {}),
   mapLights: state.lights.slice(0, 40).map((l) => ({ id: l.id, name: l.name, col: Math.floor(l.x / GRID), row: Math.floor(l.y / GRID), brightFt: Math.round(l.bright / GRID * FT_PER_SQUARE), dimFt: Math.round(l.dim / GRID * FT_PER_SQUARE), on: !lightsOffNow().includes(l.id) }))
 });
@@ -4644,6 +4668,7 @@ async function applyMapUpdates(updates) {
         if (!t) addChat('system', `The DM tried to conjure something unknown (${u.kind}).`);
         break;
       }
+      case 'timeOfDay': setTimeOfDay(u.value); break;
       case 'lightToken': {
         // A token that carries a light, or one of the map's own lights (a campfire, a torch).
         const t = state.tokens.find((x) => x.id === u.tokenId);
@@ -4873,6 +4898,7 @@ async function init() {
     state.dmPad = typeof board.dmPad === 'string' ? board.dmPad.slice(0, 1500) : '';
     state.lightsOff = board.lightsOff && typeof board.lightsOff === 'object' ? board.lightsOff : {};
     state.ambientOverride = ['bright', 'dim', 'dark'].includes(board.ambientOverride) ? board.ambientOverride : '';
+    state.timeOfDay = ['day', 'dawn', 'dusk', 'night'].includes(board.timeOfDay) ? board.timeOfDay : 'day';
     state.combat = board.combat && board.combat.active && Array.isArray(board.combat.order) ? { active: true, round: Math.max(1, Number(board.combat.round) || 1), order: board.combat.order.map(String) } : { active: false, round: 0, order: [] };
   }
   $('#fogToggle').checked = state.fogEnabled;
@@ -4917,7 +4943,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
+window.vtt = { setTimeOfDay, settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
 
 init().catch((err) => {
   console.error(err);

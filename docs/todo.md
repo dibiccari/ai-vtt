@@ -32,7 +32,7 @@
 
 ## Map Test editing (user, Nov 2026)
 - DONE (Nov 2026): door card (select a door in the Walls tool: State, DC, Starts open, Delete) and, with the Door kind picked, a click on a wall makes a one-square door in it. With a wall selected the Door button still turns the whole wall into a door.
-- Night by the game clock: the tabletop shows the Night look of a place when the clock is in the night hours (21:00 to 05:00) and the Day look otherwise; for a map with no Night picture a run-time dark blue tint, fading through dawn and dusk, with the lights glowing on top. Light zones already follow the clock.
+- DONE (Nov 2026): the AI DM decides day or night (token action timeofday) and the picture darkens with a wash at night. Still open: showing the place's Night look picture instead of the wash when it has one (the pictures can differ in size and have their own lights), and a Day | Night control for you at the table.
 - Window as its own kind (today a window is stored as a fence: both stop movement, not sight or light); the DM would then say "window" rather than "fence".
 - Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 

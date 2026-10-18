@@ -144,3 +144,10 @@ test('a creature added from the SRD or the module carries its XP (the table pays
   const [nobody] = await expandTokenUpdates([add('')], []);
   assert.equal(nobody.xp, 0, 'a creature the table knows nothing about is worth nothing automatically');
 });
+
+test('token action timeofday becomes a timeOfDay update; anything but day, dawn, dusk or night is dropped', async () => {
+  const tok = (o) => ({ type: 'token', action: 'timeofday', tokenId: '', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 0, ac: 0, ...o });
+  const out = await expandTokenUpdates([tok({ condition: 'Night' }), tok({ condition: ' dusk ' }), tok({ condition: 'midnight' }), tok({ condition: '' })], []);
+  assert.deepEqual(out.map((u) => [u.type, u.value]), [['timeOfDay', 'night'], ['timeOfDay', 'dusk']]);
+  assert.ok(DM_SCHEMA.properties.mapUpdates.items.anyOf[0].properties.action.enum.includes('timeofday'));
+});

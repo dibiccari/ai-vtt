@@ -1244,7 +1244,7 @@ test('light from gear: a Flame Tongue is lit by the DM only for a character who 
   assert.deepEqual(r.torch.lights.map((l) => l.slice(1)), [[20, 40]], 'a torch needs no item'); assert.equal(r.torch.kind, 'torch');
 });
 
-test('light zones: a dark zone inside a bright map is seen only by darkvision or a light, the rest of the map by line of sight, and a zone that follows the time of day follows the game clock', opts, async () => {
+test('light zones: a dark zone inside a bright map is seen only by darkvision or a light, the rest of the map by line of sight, and a zone that follows the time of day follows what the DM says it is', opts, async () => {
   await page.eval(setup);
   const r = await page.eval(`(() => {
     const s = vtt.state, hero = s.tokens[0], c = characterFor(hero), out = {};
@@ -1255,12 +1255,12 @@ test('light zones: a dark zone inside a bright map is seen only by darkvision or
     out.outside = see(12, 10); out.insideDark = see(16, 10); out.levelIn = ambientAt(centerOf(16), centerOf(10)); out.levelOut = ambientAt(centerOf(8), centerOf(10));
     c.darkvision = 60; out.insideWithDv = see(16, 10); c.darkvision = 0;
     s.lights = [{ id: 'lamp', name: 'lamp', x: centerOf(16), y: centerOf(10), bright: GRID * 2, dim: GRID * 4 }]; out.insideLit = see(16, 10); out.insideBeyondLamp = see(22, 10); s.lights = [];
-    zone.level = 'time'; s.clockTotal = 12 * 60; out.noon = [ambientAt(centerOf(16), centerOf(10)), see(16, 10)];
-    s.clockTotal = 19 * 60; out.dusk = ambientAt(centerOf(16), centerOf(10));
-    s.clockTotal = 23 * 60; out.night = [ambientAt(centerOf(16), centerOf(10)), see(16, 10), see(12, 10)];
+    zone.level = 'time'; s.timeOfDay = 'day'; out.noon = [ambientAt(centerOf(16), centerOf(10)), see(16, 10)];
+    s.timeOfDay = 'dusk'; out.dusk = ambientAt(centerOf(16), centerOf(10));
+    s.timeOfDay = 'night'; out.night = [ambientAt(centerOf(16), centerOf(10)), see(16, 10), see(12, 10)];
     s.ambientOverride = 'dark'; out.override = ambientAt(centerOf(16), centerOf(10)); s.ambientOverride = '';
     out.lighting = lightingForAi().zones;
-    s.lightZones = []; s.fogEnabled = false; s.clockTotal = NaN; vtt.revealFog();
+    s.lightZones = []; s.fogEnabled = false; s.timeOfDay = 'day'; vtt.revealFog();
     return out;
   })()`);
   assert.equal(r.outside, true, 'the bright part is seen'); assert.equal(r.insideDark, false, 'a dark zone is not seen without a light'); assert.equal(r.levelIn, 'dark'); assert.equal(r.levelOut, 'bright');
@@ -1268,4 +1268,26 @@ test('light zones: a dark zone inside a bright map is seen only by darkvision or
   assert.deepEqual(r.noon, ['bright', true]); assert.equal(r.dusk, 'dim'); assert.deepEqual(r.night, ['dark', false, true], 'at night the zone is dark and the rest of the bright map is not');
   assert.equal(r.override, 'dark', 'the table\'s own light override beats the zones');
   assert.deepEqual(r.lighting, [{ name: 'Cave', light: 'dark', followsTimeOfDay: true }], 'the DM is told each zone and what light it has now');
+});
+
+test('time of day: the DM\'s timeOfDay update darkens a day picture at night (not a dark map, not a zone with a fixed light), is saved and told to the DM', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state, out = {};
+    s.lightZones = []; s.ambient = 'bright'; s.ambientOverride = ''; s.timeOfDay = 'day';
+    const wash = () => { drawNightWash(); const c = washCache.canvas; if (!c) return null; const d = c.getContext('2d'); const at = (x, y) => d.getImageData(Math.round(x), Math.round(y), 1, 1).data[3]; return { a: at(50, 50), b: at(s.map.width - 50, s.map.height - 50) }; };
+    out.day = washCache.key === '' ? 'none' : wash();
+    await vtt.applyMapUpdates([{ type: 'timeOfDay', value: 'night' }]);
+    out.night = wash(); out.told = lightingForAi().timeOfDay; out.saved = JSON.parse(JSON.stringify({ t: state.timeOfDay })).t;
+    s.ambient = 'dark'; out.darkMap = wash();
+    s.ambient = 'bright'; s.lightZones = [{ id: 'cave', name: 'Cave', level: 'dark', points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }, { x: 0, y: 200 }] }, { id: 'yard', name: 'Yard', level: 'time', points: [{ x: 300, y: 300 }, { x: 500, y: 300 }, { x: 500, y: 500 }, { x: 300, y: 500 }] }];
+    drawNightWash(); const d = washCache.canvas.getContext('2d'); out.zones = { cave: d.getImageData(100, 100, 1, 1).data[3], yard: d.getImageData(400, 400, 1, 1).data[3], elsewhere: d.getImageData(700, 700, 1, 1).data[3] };
+    out.chat = [...document.querySelectorAll('#chat .msg, #chatLog *')].some((n) => /Night falls/.test(n.textContent));
+    await vtt.applyMapUpdates([{ type: 'timeOfDay', value: 'bogus' }, { type: 'timeOfDay', value: 'day' }]); out.backToDay = state.timeOfDay;
+    s.lightZones = []; s.timeOfDay = 'day'; return out;
+  })()`);
+  assert.ok(r.night && r.night.a > 80 && r.night.b > 80, 'a wash lies over a day picture at night: ' + JSON.stringify(r));
+  assert.equal(r.told, 'night', 'the DM is told'); assert.equal(r.darkMap === null || r.darkMap.a === 0, true, 'a map that is dark by itself is not washed');
+  assert.equal(r.zones.cave, 0, 'a fixed dark zone is left alone'); assert.ok(r.zones.yard > 80 && r.zones.elsewhere > 80, 'the rest, and zones that follow the time of day, are washed');
+  assert.equal(r.backToDay, 'day');
 });

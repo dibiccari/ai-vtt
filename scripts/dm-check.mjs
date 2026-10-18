@@ -44,6 +44,7 @@ const STEPS = [
   { id: 'group', say: '[Table] The scene calls for it: three goblin raiders and an ogre bruiser kick in the front door (the place front-door) and rush into the taproom. Place them on the board and start combat.', expect: 'four creatures added with their own squares near the front-door pin, the ogre Large' },
   { id: 'fly', say: '[Thorin] I drink the Potion of flying from my pack and rise twenty feet above the floor. Please update the board.', expect: 'Thorin raised to 20 feet (elevate) and a flying effect, no spell slot spent' },
   { id: 'lightgear', say: '[Thorin] I draw my Flame Tongue, which I am attuned to, and speak its command word so the blade bursts into flame. Update the board.', expect: 'a light update for Thorin with the flame-tongue kind (he carries and wields it), no other character lit' },
+  { id: 'timeofday', say: '[Table] The party lingers over the brawl and a long dinner. By the time they step out of the Rusty Flagon the sun has set and the sky is dark: night has fallen. Update the table.', expect: 'a timeofday token action with condition night' },
   { id: 'haste', say: '[Vex] I drink the Potion of speed from my pack, so I am hasted for one minute. Please update the board.', expect: 'a haste effect on Vex for 10 rounds (no concentration source), the DM does not touch Vex\'s speed or AC itself' },
   { id: 'forced', say: '[Table] A barrel of lamp oil explodes behind Drunk Bram and the blast throws him 10 feet straight to the east. No roll is needed: just apply the move to the board.', expect: 'a move of Bram marked forced (not his own walking), the destination 10 ft (2 squares) from where he stood' },
   { id: 'levitate', say: '[Lyra] I use my Boots of levitation to cast Levitate on myself, concentrating, and rise the full 20 feet into the air. Update the board.', expect: 'a levitate effect on Lyra with her as the caster, elevated 20 ft' },
@@ -421,6 +422,10 @@ try {
       const l = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'light' && u.tokenId === 'pc-thorin');
       check(!!l && /flame[- ]?tongue/i.test(String(l.condition || '')), 'lightgear: Thorin\'s Flame Tongue is lit (light action, kind flame-tongue)', l ? 'kind ' + JSON.stringify(l.condition) : upd(j).map((u) => u.type + ':' + (u.tokenId || '') + ':' + condOf(u)).join(', ').slice(0, 200));
       check(!(raw?.mapUpdates || []).some((u) => u.type === 'token' && u.action === 'light' && u.tokenId !== 'pc-thorin'), 'lightgear: nobody else is lit');
+    }
+    if (step.id === 'timeofday') {
+      const t = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'timeofday');
+      check(!!t && String(t.condition || '').toLowerCase().trim() === 'night', 'timeofday: the DM tells the table it is night (timeofday action)', t ? 'condition ' + JSON.stringify(t.condition) : upd(j).map((u) => u.type + ':' + (u.tokenId || '') + ':' + condOf(u)).join(', ').slice(0, 200));
     }
     if (step.id === 'haste') {
       const h = upd(j).find((u) => u.type === 'addCondition' && u.tokenId === 'pc-vex' && /haste/.test(condOf(u)));
