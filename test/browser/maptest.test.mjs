@@ -883,3 +883,23 @@ test('the Doors list lines the drop downs up, defaults to Normal, and a locked o
   assert.deepEqual(r.defaults, ['', '']); assert.equal(r.dc, 15); assert.equal(r.locked, true); assert.equal(r.secretDc, 15); assert.equal(r.normalDc, true);
   assert.equal(r.left[0], r.left[1], 'the drop downs line up: ' + JSON.stringify(r.left));
 });
+
+test('light zones: in a dark map a bright zone has pale cloud fog and the dark rest has black fog; nothing is revealed through a wall or at the map edge', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    S.light = 'dark'; S.darkvisionFt = 30; S.fog = true; S.mapFog = true; S.dm = false; S.viewAs = 'player'; S.allLights = []; S.mapLights = []; S.lightsOff = new Set();
+    S.walls = [{ x1: 1000, y1: 0, x2: 1000, y2: 1100, type: 'wall', open: false }, { x1: 300, y1: 1100, x2: 1000, y2: 1100, type: 'wall', open: false }];
+    S.lightZones = [{ id: 'day', name: 'Day', level: 'bright', points: [{ x: 0, y: 600 }, { x: 1000, y: 600 }, { x: 1000, y: 1500 }, { x: 0, y: 1500 }] }];
+    document.querySelector('#fog').checked = true; document.querySelector('#resetFogBtn').click();
+    S.tokens = [{ x: 300, y: 900 }]; window.mapTest.revealFog(); await wait(400);
+    const cv = document.querySelector('canvas'), x = cv.getContext('2d'), dpr = cv.width / cv.getBoundingClientRect().width;
+    const px = (wx, wy) => { const d = x.getImageData(Math.round((S.view.ox + wx * S.view.scale) * dpr), Math.round((S.view.oy + wy * S.view.scale) * dpr), 1, 1).data; return Math.round((d[0] + d[1] + d[2]) / 3); };
+    const fa = window.mapTest.fogAlphaAt;
+    return { litFog: px(900, 1400), darkFog: px(1500, 300), seen: fa(300, 900), behindWall: fa(1100, 900), edgeLit: fa(5, 1400), edgeDark: fa(1995, 300), cornerFar: fa(1990, 1490) };
+  })()`);
+  assert.ok(r.litFog > 120, 'pale fog over the bright zone: ' + JSON.stringify(r)); assert.ok(r.darkFog < 40, 'black fog over the dark ground: ' + JSON.stringify(r));
+  assert.ok(r.seen < 60, 'what the token sees is clear'); assert.ok(r.behindWall > 200, 'nothing behind the wall is revealed');
+  assert.ok(r.edgeDark > 200 && r.cornerFar > 200, 'the map edge in the dark part stays fogged: ' + JSON.stringify(r));
+});

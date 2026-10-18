@@ -26,6 +26,26 @@
     x.putImageData(img, 0, 0);
     return c;
   }
+  var layer2 = null;
+  // A screen-sized scratch canvas (kept between frames) with its 2d context.
+  function scratch(name, cv) {
+    var c = name === 'layer' ? layer : layer2;
+    if (!c) { c = document.createElement('canvas'); if (name === 'layer') layer = c; else layer2 = c; }
+    if (c.width !== cv.width || c.height !== cv.height) { c.width = cv.width; c.height = cv.height; }
+    return c.getContext('2d');
+  }
+  // Two drifting cloud layers over whatever is already on x (source-atop: only where something is drawn).
+  function paintClouds(x, cv, t) {
+    x.globalCompositeOperation = 'source-atop';
+    var passes = [[2.2, 34, 10, 0.85], [3.4, -22, 16, 0.5]];
+    for (var i = 0; i < passes.length; i++) {
+      var p = passes[i], pat = x.createPattern(i === 0 ? tile : shadeTile, 'repeat');
+      if (!pat || !pat.setTransform) break;
+      pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
+      x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, cv.width, cv.height);
+    }
+    x.globalAlpha = 1;
+  }
   window.FogStyle = {
     // The fill for the never-explored cover: clouds in a lit place, near-black in a dark one.
     shroudFill: function (ctx, dark) {
@@ -43,27 +63,27 @@
     },
     // Draws the explored layer. In a lit place two cloud layers drift slowly across the fog that is still there (the fog's own shape is kept); in the dark it is drawn as it is.
     // ctx carries the map-to-screen transform; the clouds are laid in screen space so they stay the same size when you zoom.
-    draw: function (ctx, shroud, dark, now) {
-      if (!FogStyle.moves(dark) || !ctx.getTransform) { ctx.drawImage(shroud, 0, 0); return; }
+    // lit (optional): a canvas the size of the shroud, white where the ground is lit. Given when a map has light zones: the fog over lit ground is cloud, the fog over dark ground is black.
+    draw: function (ctx, shroud, dark, now, lit) {
+      var animated = FogStyle.moves(dark);
+      if ((!animated && !lit) || !ctx.getTransform) { ctx.drawImage(shroud, 0, 0); return; }
       if (!tile) tile = makeTile();
       if (!shadeTile) shadeTile = makeTile(true);
-      var cv = ctx.canvas, m = ctx.getTransform(), a = ctx.globalAlpha;
-      if (!layer) layer = document.createElement('canvas');
-      if (layer.width !== cv.width || layer.height !== cv.height) { layer.width = cv.width; layer.height = cv.height; }
-      var x = layer.getContext('2d');
-      x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, layer.width, layer.height);
+      var cv = ctx.canvas, m = ctx.getTransform(), a = ctx.globalAlpha, t = animated ? (now || 0) / 1000 : 0;
+      var x = scratch('layer', cv);
+      x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, cv.width, cv.height);
       x.setTransform(m); x.drawImage(shroud, 0, 0);
       x.setTransform(1, 0, 0, 1, 0, 0);
-      x.globalCompositeOperation = 'source-in'; x.fillStyle = '#b4bfcf'; x.fillRect(0, 0, layer.width, layer.height);       // the fog's shape (its alpha) in one flat grey, so every bit of cloud you see is the moving part
-      x.globalCompositeOperation = 'source-atop';
-      var t = (now || 0) / 1000, passes = [[2.2, 34, 10, 0.85], [3.4, -22, 16, 0.5]];
-      for (var i = 0; i < passes.length; i++) {
-        var p = passes[i], pat = x.createPattern(i === 0 ? tile : shadeTile, 'repeat');
-        if (!pat || !pat.setTransform) break;
-        pat.setTransform(new DOMMatrix([p[0], 0, 0, p[0], t * p[1], t * p[2]]));
-        x.globalAlpha = p[3]; x.fillStyle = pat; x.fillRect(0, 0, layer.width, layer.height);
-      }
-      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.drawImage(layer, 0, 0); ctx.restore();
+      x.globalCompositeOperation = 'source-in'; x.fillStyle = lit ? '#040508' : '#b4bfcf'; x.fillRect(0, 0, cv.width, cv.height);       // the fog's shape (its alpha) in one flat colour, so every bit of cloud you see is the moving part
+      if (!lit) { paintClouds(x, cv, t); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.drawImage(layer, 0, 0); ctx.restore(); return; }
+      x.globalCompositeOperation = 'destination-out'; x.setTransform(m); x.drawImage(lit, 0, 0); x.setTransform(1, 0, 0, 1, 0, 0);          // black fog only over the dark ground
+      var y = scratch('layer2', cv);
+      y.setTransform(1, 0, 0, 1, 0, 0); y.globalCompositeOperation = 'source-over'; y.globalAlpha = 1; y.clearRect(0, 0, cv.width, cv.height);
+      y.setTransform(m); y.drawImage(shroud, 0, 0); y.setTransform(1, 0, 0, 1, 0, 0);
+      y.globalCompositeOperation = 'source-in'; y.fillStyle = '#b4bfcf'; y.fillRect(0, 0, cv.width, cv.height);
+      paintClouds(y, cv, t);
+      y.globalCompositeOperation = 'destination-in'; y.setTransform(m); y.drawImage(lit, 0, 0); y.setTransform(1, 0, 0, 1, 0, 0);          // cloud fog only over the lit ground
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.drawImage(layer, 0, 0); ctx.drawImage(layer2, 0, 0); ctx.restore();
     },
     // The thin cover over ground that was seen before but is out of sight now.
     haze: function (dark) { return dark ? 'rgba(4, 5, 8, 0.55)' : 'rgba(228, 234, 243, 0.6)'; }

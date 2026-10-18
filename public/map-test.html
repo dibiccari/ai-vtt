@@ -452,7 +452,7 @@
   const zoneAt = (p) => { for (let i = S.lightZones.length - 1; i >= 0; i--) if (inside(S.lightZones[i].points, p.x, p.y)) return S.lightZones[i]; return null; };
   const cloneCanvas = (c) => { const n = document.createElement('canvas'); n.width = c.width; n.height = c.height; n.getContext('2d').drawImage(c, 0, 0); return n; };
   function zonePath(c, pts) { c.beginPath(); c.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y); c.closePath(); }
-  // Two masks (white where it counts): the lit part of the map and the dark part, with a soft edge so the change from one to the other is not a cut.
+  // Two masks (white where it counts): the lit part of the map and the dark part. The edge is sharp: a zone is a polygon, and a blurred mask would let a pass leak at the map's border.
   function zoneRegions() {
     const lit = document.createElement('canvas'); lit.width = S.W; lit.height = S.H;
     const x = lit.getContext('2d'); x.fillStyle = '#fff';
@@ -462,6 +462,14 @@
     const y = dark.getContext('2d'); y.fillStyle = '#fff'; y.fillRect(0, 0, S.W, S.H); y.globalCompositeOperation = 'destination-out'; y.drawImage(lit, 0, 0);
     return { lit, dark };
   }
+  // The lit part of the map as a canvas, kept until the zones, the base light or the look change.
+  let litCache = { key: '', canvas: null };
+  function litRegion() {
+    if (!S.lightZones.length || !S.W) return null;
+    const key = S.W + 'x' + S.H + ':' + S.light + ':' + S.variant + ':' + JSON.stringify(S.lightZones);
+    if (litCache.key !== key) litCache = { key, canvas: zoneRegions().lit };
+    return litCache.canvas;
+  }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
@@ -469,6 +477,11 @@
     const baseDark = S.light === 'dark';
     vctx.fillStyle = FogStyle.haze(baseDark);
     vctx.fillRect(0, 0, S.W, S.H);
+    if (S.lightZones.length) {                                   // the thin cover over seen ground: pale over lit ground, dark over dark ground
+      const lit = litRegion(), tint = document.createElement('canvas'); tint.width = S.W; tint.height = S.H;
+      const tx = tint.getContext('2d'); tx.fillStyle = FogStyle.haze(false); tx.fillRect(0, 0, S.W, S.H); tx.globalCompositeOperation = 'destination-in'; tx.drawImage(lit, 0, 0);
+      vctx.fillStyle = FogStyle.haze(true); vctx.fillRect(0, 0, S.W, S.H); vctx.globalCompositeOperation = 'destination-out'; vctx.drawImage(lit, 0, 0); vctx.globalCompositeOperation = 'source-over'; vctx.drawImage(tint, 0, 0);
+    }
     if (!S.lightZones.length || !S.tokens.length) { revealPass(baseDark); requestRender(); return; }
     // With zones the lit and the dark parts are revealed under their own rules: each pass runs over the whole map, then what lies outside its own part is put back as it was.
     const { lit, dark } = zoneRegions();
@@ -478,8 +491,8 @@
       revealPass(darkPass);
       [sctx, vctx].forEach((c, i) => {
         const back = cloneCanvas(keep[i]), bx = back.getContext('2d');
-        bx.globalCompositeOperation = 'destination-in'; bx.filter = 'blur(' + Math.round(cell() * 0.3) + 'px)'; bx.drawImage(outside, 0, 0);       // the old picture, only outside this pass's part
-        c.save(); c.globalCompositeOperation = 'destination-out'; c.filter = 'blur(' + Math.round(cell() * 0.3) + 'px)'; c.drawImage(outside, 0, 0); c.restore();
+        bx.globalCompositeOperation = 'destination-in'; bx.drawImage(outside, 0, 0);       // the old picture, only outside this pass's part
+        c.save(); c.globalCompositeOperation = 'destination-out'; c.drawImage(outside, 0, 0); c.restore();
         c.save(); c.globalCompositeOperation = 'source-over'; c.drawImage(back, 0, 0); c.restore();
       });
     }
@@ -505,11 +518,12 @@
         const seeing = darkPlace ? 0.4 : 1;
         grad.addColorStop(0, 'rgba(0,0,0,' + seeing + ')'); grad.addColorStop(1, 'rgba(0,0,0,0)');
         c.fillStyle = grad;
-        c.filter = 'blur(' + Math.round(cell() * 0.5) + 'px)';        // a soft edge where sight ends
         c.beginPath();
         c.moveTo(poly[0].x, poly[0].y);
         for (let i = 1; i < poly.length; i++) c.lineTo(poly[i].x, poly[i].y);
         c.closePath();
+        c.clip();                                                      // nothing is revealed outside the line of sight, so the soft edge below never leaks through a wall
+        c.filter = 'blur(' + Math.round(cell() * 0.35) + 'px)';        // a soft edge where sight ends
         c.fill();
         if (darkPlace) {                          // the carried light: clear to its bright radius (half), fading out at its dim radius
           const lr = Math.min(radius, (lightReachFt() / FT_PER_SQUARE) * cell());
@@ -624,7 +638,7 @@
 
   /* ---------------- drawing ---------------- */
   let renderQueued = false;
-  function fogMoves() { return S.fog && !noFog() && S.tokens.length && FogStyle.moves(S.light === 'dark'); }
+  function fogMoves() { return S.fog && !noFog() && S.tokens.length && FogStyle.moves(S.light === 'dark' && !S.lightZones.length); }
   function requestRender() {
     if (renderQueued) return;
     renderQueued = true;
@@ -657,7 +671,7 @@
     if (S.fog && S.tokens.length && !noFog()) {
       ctx.save();
       ctx.globalAlpha = S.dm ? 0.5 : 1;
-      FogStyle.draw(ctx, shroud, S.light === 'dark', performance.now());
+      FogStyle.draw(ctx, shroud, S.light === 'dark' && !S.lightZones.length, performance.now(), litRegion());
       ctx.drawImage(vision, 0, 0);
       ctx.restore();
     }

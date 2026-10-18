@@ -1676,6 +1676,20 @@ function revealObjectTops() {
   }
 }
 
+// The lit part of the map as a canvas (white where lit), for fog colour when the map has light zones; kept until the zones, the light or the clock's level change.
+let litRegionCache = { key: '', canvas: null };
+function litRegion() {
+  if (!(state.lightZones || []).length || state.ambientOverride || !state.map.width) return null;
+  const key = state.map.width + 'x' + state.map.height + ':' + ambientNow() + ':' + state.lightZones.map((z) => z.id + zoneLevel(z)).join(',') + ':' + state.lightZones.reduce((n, z) => n + z.points.length, 0);
+  if (litRegionCache.key !== key) {
+    const c = document.createElement('canvas'); c.width = state.map.width; c.height = state.map.height;
+    const x = c.getContext('2d'); x.fillStyle = '#fff';
+    if (ambientNow() !== 'dark') x.fillRect(0, 0, c.width, c.height);
+    for (const z of state.lightZones) { x.globalCompositeOperation = zoneLevel(z) === 'dark' ? 'destination-out' : 'source-over'; x.beginPath(); x.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) x.lineTo(z.points[i].x, z.points[i].y); x.closePath(); x.fill(); }
+    litRegionCache = { key, canvas: c };
+  }
+  return litRegionCache.canvas;
+}
 function revealFog() {
   // With fog off the whole map is shown and nothing is remembered as explored. Turning fog on later starts from what the party sees then.
   if (!fogOn()) {
@@ -1689,6 +1703,12 @@ function revealFog() {
   vctx.clearRect(0, 0, W, H);
   vctx.fillStyle = FogStyle.haze(anyDark());
   vctx.fillRect(0, 0, W, H);
+  const litNow = litRegion();
+  if (litNow) {                                              // light zones: the thin cover over seen ground is pale over lit ground and dark over dark ground
+    const tint = document.createElement('canvas'); tint.width = W; tint.height = H;
+    const tx = tint.getContext('2d'); tx.fillStyle = FogStyle.haze(false); tx.fillRect(0, 0, W, H); tx.globalCompositeOperation = 'destination-in'; tx.drawImage(litNow, 0, 0);
+    vctx.fillStyle = FogStyle.haze(true); vctx.fillRect(0, 0, W, H); vctx.globalCompositeOperation = 'destination-out'; vctx.drawImage(litNow, 0, 0); vctx.globalCompositeOperation = 'source-over'; vctx.drawImage(tint, 0, 0);
+  }
   state.sight = [];
   const dark = anyDark();
   let needCanvases = dark;
@@ -1714,12 +1734,13 @@ function revealFog() {
       c.save();
       c.globalCompositeOperation = 'destination-out';
       if (simple) {
-        c.filter = 'blur(' + Math.round(GRID * 0.5) + 'px)';        // a soft edge where sight ends, not a hard cut (ignored by browsers without canvas filters)
         c.fillStyle = '#000';
         c.beginPath();
         c.moveTo(s.poly[0].x, s.poly[0].y);
         for (let i = 1; i < s.poly.length; i++) c.lineTo(s.poly[i].x, s.poly[i].y);
         c.closePath();
+        c.clip();                                                      // nothing is revealed outside the line of sight, so the soft edge never leaks through a wall
+        c.filter = 'blur(' + Math.round(GRID * 0.35) + 'px)';        // a soft edge where sight ends, not a hard cut (ignored by browsers without canvas filters)
         c.fill();
       } else {
         c.drawImage(sightTmp, 0, 0, W, H);
@@ -2039,7 +2060,7 @@ function drawFlickeringLights() {
   if (state.effects.length) Effects.draw(ctx, state.effects, t, GRID);
   for (const L of flickerLights()) Flicker.draw(ctx, L.x, L.y, GRID * Math.min(1, Math.max(0.25, Math.pow(L.dim / GRID / 9, 2))), t);     // a torch burns smaller than a campfire
 }
-setInterval(() => { if (document.visibilityState === 'visible' && !plainMap() && (flickerLights().length || state.effects.length || (fogOn() && FogStyle.moves(state.ambient === 'dark')))) requestRender(); }, 66);
+setInterval(() => { if (document.visibilityState === 'visible' && !plainMap() && (flickerLights().length || state.effects.length || (fogOn() && FogStyle.moves(state.ambient === 'dark' && !litRegion())))) requestRender(); }, 66);
 
 function drawGrid() {
   const { width, height } = state.map;
@@ -2093,7 +2114,7 @@ function drawFog() {
   if (!fogOn()) return;
   ctx.save();
   ctx.globalAlpha = state.gmOverride ? 0.5 : 1;
-  FogStyle.draw(ctx, shroud, state.ambient === 'dark', performance.now());
+  FogStyle.draw(ctx, shroud, state.ambient === 'dark' && !litRegion(), performance.now(), litRegion());
   ctx.globalAlpha = state.gmOverride ? 0.5 : 1;
   ctx.drawImage(vision, 0, 0);
   ctx.restore();

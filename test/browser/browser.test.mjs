@@ -52,7 +52,7 @@ test('travelTo puts the party on the map\'s start pin (image pixels turned into 
 const setup = `(() => {
   const s = vtt.state;
   s.combat = { active: false, round: 0, order: [] };
-  s.gmOverride = false; s.difficult = []; s.difficultSquares = null; s.dmView = false;
+  s.gmOverride = false; s.difficult = []; s.lightZones = []; s.difficultSquares = null; s.dmView = false;       // the real map may carry light zones the user drew: a test sets its own
   if (s.tokens.some((t) => !t)) { window.__hole = (window.__hole || 0) + 1; s.tokens = s.tokens.filter(Boolean); throw new Error("a test left an undefined token in the list (the one before this)"); }
   if (window.__keepTokens) { s.tokens = window.__keepTokens; window.__keepTokens = null; }      // a test that swapped the tokens (the flying one) gives them back
   { const pcs = s.tokens.filter(t => t && t.isPC); s.tokens = [pcs.find(t => characterFor(t)) || pcs[0]].filter(Boolean); }      // the party member that has a character sheet
