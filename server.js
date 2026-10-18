@@ -159,7 +159,12 @@ async function listCharacters(campaign) {
   return chars.filter((c) => !campaign || !Array.isArray(c.campaigns) || !c.campaigns.length || c.campaigns.includes(campaign) || c.campaigns.includes(template)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const saveCharacter = (c) => writeFile(path.join(CHAR_DIR, `${c.id}.json`), JSON.stringify(c, null, 2));
+// Written to a temporary file and renamed, so a read that overlaps a save never sees a half-written sheet (it used to skip the character: the party came back one short).
+const saveCharacter = async (c) => {
+  const file = path.join(CHAR_DIR, `${c.id}.json`), tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  await writeFile(tmp, JSON.stringify(c, null, 2));
+  await rename(tmp, file);
+};
 
 async function seedCharacters() {
   if ((await readdir(CHAR_DIR)).some((f) => f.endsWith('.json'))) return;

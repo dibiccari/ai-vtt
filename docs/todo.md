@@ -41,7 +41,7 @@
 - No way to give a saved character a new spell or weapon except through the DM.
 
 ## Known problems
-- Flaky browser test: a campaign built from scratch opens on its first map (about one run in four).
+- Flaky browser test 'a campaign built from scratch opens on its first map': cause found (a character sheet was written in place, so a read during a save skipped the character and the party came back one short); sheets are now written atomically. Three clean full runs since; watch it.
 - Voices and sounds need the user's ears.
 
 ## On hold
