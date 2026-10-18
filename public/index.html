@@ -448,6 +448,7 @@
 <script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
 <script src="/place-pins.js"></script>
+<script src="/map-shared.js"></script>
 <script src="/map-labels.js"></script>
 <script src="/fog-style.js"></script>
 <script src="/levelup-wizard.js"></script>
@@ -1677,18 +1678,9 @@ function revealObjectTops() {
 }
 
 // The lit part of the map as a canvas (white where lit), for fog colour when the map has light zones; kept until the zones, the light or the clock's level change.
-let litRegionCache = { key: '', canvas: null };
 function litRegion() {
   if (!(state.lightZones || []).length || state.ambientOverride || !state.map.width) return null;
-  const key = state.map.width + 'x' + state.map.height + ':' + ambientNow() + ':' + state.lightZones.map((z) => z.id + zoneLevel(z)).join(',') + ':' + state.lightZones.reduce((n, z) => n + z.points.length, 0);
-  if (litRegionCache.key !== key || litRegionCache.zones !== state.lightZones) {                 // the zones array is new whenever a map is loaded: a map of the same size with the same zone ids must not reuse the old picture
-    const c = document.createElement('canvas'); c.width = state.map.width; c.height = state.map.height;
-    const x = c.getContext('2d'); x.fillStyle = '#fff';
-    if (ambientNow() !== 'dark') x.fillRect(0, 0, c.width, c.height);
-    for (const z of state.lightZones) { x.globalCompositeOperation = zoneLevel(z) === 'dark' ? 'destination-out' : 'source-over'; x.beginPath(); x.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) x.lineTo(z.points[i].x, z.points[i].y); x.closePath(); x.fill(); }
-    litRegionCache = { key, canvas: c, zones: state.lightZones };
-  }
-  return litRegionCache.canvas;
+  return MapShared.litRegion(state.lightZones, ambientNow() === 'dark', state.timeOfDay, state.map.width, state.map.height);       // shared with Map Test (public/map-shared.js)
 }
 function revealFog() {
   // With fog off the whole map is shown and nothing is remembered as explored. Turning fog on later starts from what the party sees then.
@@ -1996,21 +1988,12 @@ function requestRender() {
 
 // Night, dusk and dawn over a day picture: a dark blue wash over the ground whose light follows the time of day (everywhere the map is not dark by itself, and the zones that follow the time of day;
 // a zone with a fixed light keeps it). A picture that is already a night one (the map's own light is dark) is left alone. Map lights glow on top because they are drawn after.
-const WASH = { night: 'rgba(8, 16, 52, 0.52)', dusk: 'rgba(70, 40, 70, 0.22)', dawn: 'rgba(90, 60, 70, 0.18)' };
-let washCache = { key: '', canvas: null };
+let washCache = { key: '', canvas: null };       // the last wash drawn (kept so a test can look at it)
 function drawNightWash() {
-  const colour = WASH[state.timeOfDay];
-  if (!colour || !state.map.width) return;
-  const zones = state.lightZones || [];
-  const key = state.timeOfDay + ':' + state.ambient + ':' + state.map.width + 'x' + state.map.height + ':' + zones.map((z) => z.id + z.level).join(',');
-  if (washCache.key !== key || washCache.zones !== state.lightZones) {
-    const c = document.createElement('canvas'); c.width = state.map.width; c.height = state.map.height;
-    const x = c.getContext('2d'); x.fillStyle = colour;
-    if (state.ambient !== 'dark') x.fillRect(0, 0, c.width, c.height);
-    for (const z of zones) { x.globalCompositeOperation = z.level === 'time' ? 'source-over' : 'destination-out'; x.fillStyle = z.level === 'time' ? colour : '#000'; x.beginPath(); x.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) x.lineTo(z.points[i].x, z.points[i].y); x.closePath(); x.fill(); }
-    washCache = { key, canvas: c, zones: state.lightZones };
-  }
-  ctx.drawImage(washCache.canvas, 0, 0);
+  if (!state.map.width) return;
+  const c = MapShared.nightWash(state.lightZones || [], state.ambient === 'dark', state.timeOfDay, state.map.width, state.map.height);
+  washCache = { key: state.timeOfDay, canvas: c };
+  if (c) ctx.drawImage(c, 0, 0);
 }
 function render(now) {
   renderQueued = false;
@@ -2838,8 +2821,8 @@ function lightPoly(L) {
 
 // 0 dark, 1 dim, 2 bright at a board point.
 // A light zone is bright, dim, dark, or follows the time of day, which the AI DM sets: bright by day, dim at dawn and dusk, dark at night.
-function timeLevel() { return state.timeOfDay === 'night' ? 'dark' : state.timeOfDay === 'dawn' || state.timeOfDay === 'dusk' ? 'dim' : 'bright'; }
-const zoneLevel = (z) => (z.level === 'time' ? timeLevel() : z.level);
+function timeLevel() { return MapShared.timeLevel(state.timeOfDay); }
+const zoneLevel = (z) => MapShared.zoneLevel(z, state.timeOfDay);
 // The table's own light override beats the zones; otherwise the last zone that holds the point wins, else the map's level.
 function ambientAt(x, y) {
   if (state.ambientOverride || !(state.lightZones || []).length || x === undefined) return ambientNow();

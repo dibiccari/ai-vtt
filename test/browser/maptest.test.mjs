@@ -103,7 +103,7 @@ test('tiles: a regional map shows hexagons, a battle map squares, and one Show t
   assert.equal(sq.tiles, 'square'); assert.equal(sq.select, 'battle'); assert.equal(sq.hexRow, false, 'no hexagon slider on a battle map'); assert.equal(sq.squaresRow, true); assert.match(sq.label, /squares/); assert.match(sq.scale, /One square = 5 ft\. This map is \d+ x \d+ squares/); assert.match(sq.size, /Size: 1500 x 2000 px \(height x width\)\s+150 x 200 ft/); assert.notEqual(sq.on, sq.off, 'and the squares for a battle map');
 });
 
-test('the map list shows places, Day | Night appears only when there is a night look, Terrain | Eraser are one pair', opts, async () => {
+test('the map list shows places, the time of day is Day | Dawn | Dusk | Night for every map, Terrain | Eraser are one pair', opts, async () => {
   const look = async (url) => {
     await page.goto(`${server.base}/map-test.html?map=${url}`);
     await page.waitFor('document.querySelector("#timeSwitch") && document.querySelector("#banner").textContent.includes("px")');
@@ -115,11 +115,11 @@ test('the map list shows places, Day | Night appears only when there is a night 
   assert.ok(camp.options.some((o) => o === 'Camp'), 'the list has the place "Camp": ' + camp.options.join(', '));
   assert.ok(!camp.options.some((o) => /\.(png|jpe?g)$/.test(o) && !/^❗/.test(o)), 'and no entry is a bare file name');
   assert.equal(camp.options.filter((o) => /camp/i.test(o)).length, 1, 'day and night are one entry');
-  assert.deepEqual(camp.day, [['Day', true, 'true'], ['Night', true, 'false']]); assert.deepEqual(camp.pair, ['Terrain', 'Eraser']);
+  assert.deepEqual(camp.day, [['Day', true, 'true'], ['Dawn', true, 'false'], ['Dusk', true, 'false'], ['Night', true, 'false']]); assert.deepEqual(camp.pair, ['Terrain', 'Eraser']);
   await page.eval(`document.querySelector('#timeSwitch button[data-time="night"]').click()`);
   await page.waitFor('document.querySelector("#timeSwitch button[data-time=night]").getAttribute("aria-pressed") === "true"', 8000);
   const crypt = await look('/uploads/vtt-crypt-method-b.png');
-  assert.deepEqual(crypt.day, [['Day', true, 'true'], ['Night', false, 'false']], 'a map with no night look has no Night button');
+  assert.deepEqual(crypt.day, [['Day', true, 'true'], ['Dawn', true, 'false'], ['Dusk', true, 'false'], ['Night', true, 'false']], 'a map with no night look still has the four times: Night puts the wash on the Day picture');
 });
 
 test('Fit to width sits under Fit to height and makes the map as wide as the view', opts, async () => {
@@ -852,15 +852,15 @@ test('light zones: draw one with the Zones tool, set its light, save it; a dark 
     // the same zone made bright shows what the token can see through it
     const fresh = () => { document.querySelector('#resetFogBtn').click(); window.mapTest.revealFog(); };
     S.lightZones[0].level = 'bright'; fresh(); out.nowSeen = fa(1150, 600) < 90;
-    S.lightZones[0].level = 'time'; S.variant = 'night'; fresh(); out.timeNight = fa(1150, 600) > 150;
-    S.variant = 'day'; fresh(); out.timeDay = fa(1150, 600) < 90;
+    S.lightZones[0].level = 'time'; S.timeOfDay = 'night'; fresh(); out.timeNight = fa(1150, 600) > 150;
+    S.timeOfDay = 'day'; fresh(); out.timeDay = fa(1150, 600) < 90;
     return out;
   })()`);
   assert.equal(r.pen, 4); assert.deepEqual(r.zones, [['dark', 4]], 'a finished zone starts out dark'); assert.equal(r.card, true);
   const saved = (await server.get('/api/map-config?map=vtt-camp-day.png')).json.config.lightZones;
   assert.ok(saved && saved.length === 1 && saved[0].name === 'Crypt' && saved[0].level === 'dark' && saved[0].points.length === 4, 'saved with the map: ' + JSON.stringify(saved));
   assert.equal(r.brightSeen, true, 'ground in the bright part is seen'); assert.equal(r.darkZoneCovered, true, 'the dark zone stays under the fog (no darkvision, no light)');
-  assert.equal(r.nowSeen, true, 'a bright zone is seen'); assert.equal(r.timeNight, true, 'a time zone is dark in the Night look'); assert.equal(r.timeDay, true, 'and bright in the Day look');
+  assert.equal(r.nowSeen, true, 'a bright zone is seen'); assert.equal(r.timeNight, true, 'a time zone is dark at night'); assert.equal(r.timeDay, true, 'and bright in the Day look');
   await page.eval(`(async () => { const S = window.mapTest.state; document.querySelector('button.tool[data-tool="zones"]').click(); S.zoneSel = S.lightZones[0]; document.querySelector('#zcDelete').click(); await new Promise((r) => setTimeout(r, 2300)); })()`);
   assert.equal((await server.get('/api/map-config?map=vtt-camp-day.png')).json.config.lightZones, undefined, 'deleting the last zone removes them from the map');
 });
@@ -983,4 +983,23 @@ test('the Known and Hide from players options belong to town and regional maps o
   assert.equal(camp.kind, 'camp'); assert.equal(camp.known, false, JSON.stringify(camp)); assert.equal(camp.dmOnly, false); assert.ok(!camp.columns.includes('Known') && !camp.columns.includes('DM only'), 'the Pins table has no place columns on a camp: ' + JSON.stringify(camp));
   const region = await probe('/uploads/dnd-sword-coast-ours.png');
   assert.equal(region.kind, 'regional'); assert.equal(region.known, true); assert.equal(region.dmOnly, true); assert.ok(region.columns.includes('Known') && region.columns.includes('DM only'), JSON.stringify(region));
+});
+
+test('the time of day in Map Test works like the tabletop: the night wash, zones that follow the time, and the Night look only when the place has one', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-crypt-method-b.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    S.light = 'bright'; S.lightZones = [{ id: 'yard', name: 'Yard', level: 'time', points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 400 }, { x: 0, y: 400 }] }, { id: 'vault', name: 'Vault', level: 'dark', points: [{ x: 600, y: 600 }, { x: 900, y: 600 }, { x: 900, y: 900 }, { x: 600, y: 900 }] }];
+    const wash = () => { const c = MapShared.nightWash(S.lightZones, S.light === 'dark', S.timeOfDay, S.W, S.H); return c ? { yard: c.getContext('2d').getImageData(200, 200, 1, 1).data[3], vault: c.getContext('2d').getImageData(700, 700, 1, 1).data[3], open: c.getContext('2d').getImageData(1000, 300, 1, 1).data[3] } : null; };
+    out.day = wash(); out.dayLevel = S.lightZones.map((z) => MapShared.zoneLevel(z, S.timeOfDay));
+    document.querySelector('#timeSwitch button[data-time="night"]').click(); await wait(600);
+    out.night = wash(); out.nightLevel = S.lightZones.map((z) => MapShared.zoneLevel(z, S.timeOfDay)); out.url = S.url.split('/').pop(); out.pressed = document.querySelector('#timeSwitch button[data-time="night"]').getAttribute('aria-pressed');
+    document.querySelector('#timeSwitch button[data-time="dusk"]').click(); await wait(400); out.duskLevel = MapShared.zoneLevel(S.lightZones[0], S.timeOfDay);
+    document.querySelector('#timeSwitch button[data-time="day"]').click(); await wait(400); out.back = S.timeOfDay;
+    return out;
+  })()`);
+  assert.equal(r.day, null, 'no wash by day'); assert.deepEqual(r.dayLevel, ['bright', 'dark']);
+  assert.ok(r.night && r.night.yard > 80 && r.night.open > 80 && r.night.vault === 0, 'at night the picture and the time zone are washed, the fixed dark zone is left alone: ' + JSON.stringify(r)); assert.deepEqual(r.nightLevel, ['dark', 'dark']);
+  assert.equal(r.url, 'vtt-crypt-method-b.png', 'a place with no Night look stays on its picture'); assert.equal(r.pressed, 'true'); assert.equal(r.duskLevel, 'dim'); assert.equal(r.back, 'day');
 });

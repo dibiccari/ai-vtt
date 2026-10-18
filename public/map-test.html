@@ -219,8 +219,10 @@
         <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
       </span>
       <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
-        <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
-        <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
+        <button type="button" data-time="day" aria-pressed="true" title="Day: the Day look of this place">Day</button>
+        <button type="button" data-time="dawn" aria-pressed="false" title="Dawn: the Day look under a light wash; zones that follow the time of day are dim">Dawn</button>
+        <button type="button" data-time="dusk" aria-pressed="false" title="Dusk: the Day look under a light wash; zones that follow the time of day are dim">Dusk</button>
+        <button type="button" data-time="night" aria-pressed="false" title="Night: the Night look of this place when it has one (its own light, lights and sound), otherwise the Day picture under the night wash; zones that follow the time of day are dark. The AI DM sets the same on the tabletop">Night</button>
       </span>
     </span>
     <span id="lightBox" style="display:flex;gap:8px;align-items:center"><label class="vnote" title="The light the test token carries. How far the token sees is the Vision range. By the 5e rules, in a dark place only a light (torch 20/40 ft, lantern 30/60, candle 5/10) or darkvision (dark counts as dim, out to its range) lets the token see: clear inside the light's bright circle, dim to its dim radius. No light and no darkvision: nothing. It makes no difference in bright or dim places.">Darkvision <select id="testDv" style="width:84px"><option value="0">None</option><option value="30">30 ft</option><option value="60">60 ft</option><option value="120">120 ft</option></select></label><label class="vnote" title="The light the test token carries. How far the token sees is the Vision range. By the 5e rules, in a dark place only a light (torch 20/40 ft, lantern 30/60, candle 5/10) or darkvision (dark counts as dim, out to its range) lets the token see: clear inside the light's bright circle, dim to its dim radius. No light and no darkvision: nothing. It makes no difference in bright or dim places.">Light <input type="range" id="testLight" min="0" max="3" step="1" value="2" style="width:90px;vertical-align:middle"> <span id="testLightText"></span></label></span>
@@ -267,6 +269,7 @@
 <script src="/place-pins.js"></script>
 <script src="/map-labels.js"></script>
 <script src="/fog-style.js"></script>
+<script src="/map-shared.js"></script>
 <script src="/ambience.js"></script>
 <script src="/effects.js"></script>
 <script>
@@ -290,7 +293,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', drawKind: 'wall', lightZones: [], labels: [], zoneSel: null, zonePen: null, showZones: false, fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', timeOfDay: 'day', drawKind: 'wall', lightZones: [], labels: [], zoneSel: null, zonePen: null, showZones: false, fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     tokenImage: store.get('vtt.maptest.tokenImage', '/tokens/human-warrior-stern-a8268.png'),
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
@@ -454,8 +457,8 @@
   const lightReachFt = () => LIGHT_TEST[S.testLight][1];
   function showTestLight() { $('#testLight').value = String(S.testLight); const nm = LIGHT_TEST[S.testLight][0]; $('#testLightText').textContent = nm.charAt(0).toUpperCase() + nm.slice(1); }
   /* ---------------- light zones: parts of one map with their own light ---------------- */
-  // A zone is bright, dim, dark, or "time": it follows the look that is showing (the Day look is bright, the Night look dark). Later zones win where they overlap.
-  const zoneLevel = (z) => (z.level === 'time' ? (S.variant === 'night' ? 'dark' : 'bright') : z.level);
+  // A zone is bright, dim, dark, or "time": it follows the time of day the toolbar says (bright by day, dim at dawn and dusk, dark at night), as the AI DM's time of day does on the tabletop. Later zones win where they overlap.
+  const zoneLevel = (z) => MapShared.zoneLevel(z, S.timeOfDay);       // the same rule as the tabletop (public/map-shared.js)
   const zoneAt = (p) => { for (let i = S.lightZones.length - 1; i >= 0; i--) if (inside(S.lightZones[i].points, p.x, p.y)) return S.lightZones[i]; return null; };
   // A corner of the selected zone under the pointer (within a few screen pixels).
   function zoneCornerAt(p) {
@@ -479,21 +482,15 @@
   function zonePath(c, pts) { c.beginPath(); c.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y); c.closePath(); }
   // Two masks (white where it counts): the lit part of the map and the dark part. The edge is sharp: a zone is a polygon, and a blurred mask would let a pass leak at the map's border.
   function zoneRegions() {
-    const lit = document.createElement('canvas'); lit.width = S.W; lit.height = S.H;
-    const x = lit.getContext('2d'); x.fillStyle = '#fff';
-    if (S.light !== 'dark') x.fillRect(0, 0, S.W, S.H);
-    for (const z of S.lightZones) { x.globalCompositeOperation = zoneLevel(z) === 'dark' ? 'destination-out' : 'source-over'; zonePath(x, z.points); x.fill(); }
+    const lit = MapShared.litRegion(S.lightZones, S.light === 'dark', S.timeOfDay, S.W, S.H);
     const dark = document.createElement('canvas'); dark.width = S.W; dark.height = S.H;
     const y = dark.getContext('2d'); y.fillStyle = '#fff'; y.fillRect(0, 0, S.W, S.H); y.globalCompositeOperation = 'destination-out'; y.drawImage(lit, 0, 0);
     return { lit, dark };
   }
   // The lit part of the map as a canvas, kept until the zones, the base light or the look change.
-  let litCache = { key: '', canvas: null };
   function litRegion() {
     if (!S.lightZones.length || !S.W) return null;
-    const key = S.W + 'x' + S.H + ':' + S.light + ':' + S.variant + ':' + JSON.stringify(S.lightZones);
-    if (litCache.key !== key) litCache = { key, canvas: zoneRegions().lit };
-    return litCache.canvas;
+    return MapShared.litRegion(S.lightZones, S.light === 'dark', S.timeOfDay, S.W, S.H);
   }
   function revealFog() {
     if (!S.W) return;
@@ -687,6 +684,7 @@
     const v = S.view;
     ctx.setTransform(dpr * v.scale, 0, 0, dpr * v.scale, dpr * v.ox, dpr * v.oy);
     ctx.drawImage(S.viewAs === 'dm' && S.dmImg ? S.dmImg : S.img, 0, 0, S.W, S.H);
+    { const wash = MapShared.nightWash(S.lightZones, S.light === 'dark', S.timeOfDay, S.W, S.H); if (wash) ctx.drawImage(wash, 0, 0); }       // the same night wash as the tabletop
     // Fires marked "flicker" in the config are animated over the picture.
     for (const l of S.lights) if (!S.lightsOff.has(l.id)) Flicker.draw(ctx, l.x, l.y, cell() * Math.min(1, Math.max(0.25, Math.pow(l.range / 9, 2))), performance.now() / 1000);
 
@@ -947,34 +945,36 @@
     renderVariantSwitch();
   }
 
-  // Day | Night next to DM | Player: the day and night looks of one place (the maps of one group). A map with no night look shows Night greyed out.
+  // Time of day next to DM | Player: Day, Dawn, Dusk, Night, the same four the AI DM sets on the tabletop. The place's Day look shows by day, dawn and dusk and its Night look at night (when it has one:
+  // a look is a separate picture with the same walls, pins and zones, its own light, lights and sound); without a Night look the Day picture goes under the night wash.
   function renderVariantSwitch() {
-    $('#variantSwitch').hidden = true;                 // the old switch at the top right is replaced by the Day | Night pair in the bar
-    const mates = S.group ? S.configs.filter((c) => c.group === S.group) : [];
-    const find = (t) => mates.find((c) => c.variant === t);
-    const here = S.variant === 'night' ? 'night' : 'day';
-    for (const b of document.querySelectorAll('#timeSwitch button[data-time]')) {
-      const t = b.dataset.time, mate = find(t), ok = t === here || Boolean(mate);
-      b.hidden = !ok;                          // a map with no night look has no Night button
-      b.setAttribute('aria-pressed', String(t === here));
-      b.title = 'Show the ' + t + ' look of this map';
-    }
+    $('#variantSwitch').hidden = true;                 // the old switch at the top right is replaced by the time of day in the bar
+    for (const b of document.querySelectorAll('#timeSwitch button[data-time]')) b.setAttribute('aria-pressed', String(b.dataset.time === S.timeOfDay));
   }
-  document.querySelector('#timeSwitch').addEventListener('click', async (e) => {
-    const b = e.target.closest('button[data-time]'); if (!b || b.disabled) return;
-    const findMate = () => (S.group ? S.configs.filter((c) => c.group === S.group) : []).find((c) => c.variant === b.dataset.time);
-    let mate = findMate();
-    if (!mate) { await refreshVariants(); mate = findMate(); }       // the list of looks can be mid-refresh when the click lands
-    if (!mate) return;
+  async function ensureLook() {
+    const want = S.timeOfDay === 'night' ? 'night' : 'day';
+    const mate = (S.group ? S.configs.filter((c) => c.group === S.group) : []).find((c) => c.variant === want);
+    if (!mate || (S.variant || 'day') === want) return false;
     const url = '/uploads/' + mate.map;
-    if (url === S.url) return;
+    if (url === S.url) return false;
     const keep = { ...S.view };
     $('#mapSelect').value = (S.placeOf && S.placeOf.get(url)) || url;         // the list holds one entry for the place (its day look), whichever look is showing
     await loadMap(url);
-    S.view = keep;                      // keep the same zoom and position so the looks line up
+    S.view = keep;                                                              // keep the same zoom and position so the looks line up
     requestRender();
+    return true;
+  }
+  function setTimeOfDay(t) {
+    if (!MapShared.TIMES.includes(t)) return Promise.resolve();
+    S.timeOfDay = t;                                                           // not remembered: a map opens by day, as a new game does
+    renderVariantSwitch();
+    return ensureLook().then(() => { if (S.W) revealFog(); requestRender(); });
+  }
+  document.querySelector('#timeSwitch').addEventListener('click', async (e) => {
+    const b = e.target.closest('button[data-time]'); if (!b || b.disabled) return;
+    if (!S.configs.length) await refreshVariants();                             // the list of looks can be mid-refresh when the click lands
+    await setTimeOfDay(b.dataset.time);
   });
-
 
   // The pins of this map as a list: click one to select it and bring it into view.
   /* ---------------- module areas: numbered rooms dragged onto the map as pins named area-N ---------------- */
@@ -1381,6 +1381,7 @@
       return;
     }
     const q = new URLSearchParams(location.search);
+    if (initial && q.get('time') === 'night') S.timeOfDay = 'night';       // a link to a night look opens it at night
     let wanted = q.get('map');
     if (q.get('set')) {
       const place = places.find((p) => p.guid === q.get('set'));
@@ -1404,6 +1405,9 @@
     const asked = inList(wanted) ? wanted : inList(last) ? last : shown[0];       // a night look asked for by name opens as itself
     select.value = placeOf.get(asked) || shown[0];
     await loadMap(asked);
+    if (!S.configs.length) await refreshVariants();
+    await ensureLook();                                                       // the look that goes with the time of day
+    renderVariantSwitch();
   }
 
   /* ---------------- doors: normal, locked or secret, with a DC ---------------- */
@@ -2282,7 +2286,7 @@
     if (b.dataset.tool === 'start' && !S.showPins) { S.showPins = true; $('#showPins').checked = true; }       // clicking the Pins tool turns the pins back on; nothing else does
     setTool(b.dataset.tool);
   }));
-  $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value));
+  $('#mapSelect').addEventListener('change', (e) => loadMap(e.target.value).then(() => ensureLook()).then(renderVariantSwitch));
   $('#campaignFilter').addEventListener('change', (e) => { store.set('vtt.maptest.campaign', e.target.value); loadMapList(); });
   // The Campaign filter lists every campaign; it keeps the choice you made last.
   async function fillCampaignFilter() {
