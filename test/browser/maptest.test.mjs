@@ -392,7 +392,7 @@ test('Terrain Test Grounds: a running stream is animated and the brazier starts 
   assert.ok(out.startedUnlit && out.afterList && out.afterClick, 'the list lights it and a click puts it out: ' + JSON.stringify(out));
 });
 
-test('Show places: in the Player view of a regional map the named places are drawn and a switch (shared with the tabletop) turns them off; the DM view has no switch; a pin can be hidden from players', opts, async () => {
+test('Show places: in the Player view of a regional map the named places are drawn and a switch (shared with the tabletop) turns them off; the switch is on the map in both views; a pin can be hidden from players', opts, async () => {
   await page.goto(`${server.base}/map-test.html?map=/uploads/dnd-sword-coast-ours.png`);
   await page.waitFor('document.querySelector("#viewSwitch") && document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.kind === "regional"');
   const r = await page.eval(`(async () => {
@@ -416,9 +416,9 @@ test('Show places: in the Player view of a regional map the named places are dra
     out.dmAgain = vis();
     return out;
   })()`);
-  assert.equal(r.kind, 'regional'); assert.equal(r.dmSwitch, false, 'the DM view has no places switch'); assert.equal(r.playerSwitch, true); assert.equal(r.playerOn, true);
+  assert.equal(r.kind, 'regional'); assert.equal(r.dmSwitch, true, 'the places switch is on the map in both views, like the tabletop'); assert.equal(r.playerSwitch, true); assert.equal(r.playerOn, true);
   assert.ok(r.drawn >= 10, 'the named places are drawn'); assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.stored, '0'); assert.equal(r.drawnOn, r.drawn);
-  assert.equal(r.afterHide, r.total - 1, 'a pin marked Hide from players is not drawn'); assert.equal(r.dmAgain, false);
+  assert.equal(r.afterHide, r.total - 1, 'a pin marked Hide from players is not drawn'); assert.equal(r.dmAgain, true, 'back in the DM view the switch is still there');
 });
 
 test('Map lights can be added and deleted in the DM view and the list is saved with the map', opts, async () => {
@@ -929,7 +929,7 @@ test('light zones can be reshaped: drag a corner, Alt + click an edge adds a cor
   assert.deepEqual(r.moved, [1320, 240], 'dragging a corner moves it'); assert.equal(r.added, 5, 'Alt + click on an edge adds a corner'); assert.equal(r.removed, 4, 'right-click on a corner removes it'); assert.equal(r.minimum, 3, 'a zone keeps at least three corners');
 });
 
-test('Show labels: the Player view of a regional map writes its region and trail names over the picture and a switch (shared with the tabletop) turns them off; the DM view has no switch', opts, async () => {
+test('Show labels: the Player view of a regional map writes its region and trail names over the picture and a switch (shared with the tabletop) turns them off; the switch is on the map in both views', opts, async () => {
   const file = 'dnd-sword-coast-ours.png';
   const cfg = (await server.get('/api/map-config?map=' + file)).json.config; delete cfg.setVersion;     // own labels: the test does not assume what the map has
   cfg.kind = 'regional';
@@ -960,10 +960,10 @@ test('Show labels: the Player view of a regional map writes its region and trail
     out.dmAgain = vis();
     return out;
   })()`);
-  assert.equal(r.dmSwitch, false, 'the DM view has no labels switch'); assert.equal(r.dmDrawn, -1, 'the DM view does not draw them');
+  assert.equal(r.dmSwitch, true, 'the labels switch is on the map in both views, like the tabletop'); assert.equal(r.dmDrawn, -1, 'the DM view does not draw them');
   assert.equal(r.playerSwitch, true); assert.equal(r.playerOn, true); assert.equal(r.drawn, 2, 'both labels are drawn in the Player view');
   assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.pixelsChange, true, 'the picture changes when the labels go'); assert.equal(r.stored, '0');
-  assert.equal(r.drawnOn, 2); assert.equal(r.storedOn, '1'); assert.equal(r.dmAgain, false);
+  assert.equal(r.drawnOn, 2); assert.equal(r.storedOn, '1'); assert.equal(r.dmAgain, true, 'back in the DM view the switch is still there');
 });
 
 test('the Known and Hide from players options belong to town and regional maps only: a camp pin card and the Pins table do not show them', opts, async () => {

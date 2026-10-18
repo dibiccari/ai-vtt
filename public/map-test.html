@@ -97,7 +97,10 @@
   .variant-switch button { border-radius:0; padding:6px 14px; text-transform:capitalize; }
   .variant-switch button:first-child { border-radius:8px 0 0 8px; } .variant-switch button:last-child { border-radius:0 8px 8px 0; }
   .variant-switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#04101f; }
-  .banner { position:absolute; left:12px; bottom:12px; background:rgba(13,17,23,.85); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--muted); pointer-events:none; max-width:calc(100% - 84px); }
+  .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .places-toggle { position:absolute; left:12px; bottom:12px; z-index:3; background:rgba(10,13,18,.82); border:1px solid var(--border); border-radius:8px; padding:4px 10px; font-size:12px; color:var(--text); cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; }
+  .places-toggle[hidden] { display:none; }
+  .places-toggle.labels-toggle { bottom:46px; }
 </style>
 </head>
 <body>
@@ -215,8 +218,6 @@
         <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
         <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
       </span>
-      <label class="check" id="labelsRow" title="The same switch as on the tabletop: show the region, place and trail names written on this regional map" hidden><input type="checkbox" id="showLabels"> Show labels</label>
-      <label class="check" id="placesRow" title="The same switch as on the tabletop: show the named places on this town or regional map" hidden><input type="checkbox" id="showPlaces"> Show places<span id="placesHint" class="hint" style="margin-left:8px" hidden></span></label>
       <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
         <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
         <button type="button" data-time="night" aria-pressed="false" title="The night look of this map (it has the same walls, pins and fog; only the picture, the light and the sound differ)">Night</button>
@@ -254,7 +255,10 @@
     </span>
     <label id="brushBox" class="brush-box" hidden title="Brush size in squares across ([ and ] change it)">Brush <input type="range" id="brush" min="1" max="12" step="1" value="2"> <b id="brushVal">2</b></label>
   </div>
-  <div class="banner" id="banner">Loading maps...</div>
+  <span class="sr-only" id="banner" role="status">Loading maps...</span>
+  <label class="places-toggle labels-toggle" id="labelsRow" title="Show the region, place and trail names written on this map (the same switch as on the tabletop)" hidden><input type="checkbox" id="showLabels" checked> Show labels</label>
+  <label class="places-toggle" id="placesRow" title="Show the named places on this map (the same switch as on the tabletop)" hidden><input type="checkbox" id="showPlaces" checked> Show places</label>
+  <span class="places-toggle" id="placesHint" style="bottom:80px;cursor:default;max-width:360px;white-space:normal" hidden></span>
 </main>
 
 <script src="/nav.js"></script>
@@ -2470,9 +2474,9 @@
     document.querySelectorAll('#viewSwitch button[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === S.viewAs)));
     $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
     renderMapLightsList(); updatePlacesHint();
-    $('#placesRow').hidden = !(S.viewAs === 'player' && PlacePins.appliesTo(S.kind));          // Player view of a town or regional map: the players' places switch
+    $('#placesRow').hidden = !(PlacePins.appliesTo(S.kind) && S.starts.some((p) => PlacePins.isPlace(p)));          // like the tabletop: a town or regional map that has named places
     $('#showPlaces').checked = PlacePins.enabled();
-    $('#labelsRow').hidden = !(S.viewAs === 'player' && MapLabels.appliesTo(S.kind) && S.labels.length > 0);       // Player view of a regional map that has names: the players' labels switch
+    $('#labelsRow').hidden = !(MapLabels.appliesTo(S.kind) && S.labels.length > 0);       // like the tabletop: a regional map that has names
     $('#showLabels').checked = MapLabels.enabled();
   }
   function setView(v) {
