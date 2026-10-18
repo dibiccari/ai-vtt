@@ -1505,8 +1505,8 @@
   function addLightAt(p) {
     const kind = $('#newLightKind').value, d = LIGHT_KINDS[kind] || LIGHT_KINDS.torch;
     let n = 1; while (S.allLights.some((x) => x.id === kind + '-' + n)) n++;
-    const l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, ...(d.flicker ? { flicker: true } : {}) };
-    S.allLights.push(l); S.addingLight = false; $('#addLightBtn').textContent = 'Add a light'; cv.style.cursor = ''; refreshLights(); setSavedNote('Added ' + l.id + '.');
+    const l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, flicker: true, on: false };       // a new light flickers and starts out unlit
+    S.allLights.push(l); S.lightsOff.add(l.id); S.addingLight = false; $('#addLightBtn').textContent = 'Add a light'; cv.style.cursor = ''; refreshLights(); setSavedNote('Added ' + l.id + '.');
   }
   /* ---- the Lights tool: a card to edit one light ---- */
   const lightCard = document.createElement('div');
@@ -1812,8 +1812,8 @@
       const hit = lightAt(p);
       if (hit) { selectLight(hit); S.drag = { kind: 'light', light: hit }; return; }
       const kind = $('#newLightKind').value; let n = 1; while (S.allLights.some((x) => x.id === kind + '-' + n)) n++;
-      const d = LIGHT_KINDS[kind] || LIGHT_KINDS.torch, l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, ...(d.flicker ? { flicker: true } : {}) };
-      S.allLights.push(l); lightsChanged(); selectLight(l);
+      const d = LIGHT_KINDS[kind] || LIGHT_KINDS.torch, l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, flicker: true, on: false };       // a new light flickers and starts out unlit
+      S.allLights.push(l); S.lightsOff.add(l.id); lightsChanged(); selectLight(l);
       return;
     }
     if (!isTerrainTool() && S.tool !== 'walls') {                       // a map light under the pointer is lit or put out by a click

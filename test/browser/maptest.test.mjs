@@ -443,7 +443,7 @@ test('Map lights can be added and deleted in the DM view and the list is saved w
   })()`);
   assert.equal(r.boxShown, true); assert.equal(r.afterDelete.length, r.before.length - 1); assert.ok(r.afterAdd.some((x) => /^lantern-1:lantern/.test(x))); assert.equal(r.playerBox, true, 'the Player view lists the lights too (read only)');
   const saved = (await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights;
-  assert.equal(saved.length, r.before.length, 'one deleted, one added'); assert.ok(saved.some((l) => l.kind === 'lantern' && l.name === 'lantern-1'));
+  assert.equal(saved.length, r.before.length, 'one deleted, one added'); assert.ok(saved.some((l) => l.kind === 'lantern' && l.name === 'lantern-1' && l.flicker === true && l.on === false), 'a new light flickers and starts unlit');
   await page.eval(`(async () => { for (let i = 0; i < 20 && document.querySelector('#mapLightsList button.danger'); i++) { document.querySelector('#mapLightsList button.danger').click(); await new Promise((r) => setTimeout(r, 150)); } })()`);       // delete the rest one by one with the X
   await new Promise((x) => setTimeout(x, 2500));
   assert.equal(((await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights || []).length, 0, 'deleting every light with the X keeps the empty list');
