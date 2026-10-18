@@ -1462,28 +1462,30 @@
   S.lightsOff = new Set(); S.allLights = []; S.effects = [];
   function renderMapLightsList() {
     const box = $('#mapLightsBox'), list = $('#mapLightsList');
-    box.hidden = !(S.viewAs === 'dm' && !noFog());
+    const dmView = S.viewAs === 'dm';
+    box.hidden = noFog();                                    // the list is there in both views; in the Player view it is read only and the On boxes only try a light out
+    const addRow = box.querySelector('.row-inline'); if (addRow) addRow.hidden = !dmView;
     list.innerHTML = '';
     if (!S.allLights.length) { const none = document.createElement('div'); none.className = 'hint'; none.textContent = 'This map has no lights.'; list.appendChild(none); return; }
     const table = document.createElement('table'); table.className = 'lights-table'; table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
     const head = document.createElement('tr');
-    for (const h of ['Name', 'Flicker', 'On', '']) { const th = document.createElement('th'); th.textContent = h; th.style.cssText = 'text-align:left;color:var(--muted);font-weight:600;padding:2px 4px'; head.appendChild(th); }
+    for (const h of ['Name', 'Flicker', 'On', '']) { const th = document.createElement('th'); th.textContent = h; if (!dmView && (h === 'Flicker' || h === '')) th.hidden = true; th.style.cssText = 'text-align:left;color:var(--muted);font-weight:600;padding:2px 4px'; head.appendChild(th); }
     table.appendChild(head);
     for (const l of S.allLights) {
       const tr = document.createElement('tr');
       const cell = (node) => { const td = document.createElement('td'); td.style.cssText = 'padding:2px 4px;vertical-align:middle'; td.appendChild(node); tr.appendChild(td); return td; };
-      const name = document.createElement('input'); name.type = 'text'; name.value = l.name || l.id; name.maxLength = 40; name.spellcheck = false; name.title = (l.kind ? l.kind + ': ' : '') + 'edit the name'; name.style.width = '100%';
+      const name = document.createElement('input'); name.type = 'text'; name.value = l.name || l.id; name.maxLength = 40; name.spellcheck = false; name.disabled = !dmView; name.title = (l.kind ? l.kind + ': ' : '') + 'edit the name'; name.style.width = '100%';
       name.addEventListener('change', () => renameLight(l, name.value, name));
       cell(name).style.width = '100%';
       const fl = document.createElement('input'); fl.type = 'checkbox'; fl.checked = l.flicker === true; fl.title = 'Flickers (animated flame)';
       fl.addEventListener('change', () => { if (fl.checked) l.flicker = true; else delete l.flicker; lightsChanged(true); });
-      cell(fl);
+      cell(fl).hidden = !dmView;
       const on = document.createElement('input'); on.type = 'checkbox'; on.checked = !S.lightsOff.has(l.id); on.dataset.light = l.id; on.title = 'Lit: ticked lights start lit';
-      on.addEventListener('change', () => { if (on.checked) delete l.on; else l.on = false; toggleMapLight(l.id, on.checked); lightsChanged(); });
+      on.addEventListener('change', () => { if (!dmView) { toggleMapLight(l.id, on.checked); return; } if (on.checked) delete l.on; else l.on = false; toggleMapLight(l.id, on.checked); lightsChanged(); });
       cell(on);
       const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this light';
       del.addEventListener('click', (ev) => { ev.preventDefault(); deleteLight(l); });
-      cell(del);
+      cell(del).hidden = !dmView;
       table.appendChild(tr);
     }
     list.appendChild(table);

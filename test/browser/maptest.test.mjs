@@ -441,7 +441,7 @@ test('Map lights can be added and deleted in the DM view and the list is saved w
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200);
     return out;
   })()`);
-  assert.equal(r.boxShown, true); assert.equal(r.afterDelete.length, r.before.length - 1); assert.ok(r.afterAdd.some((x) => /^lantern-1:lantern/.test(x))); assert.equal(r.playerBox, false, 'the players never see the lights list');
+  assert.equal(r.boxShown, true); assert.equal(r.afterDelete.length, r.before.length - 1); assert.ok(r.afterAdd.some((x) => /^lantern-1:lantern/.test(x))); assert.equal(r.playerBox, true, 'the Player view lists the lights too (read only)');
   const saved = (await server.get('/api/map-config?map=vtt-terrain-test.png')).json.config.lights;
   assert.equal(saved.length, r.before.length, 'one deleted, one added'); assert.ok(saved.some((l) => l.kind === 'lantern' && l.name === 'lantern-1'));
   await page.eval(`(async () => { for (let i = 0; i < 20 && document.querySelector('#mapLightsList button.danger'); i++) { document.querySelector('#mapLightsList button.danger').click(); await new Promise((r) => setTimeout(r, 150)); } })()`);       // delete the rest one by one with the X
@@ -777,4 +777,18 @@ test('the day and night looks of a place share pins, walls, doors and lights (no
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
   assert.equal(await page.eval(`!document.querySelector('#copyPinsBtn') && !document.querySelector('#copyTarget')`), true, 'the Copy pins inputs are gone');
+});
+
+test('Light sources are listed in the Player view too, read only: names locked, no delete or Add, the On boxes just try a light', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms)), S = window.mapTest.state, out = {};
+    const snap = () => ({ shown: !document.querySelector('#mapLightsBox').hidden, rows: document.querySelectorAll('#mapLightsList tr').length, nameDisabled: [...document.querySelectorAll('#mapLightsList input[type=text]')].every((i) => i.disabled), del: [...document.querySelectorAll('#mapLightsList button')].some((b) => b.offsetParent !== null), add: document.querySelector('#addLightBtn').offsetParent !== null });
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200); out.dm = snap();
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200); out.player = snap();
+    return out;
+  })()`);
+  assert.equal(r.player.shown, true, JSON.stringify(r)); assert.ok(r.player.rows >= 2, 'the lights are listed');
+  assert.equal(r.player.nameDisabled, true); assert.equal(r.player.del, false); assert.equal(r.player.add, false);
 });
