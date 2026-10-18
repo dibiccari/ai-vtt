@@ -768,3 +768,13 @@ test('each door in the Doors list has a delete button, and Undo brings the door 
   })()`);
   assert.equal(r.buttons, 2); assert.deepEqual(r.after, ['door:500', 'wall:0'], 'only the first door is gone'); assert.equal(r.rows, 1); assert.equal(r.undone, 3, 'Undo brings it back');
 });
+
+test('the day and night looks of a place share pins, walls, doors and lights (nothing to copy between them)', opts, async () => {
+  const get = async (m) => (await server.get('/api/map-config?map=' + m)).json.config;
+  const day = await get('vtt-camp-day.png'), night = await get('vtt-camp-night.png');
+  assert.deepEqual(night.starts, day.starts, 'pins'); assert.deepEqual(night.walls, day.walls, 'walls, doors and fences');
+  assert.deepEqual((night.lights || []).map((l) => l.name), (day.lights || []).map((l) => l.name), 'lights');
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  assert.equal(await page.eval(`!document.querySelector('#copyPinsBtn') && !document.querySelector('#copyTarget')`), true, 'the Copy pins inputs are gone');
+});
