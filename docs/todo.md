@@ -31,7 +31,7 @@
 - Better-looking generated maps: improve the map generation pipeline output (user request, 2026-10-14). Ideas on the table: regions and objects in the set so the layout drawing says what each area is, Gemini as the Method B painter, per-feature validation, a polished deterministic fallback renderer, an outdoor and a dungeon style guide, and a review gallery to compare outputs. See COLLABORATION.md.
 
 ## Map Test editing (user, Nov 2026)
-- Door card: a small card on a selected door (Normal, Locked, Secret, DC, starts open) instead of only the Doors list; click a wall with the Door kind picked to turn that stretch into a door.
+- DONE (Nov 2026): door card (select a door in the Walls tool: State, DC, Starts open, Delete) and, with the Door kind picked, a click on a wall makes a one-square door in it. With a wall selected the Door button still turns the whole wall into a door.
 - Window as its own kind (today a window is stored as a fence: both stop movement, not sight or light); the DM would then say "window" rather than "fence".
 - Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 

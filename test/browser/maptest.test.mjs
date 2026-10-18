@@ -791,3 +791,36 @@ test('the Light sources table is the same in the DM and the Player view', opts, 
   })()`);
   assert.equal(r.player, r.dm, 'the table and the Add button are identical in both views'); assert.equal(JSON.parse(r.dm).shown, true);
 });
+
+test('with the Door kind picked a click on a wall makes a one-square door in it; the door card edits state, DC and open', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    document.querySelector('button.tool[data-tool="walls"]').click();
+    S.walls = [{ x1: 200, y1: 700, x2: 1000, y2: 700, type: 'wall', open: false }]; S.wallUndo = []; S.wallPen = null; S.wallSel = null;
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect(), cell = S.W / S.squares;
+    const at = (x, y) => ({ clientX: b.left + S.view.ox + x * S.view.scale, clientY: b.top + S.view.oy + y * S.view.scale });
+    const click = (x, y) => { for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { ...at(x, y), button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 8, bubbles: true })); };
+    click(600, 700); await wait(250); out.plain = S.walls.map((w) => w.type);          // the Wall kind: a click only selects
+    S.wallSel = null; document.querySelector('#wallKinds button[data-kind="door"]').click(); await wait(100);
+    click(600, 700); await wait(250);
+    out.parts = S.walls.map((w) => [w.type, Math.round(Math.hypot(w.x2 - w.x1, w.y2 - w.y1))]); out.cell = Math.round(cell);
+    out.sel = S.wallSel && S.wallSel.type; out.card = !document.querySelector('#doorCard').hidden;
+    document.querySelector('#dcState').value = 'locked'; document.querySelector('#dcState').dispatchEvent(new Event('change'));
+    document.querySelector('#dcDc').value = '15'; document.querySelector('#dcDc').dispatchEvent(new Event('change')); await wait(100);
+    const door = S.walls.find((w) => w.type === 'door');
+    out.locked = [door.locked === true, door.dc, document.querySelector('#dcOpen').disabled];
+    document.querySelector('#dcState').value = ''; document.querySelector('#dcState').dispatchEvent(new Event('change'));
+    document.querySelector('#dcOpen').checked = true; document.querySelector('#dcOpen').dispatchEvent(new Event('change')); await wait(100);
+    out.normal = [door.locked, door.dc, door.open];
+    document.querySelector('#dcDelete').click(); await wait(100); out.after = S.walls.map((w) => w.type); out.cardGone = document.querySelector('#doorCard').hidden;
+    return out;
+  })()`);
+  assert.deepEqual(r.plain, ['wall'], 'with the Wall kind a click does not make a door');
+  assert.deepEqual(r.parts.map((p) => p[0]), ['wall', 'door', 'wall'], JSON.stringify(r)); assert.equal(r.parts[1][1], r.cell, 'the door is one square wide');
+  assert.equal(r.sel, 'door'); assert.equal(r.card, true, 'the card opens for the new door');
+  assert.deepEqual(r.locked, [true, 15, true], 'locked with a DC, and Starts open is unavailable');
+  assert.deepEqual(r.normal, [null, null, true], 'back to normal, starts open');
+  assert.deepEqual(r.after, ['wall', 'wall']); assert.equal(r.cardGone, true);
+});

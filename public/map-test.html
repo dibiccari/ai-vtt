@@ -54,6 +54,12 @@
   #pinCard[hidden], #pinCard [hidden] { display:none; }
   #lightCard { position:absolute; z-index:6; width:250px; background:var(--panel); border:1px solid #ffd27a; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
   #lightCard[hidden] { display:none; }
+  #doorCard { position:absolute; z-index:6; width:230px; background:var(--panel); border:1px solid #f0c048; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  #doorCard[hidden] { display:none; }
+  #doorCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+  #doorCard label.check { flex-direction:row; align-items:center; gap:6px; }
+  #doorCard input[type=number], #doorCard select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
+  #doorCard .lc-row { display:flex; gap:6px; } #doorCard .lc-row button { padding:5px 10px; font-size:12px; }
   #lightCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
   #lightCard label.check { flex-direction:row; align-items:center; gap:6px; }
   #lightCard input[type=text], #lightCard input[type=number], #lightCard select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
@@ -580,7 +586,7 @@
   function requestRender() {
     if (renderQueued) return;
     renderQueued = true;
-    requestAnimationFrame(() => { renderQueued = false; draw(); positionPinCard(); });
+    requestAnimationFrame(() => { renderQueued = false; draw(); positionPinCard(); positionDoorCard(); });
   }
 
   function resizeCanvas() {
@@ -1317,6 +1323,7 @@
   /* ---------------- doors: normal, locked or secret, with a DC ---------------- */
   function renderDoorList() {
     const box = $('#doorList'); box.innerHTML = '';
+    const dcard = document.getElementById('doorCard'); if (dcard) dcard.dataset.for = '';       // the door card reads the door again
     const doors = S.walls.filter((w) => w.type === 'door');
     if (!doors.length) { box.textContent = 'This map has no doors.'; return; }
     const g = S.W / S.squares;
@@ -1508,6 +1515,42 @@
     const l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, flicker: true, on: false };       // a new light flickers and starts out unlit
     S.allLights.push(l); S.lightsOff.add(l.id); S.addingLight = false; $('#addLightBtn').textContent = 'Add a light'; cv.style.cursor = ''; refreshLights(); setSavedNote('Added ' + l.id + '.');
   }
+  /* ---- the Walls tool: a card to edit the selected door ---- */
+  const doorCard = document.createElement('div');
+  doorCard.id = 'doorCard'; doorCard.hidden = true;
+  doorCard.innerHTML = '<strong style="font-size:13px">Door</strong>' +
+    '<label>State <select id="dcState"><option value="">Normal</option><option value="locked">Locked</option><option value="secret">Secret</option></select></label>' +
+    '<label id="dcDcRow">DC to pick the lock or find the door <input type="number" id="dcDc" min="5" max="30" step="1" placeholder="DC"></label>' +
+    '<label class="check"><input type="checkbox" id="dcOpen"> Starts open</label>' +
+    '<div class="lc-row"><button id="dcDelete" class="danger">Delete</button><button id="dcDone">Done</button></div>';
+  $('#stage').appendChild(doorCard);
+  function positionDoorCard() {
+    const d = S.wallSel;
+    if (!d || d.type !== 'door' || S.tool !== 'walls' || S.viewAs !== 'dm') { doorCard.hidden = true; return; }
+    const stage = $('#stage').getBoundingClientRect();
+    if (doorCard.dataset.for !== String(S.walls.indexOf(d)) || doorCard.hidden) {
+      $('#dcState').value = d.secret ? 'secret' : d.locked ? 'locked' : ''; $('#dcDc').value = d.dc || ''; $('#dcOpen').checked = Boolean(d.open);
+      $('#dcOpen').disabled = Boolean(d.secret || d.locked); $('#dcDcRow').hidden = !(d.secret || d.locked);
+      doorCard.dataset.for = String(S.walls.indexOf(d));
+    }
+    doorCard.hidden = false;
+    const mx = (d.x1 + d.x2) / 2, my = (d.y1 + d.y2) / 2;
+    doorCard.style.left = clamp(S.view.ox + mx * S.view.scale + 24, 8, Math.max(8, stage.width - 242)) + 'px';
+    doorCard.style.top = clamp(S.view.oy + my * S.view.scale - 14, 56, Math.max(56, stage.height - (doorCard.offsetHeight || 200) - 8)) + 'px';
+  }
+  function applyDoorCard() {
+    const d = S.wallSel; if (!d || d.type !== 'door') return;
+    const st = $('#dcState').value, open = $('#dcOpen').checked, n = Math.round(Number($('#dcDc').value));       // read what was typed before the snapshot refreshes the card
+    wallSnapshot();
+    delete d.locked; delete d.secret;
+    if (st === 'locked') { d.locked = true; d.open = false; } else if (st === 'secret') { d.secret = true; d.open = false; } else d.open = open; if (st && n >= 5 && n <= 30) d.dc = n; else delete d.dc;
+    $('#dcOpen').disabled = Boolean(st); if (st) $('#dcOpen').checked = false; $('#dcDcRow').hidden = !st;
+    wallsChanged(); renderDoorList(); requestRender();
+  }
+  for (const id of ['#dcState', '#dcDc', '#dcOpen']) $(id).addEventListener('change', applyDoorCard);
+  $('#dcDelete').addEventListener('click', () => { if (S.wallSel && S.wallSel.type === 'door') deleteWall(); });
+  $('#dcDone').addEventListener('click', () => { S.wallSel = null; doorCard.hidden = true; syncWallBox(); requestRender(); });
+
   /* ---- the Lights tool: a card to edit one light ---- */
   const lightCard = document.createElement('div');
   lightCard.id = 'lightCard'; lightCard.hidden = true;
@@ -1591,6 +1634,7 @@
     $('#wallDelete').disabled = !sel; $('#wallUndo').disabled = !S.wallUndo.length;
     const shown = sel ? (sel.type === 'door' ? 'door' : sel.type === 'fence' ? 'fence' : 'wall') : S.drawKind;       // the selected wall's kind, else what the next one drawn will be
     for (const k of document.querySelectorAll('#wallKinds button')) k.setAttribute('aria-pressed', String(k.dataset.kind === shown));
+    positionDoorCard();
     if (!S.problems.length) $('#wallInfo').textContent = sel ? Math.round(Math.hypot(sel.x2 - sel.x1, sel.y2 - sel.y1) / cell() * 5) + ' ft long' : S.walls.length + ' walls';
   }
   // The wall end under the pointer (within a few screen pixels), as {w, k} where k is 1 or 2.
@@ -1684,11 +1728,26 @@
       d.x2 = t.x; d.y2 = t.y; d.moved = true;
     }
   }
+  // With the Door kind picked, a click on a wall turns that stretch of it (one square, or the whole wall when it is shorter) into a door; the rest stays wall.
+  function makeDoorAt(d) {
+    const w = d.w, len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1); if (len < 1) return false;
+    const ux = (w.x2 - w.x1) / len, uy = (w.y2 - w.y1) / len, L = Math.min(len, cell());
+    const t = (d.sx - w.x1) * ux + (d.sy - w.y1) * uy, from = Math.max(0, Math.min(len - L, t - L / 2));
+    const at = (v) => ({ x: round1(w.x1 + ux * v), y: round1(w.y1 + uy * v) });
+    const a = at(from), b = at(from + L), parts = [];
+    if (from > 0.5) parts.push({ x1: w.x1, y1: w.y1, x2: a.x, y2: a.y, type: 'wall', open: false });
+    const door = { x1: a.x, y1: a.y, x2: b.x, y2: b.y, type: 'door', open: false }; parts.push(door);
+    if (len - from - L > 0.5) parts.push({ x1: b.x, y1: b.y, x2: w.x2, y2: w.y2, type: 'wall', open: false });
+    S.wallUndo.push(d.snap);
+    const i = S.walls.indexOf(w); S.walls.splice(i, 1, ...parts); S.wallSel = door;
+    afterWallEdit(); return true;
+  }
   function wallUp(d) {
     if (!d.moved && d.kind === 'wallpt' && d.group.length) {            // a click on an existing end (no drag): the next click draws a wall from that point
       const g = d.group[0]; S.wallPen = { x: g.w['x' + g.k], y: g.w['y' + g.k] };
       syncWallBox(); requestRender(); return;
     }
+    if (!d.moved && d.kind === 'wallmove' && S.drawKind === 'door' && d.w.type === 'wall' && makeDoorAt(d)) return;
     if (!d.moved && d.kind !== 'wallnew') { syncWallBox(); return; }
     if (d.kind === 'wallnew') {
       if (Math.hypot(d.x2 - d.x1, d.y2 - d.y1) < 4 / S.view.scale) { S.wallPen = { x: d.x1, y: d.y1 }; $('#wallInfo').textContent = 'Click where the wall ends (Esc stops)'; requestRender(); return; }
