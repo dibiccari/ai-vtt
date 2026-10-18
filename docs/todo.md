@@ -11,8 +11,8 @@
 - DONE (Nov 2026): Party accordions and per-character pop-out with the full sheet, level-up wizard (+ Level-up Test page), inventory wizard with shop and coins, journal as a quest log without a clear button, tabletop and Map Test light follow the 5e rule, characters use GUID ids, DM purchases (gear buy) and the shop token action, the Merchant agent, the Bookkeeper agent, reply forms for fight and scene.
 - Orchestrator, next steps: decide when a service tool is worth its extra round trip (the DM once called buy_item with a fake item and, with a tool present, skipped a map change); next specialists: recurring NPCs, a rules and lookup service, combat bookkeeping last.
 - Level-up wizard gaps: multiclass characters, subclasses and feats beyond the SRD (typed by hand), spells for prepared casters beyond the choice counts, racial features.
-- DONE (Nov 2026): inventory wizard gaps: give an item to another character or the stash (a Give… drop down on each carried item, `POST /api/party/give`), magic armor and shields (a +N in the name adds N to the armor class), and the Strength-minimum speed penalty (10 ft, shown in the working). Still open: a real weapon-proficiency source for races, +N weapons (attack and damage).
-- Merchant agent: remember a merchant between visits (stock, mood, prices), merchant stock lists per campaign, selling magic items.
+- DONE (Nov 2026): inventory wizard gaps: give an item to another character or the stash (a Give… drop down on each carried item, `POST /api/party/give`), +N armor, shields and weapons (a +N in the name adds N to the armor class, or to the attack and damage), and the Strength-minimum speed penalty (10 ft, shown in the working). Still open: a real weapon-proficiency source for races.
+- DONE (Nov 2026): the merchant remembers the party between visits (visits, how the last visit ended, the price; data/campaigns/<id>/merchants.json, cleared by Start over). Still open: stock lists per campaign, selling magic items.
 
 ## Light and vision
 - DONE (Nov 2026): light zones inside one map (Map Test > Zones tool; see CLAUDE.md). Still open: dragging a zone's corners (today delete and redraw), a Market/blueprint layer for zones, the tabletop swapping to the Night look by the clock, and a live DM check that the DM narrates a zone's light correctly.
@@ -38,7 +38,7 @@
 
 ## Characters
 - The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.
-- No way to give a saved character a new spell or weapon except through the DM.
+- A saved character's new weapon: Party > Manage gear > Shop takes it for free from the SRD (works today). A new spell: only level-up or the DM (saved sheets stay read only by design).
 
 ## Known problems
 - Flaky browser test 'a campaign built from scratch opens on its first map': cause found (a character sheet was written in place, so a read during a save skipped the character and the party came back one short); sheets are now written atomically. Three clean full runs since; watch it.

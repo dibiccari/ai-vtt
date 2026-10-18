@@ -51,3 +51,19 @@ test('POST /api/merchant: a cheap model, the small schema, the buyer and shop in
   const usage = (await s.get('/api/usage')).json;
   assert.ok(JSON.stringify(usage).includes('merchant'), 'its cost is tracked as its own kind');
 });
+
+test('a shopkeeper remembers the party between visits: the count, how the last visit ended and the price', async () => {
+  const base = { merchant: 'Sister Garaele', groups: ['Weapon'], markup: 100, base: 100, buyerId: ID.edric, place: 'Phandalin' };
+  fake.__set({ line: 'Welcome, friend.', voice: 'feminine', rolls: [], markup: 0, done: false, summary: '' });
+  await s.post('/api/merchant', { ...base, opening: true });
+  assert.doesNotMatch(fake.requests.at(-1).system, /You remember this party/, 'the first visit remembers nothing');
+  fake.__set({ line: 'Safe travels.', voice: 'feminine', rolls: [], markup: 85, done: true, summary: 'Edric bought a dagger and haggled her down to 85 percent.' });
+  await s.post('/api/merchant', { ...base, message: 'Thanks, goodbye.' });
+  fake.__set({ line: 'Back again?', voice: 'feminine', rolls: [], markup: 0, done: false, summary: '' });
+  await s.post('/api/merchant', { ...base, opening: true });
+  const sys = fake.requests.at(-1).system;
+  assert.match(sys, /You remember this party: they have been in your shop 1 time before/); assert.match(sys, /haggled her down to 85 percent/); assert.match(sys, /charging 85%/);
+  await s.post('/api/merchant', { ...base, opening: true });
+  assert.match(fake.requests.at(-1).system, /2 times before/, 'every walk-in counts');
+  assert.doesNotMatch(fake.requests.at(-1).system, /Hurdred/, 'another shopkeeper is not mixed up with this one');
+});

@@ -125,3 +125,12 @@ test('effective speed: heavy armor without the Strength costs 10 ft, shown in th
   const strong = { ...c, abilities: { ...c.abilities, str: 16 } };
   assert.equal(computeEffective(strong, false, '2014').speed, 30);
 });
+
+test('magic weapons: a +N in the name adds N to the attack and the damage on the attack line', () => {
+  const fighter = hero('Fighter', { str: 16 }, [item('Longsword +1')], { ProficienciesLang: 'Weapons: simple and martial weapons.' });
+  const plain = weaponLine(hero('Fighter', { str: 16 }, [], { ProficienciesLang: 'Weapons: simple and martial weapons.' }), srdFor(item('Longsword')));
+  const magic = weaponLine(fighter, srdFor(item('Longsword +1')), 1);
+  assert.equal(plain.bonus, '+5'); assert.equal(magic.bonus, '+6'); assert.match(plain.damage, /1d8\+3/); assert.match(magic.damage, /1d8\+4/);
+  const plan = sheetEditsForGear(hero('Fighter', { str: 16 }, [], { ProficienciesLang: 'Weapons: simple and martial weapons.' }), fighter);
+  assert.ok(plan.edits.some((e) => e.field === 'Wpn1 AtkBonus' && e.value === '+6') && plan.edits.some((e) => e.field === 'Wpn1 Damage' && /\+4/.test(e.value)), JSON.stringify(plan.edits));
+});

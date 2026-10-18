@@ -24,3 +24,11 @@ test('a magic item made from the SRD keeps its index, so its light is found', ()
   const it = itemFromSrd('magic-items', { index: 'flame-tongue', name: 'Flame Tongue', desc: ['Weapon (any sword), rare (requires attunement)'], rarity: { name: 'Rare' }, equipment_category: { name: 'Weapon' } });
   assert.equal(it.srd, 'flame-tongue'); assert.equal(lightOfItem(it).kind, 'flame-tongue');
 });
+
+test('more light items: a lamp, a bullseye lantern, a Candle of Invocation and a Rod of Alertness, by the book', () => {
+  assert.deepEqual([LIGHT_KINDS.lamp.bright, LIGHT_KINDS.lamp.dim], [15, 45]);
+  assert.deepEqual([LIGHT_KINDS['lantern-bullseye'].bright, LIGHT_KINDS['lantern-bullseye'].dim], [60, 120]);
+  assert.deepEqual([LIGHT_KINDS['candle-of-invocation'].bright, LIGHT_KINDS['candle-of-invocation'].dim], [0, 30]);
+  assert.equal(lightOfItem({ name: 'Lamp' }).kind, 'lamp'); assert.equal(lightOfItem({ name: 'Lantern, bullseye' }).kind, 'lantern-bullseye');
+  assert.equal(lightOfItem({ name: 'Rod of Alertness' }).needsItem, true);
+});
