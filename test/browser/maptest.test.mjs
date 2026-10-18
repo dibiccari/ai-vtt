@@ -1072,3 +1072,17 @@ test('a town or regional map has no start location: the start pin is not drawn, 
   })()`);
   assert.equal(r.kind, 'regional'); assert.equal(r.startBox, false, 'no Show Start on a regional or town map');
 });
+
+test('a town or regional map in the DM view shows its own picture with live marks, never an old DM picture with pins painted into it (a town has no start pin)', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-phandalin.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const fake = document.createElement('canvas'); fake.width = S.W; fake.height = S.H; const fx = fake.getContext('2d'); fx.fillStyle = '#ff00ff'; fx.fillRect(0, 0, S.W, S.H);
+    S.dmImg = fake; S.starts = [{ name: 'start', x: 300, y: 300 }]; document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(300); window.dispatchEvent(new Event('resize')); await wait(300);
+    const cv = document.querySelector('canvas'), x = cv.getContext('2d'), dpr = cv.width / cv.getBoundingClientRect().width;
+    const d = x.getImageData(Math.round((S.view.ox + 800 * S.view.scale) * dpr), Math.round((S.view.oy + 500 * S.view.scale) * dpr), 1, 1).data;
+    return { kind: S.kind, magenta: d[0] > 200 && d[1] < 60 && d[2] > 200 };
+  })()`);
+  assert.equal(r.kind, 'town'); assert.equal(r.magenta, false, 'the stored DM picture is not drawn on a town map');
+});
