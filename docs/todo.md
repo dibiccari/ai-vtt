@@ -16,7 +16,7 @@
 
 ## Light and vision
 - Light zones inside one map (user request, 2026-10-15): today a whole map is bright, dim or dark. Cragmaw Hideout has an outdoor part that should be bright in the daytime while the cave stays dark. Draw areas (polygons) with their own ambient light: an "outside" zone follows the time of day (bright by day, dark at night, from the game clock and the Day or Night look) and an "inside" zone is always dark. Today the workaround is daylight map lights, but a lantern or torch still lights ground that should simply be daytime. A zone needs: a Map Test tool to draw it, the light level per zone (and whether it follows the time of day), `lightLevelAt()` and the fog and sight code reading the zone at each point, the DM seeing the zones in the board state, and the saved set format. (Light zones were built once and removed in Oct 2026 because the purchased maps had none; this is the reason to bring them back.)
-- Torch from gear: an equipped torch sets the token's light; swapping back to a weapon costs an action.
+- Light from gear (user, Nov 2026: "something like a flame sword"): an item can carry a light effect (bright and dim radius, and whether it is always on while held or has to be lit or commanded) that sets the holder's token light, so a torch, a lantern, a Flame Tongue (40/80 ft once ignited, a bonus action), a Sun Blade (15/30), a Mace of Disruption (20/40 while held), a Lantern of Revealing (30/60 while lit) and similar SRD items work without double-clicking the token. Needs: a `light` effect kind in the inventory effects (lib/party.js SRD_ITEM_EFFECTS), the tabletop deriving the token's light from the wielder's equipped, lit items, the DM (or the player) lighting and dousing an item (a token or gear action), and the 5e costs (drawing a weapon takes the free object interaction, igniting is a bonus action). The Light and Dancing Lights spells stay as they are.
 - DM prompt rule for improvised fire hazards (a lantern thrown into a fire).
 
 ## Map sets
@@ -33,7 +33,6 @@
 ## Map Test editing (user, Nov 2026)
 - Door card: a small card on a selected door (Normal, Locked, Secret, DC, starts open) instead of only the Doors list; click a wall with the Door kind picked to turn that stretch into a door.
 - Window as its own kind (today a window is stored as a fence: both stop movement, not sight or light); the DM would then say "window" rather than "fence".
-- Restyle the run-time light glow like a baked glow: hot centre, warm falloff, tint on what it touches.
 - Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 
 ## Characters
