@@ -149,6 +149,7 @@
     <label class="check" title="Draw the light zones of this map over the picture (DM view only; they always show while the Zones tool is active)."><input type="checkbox" id="showZones"> Show light zones</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
+    <label class="check" id="showPlacesSideRow" title="Town and regional maps: show the named places. In the DM view the places the players know are drawn as usual and the places they do not know yet are red; the Player view shows only the known ones (the same switch as on the tabletop)" hidden><input type="checkbox" id="showPlacesSide" checked> Show Places</label>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range<span class="info-icon" title="walls block, difficult terrain costs double">ⓘ</span></label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
@@ -903,7 +904,10 @@
     const editing = S.tool === 'start';
     if (!S.showPins) { ctx.restore(); return; }                              // the Show pins box hides them whatever the tool
     const fogged = S.fog && S.tokens.length > 0 && !S.dm && !noFog();
+    const placeMap = PlacePins.appliesTo(S.kind);                            // town and regional maps: the named places show when the Show Places switch is on, red where the players do not know them yet
     for (const s of S.starts) {
+      const place = placeMap && s.name !== 'start' && !isAreaPin(s);                // a named place, including one kept from the players
+      if (place && !PlacePins.enabled()) continue;
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
       if (seen === null || (seen === 'unseen' && !editing)) continue;
       ctx.globalAlpha = seen === 'in sight' ? 1 : 0.5;
@@ -916,7 +920,7 @@
         ctx.beginPath(); ctx.arc(s.x, s.y, s.radius * cell(), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.restore();
       }
-      ctx.fillStyle = s.name === 'start' ? 'rgba(63, 210, 127, 0.95)' : 'rgba(79, 157, 255, 0.95)';
+      ctx.fillStyle = s.name === 'start' ? 'rgba(63, 210, 127, 0.95)' : place && !(s.known === true && s.dmOnly !== true) ? 'rgba(255, 90, 90, 0.95)' : 'rgba(79, 157, 255, 0.95)';
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2 * px;
       ctx.beginPath();
@@ -1464,6 +1468,7 @@
     if (plain && S.tool === 'zones') setTool('start');
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
+    $('#showPlacesSideRow').hidden = !PlacePins.appliesTo(S.kind); $('#showPlacesSide').checked = PlacePins.enabled();
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
     $('#showTilesRow').hidden = S.tiles === 'none';
     updateScaleNote();
@@ -2371,7 +2376,9 @@
   { const mg = $('#mapGroup'); try { if (localStorage.getItem('vtt.maptest.mapOpen') === '0') mg.open = false; } catch (e) { /* open */ } mg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.mapOpen', mg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Map section is an accordion, open by default
   { const lg = $('#mapLightsBox'); try { lg.open = localStorage.getItem('vtt.maptest.lightsOpen') === '1'; } catch (e) { /* closed */ } lg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.lightsOpen', lg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Light sources section is an accordion, closed by default
   { const dg = $('#doorsGroup'); try { dg.open = localStorage.getItem('vtt.maptest.doorsOpen') === '1'; } catch (e) { /* closed */ } dg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.doorsOpen', dg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Doors section is an accordion, remembered
-  $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
+  const placesSwitched = (on) => { PlacePins.setEnabled(on); $('#showPlaces').checked = on; $('#showPlacesSide').checked = on; requestRender(); };
+  $('#showPlaces').addEventListener('change', (e) => placesSwitched(e.target.checked));
+  $('#showPlacesSide').addEventListener('change', (e) => placesSwitched(e.target.checked));
   $('#showLabels').addEventListener('change', (e) => { MapLabels.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
@@ -2479,7 +2486,7 @@
     $('#viewSwitch').title = S.viewAs === 'player' ? 'What the table sees' : S.dmImg ? 'DM version of the picture' : 'Player picture with live DM marks (no DM version saved)';
     renderMapLightsList(); updatePlacesHint();
     $('#placesRow').hidden = !(PlacePins.appliesTo(S.kind) && S.starts.some((p) => PlacePins.isPlace(p)));          // like the tabletop: a town or regional map that has named places
-    $('#showPlaces').checked = PlacePins.enabled();
+    $('#showPlaces').checked = PlacePins.enabled(); $('#showPlacesSide').checked = PlacePins.enabled(); $('#showPlacesSideRow').hidden = !PlacePins.appliesTo(S.kind);
     $('#labelsRow').hidden = !(MapLabels.appliesTo(S.kind) && S.labels.length > 0);       // like the tabletop: a regional map that has names
     $('#showLabels').checked = MapLabels.enabled();
   }

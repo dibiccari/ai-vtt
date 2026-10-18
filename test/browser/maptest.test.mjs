@@ -1003,3 +1003,30 @@ test('the time of day in Map Test works like the tabletop: the night wash, zones
   assert.ok(r.night && r.night.yard > 80 && r.night.open > 80 && r.night.vault === 0, 'at night the picture and the time zone are washed, the fixed dark zone is left alone: ' + JSON.stringify(r)); assert.deepEqual(r.nightLevel, ['dark', 'dark']);
   assert.equal(r.url, 'vtt-crypt-method-b.png', 'a place with no Night look stays on its picture'); assert.equal(r.pressed, 'true'); assert.equal(r.duskLevel, 'dim'); assert.equal(r.back, 'day');
 });
+
+test('DM view of a town or regional map: Show Places draws the places, blue where the players know them and red where they do not yet; the sidebar and the map switch are one', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/dnd-sword-coast-ours.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    localStorage.removeItem('vtt.showPlaces');
+    S.starts = [{ name: 'start', x: 100, y: 100 }, { name: 'known-town', x: 400, y: 400, known: true }, { name: 'secret-keep', x: 700, y: 400 }, { name: 'hidden-lair', x: 400, y: 900, known: true, dmOnly: true }];
+    S.showPins = true; $ = (q) => document.querySelector(q);
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(300);
+    const cv = document.querySelector('canvas'), x = cv.getContext('2d'), dpr = cv.width / cv.getBoundingClientRect().width;
+    const colour = (wx, wy) => { const d = x.getImageData(Math.round((S.view.ox + wx * S.view.scale) * dpr), Math.round((S.view.oy + wy * S.view.scale) * dpr), 1, 1).data; return d[0] > 180 && d[1] < 140 ? 'red' : d[2] > 180 && d[0] < 140 ? 'blue' : 'other'; };
+    const side = $('#showPlacesSide'), canvasBox = $('#showPlaces');
+    out.sideVisible = !$('#showPlacesSideRow').hidden; out.sideOn = side.checked;
+    window.mapTest.requestRender && window.mapTest.requestRender(); await wait(300);
+    out.on = [colour(400, 400), colour(700, 400), colour(400, 900)];
+    side.checked = false; side.dispatchEvent(new Event('change')); await wait(300);
+    out.off = [colour(400, 400), colour(700, 400), colour(400, 900)]; out.canvasBoxFollows = canvasBox.checked;
+    canvasBox.checked = true; canvasBox.dispatchEvent(new Event('change')); await wait(300);
+    out.sideFollows = side.checked; out.onAgain = colour(400, 400);
+    return out;
+  })()`);
+  assert.equal(r.sideVisible, true, 'the switch is in Fog and sight on a regional map'); assert.equal(r.sideOn, true);
+  assert.deepEqual(r.on, ['blue', 'red', 'red'], 'known places as before, unknown (and DM-only) places red: ' + JSON.stringify(r));
+  assert.ok(r.off.every((c) => c === 'other'), 'with the switch off no place is drawn: ' + JSON.stringify(r.off)); assert.equal(r.canvasBoxFollows, false, 'the map switch follows the sidebar one');
+  assert.equal(r.sideFollows, true); assert.equal(r.onAgain, 'blue');
+});
