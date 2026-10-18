@@ -1030,3 +1030,31 @@ test('DM view of a town or regional map: Show Places draws the places, blue wher
   assert.ok(r.off.every((c) => c === 'other'), 'with the switch off no place is drawn: ' + JSON.stringify(r.off)); assert.equal(r.canvasBoxFollows, false, 'the map switch follows the sidebar one');
   assert.equal(r.sideFollows, true); assert.equal(r.onAgain, 'blue');
 });
+
+test('Show pins is the master switch and each type of pin has its own: Start, Areas and Locations on a battle map, Places on a town or regional map', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-crypt-method-b.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    S.starts = [{ name: 'start', x: 300, y: 300 }, { name: 'area-1', x: 600, y: 300 }, { name: 'rest-area', x: 900, y: 300 }];
+    S.selected = null; document.querySelector('button.tool[data-tool="token"]').click(); S.tokens = []; document.querySelector('#showPins').checked = true; S.showPins = true;
+    window.mapTest.syncPinTypeBox();
+    const cv = document.querySelector('canvas'), x = cv.getContext('2d'), dpr = cv.width / cv.getBoundingClientRect().width;
+    const dot = (wx, wy) => { const d = x.getImageData(Math.round((S.view.ox + wx * S.view.scale) * dpr), Math.round((S.view.oy + wy * S.view.scale) * dpr), 1, 1).data; return d[2] > 180 && d[0] < 140 ? 'blue' : d[0] > 230 && d[1] > 230 && d[2] > 230 ? 'white' : 'other'; };
+    const shown = () => ({ start: dot(300, 300), area: dot(600, 300), location: dot(900, 300) });
+    const box = (t) => document.querySelector('#pinTypeBox input[data-pintype="' + t + '"]');
+    const set = async (t, on) => { box(t).checked = on; box(t).dispatchEvent(new Event('change')); await wait(250); };
+    await wait(300);
+    out.boxes = [...document.querySelectorAll('#pinTypeBox label')].filter((l) => !l.hidden).map((l) => l.textContent.trim());
+    out.all = shown();
+    await set('areas', false); out.noAreas = shown(); await set('areas', true);
+    await set('locations', false); out.noLocations = shown(); await set('locations', true);
+    await set('start', false); out.noStart = shown(); await set('start', true);
+    document.querySelector('#showPins').checked = false; document.querySelector('#showPins').dispatchEvent(new Event('change')); await wait(250); out.master = shown();
+    return out;
+  })()`);
+  assert.deepEqual(r.boxes, ['Show Start', 'Show Areas', 'Show Locations'], JSON.stringify(r));
+  assert.deepEqual(r.all, { start: 'white', area: 'blue', location: 'blue' }, JSON.stringify(r));
+  assert.deepEqual(r.noAreas, { start: 'white', area: 'other', location: 'blue' }); assert.deepEqual(r.noLocations, { start: 'white', area: 'blue', location: 'other' }); assert.deepEqual(r.noStart, { start: 'other', area: 'blue', location: 'blue' });
+  assert.deepEqual(r.master, { start: 'other', area: 'other', location: 'other' }, 'Show pins off hides every type');
+});

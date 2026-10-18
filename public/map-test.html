@@ -149,7 +149,12 @@
     <label class="check" title="Draw the light zones of this map over the picture (DM view only; they always show while the Zones tool is active)."><input type="checkbox" id="showZones"> Show light zones</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
-    <label class="check" id="showPlacesSideRow" title="Town and regional maps: show the named places. In the DM view the places the players know are drawn as usual and the places they do not know yet are red; the Player view shows only the known ones (the same switch as on the tabletop)" hidden><input type="checkbox" id="showPlacesSide" checked> Show Places</label>
+    <div id="pinTypeBox" style="margin:0 0 4px 22px;display:flex;flex-direction:column;gap:2px" title="Show pins is the master switch; these show or hide one type of pin">
+      <label class="check" id="pinTypeStart"><input type="checkbox" data-pintype="start" checked> Show Start</label>
+      <label class="check" id="pinTypeAreas"><input type="checkbox" data-pintype="areas" checked> Show Areas</label>
+      <label class="check" id="pinTypeLocations"><input type="checkbox" data-pintype="locations" checked> Show Locations</label>
+      <label class="check" id="showPlacesSideRow" title="Town and regional maps: show the named places. In the DM view the places the players know are drawn as usual and the places they do not know yet are red; the Player view shows only the known ones (the same switch as on the tabletop)" hidden><input type="checkbox" id="showPlacesSide" checked> Show Places</label>
+    </div>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
     <label class="check"><input type="checkbox" id="moveTest"> Movement range<span class="info-icon" title="walls block, difficult terrain costs double">ⓘ</span></label>
     <label class="field"><span>Vision range: <b id="visionVal">60</b> ft</span>
@@ -897,6 +902,10 @@
     ctx.restore();
   }
 
+  // The type of a pin: start (the arrival), areas (the module's numbered rooms), places (named pins on a town or regional map: what the players learn of) and locations (named spots on a battle or camp map).
+  const pinType = (pin) => (pin.name === 'start' ? 'start' : /^area-\d+(-\d+)?$/.test(pin.name) ? 'areas' : PlacePins.appliesTo(S.kind) ? 'places' : 'locations');
+  S.pinTypes = { start: true, areas: true, locations: true };      // places follow the shared Show Places switch
+  const pinTypeShown = (pin) => { const t = pinType(pin); return t === 'places' ? PlacePins.enabled() : S.pinTypes[t] !== false; };
   function drawStarts(px) {
     ctx.save();
     ctx.font = (13 * px) + 'px "Segoe UI", sans-serif';
@@ -907,7 +916,7 @@
     const placeMap = PlacePins.appliesTo(S.kind);                            // town and regional maps: the named places show when the Show Places switch is on, red where the players do not know them yet
     for (const s of S.starts) {
       const place = placeMap && s.name !== 'start' && !isAreaPin(s);                // a named place, including one kept from the players
-      if (place && !PlacePins.enabled()) continue;
+      if (!pinTypeShown(s) && !(s === S.selected)) continue;                         // a type switched off (the pin being edited stays)
       const seen = fogged ? fogStateAt(s.x, s.y) : 'in sight';
       if (seen === null || (seen === 'unseen' && !editing)) continue;
       ctx.globalAlpha = seen === 'in sight' ? 1 : 0.5;
@@ -1038,6 +1047,7 @@
   }
   function setAllKnown(on) { for (const p of S.starts) if (PlacePins.isPlace(p)) { if (on) p.known = true; else delete p.known; } save(); updatePlacesHint(); renderStartList(); requestRender(); }
   function renderStartList() {
+    syncPinTypeBox();
     updatePlacesHint();
     const box = $('#startList');
     box.innerHTML = '';
@@ -1468,7 +1478,7 @@
     if (plain && S.tool === 'zones') setTool('start');
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
-    $('#showPlacesSideRow').hidden = !PlacePins.appliesTo(S.kind); $('#showPlacesSide').checked = PlacePins.enabled();
+    $('#showPlacesSideRow').hidden = !PlacePins.appliesTo(S.kind); $('#showPlacesSide').checked = PlacePins.enabled(); if (typeof syncPinTypeBox === 'function') syncPinTypeBox();
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
     $('#showTilesRow').hidden = S.tiles === 'none';
     updateScaleNote();
@@ -2379,6 +2389,12 @@
   const placesSwitched = (on) => { PlacePins.setEnabled(on); $('#showPlaces').checked = on; $('#showPlacesSide').checked = on; requestRender(); };
   $('#showPlaces').addEventListener('change', (e) => placesSwitched(e.target.checked));
   $('#showPlacesSide').addEventListener('change', (e) => placesSwitched(e.target.checked));
+  for (const box of document.querySelectorAll('#pinTypeBox input[data-pintype]')) box.addEventListener('change', () => { S.pinTypes[box.dataset.pintype] = box.checked; requestRender(); });
+  function syncPinTypeBox() {                       // only the types this kind of map has
+    const placeMap = PlacePins.appliesTo(S.kind), has = (t) => S.starts.some((p) => pinType(p) === t);
+    $('#pinTypeStart').hidden = !has('start'); $('#pinTypeAreas').hidden = !has('areas'); $('#pinTypeLocations').hidden = placeMap || !has('locations');
+    $('#pinTypeBox').hidden = $('#pinTypeStart').hidden && $('#pinTypeAreas').hidden && $('#pinTypeLocations').hidden && !placeMap;
+  }
   $('#showLabels').addEventListener('change', (e) => { MapLabels.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
@@ -2512,7 +2528,7 @@
   loadTestTokenImages();
   loadMapList(true);
 
-  window.mapTest = { state: S, selectPin, renderDoorList, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
+  window.mapTest = { state: S, selectPin, syncPinTypeBox, renderDoorList, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
 })();
 </script>
 </body>
