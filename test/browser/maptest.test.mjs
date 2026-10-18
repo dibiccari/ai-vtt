@@ -779,16 +779,15 @@ test('the day and night looks of a place share pins, walls, doors and lights (no
   assert.equal(await page.eval(`!document.querySelector('#copyPinsBtn') && !document.querySelector('#copyTarget')`), true, 'the Copy pins inputs are gone');
 });
 
-test('Light sources are listed in the Player view too, read only: names locked, no delete or Add, the On boxes just try a light', opts, async () => {
+test('the Light sources table is the same in the DM and the Player view', opts, async () => {
   await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
   const r = await page.eval(`(async () => {
-    const wait = (ms) => new Promise((r) => setTimeout(r, ms)), S = window.mapTest.state, out = {};
-    const snap = () => ({ shown: !document.querySelector('#mapLightsBox').hidden, rows: document.querySelectorAll('#mapLightsList tr').length, nameDisabled: [...document.querySelectorAll('#mapLightsList input[type=text]')].every((i) => i.disabled), del: [...document.querySelectorAll('#mapLightsList button')].some((b) => b.offsetParent !== null), add: document.querySelector('#addLightBtn').offsetParent !== null });
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    const snap = () => JSON.stringify({ shown: !document.querySelector('#mapLightsBox').hidden, html: document.querySelector('#mapLightsList').innerHTML, add: document.querySelector('#addLightBtn').offsetParent !== null });
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(200); out.dm = snap();
     document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(200); out.player = snap();
     return out;
   })()`);
-  assert.equal(r.player.shown, true, JSON.stringify(r)); assert.ok(r.player.rows >= 2, 'the lights are listed');
-  assert.equal(r.player.nameDisabled, true); assert.equal(r.player.del, false); assert.equal(r.player.add, false);
+  assert.equal(r.player, r.dm, 'the table and the Add button are identical in both views'); assert.equal(JSON.parse(r.dm).shown, true);
 });
