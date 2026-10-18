@@ -27,7 +27,7 @@
 - Import and trace scripts still write the old per-picture files in data/maps.
 
 
-- AI-written trail and label layer for regional maps (generation pipeline): Claude writes place names, positions and trail paths as data from the module text and the painted picture (grid overlay), code draws names and curved trail names over it; image models never paint the words. Needs a trails layer in map sets.
+- DONE (Nov 2026): label layer for regional maps: a level's `labels` (region names, place names, trail names set along a path, in image pixels) are drawn by code (public/map-labels.js) on the tabletop and in Map Test's Player view with a shared Show labels switch; scripts/apply-coast-labels.mjs writes the Sword Coast's names and its two roads. Still open: Claude writing the labels for a new map from the module text and the painted picture (grid overlay) as part of the generation pipeline, a Labels tool in Map Test to place and edit them by hand, and labels for town maps.
 - Better-looking generated maps: improve the map generation pipeline output (user request, 2026-10-14). Ideas on the table: regions and objects in the set so the layout drawing says what each area is, Gemini as the Method B painter, per-feature validation, a polished deterministic fallback renderer, an outdoor and a dungeon style guide, and a review gallery to compare outputs. See COLLABORATION.md.
 
 ## Map Test editing (user, Nov 2026)

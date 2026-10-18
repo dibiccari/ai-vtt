@@ -1311,3 +1311,40 @@ test('a place with a Night look shows it when the DM says it is night (own light
   assert.equal(r.night.src, 'vtt-camp-night.png', 'the Night picture at night'); assert.equal(r.night.look, 'night'); assert.notEqual(r.night.ambient, r.day.ambient, 'the night look has its own light level');
   assert.equal(r.dusk.src, 'vtt-camp-day.png', 'dusk is the day picture under a lighter wash'); assert.equal(r.backToDay.src, 'vtt-camp-day.png'); assert.equal(r.backToDay.ambient, r.day.ambient);
 });
+
+test('map labels: a regional map shows its written names on the tabletop with a Show labels switch that remembers; battle maps show none', opts, async () => {
+  const file = 'dnd-sword-coast-ours.png';
+  const cfg = (await server.get('/api/map-config?map=' + file)).json.config; delete cfg.setVersion;     // the test sets its own labels instead of assuming the map's data
+  cfg.kind = 'regional';
+  cfg.labels = [
+    { id: 't-region', text: 'Test Mountains', kind: 'region', x: 400, y: 500, size: 60, rot: -20 },
+    { id: 't-trail', text: 'The Test Road', kind: 'trail', x: 300, y: 600, size: 24, path: [{ x: 200, y: 650 }, { x: 300, y: 600 }, { x: 420, y: 640 }] }
+  ];
+  assert.equal((await server.put('/api/map-config?map=' + file, cfg)).status, 200);
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    localStorage.removeItem('vtt.showLabels');
+    await vtt.travelTo({ mapUrl: '/uploads/${file}', mapName: 'The Sword Coast', kind: 'regional', col: 5, row: 5 });
+    await wait(500);
+    const box = document.getElementById('labelsToggle'), cb = document.getElementById('showLabels'), cv = document.getElementById('board');
+    let drawn = -1; const real = MapLabels.draw; MapLabels.draw = (ctx, labels, px) => { drawn = real(ctx, labels, px); return drawn; };
+    const out = { count: vtt.state.mapLabels.length, kinds: vtt.state.mapLabels.map((l) => l.kind), boxShown: !box.hidden, on: cb.checked };
+    const f = vtt.state.map.drawW / vtt.state.map.img.naturalWidth;
+    out.scaled = vtt.state.mapLabels[0].x === 400 * f && vtt.state.mapLabels[1].path[2].x === 420 * f;
+    cb.checked = true; cb.dispatchEvent(new Event('change')); await wait(300);
+    out.drawnOn = drawn; const withLabels = cv.toDataURL();
+    drawn = -1; cb.checked = false; cb.dispatchEvent(new Event('change')); await wait(300);
+    out.drawnOff = drawn; out.stored = localStorage.getItem('vtt.showLabels'); out.pixelsChange = cv.toDataURL() !== withLabels;
+    cb.checked = true; cb.dispatchEvent(new Event('change')); await wait(300);
+    out.storedAgain = localStorage.getItem('vtt.showLabels'); out.drawnAgain = drawn;
+    MapLabels.draw = real;
+    await vtt.travelTo({ mapUrl: '/uploads/vtt-goblin-ambush.png', mapName: 'Goblin Ambush', kind: 'battle', col: 5, row: 5 });
+    await wait(400);
+    out.battleBoxShown = !document.getElementById('labelsToggle').hidden; out.battleLabels = vtt.state.mapLabels.length;
+    return out;
+  })()`);
+  assert.equal(r.count, 2); assert.deepEqual(r.kinds, ['region', 'trail']); assert.equal(r.boxShown, true); assert.equal(r.on, true); assert.equal(r.scaled, true, 'positions are scaled from picture pixels to the board');
+  assert.equal(r.drawnOn, 2, 'both labels are drawn'); assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.pixelsChange, true, 'the canvas itself changes when the switch is turned off');
+  assert.equal(r.stored, '0'); assert.equal(r.storedAgain, '1'); assert.equal(r.drawnAgain, 2);
+  assert.equal(r.battleBoxShown, false, 'a battle map has no labels switch'); assert.equal(r.battleLabels, 0);
+});

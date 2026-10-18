@@ -128,6 +128,7 @@
   .mode-badge.show { display: block; }
   .places-toggle { position: absolute; left: 12px; bottom: 12px; background: rgba(10, 13, 18, 0.82); border: 1px solid var(--border-strong); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--text); cursor: pointer; user-select: none; }
   .places-toggle[hidden] { display: none; }
+  .places-toggle.labels-toggle { bottom: 46px; }
   .zoom-controls { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
   .zoom-controls button {
     width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border);
@@ -367,6 +368,7 @@
       <button id="fitBtn" title="Fit the whole map in the view (fit to height)" aria-label="Fit map to height">⤢</button>
       <button id="fitWidthBtn" title="Fit the map to the width of the view" aria-label="Fit map to width">↔</button>
     </div>
+    <label class="places-toggle labels-toggle" id="labelsToggle" title="Show the region, place and trail names written on this map" hidden><input type="checkbox" id="showLabels" checked> Show labels</label>
     <label class="places-toggle" id="placesToggle" title="Show the named places on this map" hidden><input type="checkbox" id="showPlaces" checked> Show places</label>
   </div>
   <!-- COMBAT TRACKER: beside the map, only while there is a fight -->
@@ -446,6 +448,7 @@
 <script src="/token-size.js"></script>
 <script src="/flicker.js"></script>
 <script src="/place-pins.js"></script>
+<script src="/map-labels.js"></script>
 <script src="/fog-style.js"></script>
 <script src="/levelup-wizard.js"></script>
 <script src="/inventory-wizard.js"></script>
@@ -1678,12 +1681,12 @@ let litRegionCache = { key: '', canvas: null };
 function litRegion() {
   if (!(state.lightZones || []).length || state.ambientOverride || !state.map.width) return null;
   const key = state.map.width + 'x' + state.map.height + ':' + ambientNow() + ':' + state.lightZones.map((z) => z.id + zoneLevel(z)).join(',') + ':' + state.lightZones.reduce((n, z) => n + z.points.length, 0);
-  if (litRegionCache.key !== key) {
+  if (litRegionCache.key !== key || litRegionCache.zones !== state.lightZones) {                 // the zones array is new whenever a map is loaded: a map of the same size with the same zone ids must not reuse the old picture
     const c = document.createElement('canvas'); c.width = state.map.width; c.height = state.map.height;
     const x = c.getContext('2d'); x.fillStyle = '#fff';
     if (ambientNow() !== 'dark') x.fillRect(0, 0, c.width, c.height);
     for (const z of state.lightZones) { x.globalCompositeOperation = zoneLevel(z) === 'dark' ? 'destination-out' : 'source-over'; x.beginPath(); x.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) x.lineTo(z.points[i].x, z.points[i].y); x.closePath(); x.fill(); }
-    litRegionCache = { key, canvas: c };
+    litRegionCache = { key, canvas: c, zones: state.lightZones };
   }
   return litRegionCache.canvas;
 }
@@ -2000,12 +2003,12 @@ function drawNightWash() {
   if (!colour || !state.map.width) return;
   const zones = state.lightZones || [];
   const key = state.timeOfDay + ':' + state.ambient + ':' + state.map.width + 'x' + state.map.height + ':' + zones.map((z) => z.id + z.level).join(',');
-  if (washCache.key !== key) {
+  if (washCache.key !== key || washCache.zones !== state.lightZones) {
     const c = document.createElement('canvas'); c.width = state.map.width; c.height = state.map.height;
     const x = c.getContext('2d'); x.fillStyle = colour;
     if (state.ambient !== 'dark') x.fillRect(0, 0, c.width, c.height);
     for (const z of zones) { x.globalCompositeOperation = z.level === 'time' ? 'source-over' : 'destination-out'; x.fillStyle = z.level === 'time' ? colour : '#000'; x.beginPath(); x.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) x.lineTo(z.points[i].x, z.points[i].y); x.closePath(); x.fill(); }
-    washCache = { key, canvas: c };
+    washCache = { key, canvas: c, zones: state.lightZones };
   }
   ctx.drawImage(washCache.canvas, 0, 0);
 }
@@ -2024,6 +2027,7 @@ function render(now) {
   drawWallSegments(1);
   drawTokens(false, now);
   drawFog();
+  drawMapLabels();
   drawPlacePins();
   if (state.drawWalls || state.gmOverride) drawWallSegments(0.85);
   drawReachable();
@@ -2040,6 +2044,14 @@ function render(now) {
 function knownPlacePins() {
   const found = (state.knownPlaces && state.knownPlaces[state.map.url]) || [];
   return (state.placePins || []).filter((p) => PlacePins.knownTo(p, found));
+}
+// The names written on a regional map (the players' own switch: the Show labels box on the map).
+function drawMapLabels() {
+  const has = MapLabels.appliesTo(state.mapKind) && (state.mapLabels || []).length > 0;
+  const box = document.getElementById('labelsToggle');
+  if (box && box.hidden === has) box.hidden = !has;
+  if (!has || !MapLabels.enabled()) return;
+  MapLabels.draw(ctx, state.mapLabels, 1 / state.view.scale);
 }
 function drawPlacePins() {
   const shown = PlacePins.appliesTo(state.mapKind) ? knownPlacePins() : [];
@@ -2955,6 +2967,7 @@ async function loadMapLighting(lookFile) {          // lookFile: the picture of 
   state.objectTops = true;
   state.places = [];
   state.placePins = [];
+  state.mapLabels = [];
   state.difficultSquares = null;
   state.rooms = [];
   if (!state.map.url || !state.map.img) return;
@@ -2973,6 +2986,8 @@ async function loadMapLighting(lookFile) {          // lookFile: the picture of 
     state.places = (Array.isArray(config.starts) ? config.starts : []).filter((s) => s.name !== 'start' && !/^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ name: s.name, note: String(s.desc || '').slice(0, 300), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID), ...(s.known === true ? { known: true } : {}), ...(s.dmOnly === true ? { dmOnly: true } : {}) }));
     // What the players may see on a town or regional map (public/place-pins.js): the named places, in board pixels.
     state.placePins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => PlacePins.isPlace(s)).map((s) => ({ name: s.name, label: s.label || '', known: s.known === true, x: s.x * f, y: s.y * f }));
+    // The words on a regional map (public/map-labels.js): region, place and trail names, in board pixels.
+    state.mapLabels = (Array.isArray(config.labels) ? config.labels : []).filter((l) => l && l.text && Number.isFinite(l.x) && Number.isFinite(l.y)).map((l) => ({ id: l.id, text: l.text, kind: l.kind, x: l.x * f, y: l.y * f, ...(l.size > 0 ? { size: l.size * f } : {}), ...(Number.isFinite(l.rot) ? { rot: l.rot } : {}), ...(Array.isArray(l.path) ? { path: l.path.map((p) => ({ x: p.x * f, y: p.y * f })) } : {}) }));
     state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ area: parseInt(s.name.slice(5), 10), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
     state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
@@ -3005,7 +3020,7 @@ async function syncLook() {
   const url = '/uploads/' + files[want];
   const img = await new Promise((resolve) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => resolve(null); i.src = url; });
   if (!img || img.naturalWidth !== state.map.img.naturalWidth || img.naturalHeight !== state.map.img.naturalHeight) return;
-  if (state.look === want) return;
+  if (state.look === want || (state.timeOfDay === 'night' ? 'night' : 'day') !== want) return;       // the time changed again while the picture loaded: that request is out of date
   state.map.img = img; state.look = want;
   await loadMapLighting(files[want]);
   try { syncAmbience(); if (fogOn()) revealFog(); } catch { /* the board is not ready yet */ }
@@ -4837,6 +4852,8 @@ function bindUi() {
   $('#fitBtn').addEventListener('click', fitView);
   const placesBox = document.getElementById('showPlaces');                    // the players' switch for the named places of a town or regional map
   if (placesBox) { placesBox.checked = PlacePins.enabled(); placesBox.addEventListener('change', () => { PlacePins.setEnabled(placesBox.checked); requestRender(); }); }
+  const labelsBox = document.getElementById('showLabels');                    // the players' switch for the names written on a regional map
+  if (labelsBox) { labelsBox.checked = MapLabels.enabled(); labelsBox.addEventListener('change', () => { MapLabels.setEnabled(labelsBox.checked); requestRender(); }); }
   $('#fitWidthBtn').addEventListener('click', fitWidth);
 
   voice.init();

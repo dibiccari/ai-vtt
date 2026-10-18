@@ -481,10 +481,27 @@ function normalizeMapConfig(body) {
     const points = (Array.isArray(z?.points) ? z.points.slice(0, 400) : []).map((p) => ({ x: num(p?.x), y: num(p?.y) })).filter((p) => p.x !== null && p.y !== null);
     const level = ['bright', 'dim', 'dark', 'time'].includes(z?.level) ? z.level : null;
     if (!level || points.length < 3) continue;
-    const id = String(z?.id ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `zone-${zones.length + 1}`;
+    let id = String(z?.id ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `zone-${zones.length + 1}`;
+    for (let n = 2, base = id.slice(0, 36); zones.some((o) => o.id === id); n++) id = `${base}-${n}`;       // ids are unique, so a zone can be told from another with the same name
     zones.push({ id, name: String(z?.name ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40) || id, level, points });
   }
   if (zones.length) config.lightZones = zones;
+  // Text labels drawn by code over a regional map (public/map-labels.js): region names, place names and trail names written along a path. Coordinates are image pixels; `size` is the letter height in picture pixels, `rot` degrees for a straight label.
+  const labels = [];
+  for (const l of Array.isArray(body?.labels) ? body.labels.slice(0, 60) : []) {
+    const kind = ['region', 'place', 'trail'].includes(l?.kind) ? l.kind : null;
+    const text = String(l?.text ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60);
+    const path = (Array.isArray(l?.path) ? l.path.slice(0, 200) : []).map((p) => ({ x: num(p?.x), y: num(p?.y) })).filter((p) => p.x !== null && p.y !== null);
+    if (!kind || !text || (kind === 'trail' && path.length < 2)) continue;
+    let x = num(l?.x), y = num(l?.y);
+    if ((x === null || y === null) && path.length >= 2) { const m = path[Math.floor(path.length / 2)]; x = m.x; y = m.y; }
+    if (x === null || y === null) continue;
+    const size = num(l?.size), rot = num(l?.rot);
+    let id = String(l?.id ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || `label-${labels.length + 1}`;
+    for (let n = 2; labels.some((o) => o.id === id); n++) id = `${id.replace(/-\d+$/, '')}-${n}`.slice(0, 40);
+    labels.push({ id, text, kind, x, y, ...(size !== null && size > 0 ? { size: Math.min(2000, size) } : {}), ...(rot !== null && kind !== 'trail' ? { rot: Math.max(-180, Math.min(180, rot)) } : {}), ...(path.length >= 2 ? { path } : {}) });
+  }
+  if (labels.length) config.labels = labels;
   // How bright the place is before any light source: daylight (bright), a lit room or dusk (dim), or darkness.
   if (['bright', 'dim', 'dark'].includes(body?.light)) config.light = body.light;
   if (['none', 'forest', 'night', 'wind', 'cave', 'dungeon', 'tavern', 'town', 'rain', 'fire'].includes(body?.ambience)) config.ambience = body.ambience;
@@ -749,6 +766,9 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
   }
   if (req.body?.lightZones === undefined) {        // a caller that does not send the light zones keeps what the set has
     try { const old = await readMapConfig(file); if (old && Array.isArray(old.lightZones) && old.lightZones.length) config.lightZones = old.lightZones; } catch { /* no earlier config */ }
+  }
+  if (req.body?.labels === undefined) {          // Map Test does not send the labels: keep what the set has ([] removes them)
+    try { const old = await readMapConfig(file); if (old && Array.isArray(old.labels) && old.labels.length) config.labels = old.labels; } catch { /* no earlier config */ }
   }
   if (req.body?.effects === undefined) {         // Map Test does not send the animated regions: keep what the set has
     try { const old = await readMapConfig(file); if (old && Array.isArray(old.effects) && old.effects.length) config.effects = old.effects; } catch { /* no earlier config */ }
@@ -1087,6 +1107,7 @@ app.post('/api/merchant', asyncRoute(async (req, res) => {
   const tray = diceTray().d20.slice(0, 4);
   const memFile = path.join(CAMPAIGNS_DIR, campaign, 'merchants.json'), memKey = merchantKey(shop.merchant);
   let memories = {}; try { memories = JSON.parse(await readFile(memFile, 'utf8')); } catch { /* nobody remembered yet */ }
+  if (!memories || typeof memories !== 'object' || Array.isArray(memories)) memories = {};       // a file that holds null, a list or a number is not a memory
   const memory = memories[memKey] || null;
   const system = merchantSystem({ shop, buyer: { name: who.name, persuasion: bonus('Persuasion'), insight: bonus('Insight') }, place: String(b.place || '').slice(0, 80), campaign: meta.name || campaign, tray, memory });
   try {
@@ -2226,7 +2247,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     ...(Array.isArray(corrections) && corrections.length ? { moveCorrections: corrections.slice(0, 8).map((c) => String(c).slice(0, 200)) } : {}),
     ...(Array.isArray(places) && places.length ? { mapPlaces: places.slice(0, 30).map((p) => ({ name: String(p?.name ?? '').slice(0, 40), note: String(p?.note ?? '').slice(0, 300), col: Number(p?.col) || 0, row: Number(p?.row) || 0, ...(p?.known === true ? { known: true } : {}), ...(p?.dmOnly === true ? { dmOnly: true } : {}) })) } : {}),
     ...(Array.isArray(areas) && areas.length ? { moduleAreas: areas.slice(0, 40).map((a) => ({ area: Number(a?.area) || 0, name: String(a?.name ?? '').slice(0, 60), col: Number(a?.col) || 0, row: Number(a?.row) || 0 })) } : {}),
-    lighting: lighting && typeof lighting === 'object' ? { ambient: ['bright', 'dim', 'dark'].includes(lighting.ambient) ? lighting.ambient : 'bright', mapLights: (Array.isArray(lighting.mapLights) ? lighting.mapLights : []).slice(0, 40) } : { ambient: 'bright', mapLights: [] },
+    lighting: lighting && typeof lighting === 'object' ? { ambient: ['bright', 'dim', 'dark'].includes(lighting.ambient) ? lighting.ambient : 'bright', timeOfDay: ['day', 'dawn', 'dusk', 'night'].includes(lighting.timeOfDay) ? lighting.timeOfDay : 'day', ...(Array.isArray(lighting.zones) && lighting.zones.length ? { zones: lighting.zones.slice(0, 20).map((z) => ({ name: String(z?.name ?? '').slice(0, 40), light: ['bright', 'dim', 'dark'].includes(z?.light) ? z.light : 'bright', followsTimeOfDay: z?.followsTimeOfDay === true })) } : {}), mapLights: (Array.isArray(lighting.mapLights) ? lighting.mapLights : []).slice(0, 40) } : { ambient: 'bright', timeOfDay: 'day', mapLights: [] },
     combat: combat && typeof combat === 'object' ? { active: Boolean(combat.active), round: Number(combat.round) || 0, currentTokenId: String(combat.currentTokenId ?? ''), order: (Array.isArray(combat.order) ? combat.order : []).slice(0, 60).map((o) => ({ tokenId: String(o?.tokenId ?? ''), initiative: Number.isFinite(Number(o?.initiative)) ? Number(o.initiative) : null, ...(o?.delayed ? { delayed: true } : {}) })) } : { active: false },
     party: await partyForPrompt(activeCampaign)
   };

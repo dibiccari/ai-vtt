@@ -928,3 +928,40 @@ test('light zones can be reshaped: drag a corner, Alt + click an edge adds a cor
   })()`);
   assert.deepEqual(r.moved, [1320, 240], 'dragging a corner moves it'); assert.equal(r.added, 5, 'Alt + click on an edge adds a corner'); assert.equal(r.removed, 4, 'right-click on a corner removes it'); assert.equal(r.minimum, 3, 'a zone keeps at least three corners');
 });
+
+test('Show labels: the Player view of a regional map writes its region and trail names over the picture and a switch (shared with the tabletop) turns them off; the DM view has no switch', opts, async () => {
+  const file = 'dnd-sword-coast-ours.png';
+  const cfg = (await server.get('/api/map-config?map=' + file)).json.config; delete cfg.setVersion;     // own labels: the test does not assume what the map has
+  cfg.kind = 'regional';
+  cfg.labels = [
+    { id: 't-region', text: 'Test Mountains', kind: 'region', x: 600, y: 700, size: 60, rot: 10 },
+    { id: 't-trail', text: 'The Test Road', kind: 'trail', x: 500, y: 900, size: 24, path: [{ x: 350, y: 950 }, { x: 500, y: 900 }, { x: 650, y: 940 }] }
+  ];
+  assert.equal((await server.put('/api/map-config?map=' + file, cfg)).status, 200);
+  await page.goto(`${server.base}/map-test.html?map=/uploads/${file}`);
+  await page.waitFor('document.querySelector("#viewSwitch") && document.querySelector("#banner").textContent.includes("px") && window.mapTest.state.kind === "regional" && window.mapTest.state.labels.length === 2');
+  const r = await page.eval(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    localStorage.removeItem('vtt.showLabels');
+    const S = window.mapTest.state, out = {};
+    let drawn = -1; const real = MapLabels.draw; MapLabels.draw = (ctx, labels, px) => { drawn = real(ctx, labels, px); return drawn; };
+    const vis = () => { const e = document.querySelector('#labelsRow'); return !e.hidden && e.offsetParent !== null; };
+    const cv = document.querySelector('canvas');
+    out.dmSwitch = vis(); await wait(300); out.dmDrawn = drawn;
+    document.querySelector('#viewSwitch button[data-view="player"]').click(); await wait(400);
+    out.playerSwitch = vis(); out.playerOn = document.querySelector('#showLabels').checked; out.drawn = drawn; const withLabels = cv.toDataURL();
+    const box = document.querySelector('#showLabels'); drawn = -1;
+    box.checked = false; box.dispatchEvent(new Event('change')); await wait(300);
+    out.drawnOff = drawn; out.stored = localStorage.getItem('vtt.showLabels'); out.pixelsChange = cv.toDataURL() !== withLabels;
+    box.checked = true; box.dispatchEvent(new Event('change')); await wait(300);
+    out.drawnOn = drawn; out.storedOn = localStorage.getItem('vtt.showLabels');
+    MapLabels.draw = real;
+    document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(300);
+    out.dmAgain = vis();
+    return out;
+  })()`);
+  assert.equal(r.dmSwitch, false, 'the DM view has no labels switch'); assert.equal(r.dmDrawn, -1, 'the DM view does not draw them');
+  assert.equal(r.playerSwitch, true); assert.equal(r.playerOn, true); assert.equal(r.drawn, 2, 'both labels are drawn in the Player view');
+  assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.pixelsChange, true, 'the picture changes when the labels go'); assert.equal(r.stored, '0');
+  assert.equal(r.drawnOn, 2); assert.equal(r.storedOn, '1'); assert.equal(r.dmAgain, false);
+});

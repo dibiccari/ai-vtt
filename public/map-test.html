@@ -215,6 +215,7 @@
         <button type="button" data-view="dm" aria-pressed="true" title="The DM's view: pins, the start area, area numbers, secret and locked doors, terrain, lights and the DM version of the picture">DM</button>
         <button type="button" data-view="player" aria-pressed="false" title="What the players see: the player picture only, with no pins, secrets or notes">Player</button>
       </span>
+      <label class="check" id="labelsRow" title="The same switch as on the tabletop: show the region, place and trail names written on this regional map" hidden><input type="checkbox" id="showLabels"> Show labels</label>
       <label class="check" id="placesRow" title="The same switch as on the tabletop: show the named places on this town or regional map" hidden><input type="checkbox" id="showPlaces"> Show places<span id="placesHint" class="hint" style="margin-left:8px" hidden></span></label>
       <span class="view-switch" id="timeSwitch" role="group" aria-label="Time of day">
         <button type="button" data-time="day" aria-pressed="true" title="The day look of this map">Day</button>
@@ -260,6 +261,7 @@
 <script src="/wallobjects.js"></script>
 <script src="/flicker.js"></script>
 <script src="/place-pins.js"></script>
+<script src="/map-labels.js"></script>
 <script src="/fog-style.js"></script>
 <script src="/ambience.js"></script>
 <script src="/effects.js"></script>
@@ -284,7 +286,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', drawKind: 'wall', lightZones: [], zoneSel: null, zonePen: null, showZones: false, fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', drawKind: 'wall', lightZones: [], labels: [], zoneSel: null, zonePen: null, showZones: false, fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     tokenImage: store.get('vtt.maptest.tokenImage', '/tokens/human-warrior-stern-a8268.png'),
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
@@ -720,7 +722,8 @@
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
     if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }
-    else if (PlacePins.appliesTo(S.kind) && PlacePins.enabled()) PlacePins.draw(ctx, S.starts.filter((p) => PlacePins.isPlace(p) && PlacePins.knownTo(p, [])), px);       // only the places known from the start: discoveries belong to a campaign's game       // Player view: the same named places the tabletop shows                 // the players never see the terrain shading, the pins or the start area
+    else if (MapLabels.appliesTo(S.kind) && MapLabels.enabled()) MapLabels.draw(ctx, S.labels, px);
+    if (S.viewAs !== 'dm' && PlacePins.appliesTo(S.kind) && PlacePins.enabled()) PlacePins.draw(ctx, S.starts.filter((p) => PlacePins.isPlace(p) && PlacePins.knownTo(p, [])), px);       // only the places known from the start: discoveries belong to a campaign's game       // Player view: the same named places the tabletop shows                 // the players never see the terrain shading, the pins or the start area
     if (!noFog()) drawTokens(px);
   }
 
@@ -1287,6 +1290,7 @@
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
         S.lightZones = (remote && Array.isArray(remote.lightZones) ? remote.lightZones : []).filter((z) => z && Array.isArray(z.points) && z.points.length >= 3 && ['bright', 'dim', 'dark', 'time'].includes(z.level)); S.zoneSel = null; S.zonePen = null;
+        S.labels = remote && Array.isArray(remote.labels) ? remote.labels.filter((l) => l && l.text && isFinite(l.x) && isFinite(l.y)) : [];       // the words on a regional map (drawn by public/map-labels.js, written by the label script)
         S.lights = S.allLights.filter((l) => l.flicker === true);
         S.mapLights = S.allLights;
         renderMapLightsList();
@@ -2359,6 +2363,7 @@
   { const lg = $('#mapLightsBox'); try { lg.open = localStorage.getItem('vtt.maptest.lightsOpen') === '1'; } catch (e) { /* closed */ } lg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.lightsOpen', lg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Light sources section is an accordion, closed by default
   { const dg = $('#doorsGroup'); try { dg.open = localStorage.getItem('vtt.maptest.doorsOpen') === '1'; } catch (e) { /* closed */ } dg.addEventListener('toggle', () => { try { localStorage.setItem('vtt.maptest.doorsOpen', dg.open ? '1' : '0'); } catch (e) { /* not remembered */ } }); }          // the Doors section is an accordion, remembered
   $('#showPlaces').addEventListener('change', (e) => { PlacePins.setEnabled(e.target.checked); requestRender(); });
+  $('#showLabels').addEventListener('change', (e) => { MapLabels.setEnabled(e.target.checked); requestRender(); });
   $('#showPins').addEventListener('change', (e) => { S.showPins = e.target.checked; requestRender(); });
   $('#brush').addEventListener('input', (e) => setBrush(Number(e.target.value)));
   document.addEventListener('keydown', (e) => {
@@ -2466,6 +2471,8 @@
     renderMapLightsList(); updatePlacesHint();
     $('#placesRow').hidden = !(S.viewAs === 'player' && PlacePins.appliesTo(S.kind));          // Player view of a town or regional map: the players' places switch
     $('#showPlaces').checked = PlacePins.enabled();
+    $('#labelsRow').hidden = !(S.viewAs === 'player' && MapLabels.appliesTo(S.kind) && S.labels.length > 0);       // Player view of a regional map that has names: the players' labels switch
+    $('#showLabels').checked = MapLabels.enabled();
   }
   function setView(v) {
     S.viewAs = v; S.dm = v === 'dm'; syncDmBox();

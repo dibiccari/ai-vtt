@@ -482,3 +482,64 @@ test('a pin can be marked dmOnly (hidden from players) and the flag is saved', a
   const back = (await s.get('/api/map-config?map=' + file)).json.config.starts;
   assert.equal(back.find((p) => p.name === 'secret-cache').dmOnly, true); assert.equal(back.find((p) => p.name === 'old-mill').dmOnly, undefined);
 });
+
+test('starter characters from the campaign wizard get real cantrips and spells for their class and level', async () => {
+  const make = async (cls, level) => { const r = await s.post('/api/characters/quick', { name: 'T ' + cls + level, race: 'Human', cls, level }); assert.equal(r.status, 200, r.text); return r.json.character || r.json; };
+  const spellsOf = (c) => Object.entries(c.sheet || {}).filter(([k, v]) => /^Spells /.test(k) && v).map(([, v]) => v);
+  const wiz = await make('Wizard', 3);
+  assert.ok(spellsOf(wiz).includes('Fire Bolt') && spellsOf(wiz).includes('Magic Missile') && spellsOf(wiz).includes('Misty Step'), 'a level 3 wizard has cantrips, 1st and 2nd level spells: ' + spellsOf(wiz).join(', '));
+  assert.equal(spellsOf(wiz).length, 3 + 6 + 4, 'three cantrips and a spellbook of 6 + 2 per level above 1');
+  const cleric = await make('Cleric', 1);
+  assert.ok(spellsOf(cleric).includes('Cure Wounds') && spellsOf(cleric).includes('Sacred Flame'));
+  const fighter = await make('Fighter', 3);
+  assert.equal(spellsOf(fighter).length, 0, 'a fighter has no spells');
+  const ranger1 = await make('Ranger', 1);
+  assert.equal(spellsOf(ranger1).length, 0, 'a level 1 ranger has no spell slots yet');
+  const warlock = await make('Warlock', 3);
+  assert.ok(spellsOf(warlock).includes('Eldritch Blast') && spellsOf(warlock).some((n) => n === 'Misty Step' || n === 'Hold Person'), 'a level 3 warlock knows pact-level spells: ' + spellsOf(warlock).join(', '));
+});
+
+test('map labels are cleaned, saved in the set, kept when a later save does not mention them and removed by an empty list', async () => {
+  const f = 'lmop-thundertree.png';
+  const { readdir } = await import('node:fs/promises');
+  const base = (await s.get('/api/map-config?map=' + f)).json.config;
+  delete base.labels; delete base.setVersion;
+  const long = 'N'.repeat(90);
+  const labels = [
+    { id: 'Sword Mountains!', text: ' Sword\u0001 Mountains ', kind: 'region', x: 400, y: 300.456, size: 48, rot: -22 },
+    { text: 'The High Road', kind: 'trail', x: 0, y: 0, path: [{ x: 10, y: 10 }, { x: 'x', y: 5 }, { x: 60, y: 40 }, { x: 120, y: 90 }], rot: 30 },
+    { text: 'Midpoint trail', kind: 'trail', path: [{ x: 0, y: 0 }, { x: 50, y: 50 }, { x: 100, y: 0 }] },
+    { text: 'Neverwinter', kind: 'place', x: 20, y: 30, size: -5 },
+    { text: long, kind: 'region', x: 1, y: 2 },
+    { text: 'No path', kind: 'trail', x: 5, y: 5 },
+    { text: 'One point', kind: 'trail', x: 5, y: 5, path: [{ x: 1, y: 1 }] },
+    { text: 'Bad kind', kind: 'ocean', x: 5, y: 5 },
+    { text: '   ', kind: 'place', x: 5, y: 5 },
+    { text: 'No place', kind: 'place' },
+    { id: 'sword-mountains', text: 'Same id', kind: 'place', x: 9, y: 9 }
+  ];
+  ok(await s.put('/api/map-config?map=' + f, { ...base, labels }));
+  let back = (await s.get('/api/map-config?map=' + f)).json.config;
+  assert.deepEqual(back.labels.map((l) => [l.id, l.text, l.kind]), [['sword-mountains', 'Sword Mountains', 'region'], ['label-2', 'The High Road', 'trail'], ['label-3', 'Midpoint trail', 'trail'], ['label-4', 'Neverwinter', 'place'], ['label-5', 'N'.repeat(60), 'region'], ['sword-mountains-2', 'Same id', 'place']], 'bad text, kinds, positions and short paths are dropped, text is cut to 60, ids are unique');
+  const [mount, road, mid, place] = back.labels;
+  assert.deepEqual([mount.x, mount.y, mount.size, mount.rot], [400, 300.46, 48, -22]);
+  assert.deepEqual(road.path, [{ x: 10, y: 10 }, { x: 60, y: 40 }, { x: 120, y: 90 }], 'a path point that is not a number is dropped'); assert.equal(road.rot, undefined, 'a trail follows its path: no rotation');
+  assert.deepEqual([mid.x, mid.y], [50, 50], 'a trail with no position sits at the middle of its path');
+  assert.equal(place.size, undefined, 'a size that is not positive is dropped');
+  // the round trip through the stored set: the level carries the labels, so the file on disk has them
+  const packets = await readdir(path.join(s.dir, 'data', 'mapsets'));
+  let found = 0;
+  for (const p of packets) { const set = await readFile(path.join(s.dir, 'data', 'mapsets', p, 'set.json'), 'utf8').then(JSON.parse, () => null); if (set && set.levels?.some((lv) => (lv.labels || []).some((l) => l.text === 'The High Road'))) found++; }
+  assert.equal(found, 1, 'the labels are stored in the set file');
+  // a save that says nothing about labels keeps them
+  ok(await s.put('/api/map-config?map=' + f, base));
+  back = (await s.get('/api/map-config?map=' + f)).json.config;
+  assert.equal(back.labels.length, 6, 'a save that says nothing about labels keeps them');
+  // more than 60 are cut and a path is limited to 200 points
+  const many = Array.from({ length: 70 }, (_, i) => ({ text: 'L' + i, kind: 'trail', path: Array.from({ length: 250 }, (_, j) => ({ x: j, y: i })) }));
+  ok(await s.put('/api/map-config?map=' + f, { ...base, labels: many }));
+  back = (await s.get('/api/map-config?map=' + f)).json.config;
+  assert.equal(back.labels.length, 60); assert.equal(back.labels[0].path.length, 200);
+  ok(await s.put('/api/map-config?map=' + f, { ...base, labels: [] }));
+  assert.equal((await s.get('/api/map-config?map=' + f)).json.config.labels, undefined, 'an empty list removes them');
+});
