@@ -1037,7 +1037,8 @@
     if (!plain.length) { box.textContent = 'No arrival spots saved for this map. With the Pins tool selected, click the map to add one.'; renderAreaList(); return; }
     const table = document.createElement('table'); table.className = 'pins-table'; table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
     const head = document.createElement('tr');
-    for (const h of ['', 'Name', 'Known', 'DM only', '']) { const th = document.createElement('th'); th.textContent = h; th.title = h === 'Known' ? 'Players know this place from the start (town and regional maps)' : h === 'DM only' ? 'Never shown to the players' : ''; th.style.cssText = 'text-align:left;color:var(--muted);font-weight:600;padding:2px 4px'; head.appendChild(th); }
+    const placeMap = PlacePins.appliesTo(S.kind);                 // Known and DM only are about what players see of named places: town and regional maps only
+    for (const h of ['', 'Name', 'Known', 'DM only', '']) { const th = document.createElement('th'); th.textContent = h; th.hidden = !placeMap && (h === 'Known' || h === 'DM only'); th.title = h === 'Known' ? 'Players know this place from the start (town and regional maps)' : h === 'DM only' ? 'Never shown to the players' : ''; th.style.cssText = 'text-align:left;color:var(--muted);font-weight:600;padding:2px 4px'; head.appendChild(th); }
     table.appendChild(head);
     plain.forEach((pin) => {
       const tr = document.createElement('tr');
@@ -1057,10 +1058,10 @@
       const isStart = pin.name === 'start';
       const known = document.createElement('input'); known.type = 'checkbox'; known.checked = pin.known === true; known.disabled = isStart;
       known.addEventListener('change', () => { if (known.checked) pin.known = true; else delete pin.known; save(); updatePlacesHint(); if (S.selected === pin) selectPin(pin, false); requestRender(); });
-      cell(known);
+      cell(known).hidden = !placeMap;
       const dmOnly = document.createElement('input'); dmOnly.type = 'checkbox'; dmOnly.checked = pin.dmOnly === true; dmOnly.disabled = isStart;
       dmOnly.addEventListener('change', () => { if (dmOnly.checked) pin.dmOnly = true; else delete pin.dmOnly; save(); if (S.selected === pin) selectPin(pin, false); requestRender(); });
-      cell(dmOnly);
+      cell(dmOnly).hidden = !placeMap;
       const del = document.createElement('button'); del.type = 'button'; del.className = 'small danger'; del.textContent = '✕'; del.title = 'Delete this pin';
       del.addEventListener('click', () => removePin(pin));
       cell(del);
@@ -2218,8 +2219,8 @@
     if (pin) {
       $('#pcName').value = pin.name;
       $('#pcNote').value = pin.desc || '';
-      $('#pcKnown').checked = pin.known === true; $('#pcKnownRow').hidden = pin.name === 'start' || /^area-\d+/.test(pin.name);
-      $('#pcDmOnly').checked = pin.dmOnly === true; $('#pcDmOnlyRow').hidden = pin.name === 'start' || /^area-\d+/.test(pin.name);
+      $('#pcKnown').checked = pin.known === true; $('#pcKnownRow').hidden = !PlacePins.appliesTo(S.kind) || pin.name === 'start' || /^area-\d+/.test(pin.name);
+      $('#pcDmOnly').checked = pin.dmOnly === true; $('#pcDmOnlyRow').hidden = !PlacePins.appliesTo(S.kind) || pin.name === 'start' || /^area-\d+/.test(pin.name);
       $('#pcStart').hidden = pin.name === 'start';
       $('#pcRadius').value = pin.radius || 0;
       $('#pcRadiusRow').hidden = pin.name !== 'start';       // only the start pin has an arrival circle; the other pins are descriptions
@@ -2496,7 +2497,7 @@
   loadTestTokenImages();
   loadMapList(true);
 
-  window.mapTest = { state: S, renderDoorList, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
+  window.mapTest = { state: S, selectPin, renderDoorList, visibilityPolygon, fogStateAt, loadMap, revealFog, fogAlphaAt: (x, y) => sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3] };
 })();
 </script>
 </body>

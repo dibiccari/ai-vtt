@@ -965,3 +965,22 @@ test('Show labels: the Player view of a regional map writes its region and trail
   assert.equal(r.drawnOff, -1, 'switched off: nothing is drawn'); assert.equal(r.pixelsChange, true, 'the picture changes when the labels go'); assert.equal(r.stored, '0');
   assert.equal(r.drawnOn, 2); assert.equal(r.storedOn, '1'); assert.equal(r.dmAgain, false);
 });
+
+test('the Known and Hide from players options belong to town and regional maps only: a camp pin card and the Pins table do not show them', opts, async () => {
+  const probe = async (url) => {
+    await page.goto(`${server.base}/map-test.html?map=${url}`);
+    await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+    return page.eval(`(async () => {
+      const S = window.mapTest.state; document.querySelector('button.tool[data-tool="start"]').click();
+      S.starts = S.starts.filter((p) => p.name === 'start'); S.starts.push({ name: 'rest-area', x: 300, y: 300 });
+      window.mapTest.selectPin(S.starts[S.starts.length - 1], false);
+      const vis = (id) => { const e = document.querySelector(id); return !!e && !e.hidden; };
+      const th = [...document.querySelectorAll('.pins-table th')].filter((t) => !t.hidden).map((t) => t.textContent);
+      return { kind: S.kind, known: vis('#pcKnownRow'), dmOnly: vis('#pcDmOnlyRow'), columns: th };
+    })()`);
+  };
+  const camp = await probe('/uploads/vtt-camp-day.png');
+  assert.equal(camp.kind, 'camp'); assert.equal(camp.known, false, JSON.stringify(camp)); assert.equal(camp.dmOnly, false); assert.ok(!camp.columns.includes('Known') && !camp.columns.includes('DM only'), 'the Pins table has no place columns on a camp: ' + JSON.stringify(camp));
+  const region = await probe('/uploads/dnd-sword-coast-ours.png');
+  assert.equal(region.kind, 'regional'); assert.equal(region.known, true); assert.equal(region.dmOnly, true); assert.ok(region.columns.includes('Known') && region.columns.includes('DM only'), JSON.stringify(region));
+});
