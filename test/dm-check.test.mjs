@@ -27,6 +27,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
     if (/death saving throw/.test(said)) return { ...base, rolls: [`Lyra death save: d20 (${d20[0]})`], narrative: 'Lyra clings to life: this death saving throw is rolled while the room blurs and the noise of the fight fades.' };
     if (/front-door/.test(said)) { const p = state.mapPlaces[0]; return { ...base, mapUpdates: [['goblin', 'Goblin 1', 0, 0], ['goblin', 'Goblin 2', 1, 1], ['goblin', 'Goblin 3', -1, 1], ['ogre', 'Ogre', 2, 0]].map(([m, n, dc, dr], i) => upd({ action: 'add', tokenId: 'raider' + i, name: n, col: p.col + dc, row: p.row + dr, monster: m })).concat([upd({ action: 'startCombat' })]) }; }
     if (/Potion of flying/.test(said)) return { ...base, mapUpdates: [upd({ action: 'elevate', tokenId: 'pc-thorin', value: 20 }), upd({ action: 'addCondition', tokenId: 'pc-thorin', condition: 'flying', rounds: 0, value: 60 })] };
+    if (/Flame Tongue/.test(said)) return { ...base, mapUpdates: [upd({ action: 'light', tokenId: 'pc-thorin', condition: 'flame-tongue' })] };
     if (/Potion of speed/.test(said)) return { ...base, mapUpdates: [upd({ action: 'addCondition', tokenId: 'pc-vex', condition: 'haste', rounds: 10 })] };
     if (/lamp oil explodes/.test(said)) return { ...base, mapUpdates: [upd({ action: 'move', tokenId: 'npc-bram', col: state.tokens.find((x) => x.id === 'npc-bram').col + 2, row: state.tokens.find((x) => x.id === 'npc-bram').row, condition: 'forced' })] };
     if (/Boots of levitation/.test(said)) return { ...base, mapUpdates: [upd({ action: 'addCondition', tokenId: 'pc-lyra', condition: 'levitate', name: 'pc-lyra', rounds: 0 }), upd({ action: 'elevate', tokenId: 'pc-lyra', value: 20 })] };
@@ -42,7 +43,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
 
 function runCheck(fakeUrl, extra = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '40', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '48', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     child.on('exit', (code) => resolve({ code, out }));
   });

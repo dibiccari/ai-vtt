@@ -131,3 +131,15 @@ test('shop: the token action becomes an openShop update for the table, with the 
   assert.deepEqual([shops[0].merchant, shops[0].groups, shops[0].markup], ['Hurdred the smith', ['Weapon', 'Armor'], 120]);
   assert.deepEqual([shops[1].merchant, shops[1].groups, shops[1].markup], ['A merchant', [], 100]);
 });
+
+test('light from gear: the DM is told what each character carries that gives light, and how it is turned on', async () => {
+  await say(gear({ name: 'Flame Tongue', qty: 1, weight: 3 }), gear({ name: 'Torch', qty: 2, weight: 1 }));
+  fake.__set(reply());
+  await s.post('/api/chat', { message: 'what gives us light?' });
+  const board = boardStateOf(fake.requests.at(-1));
+  const edric = board.party.characters.find((c) => c.id === ID.edric);
+  const by = (kind) => (edric.lightItems || []).find((l) => l.kind === kind);
+  assert.ok(by('flame-tongue') && by('flame-tongue').bright === 40 && by('flame-tongue').dim === 80 && by('flame-tongue').mode === 'lit' && /bonus action/.test(by('flame-tongue').how), JSON.stringify(edric.lightItems));
+  assert.ok(by('torch') && by('torch').bright === 20, 'a torch counts too');
+  assert.ok(!(board.party.characters.find((c) => c.id === ID.rachel).lightItems || []).some((l) => l.kind === 'flame-tongue'), 'only the character who carries it');
+});

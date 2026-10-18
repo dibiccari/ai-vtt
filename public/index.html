@@ -2742,6 +2742,20 @@ function commitBoard() {
 // (bright light out to the bright radius, dim light out to the dim radius) or what their darkvision reaches; darkvision turns
 // dark into dim. In bright or dim light, line of sight is all it takes.
 const LIGHT_KINDS = { torch: [20, 40, 'Torch'], lantern: [30, 60, 'Lantern'], candle: [5, 10, 'Candle'], light: [20, 40, 'Light spell'] };
+// Light from gear (public/light-data.json): more kinds (a Flame Tongue, a Sun Blade...) and which items give them. An item in lit mode shines when somebody lights it (the DM's light action); in held mode it shines while it is wielded.
+let LIGHT_ITEMS = {}, LIGHT_NEEDS_ITEM = new Set();
+async function loadLightData() {
+  try {
+    const d = await (await fetch('/light-data.json')).json();
+    for (const [k, v] of Object.entries(d.kinds || {})) { LIGHT_KINDS[k] = [v.bright, v.dim, v.name]; if (v.needsItem) LIGHT_NEEDS_ITEM.add(k); }
+    LIGHT_ITEMS = d.items || {};
+  } catch { /* the four plain kinds still work */ }
+}
+const slugOfName = (n) => String(n ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const lightOfItem = (it) => LIGHT_ITEMS[it && it.srd] || LIGHT_ITEMS[slugOfName(it && it.name)] || null;
+// The light a character's gear gives: the item that sets it (equipped, mode 'held') or, for a kind that needs an item, whether they wield one.
+const gearLightKinds = (t, mode) => { const c = characterFor(t); return ((c && c.inventory) || []).filter((it) => it.equipped !== false).map(lightOfItem).filter((l) => l && (!mode || l.mode === mode)).map((l) => l.kind); };
+const lightKindOf = (t) => t.lightKind || (t.isPC ? gearLightKinds(t, 'held')[0] : '') || '';
 const ambientNow = () => state.ambientOverride || state.ambient;
 const feetToPx = (ft) => (ft / FT_PER_SQUARE) * GRID;
 
@@ -2751,7 +2765,7 @@ function allLights() {
   const off = lightsOffNow();
   for (const l of state.lights) if (!off.includes(l.id)) out.push(l);
   for (const t of state.tokens) {
-    const k = LIGHT_KINDS[t.lightKind];
+    const k = LIGHT_KINDS[lightKindOf(t)];
     if (k && !t.dead) out.push({ id: `token-${t.id}`, name: `${t.name}'s ${k[2].toLowerCase()}`, x: tcx(t), y: tcy(t), bright: feetToPx(k[0]), dim: feetToPx(k[1]) });
   }
   return out;
@@ -3754,7 +3768,7 @@ async function sendTurn(spokenText, opts) {
       message: content,
       history,
       activeTokenId: active ? active.id : null,
-      tokens: state.tokens.map((t) => ({ ...serializeToken(t), visibleToParty: seenByParty(t) })),
+      tokens: state.tokens.map((t) => ({ ...serializeToken(t), lightKind: lightKindOf(t), visibleToParty: seenByParty(t) })),
       characters: state.characters.map(({ sheetLog, ...rest }) => rest),
       walls: state.walls.map(({ x1, y1, x2, y2, type, open, locked, secret, dc }) => ({ x1, y1, x2, y2, type, open: !!open, ...(locked ? { locked: true } : {}), ...(secret ? { secret: true } : {}), ...(dc ? { dc } : {}) })),
       gridSize: GRID,
@@ -4583,7 +4597,8 @@ async function applyMapUpdates(updates) {
       case 'lightToken': {
         // A token that carries a light, or one of the map's own lights (a campfire, a torch).
         const t = state.tokens.find((x) => x.id === u.tokenId);
-        if (t) { t.lightKind = LIGHT_KINDS[u.kind] ? u.kind : ''; if (seenByParty(t)) addChat('system', `↳ ${t.name} ${t.lightKind ? 'lights a ' + LIGHT_KINDS[t.lightKind][2].toLowerCase() : 'puts out their light'}`); }
+        if (t && LIGHT_NEEDS_ITEM.has(u.kind) && !(t.isPC ? gearLightKinds(t).includes(u.kind) : false)) { addChat('system', `↳ ${t.name} has no ${LIGHT_KINDS[u.kind][2]} to light.`); state.pendingNotes.push(`The table refused to light a ${LIGHT_KINDS[u.kind][2]} for ${t.name}: they do not carry and wield one (see lightItems in the party block).`); }
+        else if (t) { t.lightKind = LIGHT_KINDS[u.kind] ? u.kind : ''; if (seenByParty(t)) addChat('system', `↳ ${t.name} ${t.lightKind ? 'lights a ' + LIGHT_KINDS[t.lightKind][2].toLowerCase() : 'puts out their light'}`); }
         else if (state.lights.some((l) => l.id === u.tokenId)) { setMapLight(u.tokenId, Number(u.value) !== 0); addChat('system', `↳ The ${u.tokenId} ${Number(u.value) !== 0 ? 'is lit' : 'goes out'}`); }
         break;
       }
@@ -4819,6 +4834,7 @@ async function init() {
   scrollChat();
   await loadCharacters();
   await loadEffectDefs();
+  await loadLightData();
   if (window.ConditionRings) ConditionRings.load().then(() => requestRender()).catch(() => {});
   await refreshClock();
   connectLive();

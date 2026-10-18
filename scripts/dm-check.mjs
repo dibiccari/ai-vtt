@@ -1,6 +1,6 @@
 // Scripted DM check: a short, fixed conversation with the REAL Dungeon Master (paid API calls), with invariants asserted on every reply.
 //   npm run dm-check -- --dry-run       print the plan, spend nothing
-//   npm run dm-check -- --live          run it (default at most 40 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
+//   npm run dm-check -- --live          run it (default at most 48 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
 // It starts a throwaway server on a COPY of the data (the real data/ is never touched) with a fresh campaign copied from the tavern test,
 // puts a local proxy between the server and api.anthropic.com to see the requests (dice tray) and the real token usage, and prints
 // pass/fail lines only: no story text. The key comes from ANTHROPIC_API_KEY or the repo's .env (never printed, never copied into the sandbox).
@@ -16,7 +16,7 @@ import { ID } from '../test/helpers/ids.mjs';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt("--max-calls", 40));
+const MAX_CALLS = Number(opt("--max-calls", 48));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -43,6 +43,7 @@ const STEPS = [
   { id: 'deathsave', say: '[Lyra] It is my turn and I am at 0 hit points, unconscious and dying. Make my death saving throw.', expect: 'a d20 death save rolled from the tray, no attack or damage on anyone' },
   { id: 'group', say: '[Table] The scene calls for it: three goblin raiders and an ogre bruiser kick in the front door (the place front-door) and rush into the taproom. Place them on the board and start combat.', expect: 'four creatures added with their own squares near the front-door pin, the ogre Large' },
   { id: 'fly', say: '[Thorin] I drink the Potion of flying from my pack and rise twenty feet above the floor. Please update the board.', expect: 'Thorin raised to 20 feet (elevate) and a flying effect, no spell slot spent' },
+  { id: 'lightgear', say: '[Thorin] I draw my Flame Tongue, which I am attuned to, and speak its command word so the blade bursts into flame. Update the board.', expect: 'a light update for Thorin with the flame-tongue kind (he carries and wields it), no other character lit' },
   { id: 'haste', say: '[Vex] I drink the Potion of speed from my pack, so I am hasted for one minute. Please update the board.', expect: 'a haste effect on Vex for 10 rounds (no concentration source), the DM does not touch Vex\'s speed or AC itself' },
   { id: 'forced', say: '[Table] A barrel of lamp oil explodes behind Drunk Bram and the blast throws him 10 feet straight to the east. No roll is needed: just apply the move to the board.', expect: 'a move of Bram marked forced (not his own walking), the destination 10 ft (2 squares) from where he stood' },
   { id: 'levitate', say: '[Lyra] I use my Boots of levitation to cast Levitate on myself, concentrating, and rise the full 20 feet into the air. Update the board.', expect: 'a levitate effect on Lyra with her as the caster, elevated 20 ft' },
@@ -222,6 +223,7 @@ try {
       // The step says the fight is over: take away the goblins and the ogre the group step added, or the DM rightly says the room is not safe to leave.
       travel: async () => { combat = { active: false }; tokens = tokens.filter((t) => t.isPC || /^npc-(orla|bram|hidden|garrick|guard|choir|sleeper)$/.test(t.id) || /^trap-/.test(t.id)); setActive('pc-thorin'); },
       fly: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem(ID.thorin, 'Potion of flying', 'Drink: flying speed equal to your walking speed for 1 hour, you can hover.'); },
+      lightgear: async () => { combat = { active: false }; setActive('pc-thorin'); await giveItem(ID.thorin, 'Flame Tongue', 'Weapon (any sword), rare (requires attunement). Bonus action: ignite or douse; sheds bright light 40 ft and dim light another 40 ft.', { requiresAttunement: true, attuned: true, equipped: true }); },
       haste: async () => { combat = { active: false }; setActive('pc-vex'); await giveItem(ID.vex, 'Potion of speed', 'Drink: haste for 1 minute, no concentration.'); },
       senses: async () => {
         combat = { active: false };
@@ -414,6 +416,11 @@ try {
       check(!!el && Number(el.value) > 0 && Number(el.value) <= 20, 'fly: Thorin raised off the floor, no higher than asked (elevate; the DM may stop lower under a ceiling)', el ? 'value ' + el.value : 'no elevate');
       const eff = upd(j).find((u) => u.type === 'addCondition' && u.tokenId === 'pc-thorin' && /fly|flying/.test(condOf(u)));
       if (!eff) warn('fly: no flying effect on Thorin (elevation alone also makes him fly if he has a flying speed)');
+    }
+    if (step.id === 'lightgear') {
+      const l = (raw?.mapUpdates || []).find((u) => u.type === 'token' && u.action === 'light' && u.tokenId === 'pc-thorin');
+      check(!!l && /flame[- ]?tongue/i.test(String(l.condition || '')), 'lightgear: Thorin\'s Flame Tongue is lit (light action, kind flame-tongue)', l ? 'kind ' + JSON.stringify(l.condition) : upd(j).map((u) => u.type + ':' + (u.tokenId || '') + ':' + condOf(u)).join(', ').slice(0, 200));
+      check(!(raw?.mapUpdates || []).some((u) => u.type === 'token' && u.action === 'light' && u.tokenId !== 'pc-thorin'), 'lightgear: nobody else is lit');
     }
     if (step.id === 'haste') {
       const h = upd(j).find((u) => u.type === 'addCondition' && u.tokenId === 'pc-vex' && /haste/.test(condOf(u)));

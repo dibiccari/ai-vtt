@@ -1,0 +1,23 @@
+{
+  "note": "Light a character can carry. kinds: the light each gives (feet, by the 5e book). items: SRD item indexes (an item's name in lowercase with dashes also matches) with the kind they give and mode: lit = somebody lights it (and puts it out), held = it shines while it is wielded. needsItem kinds are refused unless the character carries and wields that item.",
+  "kinds": {
+    "torch": { "bright": 20, "dim": 40, "name": "Torch" },
+    "lantern": { "bright": 30, "dim": 60, "name": "Lantern" },
+    "candle": { "bright": 5, "dim": 10, "name": "Candle" },
+    "light": { "bright": 20, "dim": 40, "name": "Light spell" },
+    "flame-tongue": { "bright": 40, "dim": 80, "name": "Flame Tongue", "needsItem": true },
+    "sun-blade": { "bright": 15, "dim": 30, "name": "Sun Blade", "needsItem": true },
+    "mace-of-disruption": { "bright": 20, "dim": 40, "name": "Mace of Disruption", "needsItem": true },
+    "lantern-of-revealing": { "bright": 30, "dim": 60, "name": "Lantern of Revealing", "needsItem": true }
+  },
+  "items": {
+    "torch": { "kind": "torch", "mode": "lit", "how": "light it (it burns for 1 hour)" },
+    "lantern-hooded": { "kind": "lantern", "mode": "lit", "how": "light it (it burns for 6 hours on a pint of oil)" },
+    "lantern-bullseye": { "kind": "lantern", "mode": "lit", "how": "light it (it burns for 6 hours on a pint of oil)" },
+    "candle": { "kind": "candle", "mode": "lit", "how": "light it (it burns for 1 hour)" },
+    "flame-tongue": { "kind": "flame-tongue", "mode": "lit", "how": "a bonus action and its command word ignite or douse the blade" },
+    "sun-blade": { "kind": "sun-blade", "mode": "lit", "how": "a bonus action makes the blade of radiance appear or vanish" },
+    "mace-of-disruption": { "kind": "mace-of-disruption", "mode": "held", "how": "it sheds light while it is held" },
+    "lantern-of-revealing": { "kind": "lantern-of-revealing", "mode": "lit", "how": "light it (it burns for 6 hours on a pint of oil)" }
+  }
+}

@@ -1216,3 +1216,30 @@ test('fog off for a map: a battle map saved with fog off is shown whole to the p
   await server.put('/api/map-config?map=' + f, { ...rest, baseVersion: now.setVersion });       // leave the map as it was (fog is on when the flag is absent)
   assert.equal((await server.get('/api/map-config?map=' + f)).json.config.fog, undefined);
 });
+
+test('light from gear: a Flame Tongue is lit by the DM only for a character who wields one, a Mace of Disruption shines by itself, torches stay as before', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state, hero = s.tokens[0], c = characterFor(hero), out = {};
+    const mine = () => allLights().filter((l) => l.id === 'token-' + hero.id).map((l) => [l.name, Math.round(l.bright / GRID * 5), Math.round(l.dim / GRID * 5)]);
+    s.pendingNotes = []; hero.lightKind = ''; c.inventory = [];
+    await vtt.applyMapUpdates([{ type: 'lightToken', tokenId: hero.id, kind: 'flame-tongue' }]);
+    out.refused = { kind: hero.lightKind, lights: mine(), noted: s.pendingNotes.some((n) => /Flame Tongue/.test(n)) };
+    c.inventory = [{ id: 'ft', name: 'Flame Tongue', qty: 1, equipped: true, effects: [] }];
+    await vtt.applyMapUpdates([{ type: 'lightToken', tokenId: hero.id, kind: 'flame-tongue' }]);
+    out.lit = { kind: hero.lightKind, lights: mine() };
+    await vtt.applyMapUpdates([{ type: 'lightToken', tokenId: hero.id, kind: '' }]);
+    out.doused = { kind: hero.lightKind, lights: mine() };
+    c.inventory = [{ id: 'md', name: 'Mace of Disruption', qty: 1, equipped: true, effects: [] }];
+    out.held = mine();
+    c.inventory[0].equipped = false; out.stowed = mine();
+    c.inventory = []; await vtt.applyMapUpdates([{ type: 'lightToken', tokenId: hero.id, kind: 'torch' }]);
+    out.torch = { kind: hero.lightKind, lights: mine() };
+    hero.lightKind = ''; return out;
+  })()`);
+  assert.deepEqual(r.refused, { kind: '', lights: [], noted: true }, 'no Flame Tongue, no light, and the DM is told');
+  assert.deepEqual(r.lit.lights.map((l) => l.slice(1)), [[40, 80]], 'a lit Flame Tongue: 40 ft bright, 80 ft dim'); assert.equal(r.lit.kind, 'flame-tongue');
+  assert.deepEqual(r.doused, { kind: '', lights: [] });
+  assert.deepEqual(r.held.map((l) => l.slice(1)), [[20, 40]], 'a Mace of Disruption lights its holder by itself'); assert.deepEqual(r.stowed, [], 'put away it does not');
+  assert.deepEqual(r.torch.lights.map((l) => l.slice(1)), [[20, 40]], 'a torch needs no item'); assert.equal(r.torch.kind, 'torch');
+});
