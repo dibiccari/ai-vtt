@@ -143,3 +143,22 @@ test('light from gear: the DM is told what each character carries that gives lig
   assert.ok(by('torch') && by('torch').bright === 20, 'a torch counts too');
   assert.ok(!(board.party.characters.find((c) => c.id === ID.rachel).lightItems || []).some((l) => l.kind === 'flame-tongue'), 'only the character who carries it');
 });
+
+test('give: an item moves to another character or the stash and both sheets follow (armor class), a missing item is refused', async () => {
+  await say(gear({ name: 'Chain mail', qty: 1, weight: 55 }), gear({ name: 'Rope, hempen (50 feet)', qty: 2, weight: 10 }));
+  const before = await character(ID.edric);
+  assert.ok(item(before, 'Chain mail'), 'Edric holds the armor');
+  const acWith = before.ac;
+  const r = await s.post('/api/party/give', { from: ID.edric, to: ID.rachel, name: 'Chain mail', qty: item(before, 'Chain mail').qty });
+  assert.equal(r.status, 200, r.text);
+  const edric = await character(ID.edric), rachel = await character(ID.rachel);
+  assert.ok(!item(edric, 'Chain mail') && item(rachel, 'Chain mail'), 'it changed hands');
+  assert.ok(edric.ac < acWith, 'the giver\'s armor class dropped with the armor: ' + acWith + ' to ' + edric.ac);
+  const toStash = await s.post('/api/party/give', { from: ID.edric, to: 'stash', name: 'Rope, hempen (50 feet)', qty: 1 });
+  assert.equal(toStash.status, 200, toStash.text);
+  assert.equal(item(await character(ID.edric), 'Rope, hempen (50 feet)').qty, 1, 'one of two left');
+  assert.ok((await party()).stash.items.some((i) => /rope/i.test(i.name)), 'the stash has it');
+  const none = await s.post('/api/party/give', { from: ID.edric, to: ID.rachel, name: 'Vorpal sword', qty: 1 });
+  assert.equal(none.status, 400, 'an item that is not there is refused');
+  assert.equal((await s.post('/api/party/give', { from: ID.edric, to: ID.edric, name: 'Torch', qty: 1 })).status, 400, 'not to oneself');
+});

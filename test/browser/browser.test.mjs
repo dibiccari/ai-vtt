@@ -1291,3 +1291,23 @@ test('time of day: the DM\'s timeOfDay update darkens a day picture at night (no
   assert.equal(r.zones.cave, 0, 'a fixed dark zone is left alone'); assert.ok(r.zones.yard > 80 && r.zones.elsewhere > 80, 'the rest, and zones that follow the time of day, are washed');
   assert.equal(r.backToDay, 'day');
 });
+
+test('a place with a Night look shows it when the DM says it is night (own light and lights), and the Day look again by day; a place with one picture gets the wash', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    await vtt.travelTo({ mapUrl: '/uploads/vtt-camp-day.png', mapName: 'Camp', kind: 'camp', col: 5, row: 5 });
+    s.timeOfDay = 'day'; await wait(400);
+    const snap = () => ({ src: s.map.img.src.split('/').pop(), look: s.look, ambient: s.ambient, lights: s.lights.length, files: s.lookFiles });
+    out.day = snap();
+    vtt.setTimeOfDay('night'); await wait(1200); out.night = snap();
+    vtt.setTimeOfDay('dusk'); await wait(1200); out.dusk = snap();
+    vtt.setTimeOfDay('night'); await wait(1200);
+    vtt.setTimeOfDay('day'); await wait(1200); out.backToDay = snap();
+    s.timeOfDay = 'day';
+    return out;
+  })()`);
+  assert.deepEqual(r.day.files, { day: 'vtt-camp-day.png', night: 'vtt-camp-night.png' }, JSON.stringify(r)); assert.equal(r.day.src, 'vtt-camp-day.png'); assert.equal(r.day.look, 'day');
+  assert.equal(r.night.src, 'vtt-camp-night.png', 'the Night picture at night'); assert.equal(r.night.look, 'night'); assert.notEqual(r.night.ambient, r.day.ambient, 'the night look has its own light level');
+  assert.equal(r.dusk.src, 'vtt-camp-day.png', 'dusk is the day picture under a lighter wash'); assert.equal(r.backToDay.src, 'vtt-camp-day.png'); assert.equal(r.backToDay.ambient, r.day.ambient);
+});

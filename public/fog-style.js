@@ -66,6 +66,14 @@
     // lit (optional): a canvas the size of the shroud, white where the ground is lit. Given when a map has light zones: the fog over lit ground is cloud, the fog over dark ground is black.
     draw: function (ctx, shroud, dark, now, lit) {
       var animated = FogStyle.moves(dark);
+      if (dark && !lit && ctx.getTransform) {                         // darkness: the fog's shape in black, whatever colour it was painted in when the place was lit
+        var cvD = ctx.canvas, mD = ctx.getTransform(), aD = ctx.globalAlpha, xD = scratch('layer', cvD);
+        xD.setTransform(1, 0, 0, 1, 0, 0); xD.globalCompositeOperation = 'source-over'; xD.globalAlpha = 1; xD.clearRect(0, 0, cvD.width, cvD.height);
+        xD.setTransform(mD); xD.drawImage(shroud, 0, 0); xD.setTransform(1, 0, 0, 1, 0, 0);
+        xD.globalCompositeOperation = 'source-in'; xD.fillStyle = '#040508'; xD.fillRect(0, 0, cvD.width, cvD.height);
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = aD; ctx.drawImage(layer, 0, 0); ctx.restore();
+        return;
+      }
       if ((!animated && !lit) || !ctx.getTransform) { ctx.drawImage(shroud, 0, 0); return; }
       if (!tile) tile = makeTile();
       if (!shadeTile) shadeTile = makeTile(true);

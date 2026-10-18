@@ -101,3 +101,27 @@ test('gear endpoints: shop, paying, preview and commit change the armor class an
   assert.equal(sheet.sheetLog.at(-1).reason, 'Sold the armor');
   assert.equal((await srv.post(`/api/party/gear/nobody/preview`, body)).status, 404);
 });
+
+test('magic armor and shields: a +N in the name adds N to the armor class', async () => {
+  const { magicBonus, wornArmorSpeedPenalty } = await import('../lib/loadout.js');
+  assert.equal(magicBonus({ name: 'Chain Mail +1' }), 1); assert.equal(magicBonus({ name: '+2 Shield' }), 2); assert.equal(magicBonus({ name: 'Chain mail' }), 0); assert.equal(magicBonus({ name: 'Potion x+4' }), 0);
+  const fighter = { ProficienciesLang: 'Armor: all armor, shields.' };
+  assert.equal(armorClass(hero('Fighter', { dex: 14, str: 16 }, [item('Chain Mail +1'), item('Shield')], fighter)).ac, 19, 'chain mail 16 + 1');
+  assert.equal(armorClass(hero('Fighter', { dex: 14, str: 16 }, [item('Chain mail'), item('Shield, +2')], fighter)).ac, 20, 'a +2 shield gives 2 + 2');
+  assert.ok(armorClass(hero('Fighter', { str: 16 }, [item('Chain Mail +1')], fighter)).parts.some((p) => /\+ 1 magic/.test(p)), 'the working shows it');
+  assert.equal(srdFor(item('Plate +3')).index, 'plate-armor');
+  assert.equal(wornArmorSpeedPenalty(hero('Fighter', { str: 10 }, [item('Plate')], fighter)).feet, 10, 'plate needs Strength 15');
+  assert.equal(wornArmorSpeedPenalty(hero('Fighter', { str: 15 }, [item('Plate')], fighter)), null);
+  assert.equal(wornArmorSpeedPenalty(hero('Fighter', { str: 10 }, [item('Plate')], fighter), 17), null, 'a belt that raises Strength counts');
+  assert.equal(wornArmorSpeedPenalty(hero('Fighter', { str: 8 }, [item('Chain mail')], fighter)).needs, 13);
+  assert.equal(wornArmorSpeedPenalty(hero('Rogue', { str: 8 }, [item('Leather armor')], {})), null, 'light armor has no Strength minimum');
+});
+
+test('effective speed: heavy armor without the Strength costs 10 ft, shown in the working', async () => {
+  const { computeEffective, normalizeItem } = await import('../lib/party.js');
+  const c = { ...hero('Fighter', { str: 10 }, [item('Plate')], {}), inventory: [normalizeItem({ name: 'Plate', equipped: true })] };
+  const e = computeEffective(c, false, '2014');
+  assert.equal(e.speed, 20); assert.ok(e.breakdown.speed.some((b) => /Plate Armor needs Strength 15/.test(b.label) && b.value === -10));
+  const strong = { ...c, abilities: { ...c.abilities, str: 16 } };
+  assert.equal(computeEffective(strong, false, '2014').speed, 30);
+});

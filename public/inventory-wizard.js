@@ -48,6 +48,7 @@
     var orig = JSON.parse(JSON.stringify(c.inventory || [])), origCoins = JSON.parse(JSON.stringify(c.coins || {}));
     var inv = JSON.parse(JSON.stringify(orig)), coins = JSON.parse(JSON.stringify(origCoins));
     var spent = [];                                  // lines for the review: what was bought, sold or taken
+    var gives = [];                                  // items handed to someone else (or the stash): done on Confirm, before the rest is saved
     var tab = 'Shop', live = null, timer = null, seq = 0;
     var f = { q: '', group: '' };
 
@@ -209,6 +210,15 @@
         var ac = el('td'); if (it.requiresAttunement) { var ab = el('input'); ab.type = 'checkbox'; ab.checked = !!it.attuned; ab.title = 'Attune (three at most)'; ab.addEventListener('change', function () { it.attuned = ab.checked; changed(); }); ac.appendChild(ab); } tr.appendChild(ac);
         var act = el('td');
         if (e && e.base) { var sell = el('button', 'small', 'Sell'); sell.title = 'Sell one for half its price'; sell.addEventListener('click', function () { var half = Math.floor(e.base / 2); coins.cp = (Number(coins.cp) || 0) + half; it.qty -= 1; if (it.qty < 1) inv.splice(inv.indexOf(it), 1); spent.push({ text: 'Sold 1 × ' + it.name + ' for ' + coinText(half), cls: 'del' }); draw(); changed(); }); act.append(sell, document.createTextNode(' ')); }
+        if (cfg.others && cfg.others.length) {
+          var saved = orig.filter(function (o) { return o.id === it.id; })[0];
+          var giveSel = el('select', 'small'); giveSel.title = saved ? 'Give this to someone else or the stash' : 'Confirm what you bought first, then give it';
+          giveSel.appendChild(el('option', '', 'Give…')); giveSel.firstChild.value = '';
+          [{ id: 'stash', name: 'Party stash' }].concat(cfg.others).forEach(function (o) { var op = el('option', '', o.name); op.value = o.id; giveSel.appendChild(op); });
+          giveSel.disabled = !saved;
+          giveSel.addEventListener('change', function () { if (!giveSel.value) return; var who = cfg.others.concat([{ id: 'stash', name: 'Party stash' }]).filter(function (o) { return o.id === giveSel.value; })[0]; var qty = Math.min(it.qty, saved.qty); gives.push({ to: giveSel.value, name: it.name, qty: qty, toName: who ? who.name : '' }); spent.push({ text: 'Gave ' + qty + ' × ' + it.name + ' to ' + (who ? who.name : ''), cls: 'del' }); it.qty -= qty; if (it.qty < 1) inv.splice(inv.indexOf(it), 1); draw(); changed(); });
+          act.appendChild(giveSel);
+        }
         var del = el('button', 'small danger', '✕'); del.title = 'Drop all of it'; del.addEventListener('click', function () { inv.splice(inv.indexOf(it), 1); spent.push({ text: 'Dropped ' + it.qty + ' × ' + it.name, cls: 'del' }); draw(); changed(); });
         act.appendChild(del); tr.appendChild(act); t.appendChild(tr);
       });
@@ -247,6 +257,10 @@
         }
       });
       orig.forEach(function (o) { if (!inv.some(function (i) { return i.id === o.id; })) out.push({ text: 'Gone: ' + o.qty + ' × ' + o.name, cls: 'del' }); });
+      gives.forEach(function (g) {                      // a gift is one line, not 'gone' and 'quantity changed'
+        out = out.filter(function (l) { return !(l.text.indexOf(g.name) >= 0 && (/^Gone: /.test(l.text) || / quantity /.test(l.text))); });
+        out.push({ text: 'Gave ' + g.qty + ' × ' + g.name + ' to ' + g.toName, cls: 'del' });
+      });
       var d = totalCp(coins) - totalCp(origCoins);
       if (d) out.push({ text: 'Purse ' + (d > 0 ? '+' : '−') + coinText(Math.abs(d)) + ' → ' + coinText(totalCp(coins)), cls: d > 0 ? 'add' : 'del' });
       return out;
@@ -272,8 +286,9 @@
     }
     confirm.addEventListener('click', async function () {
       if (tab !== 'Review') { tab = 'Review'; draw(); return; }
-      if (!diffLines().length) { close(); return; }
+      if (!diffLines().length && !gives.length) { close(); return; }
       confirm.disabled = true;
+      try { for (var g = 0; g < gives.length; g++) await api('/api/party/give', { from: c.id, to: gives[g].to, name: gives[g].name, qty: gives[g].qty }); } catch (err) { confirm.disabled = false; say(err.message); return; }
       try { var out = await api('/api/party/gear/' + encodeURIComponent(c.id) + '/commit', { inventory: inv, coins: coins, reason: reason.value || 'Gear change' }); close(); await cfg.onDone(out); }
       catch (err) { confirm.disabled = false; say(err.message); }
     });

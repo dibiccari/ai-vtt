@@ -42,3 +42,18 @@ test('buy a dagger, take off the chain mail, review and confirm: the sheet follo
   assert.equal(after1.sheet.AC, '14'); assert.match(after1.sheet.Equipment, /Dagger/); assert.equal(Number(after1.sheet.GP), gp0 - 2);
   assert.ok(after1.sheetLog.at(-1).changes.some((c) => c.field === 'AC'), 'the change is in the sheet log');
 });
+
+test('give an item from inside the wizard: it goes to the party stash on Confirm and leaves the pack', opts, async () => {
+  await page.eval(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Manage gear…').click()`);
+  await page.waitFor('document.querySelector("dialog.wiz[open] .shoplist table")');
+  await tab('Carried');
+  const picked = await page.eval(`(() => { const row = [...document.querySelectorAll('dialog.wiz tr')].find((r) => /^Handaxe/.test(r.textContent)); const sel = row && row.querySelector('select'); if (!sel) return 'no select'; sel.value = 'stash'; sel.dispatchEvent(new Event('change')); return 'ok'; })()`);
+  assert.equal(picked, 'ok', 'a Give drop down sits on each carried item');
+  assert.ok(!(await page.eval(`[...document.querySelectorAll('dialog.wiz td')].some((t) => /^Handaxe/.test(t.textContent))`)), 'it leaves the staged pack');
+  await page.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === 'Review changes').click()`);
+  assert.match(await page.eval(`document.querySelector('dialog.wiz .body').textContent`), /Gave \d+ × Handaxe to Party stash/);
+  await page.eval(`[...document.querySelectorAll('dialog.wiz footer button')].find((b) => b.textContent === 'Confirm').click()`);
+  await page.waitFor('!document.querySelector("dialog.wiz")');
+  const after = await page.eval(`fetch('/api/party').then((r) => r.json()).then((d) => ({ edric: d.characters.find((c) => c.id === '${ID.edric}').inventory.map((i) => i.name), stash: d.stash.items.map((i) => i.name) }))`);
+  assert.ok(!after.edric.includes('Handaxe') && after.stash.includes('Handaxe'), JSON.stringify(after));
+});

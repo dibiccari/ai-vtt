@@ -11,13 +11,13 @@
 - DONE (Nov 2026): Party accordions and per-character pop-out with the full sheet, level-up wizard (+ Level-up Test page), inventory wizard with shop and coins, journal as a quest log without a clear button, tabletop and Map Test light follow the 5e rule, characters use GUID ids, DM purchases (gear buy) and the shop token action, the Merchant agent, the Bookkeeper agent, reply forms for fight and scene.
 - Orchestrator, next steps: decide when a service tool is worth its extra round trip (the DM once called buy_item with a fake item and, with a tool present, skipped a map change); next specialists: recurring NPCs, a rules and lookup service, combat bookkeeping last.
 - Level-up wizard gaps: multiclass characters, subclasses and feats beyond the SRD (typed by hand), spells for prepared casters beyond the choice counts, racial features.
-- Inventory wizard gaps: give an item to another character or the stash from inside the wizard, magic armor (+1) on the armor class, Strength-minimum speed penalty, a real weapon-proficiency source for races.
+- DONE (Nov 2026): inventory wizard gaps: give an item to another character or the stash (a Give… drop down on each carried item, `POST /api/party/give`), magic armor and shields (a +N in the name adds N to the armor class), and the Strength-minimum speed penalty (10 ft, shown in the working). Still open: a real weapon-proficiency source for races, +N weapons (attack and damage).
 - Merchant agent: remember a merchant between visits (stock, mood, prices), merchant stock lists per campaign, selling magic items.
 
 ## Light and vision
 - DONE (Nov 2026): light zones inside one map (Map Test > Zones tool; see CLAUDE.md). Still open: dragging a zone's corners (today delete and redraw), a Market/blueprint layer for zones, the tabletop swapping to the Night look by the clock, and a live DM check that the DM narrates a zone's light correctly.
 - DONE (Nov 2026): light from gear, first version (public/light-data.json, lib/light-gear.js): torch, lantern, candle, Flame Tongue (40/80), Sun Blade (15/30), Lantern of Revealing and Mace of Disruption (held, shines by itself). The DM sees `lightItems` per character and lights or douses with the light action; the table refuses a magic kind the character does not wield. Still open: burn time of torches and lanterns, enforcing the bonus action cost, more SRD light items, a lit state on the item itself in the Party page, and a way for the player to light things without asking the DM.
-- DM prompt rule for improvised fire hazards (a lantern thrown into a fire).
+- DONE: DM prompt rule for improvised fire hazards (oil flask, burning torch, thrown lantern; 2014 rules).
 
 ## Map sets
 - Fog per level (one layer per set today).
@@ -32,7 +32,7 @@
 
 ## Map Test editing (user, Nov 2026)
 - DONE (Nov 2026): door card (select a door in the Walls tool: State, DC, Starts open, Delete) and, with the Door kind picked, a click on a wall makes a one-square door in it. With a wall selected the Door button still turns the whole wall into a door.
-- DONE (Nov 2026): the AI DM decides day or night (token action timeofday) and the picture darkens with a wash at night. Still open: showing the place's Night look picture instead of the wash when it has one (the pictures can differ in size and have their own lights), and a Day | Night control for you at the table.
+- DONE (Nov 2026): the AI DM decides day or night (token action timeofday); the picture darkens with a wash at night, and a place with a Night look shows that picture (same size only; it brings its own light, lights and sound). Still open: a Day | Night control for you at the table (today you tell the DM).
 - DONE (Nov 2026): a window is its own kind (type 'window', purple in Map Test, Window button) beside Fence; both stop movement but not sight or light. Zone corners can be dragged, added (Alt + click an edge) and removed (right-click).
 - Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 

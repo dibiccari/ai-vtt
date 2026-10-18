@@ -1959,6 +1959,7 @@ async function onMapChanged() {
   fitView();
   await loadFog();
   commitBoard();
+  syncLook();
 }
 
 /* =====================================================================
@@ -2942,7 +2943,7 @@ function drawSightShape(s, shape) {
   stctx.globalCompositeOperation = 'source-over';
 }
 
-async function loadMapLighting() {
+async function loadMapLighting(lookFile) {          // lookFile: the picture of another look of this place (its own light and lights); the default is the picture the map was loaded with
   state.ambience = '';
   state.ambient = 'bright';
   state.lights = [];
@@ -2958,9 +2959,10 @@ async function loadMapLighting() {
   state.rooms = [];
   if (!state.map.url || !state.map.img) return;
   try {
-    const res = await fetch('/api/map-config?map=' + encodeURIComponent(state.map.url.split('/').pop()));
+    const res = await fetch('/api/map-config?map=' + encodeURIComponent(lookFile || state.map.url.split('/').pop()));
     const { config } = await res.json();
     if (!config) return;
+    if (!lookFile) { state.look = config.variant === 'night' ? 'night' : 'day'; state.lookFiles = await looksOf(config); }
     state.objectTops = config.objectTops !== false;
     state.mapFog = config.fog !== false;                       // Map Tools > Fog of war on this map (saved with the map)
     state.ambient = ['bright', 'dim', 'dark'].includes(config.light) ? config.light : 'bright';
@@ -2981,6 +2983,33 @@ async function loadMapLighting() {
       on: l.on !== false, id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2, flicker: l.flicker === true
     }));
   } catch { /* no config: bright, no lights */ }
+}
+
+// The Day and Night looks of a place (separate pictures that share walls, pins and zones): { day, night } picture files, or null when the place has only one.
+let mapConfigsCache = null;
+async function looksOf(config) {
+  if (!config || !config.group) return null;
+  try {
+    if (!mapConfigsCache) mapConfigsCache = (await (await fetch('/api/map-configs')).json()).configs || [];
+    const day = mapConfigsCache.find((c) => c.group === config.group && c.variant === 'day'), night = mapConfigsCache.find((c) => c.group === config.group && c.variant === 'night');
+    return day && night ? { day: day.map, night: night.map } : null;
+  } catch { return null; }
+}
+// Show the look that matches the time of day the DM set: the Night picture at night, the Day picture otherwise. Only when both pictures are the same size (the walls, pins and fog are in
+// picture pixels); a place with only a Day picture is darkened by the night wash instead. The look brings its own light level, lights and sound.
+async function syncLook() {
+  const files = state.lookFiles;
+  if (!files || !state.map.img || !state.map.url) return;
+  const want = state.timeOfDay === 'night' ? 'night' : 'day';
+  if (state.look === want || !files[want]) return;
+  const url = '/uploads/' + files[want];
+  const img = await new Promise((resolve) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = () => resolve(null); i.src = url; });
+  if (!img || img.naturalWidth !== state.map.img.naturalWidth || img.naturalHeight !== state.map.img.naturalHeight) return;
+  if (state.look === want) return;
+  state.map.img = img; state.look = want;
+  await loadMapLighting(files[want]);
+  try { syncAmbience(); if (fogOn()) revealFog(); } catch { /* the board is not ready yet */ }
+  requestRender();
 }
 
 // A small panel: the place's light level and the map lights, with a switch for each.
@@ -3054,6 +3083,7 @@ function setTimeOfDay(v) {
   if (state.timeOfDay === v) return;
   state.timeOfDay = v;
   addChat('system', { day: '☀️ It is day.', dawn: '🌅 Dawn breaks.', dusk: '🌆 Dusk settles over the land.', night: '🌙 Night falls.' }[v]);
+  syncLook();
   try { if (fogOn()) revealFog(); } catch { /* the board is not ready yet */ }
   try { syncAmbience(); } catch { /* no sound engine */ }
   requestRender(); commitBoard();
@@ -4943,7 +4973,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { setTimeOfDay, settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
+window.vtt = { syncLook, setTimeOfDay, settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
 
 init().catch((err) => {
   console.error(err);
