@@ -863,3 +863,23 @@ test('light zones: draw one with the Zones tool, set its light, save it; a dark 
   await page.eval(`(async () => { const S = window.mapTest.state; document.querySelector('button.tool[data-tool="zones"]').click(); S.zoneSel = S.lightZones[0]; document.querySelector('#zcDelete').click(); await new Promise((r) => setTimeout(r, 2300)); })()`);
   assert.equal((await server.get('/api/map-config?map=vtt-camp-day.png')).json.config.lightZones, undefined, 'deleting the last zone removes them from the map');
 });
+
+test('the Doors list lines the drop downs up, defaults to Normal, and a locked or secret door starts at DC 15', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    S.walls = [{ x1: 300, y1: 700, x2: 400, y2: 700, type: 'door', open: false }, { x1: 500, y1: 700, x2: 600, y2: 700, type: 'door', open: false }];
+    S.wallUndo = []; window.mapTest.renderDoorList();
+    const sels = () => [...document.querySelectorAll('#doorList select')];
+    const out = { defaults: sels().map((s) => s.value) };
+    sels()[1].value = 'locked'; sels()[1].dispatchEvent(new Event('change')); await wait(100);
+    out.dc = S.walls[1].dc; out.locked = S.walls[1].locked === true;
+    out.left = sels().map((s) => Math.round(s.getBoundingClientRect().left));
+    sels()[1].value = 'secret'; sels()[1].dispatchEvent(new Event('change')); await wait(100); out.secretDc = S.walls[1].dc;
+    sels()[1].value = ''; sels()[1].dispatchEvent(new Event('change')); await wait(100); out.normalDc = S.walls[1].dc === undefined;
+    return out;
+  })()`);
+  assert.deepEqual(r.defaults, ['', '']); assert.equal(r.dc, 15); assert.equal(r.locked, true); assert.equal(r.secretDc, 15); assert.equal(r.normalDc, true);
+  assert.equal(r.left[0], r.left[1], 'the drop downs line up: ' + JSON.stringify(r.left));
+});
