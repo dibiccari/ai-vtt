@@ -31,6 +31,7 @@
   #grid3 figcaption b, #grid4 figcaption b, #grid5 figcaption b { text-transform:none; }
   .grid2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; max-width:1500px; }
   @media (max-width: 900px) { .grid2 { grid-template-columns:1fr; } }
+  .col { display:flex; flex-direction:column; gap:14px; min-width:0; } .coltitle { margin:0 0 2px; font-size:15px; color:var(--gold, #f0c048); }
   .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
   @media (max-width: 1100px) { .grid3 { grid-template-columns:1fr 1fr; } } @media (max-width: 700px) { .grid3 { grid-template-columns:1fr; } }
   .good { color:var(--ok, #3fd27f); } .meh { color:var(--gold); } .poor { color:#ff8b8b; }
@@ -123,6 +124,9 @@
   const grade = (m) => (m <= 10 ? 'good' : m <= 22 ? 'meh' : 'poor');
   const done = bake ? bake.runs.filter((r) => r.ok).length : 0;
   document.getElementById('bakeNote').textContent = bake ? done + ' of ' + bake.runs.length + ' contenders have a picture. The others wait for a key with credit: add it in Settings > Image Generator, then the bake-off is run again (node scripts/image-bakeoff.mjs). The drift figure is an estimate read off the picture, so judge with the overlay too.' : 'The bake-off has not been run yet.';
+  // one column per service, its pictures stacked: OpenAI, FLUX, Google Gemini
+  const columns = {};
+  for (const [id, title] of [['openai', 'OpenAI'], ['fal', 'FLUX (fal.ai)'], ['gemini', 'Google Gemini']]) { const col = el('div', 'col'); col.appendChild(el('h3', 'coltitle', title)); grid3.appendChild(col); columns[id] = col; }
   for (const r of (bake ? bake.runs : [])) {
     const fig = el('figure');
     if (r.ok && layout) { const shot = el('div', 'shot'); const img = el('img'); img.src = dir + r.file; img.alt = r.label; img.loading = 'lazy'; shot.append(img, overlay()); fig.appendChild(shot); }
@@ -131,7 +135,7 @@
     if (r.ok) { const sc = el('span'); sc.append('Drift: median ', Object.assign(el('b', grade(r.drift.medianPx)), { textContent: r.drift.medianPx + ' px' }), ', worst ' + r.drift.worstPx + ' px, ' + Math.round(r.drift.within8 * 100) + '% of walls within 8 px'); cap.appendChild(sc); if (verdict[r.id]) cap.appendChild(el('span', '', verdict[r.id]));
     cap.appendChild(el('span', '', r.model + ' · ' + r.quality + ' · about ' + r.price + (r.seconds ? ' · ' + r.seconds + ' s' : ' · from the test above') + (r.note ? ' · ' + r.note : ''))); const a = el('a', 'open', 'Open full size'); a.href = dir + r.file; a.target = '_blank'; a.rel = 'noopener'; cap.appendChild(a); }
     else cap.appendChild(el('span', '', r.model));
-    fig.appendChild(cap); grid3.appendChild(fig);
+    fig.appendChild(cap); (columns[r.provider] || grid3).appendChild(fig);
   }
   // ---- the town and the region (FLUX Kontext from text only)
   const textOnly = async (name, promptId, gridId, title, verdict, chat) => {
