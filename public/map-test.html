@@ -1740,6 +1740,10 @@
     }
   }
   function wallUp(d) {
+    if (!d.moved && d.kind === 'wallpt' && d.group.length) {            // a click on an existing end (no drag): the next click draws a wall from that point
+      const g = d.group[0]; S.wallPen = { x: g.w['x' + g.k], y: g.w['y' + g.k] };
+      syncWallBox(); requestRender(); return;
+    }
     if (!d.moved && d.kind !== 'wallnew') { syncWallBox(); return; }
     if (d.kind === 'wallnew') {
       if (Math.hypot(d.x2 - d.x1, d.y2 - d.y1) < 4 / S.view.scale) { S.wallPen = { x: d.x1, y: d.y1 }; $('#wallInfo').textContent = 'Click where the wall ends (Esc stops)'; requestRender(); return; }

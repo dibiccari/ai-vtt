@@ -713,3 +713,23 @@ test('in the Walls tool a click on a door edits it like a wall (it does not open
   assert.equal(r.mid.open, false, 'the door stays shut: ' + JSON.stringify(r)); assert.equal(r.mid.selType, 'door', 'the door is selected for editing');
   assert.equal(r.doorOpen, false);
 });
+
+test('in the Walls tool a click on an existing end carries on drawing from that point; dragging the end still moves it', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-terrain-test.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    document.querySelector('button.tool[data-tool="walls"]').click();
+    S.walls = [{ x1: 300, y1: 700, x2: 700, y2: 700, type: 'door', open: false }];
+    S.wallUndo = []; S.wallPen = null; S.wallSel = S.walls[0];
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const at = (x, y) => ({ clientX: b.left + S.view.ox + x * S.view.scale, clientY: b.top + S.view.oy + y * S.view.scale });
+    const click = (x, y) => { for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { ...at(x, y), button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 6, bubbles: true })); };
+    click(700, 700); await wait(250);
+    const pen = S.wallPen && { x: S.wallPen.x, y: S.wallPen.y };
+    click(700, 900); await wait(250);
+    return { pen, walls: S.walls.map((w) => [w.type, w.x1, w.y1, w.x2, w.y2]) };
+  })()`);
+  assert.deepEqual(r.pen, { x: 700, y: 700 }, 'the click on the end starts a run from it: ' + JSON.stringify(r));
+  assert.equal(r.walls.length, 2); assert.deepEqual(r.walls[1].slice(1), [700, 700, 700, 900], 'the new wall starts exactly at the door\'s end');
+});
