@@ -1243,3 +1243,29 @@ test('light from gear: a Flame Tongue is lit by the DM only for a character who 
   assert.deepEqual(r.held.map((l) => l.slice(1)), [[20, 40]], 'a Mace of Disruption lights its holder by itself'); assert.deepEqual(r.stowed, [], 'put away it does not');
   assert.deepEqual(r.torch.lights.map((l) => l.slice(1)), [[20, 40]], 'a torch needs no item'); assert.equal(r.torch.kind, 'torch');
 });
+
+test('light zones: a dark zone inside a bright map is seen only by darkvision or a light, the rest of the map by line of sight, and a zone that follows the time of day follows the game clock', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const s = vtt.state, hero = s.tokens[0], c = characterFor(hero), out = {};
+    s.fogEnabled = true; s.ambient = 'bright'; s.ambientOverride = ''; s.walls = []; s.wallsVersion++; s.lights = []; c.darkvision = 0; hero.lightKind = '';
+    const zone = { id: 'cave', name: 'Cave', level: 'dark', points: [{ x: centerOf(14) - GRID / 2, y: 0 }, { x: s.map.width, y: 0 }, { x: s.map.width, y: s.map.height }, { x: centerOf(14) - GRID / 2, y: s.map.height }] };
+    s.lightZones = [zone];
+    const see = (col, row) => { vtt.revealFog(); return s.sight.some((sg) => visibleFrom(sg, centerOf(col), centerOf(row))); };
+    out.outside = see(12, 10); out.insideDark = see(16, 10); out.levelIn = ambientAt(centerOf(16), centerOf(10)); out.levelOut = ambientAt(centerOf(8), centerOf(10));
+    c.darkvision = 60; out.insideWithDv = see(16, 10); c.darkvision = 0;
+    s.lights = [{ id: 'lamp', name: 'lamp', x: centerOf(16), y: centerOf(10), bright: GRID * 2, dim: GRID * 4 }]; out.insideLit = see(16, 10); out.insideBeyondLamp = see(22, 10); s.lights = [];
+    zone.level = 'time'; s.clockTotal = 12 * 60; out.noon = [ambientAt(centerOf(16), centerOf(10)), see(16, 10)];
+    s.clockTotal = 19 * 60; out.dusk = ambientAt(centerOf(16), centerOf(10));
+    s.clockTotal = 23 * 60; out.night = [ambientAt(centerOf(16), centerOf(10)), see(16, 10), see(12, 10)];
+    s.ambientOverride = 'dark'; out.override = ambientAt(centerOf(16), centerOf(10)); s.ambientOverride = '';
+    out.lighting = lightingForAi().zones;
+    s.lightZones = []; s.fogEnabled = false; s.clockTotal = NaN; vtt.revealFog();
+    return out;
+  })()`);
+  assert.equal(r.outside, true, 'the bright part is seen'); assert.equal(r.insideDark, false, 'a dark zone is not seen without a light'); assert.equal(r.levelIn, 'dark'); assert.equal(r.levelOut, 'bright');
+  assert.equal(r.insideWithDv, true, 'darkvision sees into the dark zone'); assert.equal(r.insideLit, true, 'a lamp lights it'); assert.equal(r.insideBeyondLamp, false, 'but only as far as its own reach');
+  assert.deepEqual(r.noon, ['bright', true]); assert.equal(r.dusk, 'dim'); assert.deepEqual(r.night, ['dark', false, true], 'at night the zone is dark and the rest of the bright map is not');
+  assert.equal(r.override, 'dark', 'the table\'s own light override beats the zones');
+  assert.deepEqual(r.lighting, [{ name: 'Cave', light: 'dark', followsTimeOfDay: true }], 'the DM is told each zone and what light it has now');
+});

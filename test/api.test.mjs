@@ -103,6 +103,26 @@ test('map configs: list, areas, config read, save round trip with cleaning (and 
   assert.ok(real.walls.length > 2, 'the real data/maps file is unchanged');
 });
 
+test('light zones are cleaned, saved with the map, and kept when a later save does not mention them', async () => {
+  const f = 'lmop-thundertree.png';
+  const base = (await s.get('/api/map-config?map=' + f)).json.config;
+  const zones = [
+    { id: 'Cave Mouth!', name: 'Cave', level: 'dark', points: [{ x: 10, y: 10 }, { x: 100, y: 10 }, { x: 100, y: 100 }, { x: 'x', y: 5 }] },
+    { name: 'Yard', level: 'time', points: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 50 }] },
+    { name: 'Too few', level: 'dim', points: [{ x: 0, y: 0 }, { x: 5, y: 5 }] },
+    { name: 'Bad light', level: 'purple', points: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 5 }] }
+  ];
+  ok(await s.put('/api/map-config?map=' + f, { ...base, lightZones: zones }));
+  let back = (await s.get('/api/map-config?map=' + f)).json.config;
+  assert.deepEqual(back.lightZones.map((z) => [z.id, z.name, z.level, z.points.length]), [['cave-mouth', 'Cave', 'dark', 3], ['zone-2', 'Yard', 'time', 3]], 'bad points, too few points and unknown levels are dropped');
+  const { lightZones: _drop, ...noZones } = base;
+  ok(await s.put('/api/map-config?map=' + f, noZones));
+  back = (await s.get('/api/map-config?map=' + f)).json.config;
+  assert.equal(back.lightZones.length, 2, 'a save that says nothing about zones keeps them');
+  ok(await s.put('/api/map-config?map=' + f, { ...base, lightZones: [] }));
+  assert.equal((await s.get('/api/map-config?map=' + f)).json.config.lightZones, undefined, 'an empty list removes them');
+});
+
 test('campaign maps: the Lost Mine list is served and the available maps resolve to installed pictures', async () => {
   const r = await s.get(`/api/campaigns/${LOST}/maps`); ok(r);
   assert.ok(JSON.stringify(r.json).includes('cragmaw-hideout'));

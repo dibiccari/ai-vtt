@@ -512,6 +512,7 @@ const state = {
   ambient: 'bright',                 // the map's light level: 'bright', 'dim' or 'dark' (from its config)
   ambientOverride: '',               // the table's own choice, '' = use the map's
   lights: [],                        // the map's own light sources
+  lightZones: [],                    // parts of the map with their own light (bright, dim, dark or following the time of day), from its config
   effects: [],                       // animated regions over the picture (rivers, lava)
   lightsOff: {},                     // per map: ids of map lights that were put out
   places: [],                 // the maps this campaign can move to
@@ -1225,7 +1226,11 @@ function renderGameClock() {
   const part = h < 5 ? 'night' : h < 8 ? 'dawn' : h < 12 ? 'morning' : h < 14 ? 'midday' : h < 18 ? 'afternoon' : h < 21 ? 'evening' : 'night';
   el.textContent = `Day ${Math.floor(m / 1440) + 1}, ${String(h).padStart(2, '0')}:${String(m % 60).padStart(2, '0')} ${part}`;
 }
-function setClockTotal(m) { state.clockTotal = m; renderGameClock(); }
+function setClockTotal(m) {
+  const before = (state.lightZones || []).some((z) => z.level === 'time') ? timeLevel() : null;
+  state.clockTotal = m; renderGameClock();
+  if (before !== null && before !== timeLevel() && typeof revealFog === 'function') { try { revealFog(); } catch { /* the board is not ready yet */ } }       // a zone that follows the time of day changed its light
+}
 async function refreshClock() { try { const j = await (await fetch('/api/party')).json(); if (j && j.clock && Number.isFinite(j.clock.minutes)) { setClockTotal(j.clock.minutes); expireTimedConditions(); } } catch { /* no clock: timed effects only count rounds */ } }
 // Live clock: the server announces every change to the party, clock or characters (a rest on the Party tab, another browser). Not in spectator mode (watch.js reloads there); with ?nosave=1 only when ?live=1.
 function connectLive() {
@@ -2781,8 +2786,21 @@ function lightPoly(L) {
 }
 
 // 0 dark, 1 dim, 2 bright at a board point.
-const ambientAt = () => ambientNow();
-const anyDark = () => ambientNow() === 'dark';
+// A light zone is bright, dim, dark, or follows the time of day: bright by day, dim at dawn (5 to 8) and in the evening (18 to 21), dark at night (21 to 5), from the game clock.
+function timeLevel() {
+  if (!Number.isFinite(state.clockTotal)) return 'bright';
+  const h = Math.floor((Math.round(state.clockTotal) % 1440) / 60);
+  return h < 5 || h >= 21 ? 'dark' : h < 8 || h >= 18 ? 'dim' : 'bright';
+}
+const zoneLevel = (z) => (z.level === 'time' ? timeLevel() : z.level);
+// The table's own light override beats the zones; otherwise the last zone that holds the point wins, else the map's level.
+function ambientAt(x, y) {
+  if (state.ambientOverride || !(state.lightZones || []).length || x === undefined) return ambientNow();
+  for (let i = state.lightZones.length - 1; i >= 0; i--) if (pointInPolygon(x, y, state.lightZones[i].points)) return zoneLevel(state.lightZones[i]);
+  return ambientNow();
+}
+// Is any part of the place dark right now? Then sight uses the dark rules there (only lights and darkvision).
+const anyDark = () => ambientNow() === 'dark' || (!state.ambientOverride && (state.lightZones || []).some((z) => zoneLevel(z) === 'dark'));
 function lightLevelAt(x, y) {
   const amb = ambientAt(x, y);
   if (amb !== 'dark') return amb === 'bright' ? 2 : 1;
@@ -2831,6 +2849,14 @@ function buildLitMask() {
   if (ambientNow() !== 'dark') {
     lmctx.fillStyle = '#fff';
     lmctx.fillRect(0, 0, W, H);
+  }
+  if (!state.ambientOverride) {                              // light zones: lit ones are filled, dark ones cleared, in order (a later zone wins)
+    for (const z of state.lightZones || []) {
+      lmctx.globalCompositeOperation = zoneLevel(z) === 'dark' ? 'destination-out' : 'source-over';
+      lmctx.fillStyle = '#fff';
+      lmctx.beginPath(); lmctx.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) lmctx.lineTo(z.points[i].x, z.points[i].y); lmctx.closePath(); lmctx.fill();
+    }
+    lmctx.globalCompositeOperation = 'source-over';
   }
   lmctx.globalCompositeOperation = 'lighter';
   for (const L of allLights()) {
@@ -2886,6 +2912,7 @@ async function loadMapLighting() {
   state.ambience = '';
   state.ambient = 'bright';
   state.lights = [];
+  state.lightZones = [];
   state.effects = [];
   state.difficult = [];
   state.areaPins = [];
@@ -2915,6 +2942,7 @@ async function loadMapLighting() {
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.effects = (Array.isArray(config.effects) ? config.effects : []).map((e) => ({ ...e, points: e.points.map((p) => ({ x: p.x * f, y: p.y * f })), ...(e.path ? { path: e.path.map((p) => ({ x: p.x * f, y: p.y * f })) } : {}) }));
+    state.lightZones = (Array.isArray(config.lightZones) ? config.lightZones : []).filter((z) => z && Array.isArray(z.points) && z.points.length >= 3 && ['bright', 'dim', 'dark', 'time'].includes(z.level)).map((z) => ({ id: z.id, name: z.name || z.id, level: z.level, points: z.points.map((q) => ({ x: q.x * f, y: q.y * f })) }));
     state.lights = (Array.isArray(config.lights) ? config.lights : []).map((l, i) => ({
       on: l.on !== false, id: l.name || `light-${i}`, name: l.name || `light ${i + 1}`, x: l.x * f, y: l.y * f, dim: l.range * px, bright: (l.range * px) / 2, flicker: l.flicker === true
     }));
@@ -3008,6 +3036,7 @@ function syncAmbienceUi() {
 
 const lightingForAi = () => ({
   ambient: ambientNow(),
+  ...((state.lightZones || []).length && !state.ambientOverride ? { zones: state.lightZones.slice(0, 20).map((z) => ({ name: z.name, light: zoneLevel(z), followsTimeOfDay: z.level === 'time' })) } : {}),
   mapLights: state.lights.slice(0, 40).map((l) => ({ id: l.id, name: l.name, col: Math.floor(l.x / GRID), row: Math.floor(l.y / GRID), brightFt: Math.round(l.bright / GRID * FT_PER_SQUARE), dimFt: Math.round(l.dim / GRID * FT_PER_SQUARE), on: !lightsOffNow().includes(l.id) }))
 });
 

@@ -824,3 +824,42 @@ test('with the Door kind picked a click on a wall makes a one-square door in it;
   assert.deepEqual(r.normal, [null, null, true], 'back to normal, starts open');
   assert.deepEqual(r.after, ['wall', 'wall']); assert.equal(r.cardGone, true);
 });
+
+test('light zones: draw one with the Zones tool, set its light, save it; a dark zone in a bright map stays under the fog while the rest is seen', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
+    S.light = 'bright'; S.lightZones = []; S.darkvisionFt = 0; S.allLights = []; S.mapLights = []; S.fog = true; S.mapFog = true;
+    document.querySelector('button.tool[data-tool="zones"]').click(); await wait(100);
+    document.querySelector('#zoneNew').click();
+    const cv = document.querySelector('canvas'), b = cv.getBoundingClientRect();
+    const at = (x, y) => ({ clientX: b.left + S.view.ox + x * S.view.scale, clientY: b.top + S.view.oy + y * S.view.scale });
+    const click = (x, y) => { for (const t of ['pointerdown', 'pointerup']) cv.dispatchEvent(new PointerEvent(t, { ...at(x, y), button: 0, buttons: t === 'pointerup' ? 0 : 1, pointerId: 9, bubbles: true })); };
+    for (const [x, y] of [[1000, 300], [1800, 300], [1800, 900], [1000, 900]]) { click(x, y); await wait(60); }
+    out.pen = S.zonePen && S.zonePen.points.length;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); await wait(150);
+    out.zones = S.lightZones.map((z) => [z.level, z.points.length]); out.card = !document.querySelector('#zoneCard').hidden;
+    document.querySelector('#zcName').value = 'Crypt'; document.querySelector('#zcName').dispatchEvent(new Event('change'));
+    document.querySelector('#zcLevel').value = 'dark'; document.querySelector('#zcLevel').dispatchEvent(new Event('change')); await wait(2300);
+    out.saved = true;
+    // the token stands in the bright part, next to the dark zone
+    document.querySelector('button.tool[data-tool="token"]').click();
+    S.tokens = [{ x: 700, y: 600 }]; window.mapTest.revealFog();
+    const fa = window.mapTest.fogAlphaAt;
+    out.brightSeen = fa(600, 600) < 60; out.darkZoneCovered = fa(1150, 600) > 150; out.farBrightCovered = fa(100, 100);
+    // the same zone made bright shows what the token can see through it
+    const fresh = () => { document.querySelector('#resetFogBtn').click(); window.mapTest.revealFog(); };
+    S.lightZones[0].level = 'bright'; fresh(); out.nowSeen = fa(1150, 600) < 90;
+    S.lightZones[0].level = 'time'; S.variant = 'night'; fresh(); out.timeNight = fa(1150, 600) > 150;
+    S.variant = 'day'; fresh(); out.timeDay = fa(1150, 600) < 90;
+    return out;
+  })()`);
+  assert.equal(r.pen, 4); assert.deepEqual(r.zones, [['dark', 4]], 'a finished zone starts out dark'); assert.equal(r.card, true);
+  const saved = (await server.get('/api/map-config?map=vtt-camp-day.png')).json.config.lightZones;
+  assert.ok(saved && saved.length === 1 && saved[0].name === 'Crypt' && saved[0].level === 'dark' && saved[0].points.length === 4, 'saved with the map: ' + JSON.stringify(saved));
+  assert.equal(r.brightSeen, true, 'ground in the bright part is seen'); assert.equal(r.darkZoneCovered, true, 'the dark zone stays under the fog (no darkvision, no light)');
+  assert.equal(r.nowSeen, true, 'a bright zone is seen'); assert.equal(r.timeNight, true, 'a time zone is dark in the Night look'); assert.equal(r.timeDay, true, 'and bright in the Day look');
+  await page.eval(`(async () => { const S = window.mapTest.state; document.querySelector('button.tool[data-tool="zones"]').click(); S.zoneSel = S.lightZones[0]; document.querySelector('#zcDelete').click(); await new Promise((r) => setTimeout(r, 2300)); })()`);
+  assert.equal((await server.get('/api/map-config?map=vtt-camp-day.png')).json.config.lightZones, undefined, 'deleting the last zone removes them from the map');
+});

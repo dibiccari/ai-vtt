@@ -55,7 +55,11 @@
   #lightCard { position:absolute; z-index:6; width:250px; background:var(--panel); border:1px solid #ffd27a; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
   #lightCard[hidden] { display:none; }
   #doorCard { position:absolute; z-index:6; width:230px; background:var(--panel); border:1px solid #f0c048; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
-  #doorCard[hidden] { display:none; }
+  #doorCard[hidden], #zoneCard[hidden] { display:none; }
+  #zoneCard { position:absolute; z-index:6; width:240px; background:var(--panel); border:1px solid #7ad0ff; border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+  #zoneCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+  #zoneCard input[type=text], #zoneCard select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
+  #zoneCard .lc-row { display:flex; gap:6px; } #zoneCard .lc-row button { padding:5px 10px; font-size:12px; }
   #doorCard label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
   #doorCard label.check { flex-direction:row; align-items:center; gap:6px; }
   #doorCard input[type=number], #doorCard select { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:4px 8px; }
@@ -139,6 +143,7 @@
     <label class="check"><input type="checkbox" id="showPoly"> Show sight outline</label>
     <label class="check" title="A small closed ring of walls (a boulder, a tent, a tree crown): ticked, its top shows once the ring is seen; unticked, the inside stays hidden like any other walled-off space. Saved with the map."><input type="checkbox" id="objectTops" checked> Show the tops of closed wall rings</label>
     <label class="check" title="Draw how far each light reaches: the dashed circle is where its dim light ends, the solid one where its bright light ends (half as far). Includes the test token's own light on a dark map. DM view only."><input type="checkbox" id="showLightRadius"> Show light radius</label>
+    <label class="check" title="Draw the light zones of this map over the picture (DM view only; they always show while the Zones tool is active)."><input type="checkbox" id="showZones"> Show light zones</label>
     <label class="check"><input type="checkbox" id="showWalls"> Show walls</label>
     <label class="check"><input type="checkbox" id="showPins" checked> Show pins</label>
     <label class="check" title="Terrain: choose the Terrain tool above the map, set the brush size and drag over difficult ground to paint it. The Eraser tool (or a right-click drag) takes it away again."><input type="checkbox" id="showTerrain"> Show difficult terrain</label>
@@ -222,11 +227,16 @@
     <span class="tool-sep" aria-hidden="true"></span>
     <button class="tool" data-tool="token" aria-pressed="false" title="Click empty ground to move the player token there, or drag the token to move it">Token</button>
     <button class="tool" data-tool="start" aria-pressed="true" title="Add, move or remove pins: click empty ground to add a pin with the name below, drag a pin to move it. The pin named start is where the party arrives by default">Pins</button>
+    <button class="tool" data-tool="zones" aria-pressed="false" title="Light zones: areas of this map with their own light, for example an outdoor part that is bright by day and a cave that is always dark. Press Draw a zone, click the corners, click the first corner (or press Enter) to finish; click a zone to edit it">Zones</button>
     <button class="tool" data-tool="lights" aria-pressed="false" title="Lights: click a light to edit it (kind, size, flicker, lit at the start), drag it to move it, click empty ground to add one, right-click to delete it">Lights</button>
     <button class="tool" data-tool="walls" aria-pressed="false" title="Walls: drag empty ground to pan the map; click a point, then click where the wall ends (the next click carries on from there; Esc or a right-click stops), or hold Alt and drag from one point to another; click a wall to select it, drag its end to move it (corners that meet move together; hold Alt to move just one end), drag the middle to move the whole wall, Alt + drag on empty ground draws a new wall (ends snap to other walls; hold Shift for straight lines), right-click a wall or press Delete to remove it. Ctrl+Z undoes.">Walls</button>
     <span class="view-switch" id="terrainPair">
     <button class="tool" data-tool="terrain" aria-pressed="false" title="Difficult terrain: paint squares by dragging a round brush over rubble, mud, shallow water or thick undergrowth. Moving into those squares costs double. Right-click and drag erases">Terrain</button>
     <button class="tool" data-tool="eraser" aria-pressed="false" title="Eraser: drag over painted difficult terrain to remove it (same brush size)">Eraser</button>
+    </span>
+    <span id="zoneBox" class="brush-box" hidden>
+      <button type="button" id="zoneNew" title="Click the corners of the zone; click the first corner or press Enter to finish, Esc to cancel">Draw a zone</button>
+      <span id="zoneInfo" class="vnote"></span>
     </span>
     <span id="wallBox" class="brush-box" hidden>
       <span class="vnote">Kind</span>
@@ -273,7 +283,7 @@
   const S = {
     url: null, img: null, W: 0, H: 0,
     squares: 50, walls: [], starts: [], difficult: [], group: '', variant: '', light: '', ambience: '', mood: '', lights: [], configs: [], tokens: [], visionFt: 60, source: null, needsStart: new Set(), missingStart: new Set(),
-    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', drawKind: 'wall', fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
+    brush: 2, kind: 'battle', tiles: 'square', hexSize: 95, viewAs: 'dm', dmImg: null, moveTest: false, moveFt: 30, selected: null, tool: 'start', drawKind: 'wall', lightZones: [], zoneSel: null, zonePen: null, showZones: false, fog: true, mapFog: true, dm: true, showPins: true, showPoly: false, showWalls: false, showGrid: false, showTerrain: false,
     tokenImage: store.get('vtt.maptest.tokenImage', '/tokens/human-warrior-stern-a8268.png'),
     view: { scale: 1, ox: 0, oy: 0 },
     hover: null, drag: null, rooms: [], polys: [], spaceDown: false
@@ -359,7 +369,7 @@
     store.set(testKey(), { squares: S.squares, walls: S.walls, tokens: S.tokens, visionFt: S.visionFt });
     clearTimeout(serverSaveTimer);
     const name = mapName();
-    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, ...(S.mapFog === false ? { fog: false } : {}), ...(S.objectTops === false ? { objectTops: false } : {}), ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
+    const fields = JSON.parse(JSON.stringify({ squares: S.squares, walls: S.walls, starts: S.starts, difficult: S.difficult, source: S.source, group: S.group, variant: S.variant, light: S.light, ambience: S.ambience, mood: S.mood, tiles: S.tiles, hexSize: S.hexSize, kind: S.kind, lightZones: S.lightZones, ...(S.mapFog === false ? { fog: false } : {}), ...(S.objectTops === false ? { objectTops: false } : {}), ...(S.lightsEdited ? { lights: S.allLights.map(({ id, ...rest }) => rest), lightsEdited: true } : {}) }));;
     pendingSave = () => { saveChain = saveChain.then(sendSave, sendSave); return saveChain; };
     const sendSave = async () => {
       if (S.stale) { setSavedNote('Not saved: this map was changed elsewhere. Reload the page.'); return; }
@@ -436,13 +446,46 @@
   S.darkvisionFt = [0, 30, 60, 120].includes(Number(store.get('vtt.maptest.dv', 0))) ? Number(store.get('vtt.maptest.dv', 0)) : 0;
   const lightReachFt = () => LIGHT_TEST[S.testLight][1];
   function showTestLight() { $('#testLight').value = String(S.testLight); const nm = LIGHT_TEST[S.testLight][0]; $('#testLightText').textContent = nm.charAt(0).toUpperCase() + nm.slice(1); }
+  /* ---------------- light zones: parts of one map with their own light ---------------- */
+  // A zone is bright, dim, dark, or "time": it follows the look that is showing (the Day look is bright, the Night look dark). Later zones win where they overlap.
+  const zoneLevel = (z) => (z.level === 'time' ? (S.variant === 'night' ? 'dark' : 'bright') : z.level);
+  const zoneAt = (p) => { for (let i = S.lightZones.length - 1; i >= 0; i--) if (inside(S.lightZones[i].points, p.x, p.y)) return S.lightZones[i]; return null; };
+  const cloneCanvas = (c) => { const n = document.createElement('canvas'); n.width = c.width; n.height = c.height; n.getContext('2d').drawImage(c, 0, 0); return n; };
+  function zonePath(c, pts) { c.beginPath(); c.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y); c.closePath(); }
+  // Two masks (white where it counts): the lit part of the map and the dark part, with a soft edge so the change from one to the other is not a cut.
+  function zoneRegions() {
+    const lit = document.createElement('canvas'); lit.width = S.W; lit.height = S.H;
+    const x = lit.getContext('2d'); x.fillStyle = '#fff';
+    if (S.light !== 'dark') x.fillRect(0, 0, S.W, S.H);
+    for (const z of S.lightZones) { x.globalCompositeOperation = zoneLevel(z) === 'dark' ? 'destination-out' : 'source-over'; zonePath(x, z.points); x.fill(); }
+    const dark = document.createElement('canvas'); dark.width = S.W; dark.height = S.H;
+    const y = dark.getContext('2d'); y.fillStyle = '#fff'; y.fillRect(0, 0, S.W, S.H); y.globalCompositeOperation = 'destination-out'; y.drawImage(lit, 0, 0);
+    return { lit, dark };
+  }
   function revealFog() {
     if (!S.W) return;
     vctx.globalCompositeOperation = 'source-over';
     vctx.clearRect(0, 0, S.W, S.H);
-    const darkPlace = S.light === 'dark';
-    vctx.fillStyle = FogStyle.haze(darkPlace);
+    const baseDark = S.light === 'dark';
+    vctx.fillStyle = FogStyle.haze(baseDark);
     vctx.fillRect(0, 0, S.W, S.H);
+    if (!S.lightZones.length || !S.tokens.length) { revealPass(baseDark); requestRender(); return; }
+    // With zones the lit and the dark parts are revealed under their own rules: each pass runs over the whole map, then what lies outside its own part is put back as it was.
+    const { lit, dark } = zoneRegions();
+    for (const darkPass of [false, true]) {
+      const outside = darkPass ? lit : dark;
+      const keep = [cloneCanvas(sctx.canvas), cloneCanvas(vctx.canvas)];
+      revealPass(darkPass);
+      [sctx, vctx].forEach((c, i) => {
+        const back = cloneCanvas(keep[i]), bx = back.getContext('2d');
+        bx.globalCompositeOperation = 'destination-in'; bx.filter = 'blur(' + Math.round(cell() * 0.3) + 'px)'; bx.drawImage(outside, 0, 0);       // the old picture, only outside this pass's part
+        c.save(); c.globalCompositeOperation = 'destination-out'; c.filter = 'blur(' + Math.round(cell() * 0.3) + 'px)'; c.drawImage(outside, 0, 0); c.restore();
+        c.save(); c.globalCompositeOperation = 'source-over'; c.drawImage(back, 0, 0); c.restore();
+      });
+    }
+    requestRender();
+  }
+  function revealPass(darkPlace) {
     const radius = (visionNow() / FT_PER_SQUARE) * cell();
     const walls = sightWalls(S.walls);
     S.polys = [];
@@ -480,8 +523,7 @@
       }
     }
     if (darkPlace) revealMapLights(walls, radius);
-    revealObjectTops(radius);
-    requestRender();
+    revealObjectTops(radius, darkPlace);
   }
 
   // In a dark place the map's own lights (wall torches, braziers) light the ground they reach: what a token can see AND a light reaches is shown, bright to half the light's range, dim out to the range.
@@ -527,10 +569,10 @@
 
   // The top of a small closed object (tent, boulder, crate) shows when its edge is in sight, instead of staying black.
   let objectCache = { key: '', loops: [] };
-  function revealObjectTops(visionRadius) {
+  function revealObjectTops(visionRadius, darkPlace = S.light === 'dark') {
     if (!S.polys.length || S.objectTops === false) return;
     // In a dark place a boulder's top is only seen where the token can see: within its darkvision or its carried light (never just because it is inside the vision range).
-    const radius = S.light === 'dark' ? Math.min(visionRadius, Math.max((S.darkvisionFt / FT_PER_SQUARE) * cell(), (lightReachFt() / FT_PER_SQUARE) * cell())) : visionRadius;
+    const radius = darkPlace ? Math.min(visionRadius, Math.max((S.darkvisionFt / FT_PER_SQUARE) * cell(), (lightReachFt() / FT_PER_SQUARE) * cell())) : visionRadius;
     if (radius <= 0) return;
     const k = S.walls.length + ':' + (S.walls[0] ? S.walls[0].x1 + ',' + S.walls[0].y1 : '') + ':' + cell();
     if (objectCache.key !== k) objectCache = { key: k, loops: WallObjects.loops(S.walls, 9 * cell(), S.rooms) };
@@ -586,7 +628,7 @@
   function requestRender() {
     if (renderQueued) return;
     renderQueued = true;
-    requestAnimationFrame(() => { renderQueued = false; draw(); positionPinCard(); positionDoorCard(); });
+    requestAnimationFrame(() => { renderQueued = false; draw(); positionPinCard(); positionDoorCard(); positionZoneCard(); });
   }
 
   function resizeCanvas() {
@@ -641,6 +683,7 @@
     if (S.viewAs === 'dm') drawLightMarkers(px);
     if (S.viewAs === 'dm' && S.showLightRadius) drawLightRadii(px);
     if (S.showWalls) drawWalls(px);
+    if (S.viewAs === 'dm' && (S.tool === 'zones' || S.showZones)) drawZones(px);
     if (S.tool === 'walls' && S.viewAs === 'dm') drawWallEditor(px);
     drawMoveRange(px);
     if (S.viewAs === 'dm') { drawTerrain(px); drawStarts(px); }
@@ -1210,6 +1253,7 @@
         S.objectTops = !(remote && remote.objectTops === false); $('#objectTops').checked = S.objectTops;
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
+        S.lightZones = (remote && Array.isArray(remote.lightZones) ? remote.lightZones : []).filter((z) => z && Array.isArray(z.points) && z.points.length >= 3 && ['bright', 'dim', 'dark', 'time'].includes(z.level)); S.zoneSel = null; S.zonePen = null;
         S.lights = S.allLights.filter((l) => l.flicker === true);
         S.mapLights = S.allLights;
         renderMapLightsList();
@@ -1369,7 +1413,8 @@
   function applyKindUi() {
     $('#mapKind').value = S.kind;
     const plain = noFog();
-    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]')]) if (el) el.hidden = plain;
+    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]'), document.querySelector('button.tool[data-tool="zones"]'), $('#showZones').closest('label')]) if (el) el.hidden = plain;
+    if (plain && S.tool === 'zones') setTool('start');
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
     $('#hexRow').hidden = S.tiles !== 'hex' || !$('#showGrid').checked;       // the width only matters while the hexagons are shown
@@ -1400,6 +1445,8 @@
     S.tool = tool;
     if (tool !== 'start') S.selected = null;
     if (tool !== 'lights') S.selectedLight = null;
+    if (tool !== 'zones') { S.zoneSel = null; S.zonePen = null; }
+    $('#zoneBox').hidden = tool !== 'zones'; positionZoneCard(); updateZoneInfo();
     positionLightCard();
     if (tool !== 'walls') { S.wallSel = null; S.wallPen = null; }
     if (tool === 'walls' && !S.showWalls) { S.showWalls = true; $('#showWalls').checked = true; }
@@ -1515,6 +1562,68 @@
     const l = { x: Math.round(p.x), y: Math.round(p.y), range: d.range, intensity: 1, color: d.color, kind, name: kind + '-' + n, id: kind + '-' + n, flicker: true, on: false };       // a new light flickers and starts out unlit
     S.allLights.push(l); S.lightsOff.add(l.id); S.addingLight = false; $('#addLightBtn').textContent = 'Add a light'; cv.style.cursor = ''; refreshLights(); setSavedNote('Added ' + l.id + '.');
   }
+  /* ---- the Zones tool: draw areas with their own light, edit one on a card ---- */
+  const ZONE_LEVELS = [['bright', 'Bright (daylight)'], ['dim', 'Dim (lit room, dusk)'], ['dark', 'Dark'], ['time', 'Follows the time of day']];
+  const ZONE_COLORS = { bright: '255, 214, 80', dim: '255, 150, 60', dark: '90, 120, 255', time: '60, 220, 200' };
+  const zoneCard = document.createElement('div');
+  zoneCard.id = 'zoneCard'; zoneCard.hidden = true;
+  zoneCard.innerHTML = '<strong style="font-size:13px">Light zone</strong>' +
+    '<label>Name <input type="text" id="zcName" maxlength="40" spellcheck="false"></label>' +
+    '<label>Light <select id="zcLevel">' + ZONE_LEVELS.map(([v, t]) => '<option value="' + v + '">' + t + '</option>').join('') + '</select></label>' +
+    '<div class="hint" style="margin:0;font-size:11px">Follows the time of day: bright by day, dim at dawn and dusk, dark at night. In Map Test the Day look is bright and the Night look dark.</div>' +
+    '<div class="lc-row"><button id="zcDelete" class="danger">Delete</button><button id="zcDone">Done</button></div>';
+  $('#stage').appendChild(zoneCard);
+  function positionZoneCard() {
+    const z = S.zoneSel;
+    if (!z || S.tool !== 'zones' || S.viewAs !== 'dm' || S.zonePen) { zoneCard.hidden = true; return; }
+    const stage = $('#stage').getBoundingClientRect();
+    if (zoneCard.hidden || zoneCard.dataset.for !== z.id) { $('#zcName').value = z.name || z.id; $('#zcLevel').value = z.level; zoneCard.dataset.for = z.id; }
+    zoneCard.hidden = false;
+    const cx = z.points.reduce((a, q) => a + q.x, 0) / z.points.length, cy = z.points.reduce((a, q) => a + q.y, 0) / z.points.length;
+    zoneCard.style.left = clamp(S.view.ox + cx * S.view.scale + 20, 8, Math.max(8, stage.width - 252)) + 'px';
+    zoneCard.style.top = clamp(S.view.oy + cy * S.view.scale - 14, 56, Math.max(56, stage.height - (zoneCard.offsetHeight || 190) - 8)) + 'px';
+  }
+  function zonesChanged() { save(); revealFog(); requestRender(); updateZoneInfo(); }
+  function updateZoneInfo() { $('#zoneInfo').textContent = S.zonePen ? (S.zonePen.points.length < 3 ? 'Click the corners (' + S.zonePen.points.length + ' so far)' : 'Click the first corner or press Enter to finish') : S.lightZones.length + (S.lightZones.length === 1 ? ' zone' : ' zones'); $('#zoneNew').textContent = S.zonePen ? 'Cancel' : 'Draw a zone'; }
+  function finishZone() {
+    const pen = S.zonePen; if (!pen) return;
+    S.zonePen = null;
+    if (pen.points.length >= 3) {
+      let n = 1; while (S.lightZones.some((z) => z.id === 'zone-' + n)) n++;
+      const z = { id: 'zone-' + n, name: 'zone-' + n, level: 'dark', points: pen.points.map((q) => ({ x: Math.round(q.x), y: Math.round(q.y) })) };
+      S.lightZones.push(z); S.zoneSel = z; zonesChanged();
+    } else updateZoneInfo();
+    positionZoneCard(); requestRender();
+  }
+  function deleteZone(z) { const i = S.lightZones.indexOf(z); if (i < 0) return; S.lightZones.splice(i, 1); if (S.zoneSel === z) S.zoneSel = null; positionZoneCard(); zonesChanged(); }
+  $('#zoneNew').addEventListener('click', () => { if (S.zonePen) { S.zonePen = null; } else { S.zonePen = { points: [] }; S.zoneSel = null; } positionZoneCard(); updateZoneInfo(); requestRender(); });
+  $('#zcName').addEventListener('change', () => { const z = S.zoneSel; if (!z) return; z.name = $('#zcName').value.trim().slice(0, 40) || z.id; zonesChanged(); });
+  $('#zcLevel').addEventListener('change', () => { const z = S.zoneSel; if (!z) return; z.level = $('#zcLevel').value; zonesChanged(); });
+  $('#zcDelete').addEventListener('click', () => { if (S.zoneSel) deleteZone(S.zoneSel); });
+  $('#zcDone').addEventListener('click', () => { S.zoneSel = null; positionZoneCard(); requestRender(); });
+  function drawZones(px) {
+    ctx.save();
+    const sel = S.zoneSel;
+    for (const z of S.lightZones) {
+      const lv = zoneLevel(z), rgb = ZONE_COLORS[z.level === 'time' ? 'time' : lv];
+      ctx.beginPath(); ctx.moveTo(z.points[0].x, z.points[0].y); for (let i = 1; i < z.points.length; i++) ctx.lineTo(z.points[i].x, z.points[i].y); ctx.closePath();
+      ctx.fillStyle = 'rgba(' + rgb + ', ' + (z === sel ? 0.30 : 0.18) + ')'; ctx.fill();
+      ctx.setLineDash(z.level === 'time' ? [10 * px, 6 * px] : []); ctx.strokeStyle = 'rgba(' + rgb + ', 0.95)'; ctx.lineWidth = (z === sel ? 3.5 : 2) * px; ctx.stroke(); ctx.setLineDash([]);
+      const cx = z.points.reduce((a, q) => a + q.x, 0) / z.points.length, cy = z.points.reduce((a, q) => a + q.y, 0) / z.points.length;
+      ctx.font = (13 * px) + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3 * px;
+      const label = (z.name || z.id) + ' · ' + (z.level === 'time' ? 'time of day (' + lv + ' now)' : lv);
+      ctx.strokeText(label, cx, cy); ctx.fillText(label, cx, cy);
+    }
+    const pen = S.zonePen;
+    if (pen && pen.points.length) {
+      ctx.strokeStyle = 'rgba(122, 208, 255, 0.95)'; ctx.lineWidth = 2.5 * px; ctx.setLineDash([8 * px, 6 * px]);
+      ctx.beginPath(); ctx.moveTo(pen.points[0].x, pen.points[0].y); for (let i = 1; i < pen.points.length; i++) ctx.lineTo(pen.points[i].x, pen.points[i].y);
+      if (S.hover) ctx.lineTo(S.hover.x, S.hover.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(122, 208, 255, 0.95)'; pen.points.forEach((q, i) => { ctx.beginPath(); ctx.arc(q.x, q.y, (i === 0 ? 7 : 4.5) * px, 0, Math.PI * 2); ctx.fill(); });
+    }
+    ctx.restore();
+  }
+
   /* ---- the Walls tool: a card to edit the selected door ---- */
   const doorCard = document.createElement('div');
   doorCard.id = 'doorCard'; doorCard.hidden = true;
@@ -1855,6 +1964,7 @@
     if (e.button === 2) {
       if (S.tool === 'start') { const hit = startAt(p); if (hit) removePin(hit); return; }
       if (S.tool === 'lights') { const hit = lightAt(p); if (hit) { if (S.selectedLight === hit) { S.selectedLight = null; positionLightCard(); } deleteLight(hit); } return; }
+      if (S.tool === 'zones') { if (S.zonePen) { S.zonePen.points.pop(); updateZoneInfo(); requestRender(); } else { const hit = zoneAt(p); if (hit) deleteZone(hit); } return; }
       if (S.tool === 'walls' && S.wallPen) { S.wallPen = null; syncWallBox(); requestRender(); return; }
       if (S.tool === 'walls') { const w = nearestWall(p, false); if (w) { wallSnapshot(); S.walls.splice(S.walls.indexOf(w), 1); if (S.wallSel === w) S.wallSel = null; afterWallEdit(); } return; }
       if (isTerrainTool()) {
@@ -1866,6 +1976,14 @@
       return;
     }
     if (e.button !== 0) return;
+    if (S.tool === 'zones') {                                            // the Zones tool: add a corner while drawing, otherwise pick the zone under the pointer
+      if (S.zonePen) {
+        const pen = S.zonePen, first = pen.points[0];
+        if (first && pen.points.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) * S.view.scale <= 12) { finishZone(); return; }
+        pen.points.push({ x: Math.round(clamp(p.x, 0, S.W)), y: Math.round(clamp(p.y, 0, S.H)) }); updateZoneInfo(); requestRender(); return;
+      }
+      S.zoneSel = zoneAt(p); positionZoneCard(); requestRender(); return;
+    }
     if (S.tool === 'lights') {                                           // the Lights tool: select (and drag) a light, or add one on empty ground
       if (p.x < 0 || p.y < 0 || p.x > S.W || p.y > S.H) return;
       const hit = lightAt(p);
@@ -1937,7 +2055,7 @@
   cv.addEventListener('pointerdown', (e) => {
     if (!S.img) return;
     const p = toWorld(e);
-    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : S.tool === 'walls' ? S.viewAs === 'dm' && !S.wallPen && !e.altKey && !endpointAt(p) && !nearestWall(p, false) : false);       // empty ground: a click does the tool's action, a drag pans the map
+    const empty = e.button === 0 && !S.spaceDown && !doorUnder(p) && (S.tool === 'start' ? !startAt(p) && tokenAt(p) < 0 : S.tool === 'token' ? tokenAt(p) < 0 : S.tool === 'lights' ? !lightAt(p) : S.tool === 'zones' ? !S.zonePen && !zoneAt(p) : S.tool === 'walls' ? S.viewAs === 'dm' && !S.wallPen && !e.altKey && !endpointAt(p) && !nearestWall(p, false) : false);       // empty ground: a click does the tool's action, a drag pans the map
     if (!empty) { handleDown(e); return; }
     try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     S.drag = { kind: 'pending', sx: e.clientX, sy: e.clientY, ox: S.view.ox, oy: S.view.oy, press: { clientX: e.clientX, clientY: e.clientY, button: 0, pointerId: e.pointerId, shiftKey: e.shiftKey } };
@@ -2008,6 +2126,11 @@
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.key === ' ') { S.spaceDown = true; e.preventDefault(); }
     if ((e.key === 'Delete' || e.key === 'Backspace') && S.tool === 'start' && S.selected) { e.preventDefault(); removePin(S.selected); }
+    if (S.tool === 'zones') {
+      if (e.key === 'Enter' && S.zonePen) { e.preventDefault(); finishZone(); }
+      else if (e.key === 'Escape') { S.zonePen = null; S.zoneSel = null; positionZoneCard(); updateZoneInfo(); requestRender(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && S.zoneSel && !S.zonePen) { e.preventDefault(); deleteZone(S.zoneSel); }
+    }
     if (S.tool === 'walls') {
       if ((e.key === 'Delete' || e.key === 'Backspace') && S.wallSel) { e.preventDefault(); deleteWall(); }
       else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); wallUndo(); }
@@ -2181,6 +2304,7 @@
     if (!S.mapFog) { S.fog = false; showBox.checked = false; }
     const on = S.fog && !noFog(); const box = $('#dm'); box.disabled = !on; box.checked = on && S.dm; box.title = on ? '' : 'Only used while Show Fog is on'; }
   $('#dm').addEventListener('change', (e) => { S.dm = e.target.checked; requestRender(); });
+  S.showZones = store.get('vtt.maptest.zones', false) === true; $('#showZones').checked = S.showZones; $('#showZones').addEventListener('change', (e) => { S.showZones = e.target.checked; store.set('vtt.maptest.zones', S.showZones); requestRender(); });
   S.showLightRadius = store.get('vtt.maptest.lightRadius', false) === true; $('#showLightRadius').checked = S.showLightRadius;
   $('#objectTops').addEventListener('change', (e) => { S.objectTops = e.target.checked; save(); resetFog(); });       // explored ground is remembered, so the layer starts again
   $('#showLightRadius').addEventListener('change', (e) => { S.showLightRadius = e.target.checked; store.set('vtt.maptest.lightRadius', S.showLightRadius); requestRender(); });
@@ -2309,7 +2433,8 @@
     document.querySelectorAll('button.tool[data-tool="start"]').forEach((b) => { b.hidden = player; }); $('#terrainPair').hidden = player;
     document.querySelectorAll('button.tool[data-tool="walls"]').forEach((b) => { b.hidden = player; });
     document.querySelectorAll('button.tool[data-tool="lights"]').forEach((b) => { b.hidden = player; });
-    if (player && ['start', 'terrain', 'eraser', 'walls'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
+    document.querySelectorAll('button.tool[data-tool="zones"]').forEach((b) => { b.hidden = player; });
+    if (player && ['start', 'terrain', 'eraser', 'walls', 'zones', 'lights'].includes(S.tool)) setTool('token'); else if (!player) $('#brushBox').hidden = !isTerrainTool();
     if (player) $('#brushBox').hidden = true;
     const keptFog = copyFog();
     updateViewUi(); resetFog(keptFog); requestRender();
