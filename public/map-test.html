@@ -112,11 +112,11 @@
       <select id="moodSel"><option value="">No mood</option></select>
     </label>
     <hr class="soft-rule">
-    <label class="check" id="mapFogRow"><input type="checkbox" id="mapFog" checked> Fog of war on this map<span class="info-icon" title="Saved with the map. Ticked (the default for a battle map): the players only see what their characters see and explored ground is remembered. Unticked: the players see this map whole, and the table has no fog on it.">ⓘ</span></label>
+    <label class="check" id="mapFogRow">Fog of war on this map<span class="info-icon" title="Saved with the map. Ticked (the default for a battle map): the players only see what their characters see and explored ground is remembered. Unticked: the players see this map whole, and the table has no fog on it.">ⓘ</span><input type="checkbox" id="mapFog" checked></label>
     <hr class="soft-rule" id="mapFogRule">
     <label class="field"><span>Squares across the map: <b id="squaresVal">50</b></span>
     </label>
-    <label class="check" id="showTilesRow"><input type="checkbox" id="showGrid"> <span id="showTilesText">Show tiles</span></label>
+    <label class="check" id="showTilesRow"><span id="showTilesText">Show tiles</span><input type="checkbox" id="showGrid"></label>
     <label class="field" id="hexRow" hidden><span>Hexagon size in pixels (flat edge to flat edge): <b id="hexVal">95</b></span><input type="range" id="hexSize" min="20" max="260" value="95"></label>
     <p class="hint" id="scaleNote"></p>
     <div class="readout" id="sizeNote"></div>
