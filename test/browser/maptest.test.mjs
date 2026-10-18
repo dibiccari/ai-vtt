@@ -733,3 +733,22 @@ test('in the Walls tool a click on an existing end carries on drawing from that 
   assert.deepEqual(r.pen, { x: 700, y: 700 }, 'the click on the end starts a run from it: ' + JSON.stringify(r));
   assert.equal(r.walls.length, 2); assert.deepEqual(r.walls[1].slice(1), [700, 700, 700, 900], 'the new wall starts exactly at the door\'s end');
 });
+
+test('the speaker button next to Ambient sound plays and stops the selected sound, and is greyed out for None', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/vtt-camp-day.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const sel = document.querySelector('#ambienceKind'), btn = document.querySelector('#ambPlay'), out = {};
+    const calls = []; const o = { setScene: Ambience.setScene, stop: Ambience.stop }; Ambience.setScene = (k) => calls.push('scene:' + k); Ambience.stop = (k) => calls.push('stop:' + k);
+    sel.value = 'none'; sel.dispatchEvent(new Event('change')); out.none = btn.disabled;
+    sel.value = 'rain'; sel.dispatchEvent(new Event('change')); out.rain = btn.disabled;
+    btn.click(); out.playing = btn.getAttribute('aria-pressed');
+    sel.value = 'wind'; sel.dispatchEvent(new Event('change'));
+    btn.click(); out.stopped = btn.getAttribute('aria-pressed');
+    sel.value = 'none'; sel.dispatchEvent(new Event('change'));
+    out.calls = calls; Ambience.setScene = o.setScene; Ambience.stop = o.stop; return out;
+  })()`);
+  assert.equal(r.none, true, 'None greys the button out'); assert.equal(r.rain, false); assert.equal(r.playing, 'true'); assert.equal(r.stopped, 'false');
+  assert.deepEqual(r.calls.filter((c) => c.startsWith('scene:')), ['scene:rain', 'scene:wind'], 'it plays the chosen sound, and follows a change while playing: ' + JSON.stringify(r.calls));
+  assert.ok(r.calls.includes('stop:scene'), 'the second click stops it');
+});

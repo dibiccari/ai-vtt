@@ -41,6 +41,9 @@
   label.field:has(> select) > span { flex:0 0 auto; max-width:42%; }
   label.field:has(> select) > select { flex:1 1 auto; width:auto; min-width:0; }
   details.group > label.field:has(> select), details.group > select#mapSelect { margin-bottom:10px; }
+  button.speaker { flex:0 0 auto; padding:5px 9px; line-height:1; }
+  button.speaker[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); }
+  button.speaker:disabled { opacity:.4; cursor:not-allowed; }
   label.check { display:flex; gap:8px; align-items:center; font-size:13px; cursor:pointer; }
   label.check input { accent-color:var(--accent); width:16px; height:16px; }
   .readout { font:12px Consolas, monospace; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px; min-height:56px; color:var(--muted); white-space:pre-wrap; }
@@ -107,6 +110,7 @@
     </label>
     <label class="field"><span>Ambient sound</span>
       <select id="ambienceKind"><option value="">Automatic (from the kind of place)</option><option value="none">None</option><option value="forest">Forest by day</option><option value="night">Night (crickets, fire)</option><option value="wind">Wind</option><option value="cave">Cave (drips)</option><option value="dungeon">Dungeon</option><option value="tavern">Tavern</option><option value="town">Town</option><option value="rain">Rain</option><option value="fire">Campfire</option></select>
+      <button type="button" id="ambPlay" class="speaker" aria-pressed="false" title="Play the selected sound (click again to stop)" aria-label="Play the selected ambient sound">🔊</button>
     </label>
     <label class="field"><span>Mood theme<span class="info-icon" title="A mood sets the light level and the ambient sound together; you can still change either one above afterwards.">ⓘ</span></span>
       <select id="moodSel"><option value="">No mood</option></select>
@@ -243,6 +247,7 @@
 <script src="/flicker.js"></script>
 <script src="/place-pins.js"></script>
 <script src="/fog-style.js"></script>
+<script src="/ambience.js"></script>
 <script src="/effects.js"></script>
 <script>
 (function () {
@@ -1404,7 +1409,7 @@
     renderStartList();
     fillCopyTargets();
     $('#lightLevel').value = S.light; showTestLight();
-    $('#ambienceKind').value = S.ambience;
+    $('#ambienceKind').value = S.ambience; if (S.ambPlaying) stopAmbience(); syncSpeaker();       // a new map: the sound stops
     $('#moodSel').value = S.mood;
     $('#hexSize').value = S.hexSize; $('#hexVal').textContent = S.hexSize; applyKindUi();
     refreshVariants();
@@ -2125,7 +2130,28 @@
   $('#testDv').value = String(S.darkvisionFt);
   $('#testDv').addEventListener('change', (e) => { S.darkvisionFt = Number(e.target.value); store.set('vtt.maptest.dv', S.darkvisionFt); revealFog(); });
   $('#lightLevel').addEventListener('change', (e) => { S.light = e.target.value; showTestLight(); resetFog(); save(); });       // the fog's colour follows the light, so the explored layer starts again
-  $('#ambienceKind').addEventListener('change', (e) => { S.ambience = e.target.value; save(); });
+  // Hear the selected ambient sound: the speaker button plays or stops it (not saved, only a way of listening). Automatic follows the kind of place and its light, as the tabletop does.
+  function ambienceToPlay() {
+    const v = $('#ambienceKind').value;
+    if (v === 'none') return '';
+    if (v) return v;
+    const dark = S.light === 'dark';
+    return S.kind === 'regional' ? 'wind' : S.kind === 'town' ? 'town' : S.kind === 'camp' ? (dark ? 'night' : 'forest') : (dark ? 'dungeon' : 'wind');
+  }
+  function syncSpeaker() {
+    const btn = $('#ambPlay'), scene = ambienceToPlay();
+    btn.disabled = !scene || !window.Ambience;
+    btn.title = !scene ? 'No sound is selected' : S.ambPlaying ? 'Stop the sound' : 'Play the selected sound';
+    if ((!scene || !window.Ambience) && S.ambPlaying) stopAmbience();
+    btn.setAttribute('aria-pressed', String(Boolean(S.ambPlaying)));
+  }
+  function stopAmbience() { S.ambPlaying = false; try { Ambience.stop('scene'); } catch { /* no sound engine */ } $('#ambPlay').setAttribute('aria-pressed', 'false'); }
+  function playAmbience() {
+    const scene = ambienceToPlay(); if (!scene || !window.Ambience) return;
+    try { Ambience.unlock(); Ambience.allowRetired(true); Ambience.setEnabled(true); Ambience.setVolume(0.6); Ambience.setScene(scene); S.ambPlaying = true; } catch { S.ambPlaying = false; }
+  }
+  $('#ambPlay').addEventListener('click', () => { if (S.ambPlaying) stopAmbience(); else playAmbience(); syncSpeaker(); });
+  $('#ambienceKind').addEventListener('change', (e) => { S.ambience = e.target.value; save(); if (S.ambPlaying) { if (ambienceToPlay()) playAmbience(); else stopAmbience(); } syncSpeaker(); });
   // Moods (from the Market's list): picking one also sets the light level and the ambient sound that go with it.
   let MOODS = [];
   fetch('/api/market').then((r) => r.json()).then((shop) => {
