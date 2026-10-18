@@ -1478,7 +1478,7 @@
   function applyKindUi() {
     $('#mapKind').value = S.kind;
     const plain = noFog();
-    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]'), document.querySelector('button.tool[data-tool="zones"]'), $('#showZones').closest('label')]) if (el) el.hidden = plain;
+    for (const el of [$('#fog').closest('label'), $('#mapFogRow'), $('#mapFogRule'), $('#dm').closest('label'), $('#resetFogBtn'), $('#lightBox'), $('#vision').closest('label'), document.querySelector('button.tool[data-tool="token"]'), document.querySelector('button.tool[data-tool="zones"]'), $('#showZones').closest('label'), $('#showPoly').closest('label')]) if (el) el.hidden = plain;       // a sight outline is a line-of-sight tool: not on a town or regional map
     if (plain && S.tool === 'zones') setTool('start');
     if (plain && S.tool === 'token') setTool('start');
     syncDmBox();
