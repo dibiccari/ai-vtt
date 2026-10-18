@@ -14,6 +14,7 @@
     enabled: function () { try { return localStorage.getItem(KEY) !== '0'; } catch (e) { return true; } },
     setEnabled: function (on) { try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) { /* not remembered */ } },
     label: function (pin) { return pin.label || String(pin.name).split('-').map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); },
+    // A pin with `unknown: true` (the DM view: a place the players do not know yet) is drawn red instead of gold.
     // Draw pins given as { x, y, name, label } in the current drawing coordinates; `px` is one screen pixel in those coordinates (1 / zoom).
     // Labels never sit on top of each other: each one tries the right of its pin, then the left, then above, then below, and keeps the first spot that is free.
     draw: function (ctx, pins, px) {
@@ -25,9 +26,9 @@
       var hits = function (a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; };
       pins.forEach(function (p) { taken.push({ x: p.x - r, y: p.y - r, w: 2 * r, h: 2 * r }); });         // the dots themselves are also in the way
       pins.forEach(function (p) {
-        ctx.fillStyle = '#f0c048'; ctx.strokeStyle = '#2a1d00'; ctx.lineWidth = 2 * px;
+        ctx.fillStyle = p.unknown ? '#ff5a5a' : '#f0c048'; ctx.strokeStyle = p.unknown ? '#3a0000' : '#2a1d00'; ctx.lineWidth = 2 * px;
         ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#2a1d00'; ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = p.unknown ? '#3a0000' : '#2a1d00'; ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.35, 0, Math.PI * 2); ctx.fill();
       });
       pins.forEach(function (p) {
         var text = P.label(p), w = ctx.measureText(text).width, h = size * 1.1, gap = r + 5 * px;
@@ -42,7 +43,7 @@
         ctx.textAlign = pick.align;
         var ty = pick.ty !== undefined ? pick.ty : p.y;
         ctx.lineWidth = size / 4; ctx.strokeStyle = 'rgba(8, 6, 2, 0.9)'; ctx.strokeText(text, pick.tx, ty);
-        ctx.fillStyle = '#fff3cf'; ctx.fillText(text, pick.tx, ty);
+        ctx.fillStyle = p.unknown ? '#ffd6d6' : '#fff3cf'; ctx.fillText(text, pick.tx, ty);
       });
       ctx.restore();
     }

@@ -1004,7 +1004,7 @@ test('the time of day in Map Test works like the tabletop: the night wash, zones
   assert.equal(r.url, 'vtt-crypt-method-b.png', 'a place with no Night look stays on its picture'); assert.equal(r.pressed, 'true'); assert.equal(r.duskLevel, 'dim'); assert.equal(r.back, 'day');
 });
 
-test('DM view of a town or regional map: Show Places draws the places, blue where the players know them and red where they do not yet; the sidebar and the map switch are one', opts, async () => {
+test('DM view of a town or regional map: Show Places draws the places, gold as the players see them where they know them and red where they do not yet; the sidebar and the map switch are one', opts, async () => {
   await page.goto(`${server.base}/map-test.html?map=/uploads/dnd-sword-coast-ours.png`);
   await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
   const r = await page.eval(`(async () => {
@@ -1014,10 +1014,10 @@ test('DM view of a town or regional map: Show Places draws the places, blue wher
     S.showPins = true; $ = (q) => document.querySelector(q);
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(300);
     const cv = document.querySelector('canvas'), x = cv.getContext('2d'), dpr = cv.width / cv.getBoundingClientRect().width;
-    const colour = (wx, wy) => { const d = x.getImageData(Math.round((S.view.ox + wx * S.view.scale) * dpr), Math.round((S.view.oy + wy * S.view.scale) * dpr), 1, 1).data; return d[0] > 180 && d[1] < 140 ? 'red' : d[2] > 180 && d[0] < 140 ? 'blue' : 'other'; };
+    const colour = (wx, wy) => { const d = x.getImageData(Math.round((S.view.ox + wx * S.view.scale + 3) * dpr), Math.round((S.view.oy + wy * S.view.scale) * dpr), 1, 1).data; const near = (c, t, e) => Math.abs(c - t) <= e; return near(d[0], 255, 10) && near(d[1], 90, 14) && near(d[2], 90, 14) ? 'red' : near(d[0], 240, 14) && near(d[1], 192, 14) && near(d[2], 72, 16) ? 'gold' : 'other'; };       // the exact dot colours
     const side = $('#showPlacesSide'), canvasBox = $('#showPlaces');
     out.sideVisible = !$('#showPlacesSideRow').hidden; out.sideOn = side.checked;
-    window.mapTest.requestRender && window.mapTest.requestRender(); await wait(300);
+    side.dispatchEvent(new Event('change')); await wait(300);
     out.on = [colour(400, 400), colour(700, 400), colour(400, 900)];
     side.checked = false; side.dispatchEvent(new Event('change')); await wait(300);
     out.off = [colour(400, 400), colour(700, 400), colour(400, 900)]; out.canvasBoxFollows = canvasBox.checked;
@@ -1026,9 +1026,9 @@ test('DM view of a town or regional map: Show Places draws the places, blue wher
     return out;
   })()`);
   assert.equal(r.sideVisible, true, 'the switch is in Fog and sight on a regional map'); assert.equal(r.sideOn, true);
-  assert.deepEqual(r.on, ['blue', 'red', 'red'], 'known places as before, unknown (and DM-only) places red: ' + JSON.stringify(r));
+  assert.deepEqual(r.on, ['gold', 'red', 'red'], 'known places look as the players see them (gold), unknown (and DM-only) places red: ' + JSON.stringify(r));
   assert.ok(r.off.every((c) => c === 'other'), 'with the switch off no place is drawn: ' + JSON.stringify(r.off)); assert.equal(r.canvasBoxFollows, false, 'the map switch follows the sidebar one');
-  assert.equal(r.sideFollows, true); assert.equal(r.onAgain, 'blue');
+  assert.equal(r.sideFollows, true); assert.equal(r.onAgain, 'gold');
 });
 
 test('Show pins is the master switch and each type of pin has its own: Start, Areas and Locations on a battle map, Places on a town or regional map', opts, async () => {
@@ -1057,4 +1057,18 @@ test('Show pins is the master switch and each type of pin has its own: Start, Ar
   assert.deepEqual(r.all, { start: 'white', area: 'blue', location: 'blue' }, JSON.stringify(r));
   assert.deepEqual(r.noAreas, { start: 'white', area: 'other', location: 'blue' }); assert.deepEqual(r.noLocations, { start: 'white', area: 'blue', location: 'other' }); assert.deepEqual(r.noStart, { start: 'other', area: 'blue', location: 'blue' });
   assert.deepEqual(r.master, { start: 'other', area: 'other', location: 'other' }, 'Show pins off hides every type');
+});
+
+test('a town or regional map has no start location: the start pin is not drawn, not listed, not offered as a type, and a new pin is not called start', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?map=/uploads/dnd-sword-coast-ours.png`);
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const r = await page.eval(`(async () => {
+    const S = window.mapTest.state, out = {};
+    S.starts = [{ name: 'start', x: 300, y: 300 }, { name: 'a-place', x: 600, y: 600, known: true }];
+    window.mapTest.syncPinTypeBox();
+    out.kind = S.kind; out.startBox = !document.querySelector('#pinTypeStart').hidden;
+    out.listed = [...document.querySelectorAll('#startList input[type=text]')].map((i) => i.value);
+    return out;
+  })()`);
+  assert.equal(r.kind, 'regional'); assert.equal(r.startBox, false, 'no Show Start on a regional or town map');
 });
