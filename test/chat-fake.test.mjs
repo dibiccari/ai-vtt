@@ -263,3 +263,30 @@ test('a model that can answer without thinking first is asked to; the 5.5 models
     assert.equal((await ask('claude-fable-5-1')).thinking, undefined);
   } finally { await s.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5' }); }
 });
+
+test('streaming: the rolls and each voice line come out as they are written, then the usual reply; the same reply as without streaming', async () => {
+  const dm = { rolls: ['Goblin 1 attack: d20 (11) + 4 = 15 vs AC 14, hit'], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'The blade bites her shoulder.' }, { speaker: 'Goblin 1', voice: 'monstrous', text: 'Horny one bleeds!' }, { speaker: 'Narrator', voice: 'narrator', text: 'Shadowheart, you are up.' }], mapUpdates: [] };
+  setReply({ ...dm, __chunkMs: 40, __chunkSize: 30 });
+  const body = { message: '[Edric] I hold the line', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: [], stream: true };
+  const t0 = Date.now(), events = [];
+  const res = await fetch(`${s.base}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal(res.status, 200); assert.match(res.headers.get('content-type'), /ndjson/);
+  const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    for (let i; (i = buf.indexOf('\n')) >= 0;) { const raw = buf.slice(0, i); buf = buf.slice(i + 1); if (raw.trim()) events.push({ ...JSON.parse(raw), at: Date.now() - t0 }); }
+  }
+  assert.deepEqual(events.map((e) => e.event), ['roll', 'line', 'line', 'line', 'done']);
+  assert.deepEqual(events.filter((e) => e.event === 'line').map((e) => [e.index, e.line.speaker]), [[0, 'Narrator'], [1, 'Goblin 1'], [2, 'Narrator']]);
+  const done = events.at(-1);
+  assert.ok(events[1].at < done.at - 150, `the first line (${events[1].at} ms) came well before the end (${done.at} ms)`);
+  setReply({ ...dm });
+  const plain = (await s.post('/api/chat', { ...body, stream: undefined })).json;
+  for (const k of ['rolls', 'narrative', 'voiceLines', 'mapUpdates']) assert.deepEqual(done[k], plain[k], k);
+  // an error ends the stream with one error line (the status in it), and a reply that cannot be read is the same 502 as before
+  setReply({ __status: 400, __message: 'You have reached your specified API usage limits.' });
+  const bad = await fetch(`${s.base}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const lines = (await bad.text()).trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines.length, 1); assert.equal(lines[0].event, 'error'); assert.equal(lines[0].status, 502); assert.match(lines[0].error, /usage limits/);
+});

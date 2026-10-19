@@ -31,13 +31,21 @@ const pcs = game.board.tokens.filter((t) => t.isPC !== false && /^(tok-|pc)/i.te
 const spots = { Edric: [6, 10], Raechyl: [7, 9], Shadowheart: [5, 9], Astarion: [7, 11] };
 const board = { ...game.board, tokens: pcs.map((t) => ({ ...t, col: (spots[t.name] || [6, 10])[0], row: (spots[t.name] || [6, 10])[1], conditions: [], hidden: false, dead: false, where: '', initiative: null, movementRemaining: t.speed || 30, spent: { a: false, b: false, r: false } })), combat: { active: false, round: 0, order: [] }, activeIndex: 0, timeOfDay: 'day', dmPad: '', knownPlaces: [] };
 
+// A pretend speech engine that notes when each line starts (Microsoft voices, so no clips to make): the wall clock of what a player would hear.
+const FAKE_SYNTH = `
+  window.__synth = { spoken: [] };
+  window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+  Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { getVoices: () => [], cancel() {}, speak(u) { window.__synth.spoken.push({ text: u.text, at: performance.now() }); if (u.onstart) u.onstart(); setTimeout(() => { if (u.onend) u.onend(); }, 400); }, onvoiceschanged: null } });
+`;
+await server.post('/api/settings', { VOICE_PROVIDER: 'browser', NPC_VOICE_PROVIDER: 'browser' });
 const page = await launchChrome();
+await page.addInitScript(FAKE_SYNTH);
 await page.goto(`${server.base}/index.html?nosave=1`);
 await page.waitFor('window.vtt && window.vtt.state.characters.length >= 4');
 await page.eval(`(() => { localStorage.setItem('vtt.board.${LOST}', ${JSON.stringify(JSON.stringify(board))}); localStorage.setItem('vtt.savedAt.${LOST}', String(Date.now())); localStorage.removeItem('vtt.chat.${LOST}'); localStorage.setItem('vtt.diceMode', '"ai"'); })()`);
 await page.goto(`${server.base}/index.html?nosave=1`);
 await page.waitFor('window.vtt && window.vtt.state.characters.length >= 4 && window.vtt.state.tokens.length >= 4 && !document.querySelector("#chatInput").disabled');
-await page.eval(`(() => { document.querySelector('#speakToggle').checked = false; window.__calls = 0; const f = window.fetch; window.fetch = (u, o) => { if (String(u).includes('/api/chat') && o && o.method === 'POST') window.__calls++; return f(u, o); }; })()`);
+await page.eval(`(() => { document.querySelector('#speakToggle').checked = true; window.__calls = 0; window.__doneAt = 0; let was = false; setInterval(() => { const b = vtt.state.busy; if (was && !b && !window.__doneAt) window.__doneAt = performance.now(); was = b; }, 25); const f = window.fetch; window.fetch = (u, o) => { if (String(u).includes('/api/chat') && o && o.method === 'POST') window.__calls++; return f(u, o); }; })()`);
 
 let seen = await page.eval('vtt.state.chat.length');
 const summary = () => page.eval(`(() => {
@@ -61,6 +69,7 @@ async function say(who, text) {
   const ok = await page.eval(`(() => { const i = vtt.state.tokens.findIndex((t) => t && t.name === ${JSON.stringify(who)}); if (i < 0) return false; vtt.state.activeIndex = i; const el = document.querySelector('#chatInput'); el.value = ${JSON.stringify(text)}; el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); return true; })()`);
   if (!ok) return { error: 'no such party member: ' + who };
   const started = Date.now();
+  await page.eval('window.__t0 = performance.now(); window.__doneAt = 0; window.__synth.spoken = []');
   await page.waitFor('vtt.state.busy === true', 5000).catch(() => {});
   // wait for the DM, and for the turns the table asks it to play on its own (a creature's turn), until nothing has happened for 4 seconds
   let quietSince = Date.now();
@@ -70,7 +79,8 @@ async function say(who, text) {
     if (busy) quietSince = Date.now(); else if (Date.now() - quietSince > 4000) break;
   }
   const messages = await newChat();
-  return { seconds: Math.round((Date.now() - started) / 100) / 10, messages, state: await summary() };
+  const clock = await page.eval('({ firstSpoken: window.__synth.spoken.length ? (window.__synth.spoken[0].at - window.__t0) / 1000 : null, firstRollOrLine: null, firstReplyDone: window.__doneAt ? (window.__doneAt - window.__t0) / 1000 : null })');
+  return { wallClock: { secondsUntilFirstWordSpoken: clock.firstSpoken && Math.round(clock.firstSpoken * 10) / 10, secondsUntilFirstReplyComplete: clock.firstReplyDone && Math.round(clock.firstReplyDone * 10) / 10 }, seconds: Math.round((Date.now() - started) / 100) / 10, messages, state: await summary() };
 }
 
 const http = createServer(async (req, res) => {

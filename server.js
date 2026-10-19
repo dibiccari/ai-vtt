@@ -39,6 +39,7 @@ import { normalizeTrack, trackView, hitDice, describeClock, readClock, writeCloc
 import { processTrackUpdates } from './lib/rules-apply.js';
 import { pronounce } from './lib/pronounce.js';
 import { selectDocuments, filteredNote, areasInPlay } from './lib/module-select.js';
+import { ReplyStreamer } from './lib/partial-reply.js';
 import { createPlayLog, logAsText } from './lib/playlog.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
@@ -2056,7 +2057,7 @@ What the characters know: the names in the module are for you. Do not name a per
 
 Secrets stay secret. Each token in the board state has hidden, kind and visibleToParty. Never mention, name, describe or hint at a token that is hidden or not visibleToParty (a hiding or invisible creature, a trap, an enemy in another room): not in the narrative, not in the voice lines, not in a rules note. An undiscovered trap is not mentioned at all until a character finds it with a check, triggers it, or it is revealed. Narrate only what the characters can perceive from where they stand. When a hidden thing is found or acts, call revealToken and then describe it.
 
-Keep replies SHORT: they are read aloud and every word costs the players time. In a fight give one beat: what happened (the hit or miss and what it did), what the creatures do, and whose turn it is, in about 60 to 90 words; in exploration, about 90 to 130 words; go longer only for a real moment (a discovery, a death, the start of a scene). Do not recap hit points or who is where (the table shows it), do not explain a rule you explained already or the table knows (what a Perception check is, how initiative works), do not list options unless the player asks what they can do, and do not end with 'anything else, or are you done?': when the active player has acted, say whose turn is next. Say each thing once.
+Keep replies SHORT: they are read aloud and every word costs the players time. In a fight give one beat of two to four sentences: what happened (the hit or miss and what it did), what the creatures do, and whose turn it is; in exploration, three to five sentences; go longer only for a real moment (a discovery, a death, the start of a scene). Your reply is spoken as it is written, so make the first voice line ONE short sentence that says the outcome (for example 'The blade bites her shoulder.'), then the rest. Do not recap hit points or who is where (the table shows it), do not explain a rule you explained already or the table knows (what a Perception check is, how initiative works), do not list options unless the player asks what they can do, and do not end with 'anything else, or are you done?': when the active player has acted, say whose turn is next. Say each thing once.
 
 The table plays in voice mode: your reply is read aloud. Write the full reply as voiceLines, in order: there is no separate narrative field, the table joins the lines into the text the players read. Use speaker "Narrator" with voice "narrator" for narration and
 rules results; give every NPC or monster line its own entry with the NPC's name as speaker and the voice profile that
@@ -2360,6 +2361,17 @@ async function partyForPrompt(campaign) {
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
   const t0 = Date.now();
+  // body.stream: the answer comes as lines of JSON (application/x-ndjson): {event:'roll'}, {event:'line'} as each roll and voice line of the DM's reply is complete, then {event:'done', ...the usual reply}
+  // or {event:'error', status, error}. The table prints the rolls and speaks the first line while the rest is still being written. Every existing res.json/res.status call below keeps working.
+  const streaming = req.body?.stream === true;
+  const emit = streaming ? (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch { /* the page went away */ } } : () => {};
+  if (streaming) {
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
+    res.flushHeaders?.();
+    let code = 200;
+    res.status = (c) => { code = c; return res; };
+    res.json = (obj) => { emit(code >= 400 ? { event: 'error', status: code, ...obj } : { event: 'done', ...obj }); res.end(); return res; };
+  }
   let apiMs = 0, logCampaign = '', lastUsage = null, lastModel = '', logRounds = 0, lastBlocks = '', lastStop = '', firstTokenMs = 0, firstLineMs = 0;
   const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas, dmPad, places, visitedMaps } = req.body ?? {};
   const text = String(message ?? '').trim();
@@ -2470,14 +2482,18 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     let response, rounds = 0;
     for (;;) {
       const callStart = Date.now();
-      if (process.env.VTT_DM_STREAM === '1') {
-        // Measurement: the same request streamed, noting when the first words and the first complete voice line arrive (what a player could hear if the table spoke as the reply is written).
+      if (streaming || process.env.VTT_DM_STREAM === '1') {
+        // The reply is read while it is written: each roll and voice line goes out the moment it is complete (streaming), and the play log notes when the first words and the first full line arrived.
         const stream = anthropic.beta.messages.stream({ ...dmParams, messages: dmMessages });
-        let text = '';
+        const reader = new ReplyStreamer();
         stream.on('text', (delta) => {
           if (!firstTokenMs) firstTokenMs = Date.now() - callStart;
-          text += delta;
-          if (!firstLineMs && /"voiceLines"\s*:\s*\[\s*\{[^{}]*?"text"\s*:\s*"(?:[^"\\]|\\.)*"\s*[,}]/.test(text)) firstLineMs = Date.now() - callStart;
+          for (const ev of reader.push(delta)) {
+            if (ev.type === 'line' && !firstLineMs) firstLineMs = Date.now() - callStart;
+            if (!streaming) continue;
+            if (ev.type === 'roll') emit({ event: 'roll', text: String(ev.text).slice(0, 200) });
+            else { const [line] = cleanVoiceLines([ev.line]); if (line) emit({ event: 'line', index: ev.index, line }); }
+          }
         });
         response = await stream.finalMessage();
       } else response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });

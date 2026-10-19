@@ -77,6 +77,22 @@ export async function fakeAnthropic(replies) {
       // Older fixtures write the reply as narrative + voiceLines; the real reply form has voiceLines only (the table joins them), so a narrative that differs from the lines becomes one Narrator line.
       if (out && typeof out === 'object' && 'narrative' in out && 'mapUpdates' in out) { const { narrative, ...rest } = out; const joined = (rest.voiceLines || []).map((l) => l.text).join(' ');
         out = { ...rest, voiceLines: joined === narrative || !narrative ? (rest.voiceLines || []) : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }] }; }
+      if (parsed.stream === true && out && !out.__status && !out.__tool_use) {
+        // A streamed answer (server-sent events), in small pieces; out.__chunkMs waits between pieces so a test can see what happens while the rest is still being written.
+        const text = JSON.stringify(Object.fromEntries(Object.entries(out).filter(([k]) => !k.startsWith('__')))), wait = Number(out.__chunkMs) || 0, size = Number(out.__chunkSize) || 24;
+        const send = (event, data) => res.write('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n');
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+        send('message_start', { type: 'message_start', message: { id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 0 } } });
+        send('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
+        (async () => {
+          for (let i = 0; i < text.length; i += size) { send('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: text.slice(i, i + size) } }); if (wait) await new Promise((r) => setTimeout(r, wait)); }
+          send('content_block_stop', { type: 'content_block_stop', index: 0 });
+          send('message_delta', { type: 'message_delta', delta: { stop_reason: out.__stop || 'end_turn', stop_sequence: null }, usage: { output_tokens: 5 } });
+          send('message_stop', { type: 'message_stop' });
+          res.end();
+        })();
+        return;
+      }
       res.setHeader('content-type', 'application/json');
       if (out && out.__status) { res.statusCode = out.__status; return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: out.__message || 'fake error' } })); }
       if (out && out.__tool_use) return res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: out.__tool_use.map((t, i) => ({ type: 'tool_use', id: 'toolu_fake' + i, name: t.name, input: t.input })), stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 5 } }));

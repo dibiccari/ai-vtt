@@ -659,6 +659,30 @@ async function api(path, options = {}) {
   return data;
 }
 const jsonPost = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+// The DM's answer as it is written: the server sends one JSON line per event (roll, line, then done or error). handlers.onRoll(text) and handlers.onLine(line, index) are called as they arrive; resolves with the final reply.
+async function chatStream(body, handlers) {
+  const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, stream: true }) });
+  if (!(res.headers.get('content-type') || '').includes('ndjson')) { const data = await res.json().catch(() => ({})); throw new Error(data.error || `${res.status} ${res.statusText}`); }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', done = null;
+  const handle = (raw) => {
+    if (!raw.trim()) return;
+    const ev = JSON.parse(raw);
+    if (ev.event === 'roll') handlers.onRoll && handlers.onRoll(ev.text);
+    else if (ev.event === 'line') handlers.onLine && handlers.onLine(ev.line, ev.index);
+    else if (ev.event === 'error') throw new Error(ev.error || 'The AI DM could not answer');
+    else if (ev.event === 'done') done = ev;
+  };
+  for (;;) {
+    const { done: finished, value } = await reader.read();
+    if (finished) break;
+    buf += dec.decode(value, { stream: true });
+    for (let i; (i = buf.indexOf('\n')) >= 0;) { const raw = buf.slice(0, i); buf = buf.slice(i + 1); handle(raw); }
+  }
+  handle(buf);
+  if (!done) throw new Error('The AI DM stopped answering before it finished');
+  return done;
+}
 
 /* =====================================================================
    COORDINATES & VIEW
@@ -3893,7 +3917,8 @@ async function sendTurn(spokenText, opts) {
   setBusy(true);
   let ok = false;
   try {
-    const data = await jsonPost('/api/chat', {
+    let streamedMsg = null, streamedEl = null, streamedLines = 0, streamedRolls = 0;       // what has already been printed and spoken while the reply was still being written
+    const data = await chatStream({
       message: content,
       history,
       activeTokenId: active ? active.id : null,
@@ -3914,11 +3939,24 @@ async function sendTurn(spokenText, opts) {
       places: state.places.slice(0, 30),
       visitedMaps: state.visitedMaps.slice(0, 60),
       diceMode: store.get('vtt.diceMode', 'ai') === 'player' ? 'player' : 'ai'
+    }, {
+      onRoll: (text) => { streamedRolls++; addChat('system', '🎲 ' + text); },
+      onLine: (line, index) => {
+        if (!streamedMsg) { streamedEl = addChat('assistant', line.text, [line]); streamedMsg = state.chat[state.chat.length - 1]; }
+        else { streamedMsg.lines.push(line); streamedMsg.content = streamedMsg.lines.map((l) => l.text).join(' '); const fresh = renderChatMessage(streamedMsg); streamedEl.replaceWith(fresh); streamedEl = fresh; store.set(chatKey(), state.chat); scrollChat(); }
+        streamedLines++;
+        voice.speak([line], streamedEl, { queue: true, offset: index });
+      }
     });
     const lines = Array.isArray(data.voiceLines) ? data.voiceLines : [];
-    for (const line of Array.isArray(data.rolls) ? data.rolls : []) addChat('system', '🎲 ' + line);     // every roll first, then the story
-    noteRollLines(Array.isArray(data.rolls) ? data.rolls : []);
-    const msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
+    const rollLines = Array.isArray(data.rolls) ? data.rolls : [];
+    for (const line of rollLines.slice(streamedRolls)) addChat('system', '🎲 ' + line);     // every roll first, then the story (the ones already shown while it was being written are not repeated)
+    noteRollLines(rollLines);
+    let msgEl = streamedEl;
+    if (streamedMsg) {
+      streamedMsg.lines = lines.length ? lines : streamedMsg.lines; streamedMsg.content = data.narrative || streamedMsg.content;       // the finished reply is the truth
+      const fresh = renderChatMessage(streamedMsg); streamedEl.replaceWith(fresh); msgEl = fresh; store.set(chatKey(), state.chat);
+    } else msgEl = addChat('assistant', data.narrative || '(The Dungeon Master remains silent.)', lines);
     // Characters first: the server already changed hit points, Hit Dice and features, and the board updates below must start from those numbers.
     if (Array.isArray(data.partyChanged) && data.partyChanged.length) await loadCharacters();
     if (data.clock && Number.isFinite(data.clock.minutes)) setClockTotal(data.clock.minutes);
@@ -3927,7 +3965,7 @@ async function sendTurn(spokenText, opts) {
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
     if (Array.isArray(data.partyNotes) && data.partyNotes.length) addChat('system', '🎒 ' + data.partyNotes.join('; '));
     if (Array.isArray(data.journalAdded) && data.journalAdded.length) addChat('system', '📓 Journal: ' + data.journalAdded.map((e) => e.title).join(', '));
-    if (lines.length) voice.speak(lines, msgEl, { queue: auto });       // a reply to a table nudge waits for the narration still playing
+    if (lines.length > streamedLines) voice.speak(lines.slice(streamedLines), msgEl, { queue: auto || streamedLines > 0, offset: streamedLines });       // what was not already spoken as it came in; a reply to a table nudge waits for the narration still playing
     ok = true;
   } catch (err) {
     addChat('system', `Could not reach the AI DM: ${err.message}`);
@@ -4215,6 +4253,7 @@ const voice = (() => {
   const logSpeech = (what, detail, ms) => { if (/[?&](nosave|watch)=1/.test(location.search)) return; try { fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what, detail, ms }) }).catch(() => {}); } catch { /* no log */ } };
   const firstSound = (provider) => { if (speechFirst) { speechFirst = false; logSpeech('first sound', provider, performance.now() - speechT0); } };
   function cancelSpeech() {
+    chainActive = false;
     if (speaking) logSpeech('cut off', speechQueue.length ? `${speechQueue.length} queued reply(ies) dropped` : 'narration stopped before it finished');
     speechQueue = [];
     speakGen++;
@@ -4327,7 +4366,7 @@ const voice = (() => {
   }
 
   // Every line goes to the voice chosen for it, one after another. ChatGPT clips are all requested at once so later lines are ready while earlier ones play; a clip that fails is spoken by the Microsoft voices instead.
-  async function speakLines(lines, msgEl, gen) {
+  async function speakLines(lines, msgEl, gen, offset = 0) {
     const clips = lines.map((l) => (providerOf(l) === 'openai' && cloud.enabled ? fetchClip(l) : null));
     clips.forEach((p) => { if (p) p.catch(() => {}); });
     let warned = false;
@@ -4335,7 +4374,7 @@ const voice = (() => {
       if (gen !== speakGen) return;
       const line = lines[i], p = providerOf(line);
       if (p === 'none') continue;
-      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${i}"]`) : null;
+      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${offset + i}"]`) : null;
       if (p === 'openai' && clips[i]) {
         try {
           const url = await clips[i];
@@ -4354,18 +4393,22 @@ const voice = (() => {
     }
   }
 
+  // opts.queue: a reply to a table nudge, or one more line of a reply that is still being written, waits behind what is being said. opts.offset: the number of the first line in its chat message (for the highlight).
+  let chainActive = false;       // something is being said, or waiting to be said, right now
   function speak(lines, msgEl, opts) {
     if (!$('#speakToggle').checked || (cloud.dm === 'none' && cloud.npc === 'none')) return;
-    if (opts && opts.queue && speaking) { speechQueue.push([lines, msgEl]); logSpeech('queued', 'a reply to a table nudge waits for the narration that is playing'); return; }
+    const offset = (opts && opts.offset) || 0;
+    if (opts && opts.queue && chainActive) { speechQueue.push([lines, msgEl, offset]); logSpeech('queued', 'waits for the narration that is playing'); return; }
     const gen = beginSpeaking();
+    chainActive = true;
     speechT0 = performance.now(); speechFirst = true;
-    const run = (ls, el) => speakLines(ls, el, gen).then(() => next(), () => next());
+    const run = (ls, el, off) => speakLines(ls, el, gen, off).then(() => next(), () => next());
     const next = () => {
       if (gen !== speakGen) return;
       const q = speechQueue.shift();
-      if (q) run(q[0], q[1]); else endSpeaking(gen);
+      if (q) run(q[0], q[1], q[2]); else { chainActive = false; endSpeaking(gen); }
     };
-    run(lines, msgEl);
+    run(lines, msgEl, offset);
   }
 
   function init() {
