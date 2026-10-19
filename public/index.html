@@ -2564,6 +2564,7 @@ function finishPointer(e, cancelled) {
       const fromCol = t.col, fromRow = t.row;
       t.col = target.col;
       t.row = target.row;
+      logTable('move', `${t.name} dragged from (${fromCol}, ${fromRow}) to (${t.col}, ${t.row}), ${Math.round(target.cost)} ft${state.combat.active ? ', combat round ' + state.combat.round : ''}`);
       settleBody(t);
       noteOpportunityAttacks(t, fromCol, fromRow);
       if (!state.gmOverride && state.combat.active) t.movementRemaining = Math.max(0, t.movementRemaining - Math.min(t.movementRemaining, Math.round(target.cost)));
@@ -2572,6 +2573,7 @@ function finishPointer(e, cancelled) {
       commitBoard();
     } else {
       animateToken(t, fromX, fromY);
+      logTable('move refused', `${t.name} to (${target.col}, ${target.row}): too far or blocked, ${t.movementRemaining} ft left`);
       toast(`Too far — ${t.name} has ${t.movementRemaining} ft left (walls block movement)`, 'error');
     }
     updateCursor(screenToWorld(eventPos(e).x, eventPos(e).y));
@@ -3840,7 +3842,14 @@ function syncBegin() {
   box.hidden = state.campaignId === 'default' || state.busy || state.chat.some((m) => m.role === 'assistant');
 }
 
+// What the table itself does (rolls it makes, damage, conditions, refused moves, initiative, XP) and what the players drag, for the play log on the server (data/logs): the DM's own turns are logged by the server.
+function logTable(what, detail) {
+  if (/[?&](nosave|watch)=1/.test(location.search)) return;
+  try { fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'table', what, detail }) }).catch(() => {}); } catch { /* no log */ }
+}
+
 function addChat(role, content, lines) {
+  if (role === 'system') logTable('table', content);
   const m = { role, content: String(content), ts: Date.now() };
   if (Array.isArray(lines) && lines.length) m.lines = lines;
   state.chat.push(m);
@@ -5010,7 +5019,7 @@ async function init() {
 }
 
 // Debug handle for inspection in the browser console.
-window.vtt = { syncLook, setTimeOfDay, settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
+window.vtt = { aiTakesItsTurn, voice, syncLook, setTimeOfDay, settleBody, bodyFits, fp, tcx, tcy, effectiveSpeed, effAcOf, isFlying, flySpeedOf, checkFall, setCondition, clearCondition, beginTurn, freeSquareNear, provokedBy, cannotReactTo, insideTemplateFp, insideTemplate, serializeToken, state, interaction, reachable, visibilityPolygon, endTurn, setMap, fitView, screenToWorld, centerOf, revealFog, resetFog, seenByParty, travelTo, restTokens, applyMapUpdates, objectLoops, fogAlphaAt: (x, y) => [sctx.getImageData(Math.round(x), Math.round(y), 1, 1).data[3], vctx.getImageData(Math.round(x), 1).data[3]], lightLevelAt, allLights, setMapLight, loadMapLighting, changeHp, startCombat, endCombat, nextCombatTurn, delayTurn, resumeTurn, tokenConditions, noteRollLines, refreshClock };
 
 init().catch((err) => {
   console.error(err);

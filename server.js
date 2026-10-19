@@ -2474,7 +2474,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
-    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
+    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
     res.json({
       rolls,
       narrative,
@@ -2504,7 +2504,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
 // The play log (data/logs/<campaign>/<day>.jsonl, git-ignored): the browser adds what it did with the voices; the files are read back as JSON lines or as text.
 app.post('/api/log', localOnly, asyncRoute(async (req, res) => {
   const b = req.body && typeof req.body === 'object' ? req.body : {};
-  if (await chosenCampaignId()) playLog.log(await getActiveCampaignId(), { kind: 'speech', what: String(b.what ?? '').slice(0, 60), detail: String(b.detail ?? '').slice(0, 300), ms: Number.isFinite(Number(b.ms)) ? Math.round(Number(b.ms)) : undefined });
+  if (await chosenCampaignId()) playLog.log(await getActiveCampaignId(), { kind: b.kind === 'table' ? 'table' : 'speech', what: String(b.what ?? '').slice(0, 60), detail: String(b.detail ?? '').slice(0, 300), ms: Number.isFinite(Number(b.ms)) ? Math.round(Number(b.ms)) : undefined });
   res.json({ ok: true });
 }));
 app.get('/api/campaigns/:id/log', asyncRoute(async (req, res) => {

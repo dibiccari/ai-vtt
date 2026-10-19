@@ -206,10 +206,11 @@ test('a reply that was cut short or is not an object is refused with a clear mes
 
 test('the play log: every exchange is written to data/logs and can be read back as text; the browser can add voice events', async () => {
   setReply({ rolls: ['Goblin attack: 14 to hit'], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'The log remembers this line.' }, { speaker: 'Goblin', voice: 'monstrous', text: 'Shiny boots!' }], mapUpdates: [] });
-  const r = await s.post('/api/chat', { message: '[Edric] I wave at the log', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: [], notes: ['A table note for the log'] });
+  const r = await s.post('/api/chat', { message: '[Edric] I wave at the log', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: [], notes: ['A table note for the log'], corrections: ['Edric stopped 10 ft short of the door'], combat: { active: true, round: 2, currentTokenId: 'pc1', order: [] } });
   assert.equal(r.status, 200, r.text);
   assert.equal(r.json.narrative, 'The log remembers this line. Shiny boots!', 'the chat text is the voice lines joined');
   assert.equal((await s.post('/api/log', { what: 'first sound', detail: 'chatgpt', ms: 812.4 })).status, 200);
+  assert.equal((await s.post('/api/log', { kind: 'table', what: 'move', detail: 'Edric dragged from (3, 4) to (5, 4), 10 ft' })).status, 200);
   await new Promise((done) => setTimeout(done, 300));
   const days = (await s.get(`/api/campaigns/${LOST}/log`)).json;
   assert.ok(days.days.length >= 1 && days.day);
@@ -219,6 +220,9 @@ test('the play log: every exchange is written to data/logs and can be read back 
   assert.match(text, /Goblin \(monstrous\): Shiny boots!/);
   assert.match(text, /ms waiting for the model/);
   assert.match(text, /voice: first sound - chatgpt/);
+  assert.match(text, /table \(move\): Edric dragged from \(3, 4\) to \(5, 4\), 10 ft/);
+  assert.match(text, /refused or shortened moves: Edric stopped 10 ft short of the door/);
+  assert.match(text, /combat: round 2, active pc1/);
   assert.equal((await s.get(`/api/campaigns/nobody/log`)).status, 404);
 });
 
