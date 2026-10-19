@@ -1,6 +1,6 @@
 // Gives the Terrain Test Grounds a running stream (an animated river effect from the painted stream), a brazier that starts unlit and can be lit (painted into the picture, a light with flicker in the set) and keeps the
 // campfire and the buildings. Idempotent: it re-reads the original picture backup the first time and always starts from it. Usage: node scripts/maps/update-terrain-test.mjs [server url]
-import { copyFileSync, existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

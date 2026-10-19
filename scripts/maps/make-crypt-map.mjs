@@ -5,7 +5,7 @@
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Level, rectPts, ngon, shade, mix, clamp, smooth, fbm, vnoise, hash } from '../../lib/mapkit.js';
+import { Level, rectPts, ngon, shade, clamp, fbm, vnoise, hash } from '../../lib/mapkit.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const COLS = 30, ROWS = 20, PPG = 51.2;

@@ -10,7 +10,7 @@ import { encodePng } from '../../lib/mapkit.js';
 import { makeEvidence, loadLayoutPicture, ROOT } from '../../lib/gridprint.js';
 import { makeCrop } from '../../lib/overlay.js';
 import { caveFloorMask } from '../../lib/cavemask.js';
-import { drawText, textWidth } from '../../lib/pixfont.js';
+import { drawText } from '../../lib/pixfont.js';
 
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : d; };

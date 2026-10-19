@@ -1,7 +1,7 @@
 // One-time image quality test: paints the same prompt (public/scenarios/compare/image-test/prompt.txt) at low, medium and high with the image model chosen on the Settings page, and records the
 // results for public/dev/image-test.html. Costs about $0.27 with gpt-image-1 (0.02 + 0.05 + 0.20). Usage: node scripts/images/image-test.mjs
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, statSync } from 'node:fs';
+import { writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { imageSettings } from '../../lib/image-settings.js';

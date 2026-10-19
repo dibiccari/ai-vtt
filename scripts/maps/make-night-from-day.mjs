@@ -1,7 +1,6 @@
 // Makes the night picture of a place from its day picture by code, so every tree, building and rock stays exactly where it is (nothing is repainted): the day picture goes cold and dark under moonlight and the lights
 // that are lit at the start glow warmly (lib/mapkit.js nightFrom). Then it adds the picture to the place as its night look. Usage: node scripts/maps/make-night-from-day.mjs <set guid> [server url]
 // The lit lights come from the set: lights that start lit (not on: false) glow; a light that starts out (an unlit brazier) does not, because lighting it is done at the table.
-import { copyFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

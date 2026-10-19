@@ -1,9 +1,7 @@
 // Map registry, saved map configs (walls, doors, start pins), campaign map lists, and the wall builder script.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, readdir, cp, mkdtemp, mkdir, symlink, rm } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { ROOT } from './helpers/sandbox.mjs';
 import { listPictures } from '../lib/pictures.js';

@@ -8,9 +8,11 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "check": "node scripts/dev/check.mjs",
+    "lint": "eslint .",
     "test": "node --test --test-reporter=spec test/*.test.mjs",
     "test:browser": "node --experimental-websocket --test --test-concurrency=1 --test-reporter=spec test/browser/browser.test.mjs test/browser/maptest.test.mjs test/browser/wizard.test.mjs test/browser/voice.test.mjs test/browser/sheet.test.mjs test/browser/party.test.mjs test/browser/inventory.test.mjs test/browser/levelup-test-page.test.mjs test/browser/light-time.test.mjs test/browser/settings.test.mjs test/browser/bestiary.test.mjs test/browser/session1.test.mjs test/browser/streaming.test.mjs",
-    "dm-check": "node scripts/dev/dm-check.mjs"
+    "dm-check": "node scripts/dev/dm-check.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "engines": {
     "node": ">=20"
@@ -20,5 +22,10 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "multer": "^2.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0"
   }
 }

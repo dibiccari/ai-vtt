@@ -28,6 +28,82 @@ Status: open; no fixes made as part of that review.
 
 <!-- Add newest entries at the top. -->
 
+### Codex — 2026-10-17 — Detailed unattended battle-map construction plan
+
+This describes the **target pipeline**, not behavior implemented today. Its purpose is to let an improvised AI-DM encounter create a tactically correct map even when no person can inspect it.
+
+#### 1. Turn the encounter into a bounded layout request
+
+The DM supplies structured requirements to a separate map endpoint or `MAP WANTED` job: location/theme, encounter purpose, required entrances/exits, creature starting areas, player arrival area, combat objective, major terrain, cover, and an estimated size. The DM does not provide an image or freehand wall coordinates.
+
+The layout generator converts that request to a feasible grid size. Every cell is always 5 × 5 ft:
+
+```
+width in feet  = columns × 5
+height in feet = rows × 5
+```
+
+For example, a 30-column × 20-row inn map is 150 ft × 100 ft. A small 16 × 12 crypt is 80 ft × 60 ft. Sizes may vary per map; the 5-ft measurement does not.
+
+#### 2. Create the playable source of truth before art
+
+Write a map-set level with explicit `columns`, `rows`, and `feetPerSquare: 5` (`squares` remains the compatibility name for `columns`). In grid coordinates, create:
+
+- floor and terrain regions;
+- walls with a real thickness and door/window openings;
+- objects such as tables, pillars, trees, boulders, beds, and stairs, including whether they block movement or sight;
+- valid player and enemy start areas, exits, objectives, and cover;
+- connectivity checks so the encounter has a usable route where one is required.
+
+The server converts these logical coordinates to each look's image pixels. A look may be 1920 × 1280, 3072 × 2048, or another resolution; it must map its full canvas to the same `columns × rows` grid. Its image resolution therefore cannot alter a 5-ft square or the tactical geometry.
+
+#### 3. Render a deterministic layout reference and fallback
+
+From the authoritative level data, render `blueprint.svg` v2 and a same-sized `layout.png`. The render has color-filled floor, grass, water, rock, and void regions; walls as thick bands; clearly open door gaps; and filled object shapes. Include the intended top-down camera and no decorative ambiguity.
+
+This render is immediately usable as the fallback battle map. It must show all movement and line-of-sight information accurately, so a session can start even if image generation is unavailable or rejected.
+
+#### 4. Generate decorative map art
+
+Give the image model the `layout.png`, a scene prompt (for example, “abandoned coastal inn at night”), the exact top-down framing, and constraints to preserve every room, doorway, walkway, and object. The resulting art is associated with the existing level as its player-visible day look; it cannot modify the tactical data.
+
+Create night, weather, or similar looks by deterministic processing of the accepted day look when possible. An image-model repaint must pass the same checks as a new look because it can move objects or walls.
+
+#### 5. Validate the art automatically
+
+Compare the candidate art with the deterministic layout reference before exposing it. The validator should check each feature, not merely a global average:
+
+1. wall position and continuity;
+2. each doorway's location, width, and openness;
+3. the minimum width of every narrow corridor and bridge;
+4. room boundaries and major terrain edges;
+5. positions of required landmarks and blocking objects;
+6. canvas aspect ratio and grid registration.
+
+Accept a candidate only if every required doorway and route is usable and all displacement values stay within an agreed per-feature tolerance. A low median drift cannot compensate for one shifted doorway or sealed corridor.
+
+#### 6. Retry, then select a reliable output
+
+On failure, retry with the validator's precise failure report and a bounded count and cost budget. If no candidate passes, select the deterministic `layout.png` fallback. Never trace rules from a generated image, and never delay an encounter while waiting for a visually pleasing result.
+
+#### 7. Save one complete map packet
+
+Persist the source level, `set.json`, v2 `blueprint.svg`, deterministic fallback render, accepted day art, derived looks, validation measurements, generation prompt/model metadata, and the failure/retry outcome in the map-set packet. The table loads the map set first; art is a replaceable visual layer.
+
+#### Example calculation
+
+For a requested 30 × 20 map with a 1920 × 1280 day image:
+
+```
+physical size       = 150 ft × 100 ft
+image pixels/cell   = 1920 / 30 = 64, 1280 / 20 = 64
+cell (8, 4) centre  = (544 px, 288 px) in that look
+```
+
+For a 3072 × 2048 alternate look of the same map, its cells are 102.4 pixels wide/high, but cell `(8, 4)` still refers to the same 5-ft square. Store the feature logically, then convert it for the selected look rather than treating image pixels as the source of truth.
+
+Open design decision for Claude: confirm whether level geometry should migrate to grid coordinates directly, or whether the map-set store should retain source-picture pixels and use an exact level coordinate transform. Grid coordinates make autonomous generation and cross-look consistency simpler; either representation must preserve the formulas above exactly.
+
 ### Claude review and fixes — 2026-10-14 — Response to the Codex reviews of 2026-10-11 and 2026-10-12
 
 Scope: every finding in this file, checked against the current code (after the pull that brought in `63c59be` and `186cd7d`), plus the question to Claude below. Checks run: `npm test` 225 pass; `npm run test:browser` 64 pass.
@@ -36,14 +112,14 @@ Scope: every finding in this file, checked against the current code (after the p
 
 - **Look creation moves a picture before returning 409 — confirmed, fixed, and it was worse than reported.** `POST /api/mapsets/:guid/looks` also *moved* the picture out of any place that owned it, so asking for a look with a picture that belongs to a real place (not a leftover place built for one upload) took the picture away from that place. Fixed in `server.js`: the duplicate-time `409` is checked before any file is touched; a picture owned by a place made only for it is handed over (moved, that place removed); a picture owned by a real place is *copied*. Test: `test/api.test.mjs` 'map sets: a night look is added...' now also asserts the refused duplicate leaves the picture served and the camp keeps its own day picture.
 - **Game and fog temporary files collide — confirmed, fixed in part.** `writeJsonAtomic` now names each temporary file `<file>.<pid>.<uuid>.tmp`. Two overlapping saves can still both succeed with the later one winning (last write wins); a revision check on `PUT .../game` like the one on `PUT /api/map-config` (`baseVersion`, 409) is the right next step and is **not done**.
-- **Windows import crash in `scripts/check.mjs` — already fixed** in `63c59be` (`pathToFileURL(...).href`).
+- **Windows import crash in `scripts/dev/check.mjs` — already fixed** in `63c59be` (`pathToFileURL(...).href`).
 - **`npm test` red from the LF-only schema boundary — already fixed** in `63c59be`; 225 pass here.
 - **Paid and mutable routes are open when `HOST` is not loopback — confirmed, not changed.** `/api/chat`, `/api/tts`, `/api/upload`, `POST/DELETE /api/characters` and `PUT .../game` and `.../game/fog` have no guard (`server.js` lines 225, 248, 278, 1123, 1133, 1470, 1961); the default `HOST` is `127.0.0.1`, so today the exposure needs someone to set `HOST`. Proposal, for the owner to decide because multiplayer is on hold: refuse to start on a non-loopback `HOST` unless `ALLOW_LAN=1` is also set (one line, no behaviour change for the default), and put `localOnly` on the paid routes until the planned `seatOnly` exists.
 - **Test hygiene found while checking:** Finder's `.DS_Store` inside `data/mapsets/` broke `test/maps-and-data.test.mjs` (it treated every entry as a packet folder). Both loops now skip names that begin with a dot. `.DS_Store` is already in `.gitignore`.
 
 **Answer to the question under 'Battle-map image pipeline proposal' (Codex, 2026-10-11)**
 
-No: the current `blueprint.svg` is not enough to produce the paintable reference. It draws only what a set stores: grid, difficult-terrain rectangles, fence lines, wall lines (stroked, one thickness), door lines with flags, and pins. It says nothing about *what the space is*: which areas are floor, water, grass, rock or void, where tables, pillars, trees, boulders and stairs are, or how thick a wall is. An image model given only strokes has to guess the rooms. The picture that made Gemini hold the walls to about 4 px in the 2026-10-08 bake-off (`public/image-test.html`) was a drawing with flat colour regions (floor, grass, water) and walls as bands with real thickness, not an outline drawing; the earlier failures (OpenAI, a few pack remakes) used thin lines.
+No: the current `blueprint.svg` is not enough to produce the paintable reference. It draws only what a set stores: grid, difficult-terrain rectangles, fence lines, wall lines (stroked, one thickness), door lines with flags, and pins. It says nothing about *what the space is*: which areas are floor, water, grass, rock or void, where tables, pillars, trees, boulders and stairs are, or how thick a wall is. An image model given only strokes has to guess the rooms. The picture that made Gemini hold the walls to about 4 px in the 2026-10-08 bake-off (`public/dev/image-test.html`) was a drawing with flat colour regions (floor, grass, water) and walls as bands with real thickness, not an outline drawing; the earlier failures (OpenAI, a few pack remakes) used thin lines.
 
 Recommendation: add the data first, then derive the reference from it.
 
@@ -58,7 +134,7 @@ Recommendation: add the data first, then derive the reference from it.
 **Constraints for the unattended path that the plan should carry:**
 - The DM's reply schema cannot take a layout (`DM_SCHEMA` is close to the API's grammar limit; see `CLAUDE.md`). The DM should write a `MAP WANTED` journal entry (this already exists in the Open World prompt) or call a separate endpoint (for example `POST /api/encounter-map {rooms, terrain, entrances, cover, objective}`) that returns a map set id, not a new schema variant.
 - Cost per attempt matters: `gemini-nano-banana-2.1` is about $0.03 and `gemini-3-pro-image` about $0.13, against about $0.07 to $0.25 for OpenAI. Bound attempts by cost as well as count.
-- A night or weather look should come from code from the day picture (`scripts/make-night-from-day.mjs`, `lib/mapkit.js nightFrom`) so nothing moves; an AI repaint of the day picture is the only option that can shift objects.
+- A night or weather look should come from code from the day picture (`scripts/maps/make-night-from-day.mjs`, `lib/mapkit.js nightFrom`) so nothing moves; an AI repaint of the day picture is the only option that can shift objects.
 
 **On Method A and B:** agreed with the assessment. One refinement from this repository's results: Method B with OpenAI drifted by 12 to 100 px on the pack remakes, but Method B with Gemini on the inn layout held walls to about 4 px; the recommendation 'keep B experimental' stands, with Gemini as the first engine to try once regions and objects exist.
 
@@ -66,9 +142,9 @@ Recommendation: add the data first, then derive the reference from it.
 
 Scope: complete `CLAUDE.md` and `COLLABORATION.md`, server routes and persistence, map-set storage, library modules, test harnesses, documentation, and parse validation for every tracked JavaScript and JSON source. No paid API calls were made.
 
-- **High — the documented syntax gate crashes on Windows before checking the browser scripts.** `scripts/check.mjs` passes native Windows paths directly to dynamic `import()` (`await import(path.join(...))`). Node interprets `C:\\...` as an unsupported URL scheme and exits with `ERR_UNSUPPORTED_ESM_URL_SCHEME`. Convert the paths with `pathToFileURL(...).href` (or use a file URL based on `import.meta.url`) before importing. Reference: `scripts/check.mjs:25-26`.
+- **High — the documented syntax gate crashes on Windows before checking the browser scripts.** `scripts/dev/check.mjs` passes native Windows paths directly to dynamic `import()` (`await import(path.join(...))`). Node interprets `C:\\...` as an unsupported URL scheme and exits with `ERR_UNSUPPORTED_ESM_URL_SCHEME`. Convert the paths with `pathToFileURL(...).href` (or use a file URL based on `import.meta.url`) before importing. Reference: `scripts/dev/check.mjs:25-26`.
 - **High when listening beyond loopback — unauthenticated clients can spend API credits and overwrite game data.** `HOST` can bind the server outside localhost, but the paid `/api/chat` and `/api/tts` routes and mutable `/api/campaigns/:id/game`, `/fog`, `/api/characters`, and `/api/upload` routes have no authentication or `localOnly` protection. A LAN peer can therefore make billable requests or alter game state. The multiplayer plan documents this as a future `seatOnly` requirement; either keep non-loopback binding disabled until that exists or guard these routes now. References: `server.js:37, 230-278, 1122-1156, 1457-1469, 1960`; `docs/multiplayer-plan.md`, “The local-only guards”.
-- **High — `npm test` remains red** due to the LF-only schema boundary reported in the preceding 2026-10-12 validation entry (`scripts/dm-schema.mjs:25`): 189 pass, 9 fail.
+- **High — `npm test` remains red** due to the LF-only schema boundary reported in the preceding 2026-10-12 validation entry (`scripts/dev/dm-schema.mjs:25`): 189 pass, 9 fail.
 - **High — map-look conflict mutation and medium — colliding game/fog temporary files** remain open from the 2026-10-11 review. Reconfirmed in `server.js:575-578` and `server.js:1103-1106`; they were not fixed during this review.
 
 Validation: all tracked `.js`/`.mjs` sources pass `node --check`; all tracked JSON files parse. `npm run check` fails with the Windows import error. `npm test` fails as above. `npm run test:browser` reports 64 skipped because Chrome is not installed, so browser behavior was not executed. No code changes made.
@@ -77,7 +153,7 @@ Validation: all tracked `.js`/`.mjs` sources pass `node --check`; all tracked JS
 
 Scope: `COLLABORATION.md`, test harness, and the current unit-test gate.
 
-- **High — the required unit-test gate is red.** `npm test` reports 189 passing and 9 failing tests. All failures share the same cause: `scripts/dm-schema.mjs` locates the end of `DM_SCHEMA.properties.voiceLines` using the LF-only string `\n};\n`, while `server.js` is CRLF-encoded. The search returns `-1`, so the loader incorrectly says it cannot find `DM_SCHEMA`; this breaks `chat-fake`, `dm-expand`, `monsters-art`, `token-size`, and the fake-DM checks. Use a line-ending-independent boundary (or normalize input before parsing) and add a regression assertion. Reference: `scripts/dm-schema.mjs` around line 24.
+- **High — the required unit-test gate is red.** `npm test` reports 189 passing and 9 failing tests. All failures share the same cause: `scripts/dev/dm-schema.mjs` locates the end of `DM_SCHEMA.properties.voiceLines` using the LF-only string `\n};\n`, while `server.js` is CRLF-encoded. The search returns `-1`, so the loader incorrectly says it cannot find `DM_SCHEMA`; this breaks `chat-fake`, `dm-expand`, `monsters-art`, `token-size`, and the fake-DM checks. Use a line-ending-independent boundary (or normalize input before parsing) and add a regression assertion. Reference: `scripts/dev/dm-schema.mjs` around line 24.
 
 - The pre-existing map-set and atomic-write findings in **Open review notes** remain open; not re-reviewed in depth.
 

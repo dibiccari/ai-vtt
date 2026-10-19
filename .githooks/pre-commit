@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs before every commit (set up by `npm install`, or by `git config core.hooksPath .githooks`): the quick checks only.
+# The full gate (npm test and npm run test:browser) is slower and is run by hand before a change is committed.
+npm run --silent check > /dev/null || { echo "pre-commit: npm run check failed (run it to see why)"; exit 1; }
+npm run --silent lint || { echo "pre-commit: npm run lint found errors"; exit 1; }

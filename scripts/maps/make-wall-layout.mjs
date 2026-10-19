@@ -6,7 +6,7 @@
 //   --canvas  a canvas of exactly this size (the image editor only returns 1536x1024, 1024x1536 or 1024x1024); the map is scaled to fit and centred. <out>.json records {scale, x, y, w, h, canvas}: the map's
 //             rectangle on the canvas, which scripts/images/crop-region.mjs cuts back out of the repainted result.
 //   --seeds   pin names to flood the floor from (default: every pin)     --pins  draw the pins as dots
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { encodePng } from '../../lib/mapkit.js';

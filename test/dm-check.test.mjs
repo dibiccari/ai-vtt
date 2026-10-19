@@ -3,7 +3,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import path from 'node:path';
 import { fakeAnthropic, boardStateOf, ROOT } from './helpers/sandbox.mjs';
 import { ID } from './helpers/ids.mjs';
 

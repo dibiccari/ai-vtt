@@ -76,7 +76,7 @@ Two engines, switchable any time (Settings page, chat-tab dropdown, voice-test c
 - Complete code only: no placeholders, no truncation, no `...` elisions. Match the surrounding style (comment density, naming, idiom).
 - ES modules on the server (`import`, no `require`). The pages use classic scripts that share one global scope: the tabletop is `public/index.html` plus `public/js/tabletop/*.js`, Map Test is `public/map-test.html` plus `public/js/map-test/*.js`; shared pieces are `public/js/*.js` (`sight.js`, `token-size.js`, `map-shared.js`...).
 - Server routes go in `routes/*.js` (`registerX(app, deps)`), pure logic in `lib/`.
-- Run `npm run check` after edits. Browser state is in `localStorage` (`vtt.board.<campaign>`, `vtt.chat.<campaign>`, `vtt.fog.*`, ...); always wrap it in try/catch.
+- Run `npm run check` and `npm run lint` after edits (ESLint, `eslint.config.js`: real mistakes only, not style; no Prettier on purpose). A git pre-commit hook (`.githooks/pre-commit`, switched on by `npm install` through the `prepare` script) runs both. The browser tests start Chrome with background-throttling turned off (a suite that stalled for minutes on an idle machine was probably macOS slowing the headless browser's timers). Browser state is in `localStorage` (`vtt.board.<campaign>`, `vtt.chat.<campaign>`, `vtt.fog.*`, ...); always wrap it in try/catch.
 
 ## Testing notes
 

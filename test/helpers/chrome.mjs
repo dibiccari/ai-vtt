@@ -15,7 +15,7 @@ export const skipReason = () => (!findChrome() ? 'Chrome is not installed (set C
 
 export async function launchChrome() {
   const profile = await mkdtemp(path.join(tmpdir(), 'vtt-chrome-'));
-  const child = spawn(findChrome(), ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--mute-audio', '--window-size=1400,900', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn(findChrome(), ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--mute-audio', '--window-size=1400,900', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=CalculateNativeWinOcclusion', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let err = '';
   const port = await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('Chrome did not report a debugging port in 20 s\n' + err)), 20000);

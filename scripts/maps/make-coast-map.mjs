@@ -5,7 +5,7 @@
 //   node scripts/maps/make-coast-map.mjs [out.png] [scale 0.5]
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Painter, rng, fbm, vnoise, hash, clamp, mix, tint, shade, encodePng, pointInPoly } from '../../lib/mapkit.js';
+import { Painter, rng, fbm, vnoise, hash, clamp, mix, tint, encodePng, pointInPoly } from '../../lib/mapkit.js';
 
 const out = process.argv[2] || 'public/scenarios/compare/coast/coast-ours.png';
 const SC = Number(process.argv[3]) || 0.5;

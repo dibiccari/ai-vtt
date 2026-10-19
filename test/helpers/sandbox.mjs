@@ -83,7 +83,6 @@ export async function startServer({ env = {}, sandbox } = {}) {
   };
   return {
     dir: sb.dir, port, base, log: () => log, call,
-    log: () => log,
     get: (u) => call('GET', u), post: (u, b) => call('POST', u, b ?? {}), put: (u, b) => call('PUT', u, b ?? {}), del: (u) => call('DELETE', u),
     async stop() { child.kill(); await new Promise((r) => { child.on('exit', r); setTimeout(r, 2000); }); await sb.remove(); }
   };

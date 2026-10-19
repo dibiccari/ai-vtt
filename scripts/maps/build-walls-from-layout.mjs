@@ -8,8 +8,7 @@ import { execFileSync } from 'node:child_process';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 const layout = JSON.parse(await readFile(path.resolve(process.argv[2]), 'utf8'));
 const C = layout.cell, [ox, oy] = layout.origin || [0, 0];
-import { readPicture } from '../../lib/bmpread.js';
-import { loadLayoutPicture, layoutPicturePath } from '../../lib/gridprint.js';
+import { loadLayoutPicture } from '../../lib/gridprint.js';
 import { caveFloorMask } from '../../lib/cavemask.js';
 const px = (v, o) => Math.round((v * C + o) * 10) / 10;
 // Snap each room edge to the thick dark outline drawn on the picture: scan outward from the floor along the edge and take the first dark run.

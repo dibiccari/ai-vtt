@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readPicture } from '../../lib/bmpread.js';
 import { encodePng } from '../../lib/mapkit.js';
-import { drawText, textWidth } from '../../lib/pixfont.js';
+import { drawText } from '../../lib/pixfont.js';
 
 const args = process.argv.slice(2);
 const pos = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--config');

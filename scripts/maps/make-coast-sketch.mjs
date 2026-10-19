@@ -3,7 +3,6 @@
 // Also writes the place list (names and positions as fractions of the picture) to public/scenarios/compare/coast/coast-places.json.
 //   node scripts/maps/make-coast-sketch.mjs
 import { writeFile, mkdir } from 'node:fs/promises';
-import path from 'node:path';
 import { Painter, rng, fbm, vnoise, hash, clamp, tint, shade, encodePng, pointInPoly } from '../../lib/mapkit.js';
 
 const W = 1024, H = 1536, R = rng(20261112);

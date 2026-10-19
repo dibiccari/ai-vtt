@@ -1014,6 +1014,7 @@ test('a campaign built from scratch opens on its first map, the party on that ma
     await server.post('/api/campaigns/active', { id: LOST });
     await page.goto(`${server.base}/index.html?nosave=1`);
     const ready = 'window.vtt && window.vtt.state.characters.length >= 3 && !document.querySelector("#chatInput").disabled';
+// eslint-disable-next-line no-unsafe-finally -- the restore must fail the test when the table does not come back
     try { await page.waitFor(ready, 12000); } catch { await page.goto(`${server.base}/index.html?nosave=1`); try { await page.waitFor(ready); } catch (e) { const st = await page.eval("JSON.stringify({ vtt: !!window.vtt, chars: window.vtt && window.vtt.state.characters.length, tokens: window.vtt && window.vtt.state.tokens.length, disabled: document.querySelector('#chatInput') && document.querySelector('#chatInput').disabled, body: document.body.innerText.slice(0, 160) })").catch((x) => String(x)); throw new Error('the table did not come back: ' + st + ' problems: ' + JSON.stringify(page.problems.slice(-3))); } }       // the page sometimes answers a focus event by reloading under us: load it once more
   }
 });
