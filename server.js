@@ -42,6 +42,7 @@ import { selectDocuments, filteredNote, areasInPlay } from './lib/module-select.
 import { ReplyStreamer } from './lib/partial-reply.js';
 import { createPlayLog, logAsText } from './lib/playlog.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
+import { registerUploads } from './routes/uploads.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -192,6 +193,17 @@ await seedCharacters();
 // ---------------------------------------------------------------- app
 
 const app = express();
+// <deps>
+// What the route modules (routes/*.js) reach in this file, by name and read when a route runs (so the order things start in does not change). Maintained as routes are moved out.
+const deps = Object.defineProperties({}, {
+  asyncRoute: { get: () => asyncRoute },
+  IMAGE_EXT: { get: () => IMAGE_EXT },
+  pictureFiles: { get: () => pictureFiles },
+  TOKEN_DIR: { get: () => TOKEN_DIR },
+  TOKEN_URL_RE: { get: () => TOKEN_URL_RE },
+  UPLOAD_DIR: { get: () => UPLOAD_DIR },
+});
+// </deps>
 const jsonBody = express.json({ limit: '10mb' });
 app.use((req, res, next) => (req.path === '/api/market/import' ? next() : jsonBody(req, res, next)));       // a pack file carries its picture and gets its own, larger limit
 app.use(liveMiddleware(null, () => campaignIds()));
@@ -311,37 +323,7 @@ app.delete('/api/characters/:id', asyncRoute(async (req, res) => {
 }));
 
 // ---------------------------------------------------------------- uploads
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: UPLOAD_DIR,
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      const base = path.basename(file.originalname, ext).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'map';
-      cb(null, `${base}-${Date.now().toString(36)}${ext}`);
-    }
-  }),
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const ok = file.mimetype.startsWith('image/') && IMAGE_EXT.has(path.extname(file.originalname).toLowerCase());
-    cb(ok ? null : Object.assign(new Error('Only PNG, JPG, WEBP or GIF images are allowed'), { status: 400 }), ok);
-  }
-});
-
-app.post('/api/upload', upload.single('map'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file received (field name must be "map")' });
-  res.json({ url: `/uploads/${req.file.filename}` });
-});
-
-app.get('/api/maps', asyncRoute(async (_req, res) => {
-  const files = await pictureFiles();
-  res.json({ maps: files.map((f) => `/uploads/${f}`) });
-}));
-
-app.get('/api/tokens', asyncRoute(async (_req, res) => {
-  const files = (await readdir(TOKEN_DIR)).filter((f) => TOKEN_URL_RE.test(`/tokens/${f}`)).sort();
-  res.json({ tokens: files.map((f) => `/tokens/${f}`) });
-}));
+registerUploads(app, deps);
 
 // ---------------------------------------------------------------- per-map config (walls + grid calibration)
 // Stored in data/maps/<image file name>.json so it survives browser changes. Wall coordinates are in image pixels.

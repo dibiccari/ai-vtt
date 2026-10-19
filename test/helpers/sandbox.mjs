@@ -26,7 +26,7 @@ async function restoreCommittedData(dir) {
 export async function makeSandbox(prefix = 'vtt-sandbox-') {
   const dir = await mkdtemp(path.join(tmpdir(), prefix));
   for (const f of ['server.js', 'package.json']) await cp(path.join(ROOT, f), path.join(dir, f));
-  await cp(path.join(ROOT, 'lib'), path.join(dir, 'lib'), { recursive: true });
+  for (const d of ['lib', 'routes']) await cp(path.join(ROOT, d), path.join(dir, d), { recursive: true });
   // data is copied, except the map packets (data/mapsets/<guid>/): their pictures are linked, only set.json is copied, so a test that edits a set never touches the real one
   const PLAYED = new Set(['clock.json', 'fog.json', 'merchants.json']);       // what playing writes (the clock, the saved game): a test starts from a campaign nobody has played, whatever the real one looks like
   await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true, filter: (src) => !(PLAYED.has(path.basename(src)) && src.startsWith(path.join(ROOT, 'data', 'campaigns') + path.sep)) && src !== path.join(ROOT, 'data', 'creature-voices.json') && (!src.startsWith(path.join(ROOT, 'data', 'mapsets') + path.sep) || src.endsWith('set.json') || (src.split(path.sep).length === path.join(ROOT, 'data', 'mapsets').split(path.sep).length + 1)) });
