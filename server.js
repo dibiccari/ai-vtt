@@ -38,7 +38,7 @@ import { liveMiddleware, liveHandler, revisionOf } from './lib/live.js';
 import { normalizeTrack, trackView, hitDice, describeClock, readClock, writeClock, restOnClock, splitXp, xpForCr } from './lib/rules-track.js';
 import { processTrackUpdates } from './lib/rules-apply.js';
 import { pronounce } from './lib/pronounce.js';
-import { selectDocuments, filteredNote } from './lib/module-select.js';
+import { selectDocuments, filteredNote, areasInPlay } from './lib/module-select.js';
 import { createPlayLog, logAsText } from './lib/playlog.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
@@ -1944,22 +1944,32 @@ async function getActiveCampaignId() {
 
 // The text the DM is given for a campaign, cached until a file in the folder changes.
 const campaignTextCache = new Map();
-async function loadCampaignText(id, mapId = '') {
+// ctx: { combat, areas (the area pins of the map), tokens }: in a fight only the sections of the numbered areas near the tokens are read, and the set only grows until the fight ends (so the prompt does not change with every step a token takes).
+const fightAreas = new Map();
+async function loadCampaignText(id, mapId = '', ctx = {}) {
   const all = await campaignFiles(id);
   let relevance = null;
   try { relevance = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, await templateOfCampaign(id), 'relevance.json'), 'utf8')); } catch { /* every document is sent */ }
-  const picked = selectDocuments(all, relevance, mapId);
+  const stickyKey = `${id}|${mapId}`;
+  let areaNumbers = [];
+  if (ctx.combat && relevance?.combat?.areaSource?.[mapId]) {
+    const have = fightAreas.get(stickyKey) || new Set();
+    for (const n of areasInPlay(ctx.areas, ctx.tokens, Number(relevance.combat.areaRadius) || 10)) have.add(n);
+    fightAreas.set(stickyKey, have);
+    areaNumbers = [...have].sort((a, b) => a - b);
+  } else fightAreas.delete(stickyKey);
+  const picked = selectDocuments(all, relevance, mapId, { combat: ctx.combat, areaNumbers });
   const files = picked.files;
-  const sig = files.map((f) => `${f.name}:${f.size}:${f.mtimeMs}`).join('|');
-  const hit = campaignTextCache.get(id + '|' + mapId);
+  const sig = files.map((f) => `${f.name}:${f.size}:${f.mtimeMs}:${f.partial || ''}`).join('|') + (picked.fight ? '|fight' : '');
+  const hit = campaignTextCache.get(id + '|' + mapId + '|' + sig.length + ':' + areaNumbers.join(','));
   if (hit && hit.sig === sig) return hit.text;
-  const parts = picked.filtered ? [filteredNote(picked.left)] : [];
+  const parts = picked.filtered ? [filteredNote(picked.left, picked.fight, picked.areas)] : [];
   for (const f of files) {
     const text = f.text.trim();
-    if (text) parts.push(`##### CAMPAIGN DOCUMENT: ${f.name} #####\n${text}`);
+    if (text) parts.push(`##### CAMPAIGN DOCUMENT: ${f.name}${f.partial ? ` (only areas ${f.partial}, the ones near the fight)` : ''} #####\n${text}`);
   }
   const text = parts.join('\n\n');
-  campaignTextCache.set(id + '|' + mapId, { sig, text });
+  campaignTextCache.set(id + '|' + mapId + '|' + sig.length + ':' + areaNumbers.join(','), { sig, text });
   return text;
 }
 {
@@ -2028,7 +2038,7 @@ DM maps: some places come with a DM-only picture of the map (building names, sec
 
 Beginning the story: a message that contains [BEGIN] means the players pressed "Begin the adventure" before anything has happened. Open the story yourself: start at the first scene of the campaign document (for a published module, its opening scene and hook, assuming the party has already accepted it and is on their way), set the table (send changeMap to the right map if the opening is somewhere else than the one on the table, and place the party with token moves), describe what the characters see, hear and smell in a few vivid sentences, introduce whoever or whatever they meet first, and write the first journal entries (the place, the hook). Do not play out the players' choices or start a fight. End with one clear question for the party. Keep it to a couple of short paragraphs.
 
-Running the table (habits that work well, especially for voice play and a player who is new to the game): before any roll say what is being rolled (for example "Wisdom check, Perception"), the modifier to add, and what the roll decides; if the player has no dice, offer to roll for them. Warn before they commit: flag range problems, advantage and disadvantage and why (for example heavy armor on Stealth, or a target beyond normal range), and explain spells that use a saving throw instead of an attack roll. The players see an enemy's health only as a bar, never as numbers: do not tell them an enemy's exact hit points, hit points left or Armor Class numbers unless they learn them in the story (a spell, a check); describe wounds instead (scratched, bloodied, barely standing). If a player declares an action without knowing a rule that changes it, let them take it back, kindly. In combat the table rolls initiative when you send startCombat: never roll initiative yourself and never announce a turn order in the reply that starts the fight (you do not know it yet; the table sends it right after); read the order from the combat block afterwards and repeat it when asked. Narrate every hit and every miss with a little color, and after each round give a short status recap (everyone's hit points, enemies remaining, who is hurt). At the start of each player turn suggest two to four sensible options, always accepting anything else they come up with, and point out tactical openings (Sneak Attack is available when an ally is next to the target, a captured enemy could answer questions). Players roll for their own characters when the table is in player dice mode; you roll for monsters, honestly, and report the numbers. One character makes a given check; another may only add the Help action if they genuinely add something. Keep replies short and spoken-sounding, with few lists, and end each turn with one clear question such as "What does Edric do?". Do not hand over what an NPC has not been asked yet, keep an accurate count of enemies, and apply every racial and class trait when a character changes. At any choice point in character creation or leveling, list all the available options, never a curated subset.
+Running the table (habits that work well, especially for voice play and a player who is new to the game): before any roll say what is being rolled (for example "Wisdom check, Perception"), the modifier to add, and what the roll decides; if the player has no dice, offer to roll for them. Warn before they commit: flag range problems, advantage and disadvantage and why (for example heavy armor on Stealth, or a target beyond normal range), and explain spells that use a saving throw instead of an attack roll. The players see an enemy's health only as a bar, never as numbers: do not tell them an enemy's exact hit points, hit points left or Armor Class numbers unless they learn them in the story (a spell, a check); describe wounds instead (scratched, bloodied, barely standing). If a player declares an action without knowing a rule that changes it, let them take it back, kindly. In combat the table rolls initiative when you send startCombat: never roll initiative yourself and never announce a turn order in the reply that starts the fight (you do not know it yet; the table sends it right after); read the order from the combat block afterwards and repeat it when asked. Narrate every hit and every miss with a little color, but briefly, and do not recap hit points or positions each round (the table shows them): say who is hurt only when something just changed. Suggest two to four sensible options only at the start of a fight and when a player asks what they can do, always accepting anything else they come up with, and point out a tactical opening (Sneak Attack is available when an ally is next to the target) only when it is new. Players roll for their own characters when the table is in player dice mode; you roll for monsters, honestly, and report the numbers. One character makes a given check; another may only add the Help action if they genuinely add something. Keep replies short and spoken-sounding, with few lists, and end each turn with one clear question such as "What does Edric do?". Do not hand over what an NPC has not been asked yet, keep an accurate count of enemies, and apply every racial and class trait when a character changes. At any choice point in character creation or leveling, list all the available options, never a curated subset.
 
 Safety: the table may have agreed lines (never appear) and veils (off-screen or one sentence), given to you in the TABLE SAFETY block when there is one. Keep to them without ever mentioning that you are doing so. If a player's message contains [PAUSE], they pressed the pause button (the X-card): stop at once, do not continue the scene, do not ask who pressed it or why, say calmly that you are pausing, and offer to skip past it, rewind, or take the story in another direction, then wait for their answer. Never push back or make anyone justify it.
 
@@ -2044,11 +2054,18 @@ What the characters know: the names in the module are for you. Do not name a per
 
 Secrets stay secret. Each token in the board state has hidden, kind and visibleToParty. Never mention, name, describe or hint at a token that is hidden or not visibleToParty (a hiding or invisible creature, a trap, an enemy in another room): not in the narrative, not in the voice lines, not in a rules note. An undiscovered trap is not mentioned at all until a character finds it with a check, triggers it, or it is revealed. Narrate only what the characters can perceive from where they stand. When a hidden thing is found or acts, call revealToken and then describe it.
 
+Keep replies SHORT: they are read aloud and every word costs the players time. In a fight give one beat: what happened (the hit or miss and what it did), what the creatures do, and whose turn it is, in about 60 to 90 words; in exploration, about 90 to 130 words; go longer only for a real moment (a discovery, a death, the start of a scene). Do not recap hit points or who is where (the table shows it), do not explain a rule you explained already or the table knows (what a Perception check is, how initiative works), do not list options unless the player asks what they can do, and do not end with 'anything else, or are you done?': when the active player has acted, say whose turn is next. Say each thing once.
+
 The table plays in voice mode: your reply is read aloud. Write the full reply as voiceLines, in order: there is no separate narrative field, the table joins the lines into the text the players read. Use speaker "Narrator" with voice "narrator" for narration and
 rules results; give every NPC or monster line its own entry with the NPC's name as speaker and the voice profile that
 fits them best (gruff, sly, noble, elderly, child, monstrous, ethereal, feminine, masculine; beast for a medium animal that has been given speech, such as a wolf or dog, smallbeast for a small one (a bird, rat, cat, squirrel or toad) and largebeast for a large one (a bear, horse, ox or great cat), all with Speak with Animals, and undead for ghosts, skeletons, zombies and the dead who answer through Speak with Dead). Keep the same voice for the
 same NPC across turns. Write dice math in a speakable way. When the player's input is marked as spoken, it was
 transcribed from speech and may contain recognition errors - interpret it charitably.`;
+
+// In a fight the DM is not asked about travel, shopping, resting, the clock, the journal or levelling up (the fight form cannot send them either), so those paragraphs are left out of what it reads.
+const FIGHT_SKIPS = ['Changing maps:', 'Places on town and regional maps:', 'Resting follows', 'Rules tracking:', 'Beginning the story:', 'Keeping the journal:', 'Levelling up is'];
+const DM_SYSTEM_FIGHT = DM_SYSTEM.split(/\n\n+/).filter((p) => !FIGHT_SKIPS.some((k) => p.startsWith(k))).join('\n\n');
+const dmSystemFor = (mode) => (mode === 'combat' ? DM_SYSTEM_FIGHT : DM_SYSTEM);
 
 const CAMPAIGN_RULES = `A campaign module follows. When the board state has mapPlaces, they are named places on the current map (a tower, a tent, a well, a hiding spot) with a note about each and the board square (col, row): they are places, not creatures, so they tell you where things are for narration and where to put what the notes describe; add the creatures yourself (token action add). When the board state has moduleAreas, they are the module's numbered areas on the current map with the board square (col, row) of each; use them to know which part of the picture is which area, to place creatures where the module puts them (addToken at or near that square) and to answer where things are. You are running it. Treat it as secret DM material: never read boxed text or stat blocks verbatim unless it is the right moment, never reveal secrets, traps, or monster stats before the players earn them, and keep track of where the party is. Use the module's NPC names, personalities, and locations. The board state tells you which map is loaded (mapName); the players move tokens themselves, so describe what their position can see.`;
 
@@ -2364,7 +2381,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   };
 
   try {
-    const campaignText = await loadCampaignText(activeCampaign, state.currentMap || '');
+    const campaignText = await loadCampaignText(activeCampaign, state.currentMap || '', { combat: Boolean(state.combat && state.combat.active), areas: state.moduleAreas, tokens: state.tokens });
     const settingsText = settingsForPrompt(await readSettings(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const safetyText = safetyForPrompt(await readSafety(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const adventureMonsters = await loadAdventureMonsters(path.join(CAMPAIGNS_DIR, await templateOfCampaign(activeCampaign)));
@@ -2405,7 +2422,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       model: MODEL,
       max_tokens: 16000,
       system: [
-        { type: 'text', text: DM_SYSTEM },
+        { type: 'text', text: dmSystemFor(mode) },
         ...(campaignText ? [{ type: 'text', text: `${CAMPAIGN_RULES}\n\n${campaignText}`, cache_control: { type: 'ephemeral' } }] : []),
         // The party's spells change only when somebody learns one, so they are cached too; the creatures on the board change more often and come after the journal.
         ...(cards.spellsText ? [{ type: 'text', text: cards.spellsText, cache_control: { type: 'ephemeral' } }] : []),

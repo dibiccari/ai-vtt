@@ -59,3 +59,31 @@ test('/api/chat sends the chapters of the current map only, and the other map\'s
   const ambush = fake.requests[fake.requests.length - 3].system.reduce((n, x) => n + x.text.length, 0), all = fake.requests.at(-1).system.reduce((n, x) => n + x.text.length, 0);
   assert.ok(ambush < all * 0.5, `the goblin ambush prompt is ${ambush} characters, the whole module ${all}`);
 });
+
+test('a fight reads the rules index and the map\'s own chapter only, the areas near the tokens when the map has them, and a shorter set of instructions', async () => {
+  const tok = (o) => ({ id: 'x', name: 'X', col: 1, row: 1, color: '#fff', isPC: false, hidden: false, kind: 'creature', visibleToParty: true, ...o });
+  const system = (req) => req.system.map((b) => b.text).join('\n');
+  const body = (extra) => ({ message: '[Edric] I attack', history: [], characters: [], walls: [], ...extra });
+  // a fight at the goblin ambush: no story chapters, the map's chapter and the rules index stay
+  await s.post('/api/chat', body({ mapUrl: '/uploads/vtt-pack-goblin-ambush-copy.png', combat: { active: true, round: 1, currentTokenId: 'pc1', order: [] }, tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true }), tok({ id: 'g1', name: 'Goblin 1', monster: 'goblin', col: 5, row: 5 })] }));
+  const fight = system(fake.requests.at(-1));
+  assert.doesNotMatch(fight, /CAMPAIGN DOCUMENT: 02-introduction\.md/); assert.doesNotMatch(fight, /CAMPAIGN DOCUMENT: 04-adventure-hook\.md/);
+  assert.match(fight, /CAMPAIGN DOCUMENT: 05-part-1-goblin-arrows\.md/); assert.match(fight, /CAMPAIGN DOCUMENT: 21-rules-index\.md/);
+  assert.match(fight, /a fight is on/);
+  assert.doesNotMatch(fight, /Changing maps: the board state lists the maps/); assert.match(fight, /Combat: the table has a combat tracker/, 'the combat rules stay');
+  // the same map outside a fight reads the story chapters and the full instructions
+  await s.post('/api/chat', body({ mapUrl: '/uploads/vtt-pack-goblin-ambush-copy.png', tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })] }));
+  const calm = system(fake.requests.at(-1));
+  assert.match(calm, /CAMPAIGN DOCUMENT: 02-introduction\.md/); assert.match(calm, /Changing maps: the board state lists the maps/);
+  assert.ok(fight.length < calm.length * 0.8, `${fight.length} against ${calm.length}`);
+  // a fight in Cragmaw Hideout: only the sections of the areas the tokens are near, and they stay once they have been read
+  const pins = [{ area: 1, name: 'Cave Mouth', col: 6, row: 6 }, { area: 2, name: 'Goblin Blind', col: 10, row: 6 }, { area: 7, name: 'Twin Pools Cave', col: 60, row: 60 }];
+  const fightAt = (col, row) => s.post('/api/chat', body({ mapUrl: '/uploads/vtt-pack-cragmaw-hideout-copy.png', areas: pins, combat: { active: true, round: 1, currentTokenId: 'pc1', order: [] }, tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true, col, row })] }));
+  await fightAt(7, 7);
+  const first = system(fake.requests.at(-1));
+  assert.match(first, /## 1\. CAVE MOUTH/); assert.match(first, /## 2\. GOBLIN BLIND/); assert.doesNotMatch(first, /## 7\. TWIN POOLS CAVE/); assert.doesNotMatch(first, /## 5\. OVERPASS/);
+  assert.match(first, /only areas 1, 2/);
+  await fightAt(58, 58);
+  const second = system(fake.requests.at(-1));
+  assert.match(second, /## 7\. TWIN POOLS CAVE/); assert.match(second, /## 1\. CAVE MOUTH/, 'the areas already read stay while the fight lasts');
+});

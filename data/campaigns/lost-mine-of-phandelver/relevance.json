@@ -1,21 +1,107 @@
 {
   "note": "Which module documents the DM reads on each map (lib/module-select.js). Documents named in 'always' are on every map. A map that is not listed gets every document.",
-  "always": ["01-front-matter.md", "02-introduction.md", "03-background.md", "04-adventure-hook.md", "17-conclusion.md", "21-rules-index.md"],
+  "always": [
+    "01-front-matter.md",
+    "02-introduction.md",
+    "03-background.md",
+    "04-adventure-hook.md",
+    "17-conclusion.md",
+    "21-rules-index.md"
+  ],
   "byMap": {
-    "sword-coast": ["05-part-1-goblin-arrows.md", "07-part-2-phandalin.md", "11-part-3-the-spider-s-web.md", "12-conyberry-and-agatha-s-lair.md", "13-old-owl-well.md"],
-    "triboar-ambush": ["05-part-1-goblin-arrows.md"],
-    "cragmaw-hideout": ["05-part-1-goblin-arrows.md", "06-cragmaw-hideout.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "phandalin": ["07-part-2-phandalin.md", "08-important-npcs.md", "09-redbrand-ruffians.md"],
-    "redbrand-hideout": ["08-important-npcs.md", "09-redbrand-ruffians.md", "10-redbrand-hideout.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "thundertree": ["11-part-3-the-spider-s-web.md", "14-ruins-of-thundertree.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "cragmaw-castle": ["11-part-3-the-spider-s-web.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "cragmaw-castle-night": ["11-part-3-the-spider-s-web.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "agathas-lair": ["12-conyberry-and-agatha-s-lair.md", "19-appendix-b-monsters.md"],
-    "old-owl-well": ["13-old-owl-well.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "wyvern-tor": ["15-wyvern-tor.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "wave-echo-cave": ["16-part-4-wave-echo-cave.md", "18-appendix-a-magic-items.md", "19-appendix-b-monsters.md", "20-monster-descriptions.md"],
-    "camp-day": ["05-part-1-goblin-arrows.md", "07-part-2-phandalin.md"],
-    "camp-night": ["05-part-1-goblin-arrows.md", "07-part-2-phandalin.md"],
-    "dungeon-cellars": ["08-important-npcs.md", "09-redbrand-ruffians.md"]
+    "sword-coast": [
+      "05-part-1-goblin-arrows.md",
+      "07-part-2-phandalin.md",
+      "11-part-3-the-spider-s-web.md",
+      "12-conyberry-and-agatha-s-lair.md",
+      "13-old-owl-well.md"
+    ],
+    "triboar-ambush": [
+      "05-part-1-goblin-arrows.md"
+    ],
+    "cragmaw-hideout": [
+      "05-part-1-goblin-arrows.md",
+      "06-cragmaw-hideout.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "phandalin": [
+      "07-part-2-phandalin.md",
+      "08-important-npcs.md",
+      "09-redbrand-ruffians.md"
+    ],
+    "redbrand-hideout": [
+      "08-important-npcs.md",
+      "09-redbrand-ruffians.md",
+      "10-redbrand-hideout.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "thundertree": [
+      "11-part-3-the-spider-s-web.md",
+      "14-ruins-of-thundertree.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "cragmaw-castle": [
+      "11-part-3-the-spider-s-web.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "cragmaw-castle-night": [
+      "11-part-3-the-spider-s-web.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "agathas-lair": [
+      "12-conyberry-and-agatha-s-lair.md",
+      "19-appendix-b-monsters.md"
+    ],
+    "old-owl-well": [
+      "13-old-owl-well.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "wyvern-tor": [
+      "15-wyvern-tor.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "wave-echo-cave": [
+      "16-part-4-wave-echo-cave.md",
+      "18-appendix-a-magic-items.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "camp-day": [
+      "05-part-1-goblin-arrows.md",
+      "07-part-2-phandalin.md"
+    ],
+    "camp-night": [
+      "05-part-1-goblin-arrows.md",
+      "07-part-2-phandalin.md"
+    ],
+    "dungeon-cellars": [
+      "08-important-npcs.md",
+      "09-redbrand-ruffians.md"
+    ]
+  },
+  "combat": {
+    "note": "In a fight the DM reads only the rules index and the map's own chapters (the story and appendix documents are left out: the creatures and spells have stat cards). Where the map has numbered areas, only the sections near the tokens.",
+    "always": [
+      "21-rules-index.md"
+    ],
+    "drop": [
+      "18-appendix-a-magic-items.md",
+      "19-appendix-b-monsters.md",
+      "20-monster-descriptions.md"
+    ],
+    "areaSource": {
+      "cragmaw-hideout": "06-cragmaw-hideout.md",
+      "redbrand-hideout": "10-redbrand-hideout.md",
+      "thundertree": "14-ruins-of-thundertree.md",
+      "wave-echo-cave": "16-part-4-wave-echo-cave.md"
+    },
+    "areaRadius": 10
   }
 }
