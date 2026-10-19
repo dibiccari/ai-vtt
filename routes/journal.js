@@ -29,10 +29,10 @@ const RECAP_SYSTEM = `You are the Dungeon Master of a Dungeons & Dragons game, o
       const narrative = 'There is nothing to recap yet: the journal is empty. Play a little and the Dungeon Master will start writing it.';
       return res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], empty: true });
     }
-    if (!deps.anthropic) return res.status(503).json({ error: 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured.' });
+    if (!deps.settings.anthropic) return res.status(503).json({ error: 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured.' });
     try {
-      const response = await deps.anthropic.messages.create({ model: deps.MODEL, max_tokens: 1500, system: RECAP_SYSTEM, messages: [{ role: 'user', content: `JOURNAL:\n${text}` }] });
-      deps.usageTracker.record(response.model || deps.MODEL, response.usage, await deps.getActiveCampaignId().catch(() => ''), 'recap');
+      const response = await deps.settings.anthropic.messages.create({ model: deps.settings.MODEL, max_tokens: 1500, system: RECAP_SYSTEM, messages: [{ role: 'user', content: `JOURNAL:\n${text}` }] });
+      deps.usageTracker.record(response.model || deps.settings.MODEL, response.usage, await deps.getActiveCampaignId().catch(() => ''), 'recap');
       const block = response.content.find((b) => b.type === 'text');
       const narrative = String(block?.text ?? '').trim();
       if (!narrative) throw new Error('The recap came back empty.');

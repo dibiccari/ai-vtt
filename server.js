@@ -54,6 +54,8 @@ import { registerJournal } from './routes/journal.js';
 import { registerCampaignSelector } from './routes/campaign-selector.js';
 import { registerMarket } from './routes/market.js';
 import { registerParty } from './routes/party.js';
+import { settings, applySettings, mapGen } from './lib/runtime-settings.js';
+import { localOnly } from './lib/local-only.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -69,7 +71,6 @@ const playLog = createPlayLog(path.join(__dirname, 'data'));
 const creatureVoices = createCreatureVoiceStore(path.join(__dirname, 'data'));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
-let MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
 const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 const TOKEN_DIR = path.join(PUBLIC_DIR, 'tokens');
@@ -207,9 +208,9 @@ const app = express();
 // <deps>
 // What the route modules (routes/*.js) reach in this file, by name and read when a route runs (so the order things start in does not change). Maintained as routes are moved out.
 const deps = Object.defineProperties({}, {
+  settings: { get: () => settings },
   __dirname: { get: () => __dirname },
   ACTIVE_CAMPAIGN_FILE: { get: () => ACTIVE_CAMPAIGN_FILE },
-  anthropic: { get: () => anthropic, set: (v) => { anthropic = v; } },
   asyncRoute: { get: () => asyncRoute },
   CAMPAIGN_FILE_RE: { get: () => CAMPAIGN_FILE_RE },
   campaignFiles: { get: () => campaignFiles },
@@ -225,7 +226,6 @@ const deps = Object.defineProperties({}, {
   loadCharacterVoices: { get: () => loadCharacterVoices },
   loadSets: { get: () => loadSets },
   localOnly: { get: () => localOnly },
-  MODEL: { get: () => MODEL, set: (v) => { MODEL = v; } },
   normalizeCharacter: { get: () => normalizeCharacter },
   normalizeMapConfig: { get: () => normalizeMapConfig },
   PACKET_FILES: { get: () => PACKET_FILES, set: (v) => { PACKET_FILES = v; } },
@@ -888,26 +888,10 @@ registerCampaignSelector(app, deps);
 
 // ---------------------------------------------------------------- cloud voices (OpenAI text-to-speech)
 
-let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
-let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
 // The newest models (the 5.5 family and Fable) always think before they answer and cannot be told not to; the others can, and the DM replies much sooner without it (replay, Nov 2026).
 const canSkipThinking = (model) => !/-5-5$|fable/i.test(String(model));
 // Fast mode (Anthropic, Opus 5.5 / 5 / 4.8): the same model writing about 2.5 times faster, at twice the price. It changes the speed of the writing, not the wait before it starts.
 const canGoFast = (model) => /^claude-opus-(5-5|5|4-8)$/.test(String(model));
-const EFFORTS = ['low', 'medium', 'high'];
-let DM_SPEED = process.env.DM_SPEED === 'standard' ? 'standard' : 'fast';       // fast unless Settings says otherwise (it only applies to the models that have it)
-let DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';      // how hard the DM thinks before it answers: low is much faster (replay, Nov 2026: about 45 percent less waiting)
-let DM_VOICE = process.env.DM_VOICE || '';      // the ChatGPT voice the Dungeon Master (the narrator) speaks with ('' or 'auto': the default narrator voice)
-let NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';      // the characters the DM plays: 'same' = the Dungeon Master voice's provider
-let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';        // the Dungeon Master's own voice (the narrator)
-let NPC_TTS_MODEL = process.env.NPC_TTS_MODEL || 'gpt-4o-mini-tts-2025-03-20';        // the NPC voices: their own model, so the two can differ
-const IMAGE_PROVIDERS = ['openai', 'gemini', 'fal'];
-const IMAGE_QUALITIES = ['low', 'medium', 'high', '1K', '2K', '4K', 'standard'];
-let IMAGE_PROVIDER = IMAGE_PROVIDERS.includes(process.env.IMAGE_PROVIDER) ? process.env.IMAGE_PROVIDER : 'openai';
-let IMAGE_MODEL = process.env.IMAGE_MODEL || 'gpt-image-1';
-let GEMINI_KEY = process.env.GEMINI_API_KEY || '', FAL_KEY = process.env.FAL_API_KEY || '';
-let IMAGE_KEY = process.env.OPENAI_IMAGE_API_KEY || '';          // optional own key for the pictures; blank means the voices key is used
-let IMAGE_QUALITY = IMAGE_QUALITIES.includes(process.env.IMAGE_QUALITY) ? process.env.IMAGE_QUALITY : 'medium';
 
 // Each DM voice tag maps to a few OpenAI voices plus an acting direction.
 const TTS_PROFILES = {
@@ -987,7 +971,7 @@ function characterVoiceFor(table, speaker) {
 const chosenVoice = (name) => (KNOWN_OPENAI_VOICES.has(name) ? name : '');
 async function resolveVoice(tag, speaker) {
   const out = await resolveVoiceAuto(tag, speaker);
-  const forced = speaker === 'Narrator' ? chosenVoice(DM_VOICE) : '';
+  const forced = speaker === 'Narrator' ? chosenVoice(settings.DM_VOICE) : '';
   return forced ? { ...out, voice: forced } : out;
 }
 async function resolveVoiceAuto(tag, speaker) {
@@ -1005,10 +989,10 @@ async function resolveVoiceAuto(tag, speaker) {
   return { voice, instructions: speaker === 'Narrator' ? profile.style : `You are voicing ${speaker}. ${profile.style}`, named: false };
 }
 
-const voiceProviderNow = () => (DM_NONE ? 'none' : VOICE_PROVIDER);        // the Dungeon Master's own voice (the narrator); a person running the game needs no voice at all
-const npcProviderNow = () => (DM_NONE ? 'none' : NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER);        // 'same' is only what an old setup has before NPC voices are chosen      // the characters the Dungeon Master plays (NPCs, monsters)
+const voiceProviderNow = () => (settings.DM_NONE ? 'none' : settings.VOICE_PROVIDER);        // the Dungeon Master's own voice (the narrator); a person running the game needs no voice at all
+const npcProviderNow = () => (settings.DM_NONE ? 'none' : settings.NPC_PROVIDER === 'same' ? settings.VOICE_PROVIDER : settings.NPC_PROVIDER);        // 'same' is only what an old setup has before NPC voices are chosen      // the characters the Dungeon Master plays (NPCs, monsters)
 app.get('/api/tts/status', asyncRoute(async (_req, res) => {
-  res.json({ pronunciations: await loadPronunciations(), enabled: Boolean(OPENAI_KEY) && (voiceProviderNow() === 'openai' || npcProviderNow() === 'openai'), dm: voiceProviderNow(), npc: npcProviderNow(), model: TTS_MODEL });
+  res.json({ pronunciations: await loadPronunciations(), enabled: Boolean(settings.OPENAI_KEY) && (voiceProviderNow() === 'openai' || npcProviderNow() === 'openai'), dm: voiceProviderNow(), npc: npcProviderNow(), model: settings.TTS_MODEL });
 }));
 
 // The active campaign's own creatures (not in the SRD).
@@ -1050,7 +1034,7 @@ app.post('/api/tts/voices', asyncRoute(async (req, res) => {
 
 app.post('/api/tts', asyncRoute(async (req, res) => {
   if (voiceProviderNow() !== 'openai' && npcProviderNow() !== 'openai') return res.status(503).json({ error: 'ChatGPT voices are not selected in Settings.' });
-  if (!OPENAI_KEY) return res.status(503).json({ error: 'Cloud voices are off: set OPENAI_API_KEY in .env and restart.' });
+  if (!settings.OPENAI_KEY) return res.status(503).json({ error: 'Cloud voices are off: set OPENAI_API_KEY in .env and restart.' });
   const text = pronounce(String(req.body?.text ?? '').trim().slice(0, 1500), await loadPronunciations());
   if (!text) return res.status(400).json({ error: 'text is required' });
   const tag = TTS_PROFILES[req.body?.voice] ? req.body.voice : 'narrator';
@@ -1060,7 +1044,7 @@ app.post('/api/tts', asyncRoute(async (req, res) => {
   const actingNotes = speaker !== 'Narrator' ? String(req.body?.acting ?? '').replace(/\s+/g, ' ').trim().slice(0, 2000) : '';       // acting: the same, for the notes
   const instructions = actingNotes ? `You are voicing ${speaker}. ${actingNotes}` : autoInstructions;
 
-  const model = speaker === 'Narrator' ? TTS_MODEL : NPC_TTS_MODEL;        // the Dungeon Master voice and the NPC voices each have their own model
+  const model = speaker === 'Narrator' ? settings.TTS_MODEL : settings.NPC_TTS_MODEL;        // the Dungeon Master voice and the NPC voices each have their own model
   const key = createHash('sha1').update(`${model}|${voice}|${instructions}|${text}`).digest('hex');
   const file = path.join(TTS_CACHE_DIR, `${key}.mp3`);
   try {
@@ -1072,7 +1056,7 @@ app.post('/api/tts', asyncRoute(async (req, res) => {
 
   const r = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${settings.OPENAI_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
       voice,
@@ -1224,7 +1208,6 @@ async function loadCampaignText(id, mapId = '', ctx = {}) {
 
 // ---------------------------------------------------------------- AI DM
 
-let anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 // Effects with their durations (public/data/effect-data.json): the DM is told how long each lasts and what ends it, so it does not have to remember.
 let EFFECT_DATA = {};
@@ -1618,8 +1601,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
 
-  if (!anthropic) {
-    const narrative = DM_NONE ? 'The Dungeon Master is set to None in Settings: a person runs this game. Your action was received.' : 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured on the server. Add it in Settings to bring the DM to life. Your action was received.';
+  if (!settings.anthropic) {
+    const narrative = settings.DM_NONE ? 'The Dungeon Master is set to None in Settings: a person runs this game. Your action was received.' : 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured on the server. Add it in Settings to bring the DM to life. Your action was received.';
     return res.json({
       narrative,
       voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
@@ -1695,7 +1678,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     const cards = statCards({ tokens: state.tokens, characters,       // the sheets as sent (the brief ones in the board state have no spell lines, the cards read them here)
        monsters: await allEntries('monsters'), spells: await allEntries('spells') });
     const dmParams = {
-      model: MODEL,
+      model: settings.MODEL,
       max_tokens: 16000,
       system: [
         { type: 'text', text: dmSystemFor(mode) },
@@ -1713,9 +1696,9 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       ...(tools.length ? { tools } : {}),
-      ...(DM_SPEED === 'fast' && canGoFast(MODEL) ? { speed: 'fast' } : {}),
-      ...(canSkipThinking(MODEL) ? { thinking: { type: 'disabled' } } : {}),       // no hidden thinking before the answer: the first words arrive in seconds instead of ten
-      output_config: { effort: DM_EFFORT, format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
+      ...(settings.DM_SPEED === 'fast' && canGoFast(settings.MODEL) ? { speed: 'fast' } : {}),
+      ...(canSkipThinking(settings.MODEL) ? { thinking: { type: 'disabled' } } : {}),       // no hidden thinking before the answer: the first words arrive in seconds instead of ten
+      output_config: { effort: settings.DM_EFFORT, format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default'
@@ -1727,7 +1710,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       const callOnce = async (params) => {
       if (streaming || process.env.VTT_DM_STREAM === '1') {
         // The reply is read while it is written: each roll and voice line goes out the moment it is complete (streaming), and the play log notes when the first words and the first full line arrived.
-        const stream = anthropic.beta.messages.stream({ ...params, messages: dmMessages }, { timeout: 150000 });       // a call that goes quiet is given up on (the API's own limit is ten minutes)
+        const stream = settings.anthropic.beta.messages.stream({ ...params, messages: dmMessages }, { timeout: 150000 });       // a call that goes quiet is given up on (the API's own limit is ten minutes)
         const reader = new ReplyStreamer();
         stream.on('text', (delta) => {
           if (!firstTokenMs) firstTokenMs = Date.now() - callStart;
@@ -1740,7 +1723,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         });
         return await stream.finalMessage();
       }
-      return anthropic.beta.messages.create({ ...params, messages: dmMessages });
+      return settings.anthropic.beta.messages.create({ ...params, messages: dmMessages });
       };
       try { response = await callOnce(dmParams); }
       catch (err) {
@@ -1748,8 +1731,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         if (dmParams.speed && err && (err.status === 429 || err.status === 529 || /speed|fast/i.test(String(err.message)))) { console.warn('Fast mode refused, using standard speed:', err.message); delete dmParams.speed; response = await callOnce(dmParams); }
         else throw err;
       }
-      apiMs += Date.now() - callStart; lastBlocks = (response.content || []).map((b) => `${b.type}:${String(b.text ?? b.thinking ?? JSON.stringify(b.input ?? '')).length}`).join(' '); lastStop = response.stop_reason || ''; lastUsage = response.usage || null; lastModel = response.model || MODEL; logRounds = rounds;
-      usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
+      apiMs += Date.now() - callStart; lastBlocks = (response.content || []).map((b) => `${b.type}:${String(b.text ?? b.thinking ?? JSON.stringify(b.input ?? '')).length}`).join(' '); lastStop = response.stop_reason || ''; lastUsage = response.usage || null; lastModel = response.model || settings.MODEL; logRounds = rounds;
+      usageTracker.record(response.model || settings.MODEL, response.usage, activeCampaign, 'dm');
       if (response.stop_reason !== 'tool_use' || rounds >= 6) break;
       rounds += 1;
       const results = [];
@@ -1806,7 +1789,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
-    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, speed: lastUsage?.speed, firstTokenMs: firstTokenMs || undefined, firstLineMs: firstLineMs || undefined, effort: DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
+    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, speed: lastUsage?.speed, firstTokenMs: firstTokenMs || undefined, firstLineMs: firstLineMs || undefined, effort: settings.DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
     res.json({
       rolls,
       narrative,
@@ -1878,48 +1861,7 @@ const SETTINGS = {
   IMAGE_PROVIDER_BATTLE: { secret: false }, IMAGE_MODEL_BATTLE: { secret: false }, IMAGE_QUALITY_BATTLE: { secret: false }
 };
 
-// Keys are secrets: only this computer may read or change settings (blocks LAN devices, other sites, DNS rebinding).
-function localOnly(req, res, next) {
-  const addr = req.socket.remoteAddress || '';
-  const loopback = addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
-  const host = req.get('host') || '';
-  const hostOk = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
-  let originOk = true;
-  const origin = req.get('origin');
-  if (origin) {
-    try { originOk = new URL(origin).host === host; } catch { originOk = false; }
-  }
-  if (!loopback || !hostOk || !originOk) return res.status(403).json({ error: 'This can only be done from this computer.' });
-  next();
-}
-
 const hint = (key) => (key ? `ends in ${key.slice(-4)}` : '');
-
-function applySettings() {
-  MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
-  TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
-  NPC_TTS_MODEL = process.env.NPC_TTS_MODEL || 'gpt-4o-mini-tts-2025-03-20';
-  IMAGE_MODEL = process.env.IMAGE_MODEL || 'gpt-image-1';
-  IMAGE_KEY = process.env.OPENAI_IMAGE_API_KEY || '';
-  GEMINI_KEY = process.env.GEMINI_API_KEY || ''; FAL_KEY = process.env.FAL_API_KEY || '';
-  IMAGE_PROVIDER = IMAGE_PROVIDERS.includes(process.env.IMAGE_PROVIDER) ? process.env.IMAGE_PROVIDER : 'openai';
-  IMAGE_QUALITY = IMAGE_QUALITIES.includes(process.env.IMAGE_QUALITY) ? process.env.IMAGE_QUALITY : 'medium';
-  OPENAI_KEY = process.env.OPENAI_API_KEY || '';
-  DM_NONE = process.env.DM_PROVIDER === 'none';                    // Settings > Dungeon Master: None (a person runs the game)
-  VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
-  NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';
-  DM_VOICE = process.env.DM_VOICE || '';
-  DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';
-  DM_SPEED = process.env.DM_SPEED === 'standard' ? 'standard' : 'fast';
-  const key = process.env.ANTHROPIC_API_KEY || '';
-  anthropic = key && !DM_NONE ? new Anthropic({ apiKey: key }) : null;
-}
-// Which service paints each kind of map (Settings > Map generators): the kind's own choice, else the one global choice the scripts always used. 'none' means nobody is assigned.
-function mapGen(kind) {
-  const K = String(kind || '').toUpperCase(), own = (n) => (['REGIONAL', 'TOWN', 'BATTLE'].includes(K) ? process.env[`${n}_${K}`] || '' : '');
-  const prov = own('IMAGE_PROVIDER');
-  return { provider: prov === 'none' ? 'none' : IMAGE_PROVIDERS.includes(prov) ? prov : IMAGE_PROVIDER, model: own('IMAGE_MODEL') || IMAGE_MODEL, quality: IMAGE_QUALITIES.includes(own('IMAGE_QUALITY')) ? own('IMAGE_QUALITY') : IMAGE_QUALITY };
-}
 
 async function updateEnvFile(updates) {
   let text = '';
@@ -1937,12 +1879,12 @@ async function updateEnvFile(updates) {
 
 app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
-    anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
-    dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL, effort: DM_EFFORT, speed: DM_SPEED },
-    voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(DM_VOICE) || TTS_PROFILES.narrator.voices[0], provider: VOICE_PROVIDER, effective: voiceProviderNow(), npc: NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: NPC_TTS_MODEL, model: TTS_MODEL },
+    anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: settings.MODEL },
+    dm: { provider: settings.DM_NONE ? 'none' : 'claude', model: settings.MODEL, effort: settings.DM_EFFORT, speed: settings.DM_SPEED },
+    voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(settings.DM_VOICE) || TTS_PROFILES.narrator.voices[0], provider: settings.VOICE_PROVIDER, effective: voiceProviderNow(), npc: settings.NPC_PROVIDER === 'same' ? settings.VOICE_PROVIDER : settings.NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: settings.NPC_TTS_MODEL, model: settings.TTS_MODEL },
     maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
-    openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },
-      imageKeys: { openai: { set: Boolean(IMAGE_KEY || OPENAI_KEY), own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY || OPENAI_KEY) }, gemini: { set: Boolean(GEMINI_KEY), hint: hint(GEMINI_KEY) }, fal: { set: Boolean(FAL_KEY), hint: hint(FAL_KEY) } } }
+    openai: { set: Boolean(settings.OPENAI_KEY), hint: hint(settings.OPENAI_KEY), ttsModel: settings.TTS_MODEL, voiceProvider: 'openai', imageProvider: settings.IMAGE_PROVIDER, imageModel: settings.IMAGE_MODEL, imageQuality: settings.IMAGE_QUALITY, imageKey: { own: Boolean(settings.IMAGE_KEY), hint: hint(settings.IMAGE_KEY), usable: Boolean(settings.IMAGE_KEY || settings.OPENAI_KEY) },
+      imageKeys: { openai: { set: Boolean(settings.IMAGE_KEY || settings.OPENAI_KEY), own: Boolean(settings.IMAGE_KEY), hint: hint(settings.IMAGE_KEY || settings.OPENAI_KEY) }, gemini: { set: Boolean(settings.GEMINI_KEY), hint: hint(settings.GEMINI_KEY) }, fal: { set: Boolean(settings.FAL_KEY), hint: hint(settings.FAL_KEY) } } }
   });
 });
 
@@ -1976,36 +1918,36 @@ app.post('/api/settings/test', localOnly, asyncRoute(async (req, res) => {
   const which = req.body?.which;
   try {
     if (which === 'anthropic') {
-      if (!anthropic) return res.json({ ok: false, error: 'No Anthropic key saved yet.' });
-      await anthropic.models.list({ limit: 1 });
-      return res.json({ ok: true, message: `Anthropic key accepted (model: ${MODEL}).` });
+      if (!settings.anthropic) return res.json({ ok: false, error: 'No Anthropic key saved yet.' });
+      await settings.anthropic.models.list({ limit: 1 });
+      return res.json({ ok: true, message: `Anthropic key accepted (model: ${settings.MODEL}).` });
     }
     if (which === 'openai') {
-      if (!OPENAI_KEY) return res.json({ ok: false, error: 'No OpenAI key saved yet.' });
-      const r = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${OPENAI_KEY}` } });
+      if (!settings.OPENAI_KEY) return res.json({ ok: false, error: 'No OpenAI key saved yet.' });
+      const r = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${settings.OPENAI_KEY}` } });
       if (!r.ok) return res.json({ ok: false, error: r.status === 401 ? 'OpenAI rejected the key (401).' : `OpenAI returned ${r.status}.` });
       return res.json({ ok: true, message: 'OpenAI key accepted. Use "Hear a sample" to confirm your credit balance works.' });
     }
     const gen = mapGen(req.body?.kind);
     if (which === 'images' && gen.provider === 'none') return res.json({ ok: false, error: 'No generator is assigned to this kind of map (None).' });
     if (which === 'images' && gen.provider === 'gemini') {
-      if (!GEMINI_KEY) return res.json({ ok: false, error: 'No Google Gemini key saved yet.' });
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gen.model)}`, { headers: { 'x-goog-api-key': GEMINI_KEY } });
+      if (!settings.GEMINI_KEY) return res.json({ ok: false, error: 'No Google Gemini key saved yet.' });
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gen.model)}`, { headers: { 'x-goog-api-key': settings.GEMINI_KEY } });
       if (r.status === 404) return res.json({ ok: false, error: `Google does not list a model called ${gen.model} for this key.` });
       if (!r.ok) return res.json({ ok: false, error: r.status === 400 || r.status === 403 ? 'Google rejected the key.' : `Google returned ${r.status}.` });
       return res.json({ ok: true, message: `${gen.model} is available to this Gemini key. Pictures are only charged when one is made.` });
     }
     if (which === 'images' && gen.provider === 'fal') {
-      if (!FAL_KEY) return res.json({ ok: false, error: 'No fal.ai key saved yet.' });
+      if (!settings.FAL_KEY) return res.json({ ok: false, error: 'No fal.ai key saved yet.' });
       return res.json({ ok: true, message: 'A fal.ai key is saved. fal.ai has no free way to check a key, so the bake-off (Tools > Image Bake-off) is the real test.' });
     }
     if (which === 'images') {
-      const imageKey = IMAGE_KEY || OPENAI_KEY;
+      const imageKey = settings.IMAGE_KEY || settings.OPENAI_KEY;
       if (!imageKey) return res.json({ ok: false, error: 'No OpenAI key saved yet (the images use the same key as the voices unless you give them their own).' });
       const r = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(gen.model)}`, { headers: { Authorization: `Bearer ${imageKey}` } });
       if (r.status === 404) return res.json({ ok: false, error: `This key cannot use ${gen.model} (not found). Image models may need a verified OpenAI organization.` });
       if (!r.ok) return res.json({ ok: false, error: r.status === 401 ? 'OpenAI rejected the key (401).' : `OpenAI returned ${r.status}.` });
-      return res.json({ ok: true, message: `${gen.model} is available to ${IMAGE_KEY ? 'the image key' : 'the shared OpenAI key'}. Pictures are only charged when one is made, so the credit balance is not checked here.` });
+      return res.json({ ok: true, message: `${gen.model} is available to ${settings.IMAGE_KEY ? 'the image key' : 'the shared OpenAI key'}. Pictures are only charged when one is made, so the credit balance is not checked here.` });
     }
     res.status(400).json({ error: 'which must be "anthropic", "openai" or "images"' });
   } catch (err) {
@@ -2022,5 +1964,5 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`AI-VTT running at http://localhost:${PORT} (host ${HOST}, model: ${MODEL}, AI DM ${anthropic ? 'online' : 'offline - set ANTHROPIC_API_KEY'})`);
+  console.log(`AI-VTT running at http://localhost:${PORT} (host ${HOST}, model: ${settings.MODEL}, AI DM ${settings.anthropic ? 'online' : 'offline - set ANTHROPIC_API_KEY'})`);
 });

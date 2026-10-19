@@ -169,7 +169,7 @@ export function registerParty(app, deps) {
 
   // The Merchant agent (lib/merchant.js): one small call per thing the player says to a shopkeeper whose shop the DM opened. Cheaper model, tiny schema, no campaign text.
   app.post('/api/merchant', deps.asyncRoute(async (req, res) => {
-    if (!deps.anthropic) return res.status(503).json({ error: 'The merchant is offline: no ANTHROPIC_API_KEY is configured.' });
+    if (!deps.settings.anthropic) return res.status(503).json({ error: 'The merchant is offline: no ANTHROPIC_API_KEY is configured.' });
     const b = req.body || {};
     const campaign = await deps.getActiveCampaignId();
     const who = (await deps.listCharacters(campaign)).find((c) => c.id === deps.canonId(b.buyerId));
@@ -185,7 +185,7 @@ export function registerParty(app, deps) {
     const memory = memories[memKey] || null;
     const system = merchantSystem({ shop, buyer: { name: who.name, persuasion: bonus('Persuasion'), insight: bonus('Insight') }, place: String(b.place || '').slice(0, 80), campaign: meta.name || campaign, tray, memory });
     try {
-      const response = await deps.anthropic.beta.messages.create({ model, max_tokens: 600, system, messages: merchantMessages(b.history, b.message, b.opening === true), output_config: { format: { type: 'json_schema', schema: merchantSchema(deps.VOICES) } } });
+      const response = await deps.settings.anthropic.beta.messages.create({ model, max_tokens: 600, system, messages: merchantMessages(b.history, b.message, b.opening === true), output_config: { format: { type: 'json_schema', schema: merchantSchema(deps.VOICES) } } });
       deps.usageTracker.record(response.model || model, response.usage, campaign, 'merchant');
       const block = response.content.find((x) => x.type === 'text');
       let raw; try { raw = JSON.parse(block?.text ?? ''); } catch { throw new Error('The merchant answered in a way the table could not read.'); }
@@ -201,12 +201,12 @@ export function registerParty(app, deps) {
 
   // The bookkeeper runs after a reply has been sent: it reads the turn and the journal and writes what is worth keeping (cheap model, tiny schema, nothing for the player to wait for).
   async function keepJournal(campaign, { message, narrative, rolls }) {
-    if (!deps.anthropic) return [];
+    if (!deps.settings.anthropic) return [];
     const dir = path.join(deps.CAMPAIGNS_DIR, campaign);
     const model = process.env.BOOKKEEPER_MODEL || BOOKKEEPER_MODEL_DEFAULT;
     const journal = journalForPrompt((await readSave(dir)).entries);
     const when = describeClock(await readClock(dir)).text;
-    const response = await deps.anthropic.beta.messages.create({ model, max_tokens: 800, system: BOOKKEEPER_SYSTEM, messages: [{ role: 'user', content: bookkeeperMessage({ message, narrative, rolls, journal, when }) }], output_config: { format: { type: 'json_schema', schema: bookkeeperSchema() } } });
+    const response = await deps.settings.anthropic.beta.messages.create({ model, max_tokens: 800, system: BOOKKEEPER_SYSTEM, messages: [{ role: 'user', content: bookkeeperMessage({ message, narrative, rolls, journal, when }) }], output_config: { format: { type: 'json_schema', schema: bookkeeperSchema() } } });
     deps.usageTracker.record(response.model || model, response.usage, campaign, 'bookkeeper');
     const block = response.content.find((x) => x.type === 'text');
     let raw; try { raw = JSON.parse(block?.text ?? ''); } catch { return []; }
