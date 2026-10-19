@@ -35,6 +35,7 @@ const STEPS = [
   { id: 'brawl', say: '[Thorin] I shove the nearest drunk and start a brawl. Start combat.', expect: 'startCombat sent, new creatures carry hit points and AC, no initiative rolled by the DM' },
   { id: 'handoff', say: 'TABLE', expect: 'the DM gives the status and options for the active player and waits (no rolls, no turns played for the player)' },
   { id: 'attack', say: '[Thorin] I attack Drunk Bram, who is right next to me, with my longsword, and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
+  { id: 'turndone', say: '[Thorin] That is everything I do this turn. I am done.', expect: 'endTurn sent for Thorin (the board only moves on when the DM sends it), no turn played for the player' },
   { id: 'effects', say: '[Seraphine] It is my turn. I cast Bless on Thorin and Vex with my action, concentrating on it. Just apply it.', expect: 'a known effect sent by name only (table gives the duration), caster id as source for the concentration effect, concentrating on the caster' },
   { id: 'warded', say: '[Lyra] It is my turn. I carry a Sanctuary ward cast on me earlier and I know that attacking will end it, so go ahead: I attack Garrick, a brawler standing right next to me, with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
@@ -254,7 +255,7 @@ try {
 
   for (const [n, step] of STEPS.entries()) {
     if (ONLY_STEPS.length && !ONLY_STEPS.includes(step.id)) continue;
-    if (ONLY_STEPS.length && !combat.active && ['handoff', 'attack', 'effects', 'warded'].includes(step.id)) startPretendCombat();
+    if (ONLY_STEPS.length && !combat.active && ['handoff', 'attack', 'turndone', 'effects', 'warded'].includes(step.id)) startPretendCombat();
     if (calls.length >= MAX_CALLS) { warn(`call cap reached before step ${step.id}`); break; }
     console.log(`-- step ${n + 1}/${STEPS.length}: ${step.id}`);
     const before = calls.length;
@@ -334,6 +335,9 @@ try {
       check((j.rolls || []).some((r) => /d20/i.test(r)), 'attack: a d20 attack roll was reported', diagnose(j, raw));
       const hurt = upd(j).some((u) => ['damageToken', 'setHp'].includes(u.type));
       if (!hurt) warn('attack: no damage update came back (the DM may have narrated a miss)');
+    }
+    if (step.id === 'turndone') {
+      check(upd(j).some((u) => u.type === 'endTurn' && u.tokenId === 'pc-thorin'), 'turndone: the DM sent endTurn for Thorin when he said he was done', upd(j).map((u) => u.type + ':' + (u.tokenId || '')).join(','));
     }
     if (step.id === 'effects') {
       const adds = upd(j).filter((u) => u.type === 'addCondition');

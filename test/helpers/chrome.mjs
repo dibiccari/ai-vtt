@@ -37,7 +37,13 @@ export async function launchChrome() {
     if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') problems.push('console.error: ' + msg.params.args.map((a) => a.value ?? a.description).join(' '));
     if (msg.method === 'Page.loadEventFired') while (waiters.length) waiters.shift()();
   };
-  const send = (method, params = {}) => new Promise((resolve, reject) => { const n = ++id; pending.set(n, { resolve, reject }); ws.send(JSON.stringify({ id: n, method, params })); });
+  // A reply that never comes (seen now and then in a long run: a script waiting inside the page whose answer is lost) fails that one call after two minutes, instead of freezing the whole suite.
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
+    const n = ++id;
+    const timer = setTimeout(() => { pending.delete(n); reject(new Error(`no answer from the page to ${method} in 120 s${params.expression ? ': ' + String(params.expression).replace(/\s+/g, ' ').slice(0, 160) : ''}`)); }, 120000);
+    pending.set(n, { resolve: (v) => { clearTimeout(timer); resolve(v); }, reject: (e) => { clearTimeout(timer); reject(e); } });
+    ws.send(JSON.stringify({ id: n, method, params }));
+  });
   await send('Runtime.enable'); await send('Page.enable');
   // The drifting fog redraws the whole map many times a second, which starves a software-rendered headless page; tests look at the fog's shape, not its motion.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: "try { localStorage.setItem('vtt.fogMotion', 'off'); } catch (e) {}" });
