@@ -4210,24 +4210,23 @@ const voice = (() => {
   }
 
   /* ---------- cloud voices (server /api/tts, OpenAI) ---------- */
-  const cloud = { enabled: false, provider: 'openai', audio: new Audio(), resolve: null };
+  const cloud = { enabled: false, provider: 'openai', narration: 'openai', audio: new Audio(), resolve: null };
 
-  const wantCloud = () => cloud.enabled && cloud.provider === 'openai';       // Settings > Dungeon Master voice: ChatGPT, Microsoft or None (text only)
+  // Settings: the Dungeon Master voice (the characters the DM plays) and the Narration voice (the narrator) are each ChatGPT, Microsoft or None (text only).
+  const isNarrator = (line) => String(line.speaker || 'Narrator') === 'Narrator';
+  const providerOf = (line) => (isNarrator(line) ? cloud.narration : cloud.provider);
 
   function updateEngineNote() {
-    $('#voiceEngine').textContent = cloud.provider === 'none'
-      ? 'Voices: off (text only)'
-      : cloud.provider === 'browser'
-      ? 'Voices: Microsoft'
-      : cloud.enabled
-        ? 'Voices: ChatGPT (OpenAI)'
-        : 'ChatGPT voices unavailable (add your OpenAI key in Settings). Using Microsoft voices for now.';
+    const name = (p) => (p === 'none' ? 'off' : p === 'browser' ? 'Microsoft' : cloud.enabled ? 'ChatGPT' : 'Microsoft (no OpenAI key)');
+    $('#voiceEngine').textContent = cloud.provider === cloud.narration
+      ? (cloud.provider === 'none' ? 'Voices: off (text only)' : 'Voices: ' + name(cloud.provider))
+      : 'Voices: DM ' + name(cloud.provider) + ', narration ' + name(cloud.narration);
   }
 
   async function checkCloud() {
     try {
       const s = await api('/api/tts/status');
-      cloud.enabled = Boolean(s.enabled); cloud.provider = s.provider || 'openai';
+      cloud.enabled = Boolean(s.enabled); cloud.provider = s.provider || 'openai'; cloud.narration = s.narration || cloud.provider;
     } catch { cloud.enabled = false; }
     updateEngineNote();
   }
@@ -4263,22 +4262,6 @@ const voice = (() => {
     }).finally(() => URL.revokeObjectURL(url));
   }
 
-  // Start every clip request at once so later lines are ready while earlier ones play.
-  async function speakCloud(lines, msgEl, gen) {
-    const clips = lines.map((l) => fetchClip(l));
-    clips.forEach((p) => p.catch(() => {}));
-    for (let i = 0; i < lines.length; i++) {
-      if (gen !== speakGen) return true;
-      let url;
-      try { url = await clips[i]; } catch (err) { err.playedCount = i; throw err; }
-      if (gen !== speakGen) return true;
-      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${i}"]`) : null;
-      await playClip(url, () => { if (gen === speakGen && node) node.classList.add('speaking'); }, lines[i].voice);
-      if (node) node.classList.remove('speaking');
-    }
-    return true;
-  }
-
   /* ---------- speaking: shared mic muting ---------- */
   function beginSpeaking() {
     cancelSpeech();
@@ -4305,40 +4288,54 @@ const voice = (() => {
     }, TAIL_GRACE_MS);
   }
 
-  function speakBrowser(lines, msgEl, offset, gen) {
-    if (!synth) { endSpeaking(gen); return; }
-    let remaining = lines.length;
-    if (!remaining) { endSpeaking(gen); return; }
-    const done = () => {
-      if (gen !== speakGen) return;
-      if (--remaining === 0) endSpeaking(gen);
-    };
-    lines.forEach((line, k) => {
+  // One line spoken by the Microsoft (browser) voices; resolves when it ends.
+  function speakBrowserLine(line, node, gen) {
+    return new Promise((resolve) => {
+      if (!synth) { resolve(); return; }
       const profile = VOICE_PROFILES[line.voice] || VOICE_PROFILES.narrator;
       const u = new SpeechSynthesisUtterance(line.text);
       const v = pickVoice(line.speaker || 'Narrator', line.voice);
       if (v) { u.voice = v; u.lang = v.lang; }
       u.pitch = profile.pitch;
       u.rate = profile.rate;
-      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${offset + k}"]`) : null;
       u.onstart = () => { if (gen === speakGen && node) node.classList.add('speaking'); };
-      u.onend = () => { if (node) node.classList.remove('speaking'); done(); };
-      u.onerror = () => { if (node) node.classList.remove('speaking'); done(); };
+      u.onend = () => { if (node) node.classList.remove('speaking'); resolve(); };
+      u.onerror = () => { if (node) node.classList.remove('speaking'); resolve(); };
       synth.speak(u);
     });
   }
 
+  // Every line goes to the voice chosen for it, one after another. ChatGPT clips are all requested at once so later lines are ready while earlier ones play; a clip that fails is spoken by the Microsoft voices instead.
+  async function speakLines(lines, msgEl, gen) {
+    const clips = lines.map((l) => (providerOf(l) === 'openai' && cloud.enabled ? fetchClip(l) : null));
+    clips.forEach((p) => { if (p) p.catch(() => {}); });
+    let warned = false;
+    for (let i = 0; i < lines.length; i++) {
+      if (gen !== speakGen) return;
+      const line = lines[i], p = providerOf(line);
+      if (p === 'none') continue;
+      const node = msgEl ? msgEl.querySelector(`.voice-line[data-line="${i}"]`) : null;
+      if (p === 'openai' && clips[i]) {
+        try {
+          const url = await clips[i];
+          if (gen !== speakGen) return;
+          const played = await playClip(url, () => { if (gen === speakGen && node) node.classList.add('speaking'); }, line.voice);
+          if (node) node.classList.remove('speaking');
+          if (gen !== speakGen) return;
+          if (played) continue;
+        } catch (err) {
+          if (!warned) { warned = true; toast(`ChatGPT voice failed (${err.message}). Using Microsoft voices.`, 'error', 5000); }
+        }
+      }
+      if (gen !== speakGen) return;
+      await speakBrowserLine(line, node, gen);
+    }
+  }
+
   function speak(lines, msgEl) {
-    if (!$('#speakToggle').checked || cloud.provider === 'none') return;
+    if (!$('#speakToggle').checked || (cloud.provider === 'none' && cloud.narration === 'none')) return;
     const gen = beginSpeaking();
-    if (!wantCloud()) { speakBrowser(lines, msgEl, 0, gen); return; }
-    speakCloud(lines, msgEl, gen)
-      .then(() => endSpeaking(gen))
-      .catch((err) => {
-        if (gen !== speakGen) return;
-        toast(`ChatGPT voice failed (${err.message}). Using Microsoft voices.`, 'error', 5000);
-        speakBrowser(lines.slice(err.playedCount || 0), msgEl, err.playedCount || 0, gen);
-      });
+    speakLines(lines, msgEl, gen).then(() => endSpeaking(gen), () => endSpeaking(gen));
   }
 
   function init() {

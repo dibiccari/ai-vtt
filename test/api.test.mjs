@@ -619,5 +619,10 @@ test('settings: the Dungeon Master, the narration and each kind of map have thei
   assert.equal(chat.status, 200); assert.match(chat.json.narrative, /a person runs this game/, 'the DM None says a person runs the game');
   await s.post('/api/settings', { DM_PROVIDER: 'claude', VOICE_PROVIDER: 'browser' });
   const mine = (await s.get('/api/tts/status')).json; assert.equal(mine.provider, 'browser'); assert.equal(mine.enabled, false, 'Microsoft voices use no cloud voices');
+  await s.post('/api/settings', { VOICE_PROVIDER: 'browser', NARRATION_PROVIDER: 'openai' });
+  const mixed = (await s.get('/api/tts/status')).json; assert.deepEqual([mixed.provider, mixed.narration], ['browser', 'openai'], 'the narrator can use another voice than the Dungeon Master');
+  assert.equal((await s.get('/api/settings')).json.voice.narration, 'openai');
+  await s.post('/api/settings', { NARRATION_PROVIDER: 'same' });
+  assert.equal((await s.get('/api/tts/status')).json.narration, 'browser', 'same follows the Dungeon Master voice');
   await s.post('/api/settings', { VOICE_PROVIDER: 'openai', IMAGE_PROVIDER_REGIONAL: 'none' });
 });

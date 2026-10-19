@@ -107,7 +107,7 @@
 
 <div class="card" id="voiceCard">
   <h2>Dungeon Master voice</h2>
-  <p>Who speaks the Dungeon Master's words aloud. It does not apply when a person is the Dungeon Master.</p>
+  <p>Who speaks the characters the Dungeon Master plays (people, monsters) aloud. It does not apply when a person is the Dungeon Master.</p>
   <label>Voice
     <select id="voiceProvider">
       <option value="none">None (text only)</option>
@@ -123,7 +123,19 @@
 
 <div class="card" id="narrationCard">
   <h2>Narration</h2>
-  <p id="narrationIntro">Settings for the voice chosen above.</p>
+  <p>Who reads the narrator's scene descriptions aloud. It can be a different service from the Dungeon Master voice above, or the same one.</p>
+  <label>Narrator voice
+    <select id="narrationProvider">
+      <option value="same">Same as the Dungeon Master voice</option>
+      <option value="none">None (text only)</option>
+      <option value="openai">ChatGPT voices (OpenAI)</option>
+      <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
+      <option value="browser">Microsoft voices (this computer)</option>
+    </select>
+  </label>
+  <div class="row"><button class="primary" id="narrationSave">Save</button></div>
+  <div class="msg" id="narrationMsg"></div>
+  <p id="narrationIntro" class="help">Settings for the voices chosen above.</p>
   <div id="openaiNarration">
     <p class="help">ChatGPT voices give the narrator and each NPC their own voice, use the OpenAI key above, and need credit on that account. If one fails the table falls back to Microsoft voices.</p>
     <label>Model
@@ -248,6 +260,7 @@ async function load() {
     $('#voiceProvider').value = s.voice.provider;
     if (![...$('#oaModel').options].some((o) => o.value === s.voice.model)) fill($('#oaModel'), [...$('#oaModel').options].map((o) => [o.value, o.textContent]), s.voice.model);
     $('#oaModel').value = s.voice.model;
+    $('#narrationProvider').value = s.voice.narration || 'same';
     showVoice();
     for (const kind of ['regional', 'town', 'battle']) { const g = s.maps[kind]; showRow(rowOf(kind), g.provider, g.model, g.quality); }
   } catch (err) {
@@ -277,15 +290,19 @@ $('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = e.
 $('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value }, $('#dmMsg')));
 // The voice and narration cards depend on who runs the game: a person needs neither, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
 function showVoice() {
-  const person = $('#dmProvider').value === 'none', v = person ? 'none' : $('#voiceProvider').value;
-  $('#voiceProvider').disabled = $('#voiceSave').disabled = person;
-  $('#voiceNote').textContent = person ? 'A person is the Dungeon Master, so there is nothing to narrate. Choose Claude AI above to pick a voice.' : '';
-  $('#openaiNarration').hidden = person || v !== 'openai';
-  $('#browserNarration').hidden = person || v !== 'browser';
-  $('#noNarration').hidden = !(person || v === 'none');
+  const person = $('#dmProvider').value === 'none';
+  const dmV = person ? 'none' : $('#voiceProvider').value, nar = $('#narrationProvider').value, narV = person ? 'none' : (nar === 'same' ? dmV : nar);
+  $('#voiceProvider').disabled = $('#voiceSave').disabled = $('#narrationProvider').disabled = $('#narrationSave').disabled = person;
+  $('#voiceNote').textContent = person ? 'A person is the Dungeon Master, so there is nothing to narrate. Choose Claude AI above to pick voices.' : '';
+  const uses = (p) => dmV === p || narV === p;
+  $('#openaiNarration').hidden = !uses('openai');
+  $('#browserNarration').hidden = !uses('browser');
+  $('#noNarration').hidden = !(person || (dmV === 'none' && narV === 'none'));
   $('#noNarration').textContent = person ? 'Not applicable: a person is the Dungeon Master.' : 'No voice is chosen, so replies are shown as text only.';
-  $('#narrationIntro').hidden = person || v === 'none';
+  $('#narrationIntro').hidden = person || (dmV === 'none' && narV === 'none');
 }
+$('#narrationProvider').addEventListener('change', showVoice);
+$('#narrationSave').addEventListener('click', () => save({ NARRATION_PROVIDER: $('#narrationProvider').value }, $('#narrationMsg')));
 $('#voiceProvider').addEventListener('change', showVoice);
 $('#voiceSave').addEventListener('click', () => save({ VOICE_PROVIDER: $('#voiceProvider').value }, $('#voiceMsg')));
 $('#modelSave').addEventListener('click', () => save({ TTS_MODEL: $('#oaModel').value }, $('#oaMsg')));
