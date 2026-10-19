@@ -38,6 +38,7 @@ import { liveMiddleware, liveHandler, revisionOf } from './lib/live.js';
 import { normalizeTrack, trackView, hitDice, describeClock, readClock, writeClock, restOnClock, splitXp, xpForCr } from './lib/rules-track.js';
 import { processTrackUpdates } from './lib/rules-apply.js';
 import { pronounce } from './lib/pronounce.js';
+import { selectDocuments, filteredNote } from './lib/module-select.js';
 import { createPlayLog, logAsText } from './lib/playlog.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
@@ -1590,7 +1591,7 @@ app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
   const src = path.join(CAMPAIGNS_DIR, root), dest = path.join(CAMPAIGNS_DIR, id);
   await mkdir(dest, { recursive: true });
   for (const f of await readdir(src)) {
-    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json', 'pronunciations.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
+    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json', 'pronunciations.json', 'relevance.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
   }
   const known = new Set((await listCharacters()).map((c) => c.id));
   const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
@@ -1943,18 +1944,22 @@ async function getActiveCampaignId() {
 
 // The text the DM is given for a campaign, cached until a file in the folder changes.
 const campaignTextCache = new Map();
-async function loadCampaignText(id) {
-  const files = await campaignFiles(id);
+async function loadCampaignText(id, mapId = '') {
+  const all = await campaignFiles(id);
+  let relevance = null;
+  try { relevance = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, await templateOfCampaign(id), 'relevance.json'), 'utf8')); } catch { /* every document is sent */ }
+  const picked = selectDocuments(all, relevance, mapId);
+  const files = picked.files;
   const sig = files.map((f) => `${f.name}:${f.size}:${f.mtimeMs}`).join('|');
-  const hit = campaignTextCache.get(id);
+  const hit = campaignTextCache.get(id + '|' + mapId);
   if (hit && hit.sig === sig) return hit.text;
-  const parts = [];
+  const parts = picked.filtered ? [filteredNote(picked.left)] : [];
   for (const f of files) {
     const text = f.text.trim();
     if (text) parts.push(`##### CAMPAIGN DOCUMENT: ${f.name} #####\n${text}`);
   }
   const text = parts.join('\n\n');
-  campaignTextCache.set(id, { sig, text });
+  campaignTextCache.set(id + '|' + mapId, { sig, text });
   return text;
 }
 {
@@ -2359,7 +2364,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   };
 
   try {
-    const campaignText = await loadCampaignText(activeCampaign);
+    const campaignText = await loadCampaignText(activeCampaign, state.currentMap || '');
     const settingsText = settingsForPrompt(await readSettings(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const safetyText = safetyForPrompt(await readSafety(path.join(CAMPAIGNS_DIR, activeCampaign)));
     const adventureMonsters = await loadAdventureMonsters(path.join(CAMPAIGNS_DIR, await templateOfCampaign(activeCampaign)));
