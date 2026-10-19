@@ -7,3 +7,5 @@ public/scenarios/.preview-*
 data/usage.json
 # The play log (one file per campaign and day)
 data/logs/
+# Personal Claude Code permissions (per machine)
+.claude/settings.local.json
