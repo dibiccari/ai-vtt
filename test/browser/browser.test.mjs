@@ -1349,7 +1349,7 @@ test('map labels: a regional map shows its written names on the tabletop with a 
   assert.equal(r.battleBoxShown, false, 'a battle map has no labels switch'); assert.equal(r.battleLabels, 0);
 });
 
-test('a game that starts on a regional map gets fog of war when the party reaches a battle map (the Lost Mine never had it on)', opts, async () => {
+test('the table\'s fog switch is on again when the party reaches a battle map from a plain one; whether a map shows fog is still the map\'s own setting (Fog of war on this map)', opts, async () => {
   await page.eval(setup);
   const r = await page.eval(`(async () => {
     const s = vtt.state, out = {};
@@ -1358,9 +1358,11 @@ test('a game that starts on a regional map gets fog of war when the party reache
     s.fogBeforeOverland = null; out.onRegional = s.fogEnabled;
     await vtt.travelTo({ mapUrl: '/uploads/vtt-terrain-test.png', mapName: 'Terrain', kind: 'battle', col: 5, row: 5 });
     out.onBattle = s.fogEnabled; out.mapKind = s.mapKind;
+    s.mapFog = false; out.mapSaysOff = fogOn(); s.mapFog = true; out.mapSaysOn = fogOn();
     return out;
   })()`);
-  assert.equal(r.onRegional, false); assert.equal(r.mapKind, 'battle'); assert.equal(r.onBattle, true, 'fog is on at the battle map: ' + JSON.stringify(r));
+  assert.equal(r.onRegional, false); assert.equal(r.mapKind, 'battle'); assert.equal(r.onBattle, true, 'the table\'s switch is on at the battle map: ' + JSON.stringify(r));
+  assert.equal(r.mapSaysOff, false, 'a map saved with fog off (Goblin Ambush) shows none, whatever the table switch says'); assert.equal(r.mapSaysOn, true);
 });
 
 test('the table remembers which doors are open and the walls the DM added, not the whole wall list: a Map Test edit reaches it', opts, async () => {
