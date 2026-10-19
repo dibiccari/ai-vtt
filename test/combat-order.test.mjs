@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import '../public/combat-order.js';
+import '../public/js/combat-order.js';
 const { nextActor, resumeInitiative, placeAfter } = globalThis.CombatOrder;
 
 const mk = (id, initiative, extra = {}) => ({ id, initiative, ...extra });

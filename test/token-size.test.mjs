@@ -1,7 +1,7 @@
-// Creature size, footprints, falls and flying speeds (public/token-size.js) and how the DM's token updates carry them (server.js expandTokenUpdates).
+// Creature size, footprints, falls and flying speeds (public/js/token-size.js) and how the DM's token updates carry them (server.js expandTokenUpdates).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import '../public/token-size.js';
+import '../public/js/token-size.js';
 import { loadServerPieces } from '../scripts/dm-schema.mjs';
 import { loadAdventureMonsters } from '../lib/adventure-monsters.js';
 import { fileURLToPath } from 'node:url';

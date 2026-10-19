@@ -1,11 +1,11 @@
-// public/light-data.json (light from gear) checked against the SRD it names and against the code that reads it (lib/light-gear.js, and the tabletop's own copy of the slug rule).
+// public/data/light-data.json (light from gear) checked against the SRD it names and against the code that reads it (lib/light-gear.js, and the tabletop's own copy of the slug rule).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { lightOfItem, lightItemsFor, heldLightKind, LIGHT_KINDS, slugOf } from '../lib/light-gear.js';
 
 const read = (f) => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
-const DATA = read('../public/light-data.json');
+const DATA = read('../public/data/light-data.json');
 const EQUIPMENT = new Map(read('../data/srd/equipment.json').map((e) => [e.index, e]));
 const MAGIC = new Map(read('../data/srd/magic-items.json').map((e) => [e.index, e]));
 
@@ -67,6 +67,6 @@ test('the DM is told equipped state, and an item with no equipped flag counts as
 
 test('the tabletop reads the same file: its lit/held and needsItem rules match this data', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /fetch\('\/light-data\.json'\)/);
+  assert.match(html, /fetch\('\/data\/light-data\.json'\)/);
   assert.match(html, /const slugOfName = \(n\) => String\(n \?\? ''\)\.toLowerCase\(\)\.replace\(\/\[\^a-z0-9\]\+\/g, '-'\)\.replace\(\/\^-\+\|-\+\$\/g, ''\)/, 'same slug rule as lib/light-gear.js');
 });

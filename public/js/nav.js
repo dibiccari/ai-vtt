@@ -15,12 +15,12 @@
     { label: '🛠 Tools', items: [
       { href: '/maps.html', label: '🗺 Maps' },
       { href: '/map-test.html', label: '🗺 Map Test' },
-      { href: '/test-lab.html', label: '🧪 Test Lab' },
-      { href: '/voice-test.html', label: '🔊 Voice Test' },
-      { href: '/sound-test.html', label: '🎵 Sound Test' },
-      { href: '/conditions-test.html', label: '🎭 Character conditions' },
-      { href: '/image-test.html', label: '🖼 Image Test' },
-      { href: '/levelup-test.html', label: '⬆ Level-up Test' }
+      { href: '/dev/test-lab.html', label: '🧪 Test Lab' },
+      { href: '/dev/voice-test.html', label: '🔊 Voice Test' },
+      { href: '/dev/sound-test.html', label: '🎵 Sound Test' },
+      { href: '/dev/conditions-test.html', label: '🎭 Character conditions' },
+      { href: '/dev/image-test.html', label: '🖼 Image Test' },
+      { href: '/dev/levelup-test.html', label: '⬆ Level-up Test' }
     ] },
     { href: '/settings.html', label: '⚙ Settings' }
   ];

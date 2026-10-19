@@ -1,7 +1,7 @@
-// The layout of map labels (public/map-labels.js): pure functions that place glyphs along a polyline and decide how visible a label is at a zoom.
+// The layout of map labels (public/js/map-labels.js): pure functions that place glyphs along a polyline and decide how visible a label is at a zoom.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import '../public/map-labels.js';
+import '../public/js/map-labels.js';
 const ML = globalThis.MapLabels;
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} is not ${b}`);
 

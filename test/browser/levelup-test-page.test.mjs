@@ -10,7 +10,7 @@ before(async () => {
   if (skip) return;
   server = await startServer();
   page = await launchChrome();
-  await page.goto(`${server.base}/levelup-test.html`);
+  await page.goto(`${server.base}/dev/levelup-test.html`);
   await page.waitFor('document.querySelectorAll("#cls option").length > 5');
 });
 after(async () => { if (page) await page.close(); if (server) await server.stop(); });

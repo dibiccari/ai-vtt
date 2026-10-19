@@ -36,10 +36,10 @@ for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
     else { failed = true; console.error(`FAIL ${campaign}/${m.id} has no start spot: open Map Test, choose Set start and click where the party arrives`); }
   }
 }
-for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/compendium.js', 'lib/safety.js', 'public/scenes.js', 'public/wallobjects.js', 'public/flicker.js', 'public/ambience.js', 'public/uvtt.js', 'public/pdf-extract.js', 'public/nav.js', 'public/levelup-wizard.js', 'public/place-pins.js', 'public/map-labels.js', 'public/fog-style.js', 'public/inventory-wizard.js', 'public/voice-fx.js']) check(file, path.join(root, file));
+for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/compendium.js', 'lib/safety.js', 'public/js/scenes.js', 'public/js/wallobjects.js', 'public/js/flicker.js', 'public/js/ambience.js', 'public/js/uvtt.js', 'public/js/pdf-extract.js', 'public/js/nav.js', 'public/js/levelup-wizard.js', 'public/js/place-pins.js', 'public/js/map-labels.js', 'public/js/fog-style.js', 'public/js/inventory-wizard.js', 'public/js/voice-fx.js']) check(file, path.join(root, file));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
-for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html', 'sound-test.html', 'maps.html', 'image-test.html', 'market.html', 'coast.html', 'map-maker.html', 'conditions-test.html', 'voice-test.html', 'settings.html', 'usage.html', 'levelup-test.html']) {
+for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'dev/test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html', 'dev/sound-test.html', 'maps.html', 'dev/image-test.html', 'market.html', 'coast.html', 'map-maker.html', 'dev/conditions-test.html', 'dev/voice-test.html', 'settings.html', 'usage.html', 'dev/levelup-test.html']) {
   const html = await readFile(path.join(root, 'public', page), 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   if (!scripts.length) {
@@ -47,7 +47,7 @@ for (const page of ['index.html', 'map-test.html', 'tokens.html', 'characters.ht
     console.error(`FAIL ${page}: no inline <script> found`);
   }
   for (const [i, code] of scripts.entries()) {
-    const file = path.join(dir, `${page}-${i}.js`);
+    const file = path.join(dir, `${page.replace(/\//g, "-")}-${i}.js`);
     await writeFile(file, code);
     check(`${page} inline script #${i + 1} (${code.split('\n').length} lines)`, file);
   }

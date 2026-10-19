@@ -1,4 +1,4 @@
-// Writes the region and road names of our Sword Coast onto its map set as the `labels` layer (public/map-labels.js draws them in code over the picture).
+// Writes the region and road names of our Sword Coast onto its map set as the `labels` layer (public/js/map-labels.js draws them in code over the picture).
 // The names and positions come from public/scenarios/compare/coast/coast-names.json (fractions of the picture, read off the layout in the published picture's 2648 x 3625 pixels);
 // the two roads follow the control points the map was drawn with (scripts/make-coast-map.mjs: High Road, and the trail from Conyberry to Cragmaw Hideout that Triboar Trail names).
 // Usage: node scripts/apply-coast-labels.mjs [--server http://127.0.0.1:3000] [--map dnd-sword-coast-ours.png] [--dry-run]

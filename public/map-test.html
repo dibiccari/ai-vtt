@@ -104,7 +104,7 @@
 </style>
 </head>
 <body>
-<script src="/maptools-rail.js"></script>
+<script src="/js/maptools-rail.js"></script>
 <aside>
   <div>
     <h1>Map <span>Test</span></h1>
@@ -269,15 +269,15 @@
   <span class="places-toggle" id="placesHint" style="bottom:80px;cursor:default;max-width:360px;white-space:normal" hidden></span>
 </main>
 
-<script src="/nav.js"></script>
-<script src="/wallobjects.js"></script>
-<script src="/flicker.js"></script>
-<script src="/place-pins.js"></script>
-<script src="/map-labels.js"></script>
-<script src="/fog-style.js"></script>
-<script src="/map-shared.js"></script>
-<script src="/ambience.js"></script>
-<script src="/effects.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/wallobjects.js"></script>
+<script src="/js/flicker.js"></script>
+<script src="/js/place-pins.js"></script>
+<script src="/js/map-labels.js"></script>
+<script src="/js/fog-style.js"></script>
+<script src="/js/map-shared.js"></script>
+<script src="/js/ambience.js"></script>
+<script src="/js/effects.js"></script>
 <script>
 (function () {
   'use strict';
@@ -464,7 +464,7 @@
   function showTestLight() { $('#testLight').value = String(S.testLight); const nm = LIGHT_TEST[S.testLight][0]; $('#testLightText').textContent = nm.charAt(0).toUpperCase() + nm.slice(1); }
   /* ---------------- light zones: parts of one map with their own light ---------------- */
   // A zone is bright, dim, dark, or "time": it follows the time of day the toolbar says (bright by day, dim at dawn and dusk, dark at night), as the AI DM's time of day does on the tabletop. Later zones win where they overlap.
-  const zoneLevel = (z) => MapShared.zoneLevel(z, S.timeOfDay);       // the same rule as the tabletop (public/map-shared.js)
+  const zoneLevel = (z) => MapShared.zoneLevel(z, S.timeOfDay);       // the same rule as the tabletop (public/js/map-shared.js)
   const zoneAt = (p) => { for (let i = S.lightZones.length - 1; i >= 0; i--) if (inside(S.lightZones[i].points, p.x, p.y)) return S.lightZones[i]; return null; };
   // A corner of the selected zone under the pointer (within a few screen pixels).
   function zoneCornerAt(p) {
@@ -1313,7 +1313,7 @@
         S.lightsOff = new Set(S.allLights.filter((l) => l.on === false).map((l) => l.id));       // lights that start put out (an unlit brazier)
         S.effects = remote && Array.isArray(remote.effects) ? remote.effects : [];
         S.lightZones = (remote && Array.isArray(remote.lightZones) ? remote.lightZones : []).filter((z) => z && Array.isArray(z.points) && z.points.length >= 3 && ['bright', 'dim', 'dark', 'time'].includes(z.level)); S.zoneSel = null; S.zonePen = null;
-        S.labels = remote && Array.isArray(remote.labels) ? remote.labels.filter((l) => l && l.text && isFinite(l.x) && isFinite(l.y)) : [];       // the words on a regional map (drawn by public/map-labels.js, written by the label script)
+        S.labels = remote && Array.isArray(remote.labels) ? remote.labels.filter((l) => l && l.text && isFinite(l.x) && isFinite(l.y)) : [];       // the words on a regional map (drawn by public/js/map-labels.js, written by the label script)
         S.lights = S.allLights.filter((l) => l.flicker === true);
         S.mapLights = S.allLights;
         renderMapLightsList();

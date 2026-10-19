@@ -1,5 +1,5 @@
 // The left rail of the Map Tools pages: Test (try out a map) and Maker (generate new maps and improve them with feedback).
-// Put <script src="/maptools-rail.js"></script> where the rail should go (as a direct child of <body>, before the page's own content).
+// Put <script src="/js/maptools-rail.js"></script> where the rail should go (as a direct child of <body>, before the page's own content).
 (function () {
   'use strict';
   var LINKS = [

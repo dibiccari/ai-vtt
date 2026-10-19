@@ -15,7 +15,7 @@ A **Creator** area where anyone can build the two things a game needs, **charact
 | Map Test (pins, fog and line of sight test, grid calibration, difficult terrain brush, .dd2vtt import) | map-test.html | also the place where a map is set up |
 | Map Maker (requests and feedback for maps the assistant draws) | map-maker.html | the assistant draws them offline with lib/mapkit.js |
 | Generators (dungeon, camp, tavern, terrain test) | scripts/make-*-map.mjs, lib/mapkit.js | walls, doors and lights come out correct because they are drawn from the same data |
-| Moods and ambience, flicker animation of lights | public/ambience.js, public/flicker.js | sound scenes, mood presets, flickering fires |
+| Moods and ambience, flicker animation of lights | public/js/ambience.js, public/js/flicker.js | sound scenes, mood presets, flickering fires |
 | Regional and town maps | campaign map kinds `regional`, `town` | plain pictures today: no tokens, no grid, no labels |
 | DM-only picture of a map | data/dm-maps | labels and secrets the players never see |
 | New campaign wizard | campaigns.html | own campaign from a premise, maps and a party |

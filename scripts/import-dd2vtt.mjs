@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 // uvtt.js is a browser script that sets a global (the package is ES modules, so it cannot be require()d).
-await import(pathToFileURL(path.join(root, 'public', 'uvtt.js')).href);
+await import(pathToFileURL(path.join(root, 'public', 'js', 'uvtt.js')).href);
 const Uvtt = globalThis.Uvtt;
 
 const [file, name] = process.argv.slice(2);

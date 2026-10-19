@@ -16,7 +16,7 @@ import { schemaForMode, modeOf, modeNote } from './lib/dm-schema-modes.js';
 import { shopCatalog, payCoins, tidyCoins, sheetEditsForGear, armorClass, srdFor, costInCp, totalCp, coinText } from './lib/loadout.js';
 import { applyUpdate } from './lib/sheet-edit.js';
 import { migrateCharacterIds, readAliases, canonicalId, newCharacterId } from './lib/character-ids.js';
-import './public/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
+import './public/js/token-size.js';                       // sets globalThis.TokenSize (sizes, footprints, falls, flying speeds)
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from './lib/adventure-monsters.js';
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
 import { buildSets, originOf, imageSize } from './lib/mapsets.js';
@@ -206,6 +206,8 @@ const OLD_MAP_NAMES = {
 const currentMapName = (name) => { const base = path.basename(String(name ?? '')); return OLD_MAP_NAMES[base] || (/^rusty-flagon-[^/]+\.png$/.test(base) ? 'vtt-' + base : base); };
 app.use('/uploads/:file', (req, res, next) => { const now = currentMapName(req.params.file); if (now !== req.params.file) return res.redirect(301, '/uploads/' + now); next(); });
 app.get('/uploads/:file', (req, res, next) => { const p = PACKET_FILES.get(path.basename(req.params.file)); if (!p) return next(); res.sendFile(p); });     // pictures that live in a map set's packet
+// The developer and test pages moved to /dev/ (bookmarks to the old addresses still work).
+for (const page of ['conditions-test', 'image-test', 'levelup-test', 'sound-test', 'voice-test', 'test-lab']) app.get(`/${page}.html`, (req, res) => res.redirect(301, `/dev/${page}.html${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`));
 app.use(express.static(PUBLIC_DIR));
 // Anything that changes state or spends credit (every non-GET call to /api) must be addressed to this computer by name: a page on another site that rebinds its domain to 127.0.0.1 sends its own Host and is refused.
 app.use('/api', (req, res, next) => {
@@ -501,7 +503,7 @@ function normalizeMapConfig(body) {
   if (secrets.length) config.secrets = secrets;
   if (difficult.length) config.difficult = difficult;
   if (lights.length) config.lights = lights;
-  // Animated regions drawn over the picture (public/effects.js): a river or stream (a polygon, with the centre line it flows along), lava, standing water. Coordinates are image pixels.
+  // Animated regions drawn over the picture (public/js/effects.js): a river or stream (a polygon, with the centre line it flows along), lava, standing water. Coordinates are image pixels.
   const effects = [];
   for (const e of Array.isArray(body?.effects) ? body.effects.slice(0, 60) : []) {
     const type = ['river', 'lava', 'water'].includes(e?.type) ? e.type : null;
@@ -522,7 +524,7 @@ function normalizeMapConfig(body) {
     zones.push({ id, name: String(z?.name ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40) || id, level, points });
   }
   if (zones.length) config.lightZones = zones;
-  // Text labels drawn by code over a regional map (public/map-labels.js): region names, place names and trail names written along a path. Coordinates are image pixels; `size` is the letter height in picture pixels, `rot` degrees for a straight label.
+  // Text labels drawn by code over a regional map (public/js/map-labels.js): region names, place names and trail names written along a path. Coordinates are image pixels; `size` is the letter height in picture pixels, `rot` degrees for a straight label.
   const labels = [];
   for (const l of Array.isArray(body?.labels) ? body.labels.slice(0, 60) : []) {
     const kind = ['region', 'place', 'trail'].includes(l?.kind) ? l.kind : null;
@@ -1019,7 +1021,7 @@ app.get('/api/party/srd-item', asyncRoute(async (req, res) => {
   res.json({ item });
 }));
 
-// The gear wizard (public/inventory-wizard.js): the shop list, paying in coins, and a preview or commit of a whole new inventory and purse.
+// The gear wizard (public/js/inventory-wizard.js): the shop list, paying in coins, and a preview or commit of a whole new inventory and purse.
 // The commit also brings the sheet in step (armor class, attack lines, Equipment and coin boxes) through the sheet editor, so it is logged and can be undone.
 let shopCache = null;
 app.get('/api/party/shop', asyncRoute(async (_req, res) => {
@@ -1988,9 +1990,9 @@ async function loadCampaignText(id, mapId = '', ctx = {}) {
 
 let anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
-// Effects with their durations (public/effect-data.json): the DM is told how long each lasts and what ends it, so it does not have to remember.
+// Effects with their durations (public/data/effect-data.json): the DM is told how long each lasts and what ends it, so it does not have to remember.
 let EFFECT_DATA = {};
-try { EFFECT_DATA = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'effect-data.json'), 'utf8')).effects || {}; } catch { EFFECT_DATA = {}; }
+try { EFFECT_DATA = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'data', 'effect-data.json'), 'utf8')).effects || {}; } catch { EFFECT_DATA = {}; }
 function effectDurationText() {
   const lasts = (e) => [e.rounds ? `${e.rounds} round${e.rounds === 1 ? '' : 's'}` : '', e.minutes ? (e.minutes >= 60 && e.minutes % 60 === 0 ? `${e.minutes / 60} hour${e.minutes === 60 ? '' : 's'}` : `${e.minutes} min`) : ''].filter(Boolean).join(' / ') || 'until ended';
   const rows = Object.entries(EFFECT_DATA).map(([name, e]) => `${name} (${lasts(e)}${e.concentration ? ', concentration' : ''}${e.endsOn ? (e.trigger === 'turn-save' ? '; the table reminds you at the end of its holder\'s turn to roll the save and you end it on a success: ' : e.trigger && e.trigger !== 'dm' ? '; the table ends it by itself when ' : '; end it when ') + e.endsOn : ''})`);

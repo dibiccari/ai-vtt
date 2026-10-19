@@ -329,9 +329,9 @@
 </style>
 </head>
 <body>
-<script src="/watch.js"></script>
-<script src="/nav.js"></script>
-<script src="/voice-fx.js"></script>
+<script src="/js/watch.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/voice-fx.js"></script>
 
 <!-- ================================================================ LEFT: BATTLEMAP -->
 <main class="map-panel">
@@ -440,21 +440,21 @@
 
 <div class="toasts" id="toasts" aria-live="assertive"></div>
 
-<script src="/uvtt.js"></script>
-<script src="/scenes.js"></script>
-<script src="/wallobjects.js"></script>
-<script src="/combat-order.js"></script>
-<script src="/condition-rings.js"></script>
-<script src="/token-size.js"></script>
-<script src="/flicker.js"></script>
-<script src="/place-pins.js"></script>
-<script src="/map-shared.js"></script>
-<script src="/map-labels.js"></script>
-<script src="/fog-style.js"></script>
-<script src="/levelup-wizard.js"></script>
-<script src="/inventory-wizard.js"></script>
-<script src="/effects.js"></script>
-<script src="/ambience.js"></script>
+<script src="/js/uvtt.js"></script>
+<script src="/js/scenes.js"></script>
+<script src="/js/wallobjects.js"></script>
+<script src="/js/combat-order.js"></script>
+<script src="/js/condition-rings.js"></script>
+<script src="/js/token-size.js"></script>
+<script src="/js/flicker.js"></script>
+<script src="/js/place-pins.js"></script>
+<script src="/js/map-shared.js"></script>
+<script src="/js/map-labels.js"></script>
+<script src="/js/fog-style.js"></script>
+<script src="/js/levelup-wizard.js"></script>
+<script src="/js/inventory-wizard.js"></script>
+<script src="/js/effects.js"></script>
+<script src="/js/ambience.js"></script>
 <script>
 'use strict';
 
@@ -571,7 +571,7 @@ const serverSave = (() => {
     fog(mapUrl, data) { if (on() && mapUrl) put('/fog', { mapUrl, data }); },
     // At start-up: take the server copy if it is newer than this browser's, or send this browser's if it is newer.
     async pull() {
-      const watching = window.WATCH === true;                          // ?watch=1: always show the server copy (public/watch.js)
+      const watching = window.WATCH === true;                          // ?watch=1: always show the server copy (public/js/watch.js)
       if (!on() && !watching) return;
       try {
         const g = await (await fetch(url())).json();
@@ -1222,7 +1222,7 @@ const CONDITION_HELP = {
 const conditionHelp = (name) => CONDITION_HELP[name] || '';
 // Speed lost to conditions: held, paralyzed, petrified, stunned or unconscious creatures cannot move; prone ones crawl.
 // Flying (2014 PHB "Flying Movement"): a creature with a flying speed (its own, or 60 ft from the fly spell) uses it while it is in the air (elevation above 0), or always when it has no walking speed (a ghost, a flameskull).
-// An effect can give a flying speed (fly: feet, or 'walk'), keep a creature up (aloft) or hold it still (still); see public/effect-data.json.
+// An effect can give a flying speed (fly: feet, or 'walk'), keep a creature up (aloft) or hold it still (still); see public/data/effect-data.json.
 const effectDefsOn = (t) => tokenConditions(t).map((c) => EFFECT_DEFS[c.name]).filter(Boolean);
 const flySpeedOf = (t) => Math.max(Number(t && t.flySpeed) || 0, ...effectDefsOn(t).map((e) => (e.fly === 'walk' ? Number(t.speed) || 0 : Number(e.fly) || 0)));
 const heldAloft = (t) => hasCondition(t, 'fly') || effectDefsOn(t).some((e) => e.aloft);
@@ -1257,7 +1257,7 @@ function checkFall(t) {
 }
 // Effects (not conditions) with how long they last: loaded from /effect-data.json; the game clock (minutes since Day 1, 00:00) comes with every DM reply and from /api/party.
 let EFFECT_DEFS = {};
-async function loadEffectDefs() { try { EFFECT_DEFS = (await (await fetch('/effect-data.json')).json()).effects || {}; } catch { EFFECT_DEFS = {}; } }
+async function loadEffectDefs() { try { EFFECT_DEFS = (await (await fetch('/data/effect-data.json')).json()).effects || {}; } catch { EFFECT_DEFS = {}; } }
 // The clock readout in the top bar ("Day 1, 08:00 morning"); the same time-of-day words as lib/rules-track.js.
 function renderGameClock() {
   const el = $('#gameClock');
@@ -1674,7 +1674,7 @@ function resetShroud() {
   sctx.fillRect(0, 0, shroud.width, shroud.height);
 }
 
-// Small closed wall loops (tents, boulders, crates, tree trunks) are objects you see the top of: see public/wallobjects.js. Cached until the walls change.
+// Small closed wall loops (tents, boulders, crates, tree trunks) are objects you see the top of: see public/js/wallobjects.js. Cached until the walls change.
 let objectCache = { version: -1, loops: [] };
 function objectLoops() {
   if (objectCache.version === state.wallsVersion) return objectCache.loops;
@@ -1716,7 +1716,7 @@ function revealObjectTops() {
 // The lit part of the map as a canvas (white where lit), for fog colour when the map has light zones; kept until the zones, the light or the clock's level change.
 function litRegion() {
   if (!(state.lightZones || []).length || state.ambientOverride || !state.map.width) return null;
-  return MapShared.litRegion(state.lightZones, ambientNow() === 'dark', state.timeOfDay, state.map.width, state.map.height);       // shared with Map Test (public/map-shared.js)
+  return MapShared.litRegion(state.lightZones, ambientNow() === 'dark', state.timeOfDay, state.map.width, state.map.height);       // shared with Map Test (public/js/map-shared.js)
 }
 function revealFog() {
   // With fog off the whole map is shown and nothing is remembered as explored. Turning fog on later starts from what the party sees then.
@@ -2836,11 +2836,11 @@ function commitBoard() {
 // (bright light out to the bright radius, dim light out to the dim radius) or what their darkvision reaches; darkvision turns
 // dark into dim. In bright or dim light, line of sight is all it takes.
 const LIGHT_KINDS = { torch: [20, 40, 'Torch'], lantern: [30, 60, 'Lantern'], candle: [5, 10, 'Candle'], light: [20, 40, 'Light spell'] };
-// Light from gear (public/light-data.json): more kinds (a Flame Tongue, a Sun Blade...) and which items give them. An item in lit mode shines when somebody lights it (the DM's light action); in held mode it shines while it is wielded.
+// Light from gear (public/data/light-data.json): more kinds (a Flame Tongue, a Sun Blade...) and which items give them. An item in lit mode shines when somebody lights it (the DM's light action); in held mode it shines while it is wielded.
 let LIGHT_ITEMS = {}, LIGHT_NEEDS_ITEM = new Set();
 async function loadLightData() {
   try {
-    const d = await (await fetch('/light-data.json')).json();
+    const d = await (await fetch('/data/light-data.json')).json();
     for (const [k, v] of Object.entries(d.kinds || {})) { LIGHT_KINDS[k] = [v.bright, v.dim, v.name]; if (v.needsItem) LIGHT_NEEDS_ITEM.add(k); }
     LIGHT_ITEMS = d.items || {};
   } catch { /* the four plain kinds still work */ }
@@ -3022,12 +3022,12 @@ async function loadMapLighting(lookFile) {          // lookFile: the picture of 
     // The module's numbered areas (pins named area-N, set on Map Test) as board squares, so the DM knows where each room is.
     // the other named pins of the map (not the start, not the numbered areas): places the DM can narrate and put creatures at, with the note written on the pin
     state.places = (Array.isArray(config.starts) ? config.starts : []).filter((s) => s.name !== 'start' && !/^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ name: s.name, note: String(s.desc || '').slice(0, 300), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID), ...(s.known === true ? { known: true } : {}), ...(s.dmOnly === true ? { dmOnly: true } : {}) }));
-    // What the players may see on a town or regional map (public/place-pins.js): the named places, in board pixels.
+    // What the players may see on a town or regional map (public/js/place-pins.js): the named places, in board pixels.
     state.placePins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => PlacePins.isPlace(s)).map((s) => ({ name: s.name, label: s.label || '', known: s.known === true, x: s.x * f, y: s.y * f }));
-    // The words on a regional map (public/map-labels.js): region, place and trail names, in board pixels.
+    // The words on a regional map (public/js/map-labels.js): region, place and trail names, in board pixels.
     state.mapLabels = (Array.isArray(config.labels) ? config.labels : []).filter((l) => l && l.text && Number.isFinite(l.x) && Number.isFinite(l.y)).map((l) => ({ id: l.id, text: l.text, kind: l.kind, x: l.x * f, y: l.y * f, ...(l.size > 0 ? { size: l.size * f } : {}), ...(Number.isFinite(l.rot) ? { rot: l.rot } : {}), ...(Array.isArray(l.path) ? { path: l.path.map((p) => ({ x: p.x * f, y: p.y * f })) } : {}) }));
     state.areaPins = (Array.isArray(config.starts) ? config.starts : []).filter((s) => /^area-\d+(-\d+)?$/.test(s.name)).map((s) => ({ area: parseInt(s.name.slice(5), 10), name: String(s.desc || '').slice(0, 60), col: Math.floor(s.x * f / GRID), row: Math.floor(s.y * f / GRID) }));
-    state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/wallobjects.js)
+    state.rooms = (Array.isArray(config.rooms) ? config.rooms : []).filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map((v) => v * f));     // real rooms: line-of-sight loops that fill one are not 'objects' (public/js/wallobjects.js)
     state.difficult = (Array.isArray(config.difficult) ? config.difficult : []).map((d) => ({ x: d.x * f, y: d.y * f, w: d.w * f, h: d.h * f }));
     const px = state.map.drawW / (config.squares || 50);          // board pixels per printed square
     state.effects = (Array.isArray(config.effects) ? config.effects : []).map((e) => ({ ...e, points: e.points.map((p) => ({ x: p.x * f, y: p.y * f })), ...(e.path ? { path: e.path.map((p) => ({ x: p.x * f, y: p.y * f })) } : {}) }));
@@ -3129,7 +3129,7 @@ function setMapLight(id, on) {
   commitBoard();
 }
 
-// Ambient sound and mood (public/ambience.js). The map can name its sound; otherwise it follows the kind of place and its light.
+// Ambient sound and mood (public/js/ambience.js). The map can name its sound; otherwise it follows the kind of place and its light.
 // The AI DM says what part of the day it is. The picture darkens at night, light zones that follow the time of day change their light, and the ambient sound follows.
 function setTimeOfDay(v) {
   v = ['day', 'dawn', 'dusk', 'night'].includes(v) ? v : 'day';

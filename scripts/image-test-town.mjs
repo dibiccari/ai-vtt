@@ -1,5 +1,5 @@
 // FLUX Kontext on fal.ai paints a map from a text description only (no input picture): the Phandalin town ('town') or the Sword Coast-style regional map ('region'). The text is the same one used for our
-// ChatGPT version. Writes <name>-kontext.png, <name>-prompt.txt and <name>-results.json in public/scenarios/compare/image-test/ for public/image-test.html. Usage: node scripts/image-test-town.mjs [town|region]
+// ChatGPT version. Writes <name>-kontext.png, <name>-prompt.txt and <name>-results.json in public/scenarios/compare/image-test/ for public/dev/image-test.html. Usage: node scripts/image-test-town.mjs [town|region]
 import { copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

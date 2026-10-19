@@ -29,7 +29,7 @@
   var EFFECT_ORDER = [];
   var loading = null;
   function load() {
-    if (!loading) loading = fetch('/effect-data.json').then(function (r) { return r.json(); }).then(function (j) {
+    if (!loading) loading = fetch('/data/effect-data.json').then(function (r) { return r.json(); }).then(function (j) {
       Object.keys(j.effects || {}).forEach(function (name) {
         var e = j.effects[name];
         EFFECTS[name] = [e.label, e.color, e.icon, e.rule, e.ends, e.rounds || 0, e.minutes || 0, !!e.concentration, e.endsOn || ''];

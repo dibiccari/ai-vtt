@@ -1,7 +1,7 @@
 // Creatures asked for on one square (a pin) are spread around it: pure helper TokenSize.scatter.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import '../public/token-size.js';
+import '../public/js/token-size.js';
 
 const TS = globalThis.TokenSize;
 const free = (taken, w = 40, h = 40, wall) => (c, r) => c >= 0 && r >= 0 && c < w && r < h && !taken.some((t) => t.col === c && t.row === r) && !(wall && wall(c, r));

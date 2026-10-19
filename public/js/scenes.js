@@ -1,6 +1,6 @@
 // Ready-made starting boards for built-in scenario campaigns (the map, the party's places and the NPCs).
 // Used by the tabletop (the first time a scenario campaign is opened) and by the Test Lab (to start one over).
-// Needs public/uvtt.js for importing the scenario's .dd2vtt map.
+// Needs public/js/uvtt.js for importing the scenario's .dd2vtt map.
 (function (root) {
   'use strict';
 
