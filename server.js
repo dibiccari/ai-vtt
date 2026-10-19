@@ -35,6 +35,8 @@ import { itemFromSrd, restCharacter, MAX_ATTUNED, EFFECT_KINDS, seedFromSheet, n
 import { liveMiddleware, liveHandler, revisionOf } from './lib/live.js';
 import { normalizeTrack, trackView, hitDice, describeClock, readClock, writeClock, restOnClock, splitXp, xpForCr } from './lib/rules-track.js';
 import { processTrackUpdates } from './lib/rules-apply.js';
+import { pronounce } from './lib/pronounce.js';
+import { createPlayLog, logAsText } from './lib/playlog.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +49,7 @@ if (process.env.VTT_KEEP_CHARACTER_IDS !== '1') { try { const moved = migrateCha
 characterAliases = readAliases(path.join(__dirname, 'data'));
 const canonId = (id) => canonicalId(characterAliases, String(id ?? ''));
 const usageTracker = createUsageTracker(path.join(__dirname, 'data'));
+const playLog = createPlayLog(path.join(__dirname, 'data'));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
@@ -1584,7 +1587,7 @@ app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
   const src = path.join(CAMPAIGNS_DIR, root), dest = path.join(CAMPAIGNS_DIR, id);
   await mkdir(dest, { recursive: true });
   for (const f of await readdir(src)) {
-    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
+    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json', 'pronunciations.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
   }
   const known = new Set((await listCharacters()).map((c) => c.id));
   const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
@@ -1689,6 +1692,14 @@ const DEFAULT_CHARACTER_VOICES = {
 };
 const KNOWN_OPENAI_VOICES = new Set(['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse']);
 
+// Spoken forms of names the voices get wrong (data/campaigns/<id>/pronunciations.json, e.g. {"Raechyl": "Rachel"}); the written text is not changed.
+async function loadPronunciations() {
+  try {
+    const parsed = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, await getActiveCampaignId(), 'pronunciations.json'), 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch { return {}; }
+}
+
 // The active campaign's named-character voices. The first campaign is seeded with the Phandelver cast.
 async function loadCharacterVoices(id = null) {
   const campaignId = id || await getActiveCampaignId();
@@ -1734,9 +1745,9 @@ async function resolveVoice(tag, speaker) {
 
 const voiceProviderNow = () => (DM_NONE ? 'none' : VOICE_PROVIDER);        // a person running the game needs no narration: the voice of the characters the Dungeon Master plays
 const narrationProviderNow = () => (DM_NONE ? 'none' : NARRATION_PROVIDER === 'same' ? VOICE_PROVIDER : NARRATION_PROVIDER);      // the narrator reading the scene
-app.get('/api/tts/status', (_req, res) => {
-  res.json({ enabled: Boolean(OPENAI_KEY) && (voiceProviderNow() === 'openai' || narrationProviderNow() === 'openai'), provider: voiceProviderNow(), narration: narrationProviderNow(), model: TTS_MODEL });
-});
+app.get('/api/tts/status', asyncRoute(async (_req, res) => {
+  res.json({ pronunciations: await loadPronunciations(), enabled: Boolean(OPENAI_KEY) && (voiceProviderNow() === 'openai' || narrationProviderNow() === 'openai'), provider: voiceProviderNow(), narration: narrationProviderNow(), model: TTS_MODEL });
+}));
 
 // Which cloud voice will each (voice tag, speaker) pair use? Used to label the UI.
 app.post('/api/tts/voices', asyncRoute(async (req, res) => {
@@ -1754,7 +1765,7 @@ app.post('/api/tts/voices', asyncRoute(async (req, res) => {
 app.post('/api/tts', asyncRoute(async (req, res) => {
   if (voiceProviderNow() !== 'openai' && narrationProviderNow() !== 'openai') return res.status(503).json({ error: 'ChatGPT voices are not selected in Settings.' });
   if (!OPENAI_KEY) return res.status(503).json({ error: 'Cloud voices are off: set OPENAI_API_KEY in .env and restart.' });
-  const text = String(req.body?.text ?? '').trim().slice(0, 1500);
+  const text = pronounce(String(req.body?.text ?? '').trim().slice(0, 1500), await loadPronunciations());
   if (!text) return res.status(400).json({ error: 'text is required' });
   const tag = TTS_PROFILES[req.body?.voice] ? req.body.voice : 'narrator';
   const speaker = String(req.body?.speaker ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator';
@@ -1977,10 +1988,11 @@ Keeping sheets up to date: apply routine changes from play with updateCharacter 
 
 Levelling up is a conversation. When a character has enough XP for the next level (300, 900, 2,700, 6,500, 14,000, 23,000, 34,000, 48,000, 64,000, 85,000 and so on), tell the player and ask what they want. Do not change the sheet until they have answered. List what they gain at that level: hit points (offer the fixed average for the hit die plus Constitution modifier, or a roll), the class features of that level, a subclass at 3 for most classes, new spells or slots for casters, and at levels 4, 8, 12, 16 and 19 a choice between ability score increases and a feat. Ask them to pick (which skills or expertise, which ability scores, which spells, which feat), one short question at a time, then call updateCharacter once with everything they chose (classLevel, maxHp and hp, abilities, skill, spell and slots edits, and an edit to Features and Traits that lists the new features), and summarise what changed. Only use options that exist in 5th edition for their class and level, and say so if a request is not allowed.
 
+What the characters know: the names in the module are for you. Do not name a person, a creature or a place the characters have not been told about or met, even when you know who they are (two dead horses are two dead horses, an empty map case is an empty map case): describe what the characters can perceive, and let the story, a clue or a conversation give the name. Keep what you know apart from what they know, and take the table notes as the last word on it.
+
 Secrets stay secret. Each token in the board state has hidden, kind and visibleToParty. Never mention, name, describe or hint at a token that is hidden or not visibleToParty (a hiding or invisible creature, a trap, an enemy in another room): not in the narrative, not in the voice lines, not in a rules note. An undiscovered trap is not mentioned at all until a character finds it with a check, triggers it, or it is revealed. Narrate only what the characters can perceive from where they stand. When a hidden thing is found or acts, call revealToken and then describe it.
 
-The table plays in voice mode: your reply is read aloud. Split the full reply into voiceLines, in order, so that
-the voiceLines texts joined together equal the narrative. Use speaker "Narrator" with voice "narrator" for narration and
+The table plays in voice mode: your reply is read aloud. Write the full reply as voiceLines, in order: there is no separate narrative field, the table joins the lines into the text the players read. Use speaker "Narrator" with voice "narrator" for narration and
 rules results; give every NPC or monster line its own entry with the NPC's name as speaker and the voice profile that
 fits them best (gruff, sly, noble, elderly, child, monstrous, ethereal, feminine, masculine; beast for a medium animal that has been given speech, such as a wolf or dog, smallbeast for a small one (a bird, rat, cat, squirrel or toad) and largebeast for a large one (a bear, horse, ox or great cat), all with Speak with Animals, and undead for ghosts, skeletons, zombies and the dead who answer through Speak with Dead). Keep the same voice for the
 same NPC across turns. Write dice math in a speakable way. When the player's input is marked as spoken, it was
@@ -2112,7 +2124,6 @@ const DM_SCHEMA = {
   type: 'object',
   properties: {
     rolls: { type: 'array', items: { type: 'string' } },
-    narrative: { type: 'string' },
     mapUpdates: {
       type: 'array',
       items: {
@@ -2132,7 +2143,7 @@ const DM_SCHEMA = {
       }
     }
   },
-  required: ['rolls', 'narrative', 'voiceLines', 'mapUpdates'],
+  required: ['rolls', 'voiceLines', 'mapUpdates'],
   additionalProperties: false
 };
 DM_SCHEMA.properties.voiceLines = {
@@ -2148,6 +2159,8 @@ DM_SCHEMA.properties.voiceLines = {
     additionalProperties: false
   }
 };
+// The reply is written once, as voiceLines (the table joins them into the chat text): a separate narrative field made the DM write every reply twice, which doubled the time it took.
+DM_SCHEMA.properties = { rolls: DM_SCHEMA.properties.rolls, voiceLines: DM_SCHEMA.properties.voiceLines, mapUpdates: DM_SCHEMA.properties.mapUpdates };
 
 function cleanVoiceLines(lines) {
   if (!Array.isArray(lines)) return [];
@@ -2248,6 +2261,8 @@ async function partyForPrompt(campaign) {
 }
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
+  const t0 = Date.now();
+  let apiMs = 0, logCampaign = '', lastUsage = null, lastModel = '', logRounds = 0;
   const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas, dmPad, places, visitedMaps } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
@@ -2264,6 +2279,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
 
   if (!(await chosenCampaignId())) return res.status(409).json({ error: 'No campaign is selected. Open the Campaigns page and press Continue on one.' });
   const activeCampaign = await getActiveCampaignId();
+  logCampaign = activeCampaign;
   const availableMaps = await withSavedStarts(await mapsForCampaign(activeCampaign));
   const state = {
     mapName: String(mapName ?? 'blank grid').slice(0, 120),
@@ -2349,7 +2365,9 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     let dmMessages = buildHistory(history, text, state, inputMode, await dmMapFor(mapUrl));
     let response, rounds = 0;
     for (;;) {
+      const callStart = Date.now();
       response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });
+      apiMs += Date.now() - callStart; lastUsage = response.usage || null; lastModel = response.model || MODEL; logRounds = rounds;
       usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
       if (response.stop_reason !== 'tool_use' || rounds >= 6) break;
       rounds += 1;
@@ -2370,9 +2388,9 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     let parsed;
     try { parsed = JSON.parse(block.text); } catch { return res.status(502).json({ error: 'The DM answered in a form the table could not read. Nothing was applied: try again.' }); }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return res.status(502).json({ error: 'The DM answered in a form the table could not read. Nothing was applied: try again.' });
-    const narrative = String(parsed.narrative ?? '');
     const rolls = (Array.isArray(parsed.rolls) ? parsed.rolls : []).map((x) => String(x ?? '').trim().slice(0, 200)).filter(Boolean).slice(0, 30);
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
+    const narrative = String(parsed.narrative ?? '').trim() || voiceLines.map((l) => l.text).join(' ');
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
     const allUpdates = await expandTokenUpdates((Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []).filter((u) => u && typeof u === 'object' && !Array.isArray(u)), adventureMonsters);
     const mapProblems = [];
@@ -2407,6 +2425,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
+    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
     res.json({
       rolls,
       narrative,
@@ -2421,6 +2440,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     });
     if (bookkeeperOn && narrative.trim()) keepJournal(activeCampaign, { message: text, narrative, rolls }).catch((err) => console.warn('Bookkeeper failed:', err.message));
   } catch (err) {
+    if (logCampaign) playLog.log(logCampaign, { kind: 'chat', player: text, error: String(err?.message || err).slice(0, 600), status: err?.status || 500, apiMs, totalMs: Date.now() - t0 });
     if (err instanceof Anthropic.RateLimitError) {
       return res.status(429).json({ error: 'The DM is overwhelmed (rate limited). Try again shortly.' });
     }
@@ -2430,6 +2450,23 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     }
     throw err;
   }
+}));
+
+// The play log (data/logs/<campaign>/<day>.jsonl, git-ignored): the browser adds what it did with the voices; the files are read back as JSON lines or as text.
+app.post('/api/log', localOnly, asyncRoute(async (req, res) => {
+  const b = req.body && typeof req.body === 'object' ? req.body : {};
+  if (await chosenCampaignId()) playLog.log(await getActiveCampaignId(), { kind: 'speech', what: String(b.what ?? '').slice(0, 60), detail: String(b.detail ?? '').slice(0, 300), ms: Number.isFinite(Number(b.ms)) ? Math.round(Number(b.ms)) : undefined });
+  res.json({ ok: true });
+}));
+app.get('/api/campaigns/:id/log', asyncRoute(async (req, res) => {
+  const id = safeCampaignId(req.params.id);
+  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
+  const days = await playLog.days(id);
+  const day = String(req.query.day || days[days.length - 1] || '');
+  const raw = await playLog.read(id, day);
+  if (req.query.format === 'text') return res.type('text/plain; charset=utf-8').send(logAsText(raw));
+  if (req.query.format === 'jsonl') return res.type('text/plain; charset=utf-8').send(raw);
+  res.json({ days, day });
 }));
 
 // ---------------------------------------------------------------- errors

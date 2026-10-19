@@ -13,7 +13,7 @@ import { schemaForMode } from '../lib/dm-schema-modes.js';
 import { movedFor } from '../lib/services.js';
 const LOST = 'lost-mine-of-phandelver';
 let fake, s;
-const reply = { rolls: ['Goblin attack: 14 to hit'], narrative: 'A goblin leaps from the brush.', voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'A goblin leaps from the brush.' }], mapUpdates: [] };
+const reply = { rolls: ['Goblin attack: 14 to hit'], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'A goblin leaps from the brush.' }], mapUpdates: [] };
 const tok = (o) => ({ id: 'x', name: 'X', col: 1, row: 1, color: '#fff', isPC: false, hidden: false, kind: 'creature', visibleToParty: true, ...o });
 
 before(async () => {
@@ -45,7 +45,7 @@ test('the request to the model: system blocks, strict schema, board state with d
   const msgs = req.messages;
   assert.equal(msgs[0].role, 'user'); assert.equal(msgs.at(-1).role, 'user');
   assert.ok(msgs.every((m, i) => i === 0 || m.role !== msgs[i - 1].role), 'roles alternate');
-  assert.deepEqual(r.json.rolls, reply.rolls); assert.equal(r.json.narrative, reply.narrative);
+  assert.deepEqual(r.json.rolls, reply.rolls); assert.equal(r.json.narrative, 'A goblin leaps from the brush.', 'the chat text is the voice lines joined');
   assert.deepEqual(validateSchema(reply, DM_SCHEMA), []);
 });
 
@@ -202,4 +202,29 @@ test('a reply that was cut short or is not an object is refused with a clear mes
   setReply({ ...reply, mapUpdates: [5, 'text', null, [1], { type: 'setHp', tokenId: 'x', hp: 3 }] });
   r = await s.post('/api/chat', { message: 'I look around' });
   assert.equal(r.status, 200, r.text); assert.ok(r.json.mapUpdates.every((u) => u && typeof u === 'object' && !Array.isArray(u)), 'only objects reach the table: ' + JSON.stringify(r.json.mapUpdates));
+});
+
+test('the play log: every exchange is written to data/logs and can be read back as text; the browser can add voice events', async () => {
+  setReply({ rolls: ['Goblin attack: 14 to hit'], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'The log remembers this line.' }, { speaker: 'Goblin', voice: 'monstrous', text: 'Shiny boots!' }], mapUpdates: [] });
+  const r = await s.post('/api/chat', { message: '[Edric] I wave at the log', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: [], notes: ['A table note for the log'] });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(r.json.narrative, 'The log remembers this line. Shiny boots!', 'the chat text is the voice lines joined');
+  assert.equal((await s.post('/api/log', { what: 'first sound', detail: 'chatgpt', ms: 812.4 })).status, 200);
+  await new Promise((done) => setTimeout(done, 300));
+  const days = (await s.get(`/api/campaigns/${LOST}/log`)).json;
+  assert.ok(days.days.length >= 1 && days.day);
+  const text = (await s.get(`/api/campaigns/${LOST}/log?format=text`)).text;
+  assert.match(text, /PLAYER: \[Edric\] I wave at the log/);
+  assert.match(text, /table notes: A table note for the log/);
+  assert.match(text, /Goblin \(monstrous\): Shiny boots!/);
+  assert.match(text, /ms waiting for the model/);
+  assert.match(text, /voice: first sound - chatgpt/);
+  assert.equal((await s.get(`/api/campaigns/nobody/log`)).status, 404);
+});
+
+test('pronunciations: the campaign file swaps names for the voices and the table gets the map', async () => {
+  const st = (await s.get('/api/tts/status')).json;
+  assert.equal(st.pronunciations.Raechyl, 'Rachel');
+  const { pronounce } = await import('../lib/pronounce.js');
+  assert.equal(pronounce('Raechyl kneels; Raechyl\'s sword. Raechylson stays.', { Raechyl: 'Rachel' }), "Rachel kneels; Rachel's sword. Raechylson stays.");
 });

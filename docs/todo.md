@@ -51,3 +51,8 @@
 
 ## On hold
 - Multiplayer (keep it in mind).
+
+## From the first live session (Nov 2026)
+- Speed: the reply is no longer written twice (done). Still open if it is slow: let the DM stream its reply and speak the first lines while the rest is written, a shorter reply by default, a lighter model for plain scenes, and trimming the board state sent each turn. The play log (data/logs) now records the wait for the model and the delay to the first sound, so measure before changing more.
+- The character sheet's printed HP box (HPCurrent) is not updated when hit points change in play (only the record is); decide whether the sheet page should show the record's HP.
+- Transcript export: the play log is the answer (readable at /api/campaigns/<id>/log?format=text); a button on the Journal page to download it is not built.

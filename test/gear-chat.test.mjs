@@ -9,7 +9,7 @@ import { ID } from './helpers/ids.mjs';
 const LOST = 'lost-mine-of-phandelver';
 let fake, s;
 const gear = (o) => ({ type: 'gear', action: 'add', target: ID.edric, to: '', name: '', qty: 1, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...o });
-const reply = (...updates) => ({ rolls: [], narrative: 'The party sorts its gear.', voiceLines: [], mapUpdates: updates });
+const reply = (...updates) => ({ rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: updates });
 const say = async (...updates) => { fake.__set(reply(...updates)); const r = await s.post('/api/chat', { message: 'gear' }); assert.equal(r.status, 200, r.text); return r.json; };
 const character = async (id) => (await s.get('/api/characters')).json.find((c) => c.id === id);
 const party = async () => (await s.get('/api/party')).json;

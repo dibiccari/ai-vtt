@@ -11,7 +11,7 @@ const { expandSheetEdits, expandTokenUpdates, gearToPartyUpdates, DM_SCHEMA, VOI
 const T = (action, extra = {}) => ({ type: 'token', action, tokenId: 't1', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 0, ac: 0, ...extra });
 
 test('DM_SCHEMA: shape, closed objects, every update variant lists all its fields as required', () => {
-  assert.deepEqual(DM_SCHEMA.required, ['rolls', 'narrative', 'voiceLines', 'mapUpdates']);
+  assert.deepEqual(DM_SCHEMA.required, ['rolls', 'voiceLines', 'mapUpdates']);
   const variants = DM_SCHEMA.properties.mapUpdates.items.anyOf;
   assert.deepEqual(variants.map((v) => v.properties.type.enum[0]), ['token', 'setHp', 'changeMap', 'gear', 'journal', 'addWall', 'updateCharacter']);
   for (const v of variants) {
@@ -22,13 +22,14 @@ test('DM_SCHEMA: shape, closed objects, every update variant lists all its field
 });
 
 test('validateSchema accepts a correct reply and names what is wrong in broken ones', () => {
-  const ok = { rolls: ['Goblin: 14 to hit'], narrative: 'x', voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: [T('move'), { type: 'setHp', characterId: ID.edric, hp: 3 }] };
+  const ok = { rolls: ['Goblin: 14 to hit'], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: [T('move'), { type: 'setHp', characterId: ID.edric, hp: 3 }] };
   assert.deepEqual(validateSchema(ok, DM_SCHEMA), []);
-  assert.ok(validateSchema({ ...ok, narrative: 5 }, DM_SCHEMA).length);
+  assert.ok(validateSchema({ ...ok, voiceLines: 5 }, DM_SCHEMA).length);
+  assert.ok(validateSchema({ ...ok, narrative: 'x' }, DM_SCHEMA).length, 'there is no separate narrative: the reply is written once, as voiceLines');
   assert.ok(validateSchema({ ...ok, extra: 1 }, DM_SCHEMA).some((p) => /extra: not allowed/.test(p)));
   assert.ok(validateSchema({ ...ok, voiceLines: [{ speaker: 'a', voice: 'robot', text: 'x' }] }, DM_SCHEMA).length);
   assert.ok(validateSchema({ ...ok, mapUpdates: [{ type: 'token', action: 'dance' }] }, DM_SCHEMA).length);
-  assert.ok(validateSchema({ rolls: [], narrative: '', mapUpdates: [] }, DM_SCHEMA).some((p) => /voiceLines: missing/.test(p)));
+  assert.ok(validateSchema({ rolls: [], mapUpdates: [] }, DM_SCHEMA).some((p) => /voiceLines: missing/.test(p)));
 });
 
 test('expandTokenUpdates: simple actions become their specific updates', async () => {

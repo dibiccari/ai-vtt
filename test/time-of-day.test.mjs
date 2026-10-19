@@ -10,7 +10,7 @@ import { startServer, fakeAnthropic, boardStateOf } from './helpers/sandbox.mjs'
 const { DM_SCHEMA, expandTokenUpdates } = loadServerPieces();
 const T = (o) => ({ type: 'token', action: 'timeofday', tokenId: '', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 0, ac: 0, ...o });
 const actionsOf = (s) => s.properties.mapUpdates.items.anyOf.find((v) => v.properties.type.enum[0] === 'token').properties.action.enum;
-const reply = (...u) => ({ rolls: [], narrative: 'Evening comes.', voiceLines: [], mapUpdates: u });
+const reply = (...u) => ({ rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: u });
 
 test('every one of the four parts of the day is accepted, whatever the case or spacing, and nothing else is', async () => {
   for (const v of ['day', 'dawn', 'dusk', 'night']) {

@@ -97,7 +97,8 @@ for (const f of (await readdir(path.join(ROOT, 'data', 'characters'))).filter((x
 for (const c of chars.filter((x) => x.sheet && Object.keys(x.sheet).length > 20)) {
   test(`saved character ${c.id}: the record and the official sheet agree`, () => {
     const s = c.sheet;
-    assert.equal(Number(s.HPMax), c.maxHp); assert.equal(Number(s.HPCurrent), c.hp); assert.equal(Number(s.AC), c.ac);
+    assert.equal(Number(s.HPMax), c.maxHp); assert.equal(Number(s.AC), c.ac);
+    assert.ok(Number(s.HPCurrent) >= 0 && Number(s.HPCurrent) <= c.maxHp, 'the sheet HP box is in range (play changes the record, not the printed box)');
     assert.ok(c.hp >= 0 && c.hp <= c.maxHp);
     for (const [k, f] of Object.entries({ str: ['STR', 'STRmod'], dex: ['DEX', 'DEXmod '], con: ['CON', 'CONmod'], int: ['INT', 'INTmod'], wis: ['WIS', 'WISmod'], cha: ['CHA', 'CHamod'] })) {
       assert.equal(Number(s[f[0]]), c.abilities[k], `${k} score`);

@@ -8,7 +8,7 @@ const { DM_SCHEMA } = loadServerPieces();
 const variantsOf = (s) => s.properties.mapUpdates.items.anyOf;
 const actionsOf = (s) => variantsOf(s).find((v) => v.properties.type.enum[0] === 'token').properties.action.enum;
 const types = (s) => variantsOf(s).map((v) => v.properties.type.enum[0]);
-const reply = (u) => ({ rolls: [], narrative: 'x', voiceLines: [], mapUpdates: u });
+const reply = (u) => ({ rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'x' }], mapUpdates: u });
 const tokenUpd = (action) => ({ type: 'token', action, tokenId: '', name: '', col: 0, row: 0, color: '', hidden: false, kind: 'creature', condition: '', rounds: 0, monster: '', value: 0, ac: 0 });
 
 test('mode follows the combat tracker', () => {

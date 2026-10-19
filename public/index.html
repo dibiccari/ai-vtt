@@ -3870,7 +3870,7 @@ async function sendTurn(spokenText, opts) {
   if (!auto) state.autoTurns = 0;
   const text = (typeof spokenText === 'string' ? spokenText : input.value).trim();
   if (!text) { toast('Describe your action first'); input.focus(); return; }
-  voice.cancelSpeech();
+  if (!auto) voice.cancelSpeech();       // the table's own nudges must not cut off the narration that is playing (that is how a lot of it went unheard)
   const active = activeToken();
   const speaker = opts && opts.as ? opts.as : active;
   const content = speaker ? `[${speaker.name}] ${text}` : text;
@@ -3918,7 +3918,7 @@ async function sendTurn(spokenText, opts) {
     applyCharacterUpdates(data.characterUpdates, data.characterProblems);
     if (Array.isArray(data.partyNotes) && data.partyNotes.length) addChat('system', '🎒 ' + data.partyNotes.join('; '));
     if (Array.isArray(data.journalAdded) && data.journalAdded.length) addChat('system', '📓 Journal: ' + data.journalAdded.map((e) => e.title).join(', '));
-    if (lines.length) voice.speak(lines, msgEl);
+    if (lines.length) voice.speak(lines, msgEl, { queue: auto });       // a reply to a table nudge waits for the narration still playing
     ok = true;
   } catch (err) {
     addChat('system', `Could not reach the AI DM: ${err.message}`);
@@ -3946,6 +3946,7 @@ async function sendTurn(spokenText, opts) {
 function aiTakesItsTurn() {
   const t = activeToken();
   if (!state.combat.active || !t || t.isPC || t.dead || isSummon(t) || state.busy || state.autoTurns >= 12) return;
+  if (combatTokens().some((c) => c.isPC && !Number.isFinite(c.initiative))) return;       // the order is not settled until every player has an initiative: asking the DM to play a creature now only makes it loop (it cannot end a turn the tracker will not advance)
   state.autoTurns += 1;
   sendTurn(`It is ${t.name}'s turn.`, { typed: true, auto: true, as: { name: 'Table' } });
 }
@@ -4199,7 +4200,14 @@ const voice = (() => {
     return choice;
   }
 
+  let speechQueue = [];       // replies that came while narration was playing (table nudges), spoken in order
+  // What the voices did goes into the play log on the server (data/logs), so a session can be reviewed: when the first sound came, what was cut off, what failed.
+  let speechT0 = 0, speechFirst = true;
+  const logSpeech = (what, detail, ms) => { if (/[?&](nosave|watch)=1/.test(location.search)) return; try { fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what, detail, ms }) }).catch(() => {}); } catch { /* no log */ } };
+  const firstSound = (provider) => { if (speechFirst) { speechFirst = false; logSpeech('first sound', provider, performance.now() - speechT0); } };
   function cancelSpeech() {
+    if (speaking) logSpeech('cut off', speechQueue.length ? `${speechQueue.length} queued reply(ies) dropped` : 'narration stopped before it finished');
+    speechQueue = [];
     speakGen++;
     if (speaking) setMicMuted(false);
     speaking = false;
@@ -4210,7 +4218,7 @@ const voice = (() => {
   }
 
   /* ---------- cloud voices (server /api/tts, OpenAI) ---------- */
-  const cloud = { enabled: false, provider: 'openai', narration: 'openai', audio: new Audio(), resolve: null };
+  const cloud = { enabled: false, provider: 'openai', narration: 'openai', pronunciations: {}, audio: new Audio(), resolve: null };
 
   // Settings: the Dungeon Master voice (the characters the DM plays) and the Narration voice (the narrator) are each ChatGPT, Microsoft or None (text only).
   const isNarrator = (line) => String(line.speaker || 'Narrator') === 'Narrator';
@@ -4226,7 +4234,7 @@ const voice = (() => {
   async function checkCloud() {
     try {
       const s = await api('/api/tts/status');
-      cloud.enabled = Boolean(s.enabled); cloud.provider = s.provider || 'openai'; cloud.narration = s.narration || cloud.provider;
+      cloud.enabled = Boolean(s.enabled); cloud.provider = s.provider || 'openai'; cloud.narration = s.narration || cloud.provider; cloud.pronunciations = s.pronunciations || {};
     } catch { cloud.enabled = false; }
     updateEngineNote();
   }
@@ -4288,17 +4296,21 @@ const voice = (() => {
     }, TAIL_GRACE_MS);
   }
 
+  // The campaign's spoken forms of names (pronunciations.json), for the Microsoft voices; the server applies them itself for ChatGPT.
+  const escapeRe = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, (c) => '\\' + c);
+  const spokenForm = (text) => Object.entries(cloud.pronunciations).reduce((t, [w, sp]) => t.replace(new RegExp('(?<![\\p{L}\\p{N}])' + escapeRe(w) + '(?![\\p{L}\\p{N}])', 'giu'), sp), String(text));
+
   // One line spoken by the Microsoft (browser) voices; resolves when it ends.
   function speakBrowserLine(line, node, gen) {
     return new Promise((resolve) => {
       if (!synth) { resolve(); return; }
       const profile = VOICE_PROFILES[line.voice] || VOICE_PROFILES.narrator;
-      const u = new SpeechSynthesisUtterance(line.text);
+      const u = new SpeechSynthesisUtterance(spokenForm(line.text));
       const v = pickVoice(line.speaker || 'Narrator', line.voice);
       if (v) { u.voice = v; u.lang = v.lang; }
       u.pitch = profile.pitch;
       u.rate = profile.rate;
-      u.onstart = () => { if (gen === speakGen && node) node.classList.add('speaking'); };
+      u.onstart = () => { firstSound('microsoft'); if (gen === speakGen && node) node.classList.add('speaking'); };
       u.onend = () => { if (node) node.classList.remove('speaking'); resolve(); };
       u.onerror = () => { if (node) node.classList.remove('speaking'); resolve(); };
       synth.speak(u);
@@ -4319,11 +4331,12 @@ const voice = (() => {
         try {
           const url = await clips[i];
           if (gen !== speakGen) return;
-          const played = await playClip(url, () => { if (gen === speakGen && node) node.classList.add('speaking'); }, line.voice);
+          const played = await playClip(url, () => { firstSound('chatgpt'); if (gen === speakGen && node) node.classList.add('speaking'); }, line.voice);
           if (node) node.classList.remove('speaking');
           if (gen !== speakGen) return;
           if (played) continue;
         } catch (err) {
+          logSpeech('chatgpt clip failed', err.message);
           if (!warned) { warned = true; toast(`ChatGPT voice failed (${err.message}). Using Microsoft voices.`, 'error', 5000); }
         }
       }
@@ -4332,10 +4345,18 @@ const voice = (() => {
     }
   }
 
-  function speak(lines, msgEl) {
+  function speak(lines, msgEl, opts) {
     if (!$('#speakToggle').checked || (cloud.provider === 'none' && cloud.narration === 'none')) return;
+    if (opts && opts.queue && speaking) { speechQueue.push([lines, msgEl]); logSpeech('queued', 'a reply to a table nudge waits for the narration that is playing'); return; }
     const gen = beginSpeaking();
-    speakLines(lines, msgEl, gen).then(() => endSpeaking(gen), () => endSpeaking(gen));
+    speechT0 = performance.now(); speechFirst = true;
+    const run = (ls, el) => speakLines(ls, el, gen).then(() => next(), () => next());
+    const next = () => {
+      if (gen !== speakGen) return;
+      const q = speechQueue.shift();
+      if (q) run(q[0], q[1]); else endSpeaking(gen);
+    };
+    run(lines, msgEl);
   }
 
   function init() {
@@ -4816,7 +4837,7 @@ function bindUi() {
   });
   $('#dmView').addEventListener('change', (e) => {
     state.dmView = e.target.checked;
-    store.set('vtt.dmView', state.dmView);
+    store.set('vtt.dmView.' + state.campaignId, state.dmView);
     renderTurnBar();
     renderCombat();
     requestRender();
@@ -4923,7 +4944,7 @@ async function init() {
       if (board && board.mapUrl) { try { Object.keys(localStorage).filter((k) => k.startsWith('vtt.fog.')).forEach((k) => localStorage.removeItem(k)); } catch { /* storage blocked */ } }
     } catch (err) { toast(`Could not build the starting scene: ${err.message}`, 'error', 6000); }
   }
-  state.dmView = store.get('vtt.dmView', false) === true;
+  state.dmView = store.get('vtt.dmView.' + state.campaignId, false) === true;       // per campaign: the Test Lab's DM view (ghosts of hidden creatures) never shows in a real game
   $('#dmView').checked = state.dmView;
   // Light, Save scene and the scene picker are setup tools, not table controls: they stay hidden (the DM sets the lights, and scenes come from the campaign).
   state.chat = store.get(chatKey(), []);

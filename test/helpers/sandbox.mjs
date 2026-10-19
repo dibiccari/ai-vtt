@@ -14,7 +14,8 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
   for (const f of ['server.js', 'package.json']) await cp(path.join(ROOT, f), path.join(dir, f));
   await cp(path.join(ROOT, 'lib'), path.join(dir, 'lib'), { recursive: true });
   // data is copied, except the map packets (data/mapsets/<guid>/): their pictures are linked, only set.json is copied, so a test that edits a set never touches the real one
-  await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true, filter: (src) => !src.startsWith(path.join(ROOT, 'data', 'mapsets') + path.sep) || src.endsWith('set.json') || (src.split(path.sep).length === path.join(ROOT, 'data', 'mapsets').split(path.sep).length + 1) });
+  const PLAYED = new Set(['clock.json', 'fog.json', 'merchants.json']);       // what playing writes (the clock, the saved game): a test starts from a campaign nobody has played, whatever the real one looks like
+  await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true, filter: (src) => !(PLAYED.has(path.basename(src)) && src.startsWith(path.join(ROOT, 'data', 'campaigns') + path.sep)) && (!src.startsWith(path.join(ROOT, 'data', 'mapsets') + path.sep) || src.endsWith('set.json') || (src.split(path.sep).length === path.join(ROOT, 'data', 'mapsets').split(path.sep).length + 1)) });
   for (const ent of await readdir(path.join(ROOT, 'data', 'mapsets'), { withFileTypes: true })) {
     if (!ent.isDirectory()) continue;
     for (const f of await readdir(path.join(ROOT, 'data', 'mapsets', ent.name))) if (f !== 'set.json') await symlink(path.join(ROOT, 'data', 'mapsets', ent.name, f), path.join(dir, 'data', 'mapsets', ent.name, f));
@@ -72,7 +73,10 @@ export async function fakeAnthropic(replies) {
       let parsed = {}; try { parsed = JSON.parse(body); } catch { /* ignore */ }
       requests.push(parsed);
       const next = replies.length > 1 ? replies.shift() : replies[0];
-      const out = typeof next === 'function' ? next(parsed) : next;
+      let out = typeof next === 'function' ? next(parsed) : next;
+      // Older fixtures write the reply as narrative + voiceLines; the real reply form has voiceLines only (the table joins them), so a narrative that differs from the lines becomes one Narrator line.
+      if (out && typeof out === 'object' && 'narrative' in out && 'mapUpdates' in out) { const { narrative, ...rest } = out; const joined = (rest.voiceLines || []).map((l) => l.text).join(' ');
+        out = { ...rest, voiceLines: joined === narrative || !narrative ? (rest.voiceLines || []) : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }] }; }
       res.setHeader('content-type', 'application/json');
       if (out && out.__status) { res.statusCode = out.__status; return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: out.__message || 'fake error' } })); }
       if (out && out.__tool_use) return res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: out.__tool_use.map((t, i) => ({ type: 'tool_use', id: 'toolu_fake' + i, name: t.name, input: t.input })), stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 5 } }));
