@@ -635,8 +635,8 @@ test('settings: the Dungeon Master, the voices and each kind of map have their o
   const who = async () => (await s.post('/api/tts/voices', { items: [{ speaker: 'Narrator', voice: 'narrator' }, { speaker: 'Toblen Stonehill', voice: 'masculine' }, { speaker: 'Some Goblin', voice: 'monstrous' }] })).json.voices.map((v) => v.voice);
   const picked = await who(); assert.equal(picked[0], 'shimmer', 'the narrator speaks with the chosen voice'); assert.notEqual(picked[1], 'shimmer', 'the NPCs keep their own'); 
   await s.post('/api/settings', { DM_VOICE: 'auto' });
-  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, ''); assert.notEqual((await who())[0], 'shimmer');
+  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, 'fable', 'no choice means the default narrator voice, Fable'); assert.equal((await who())[0], 'fable');
   await s.post('/api/settings', { DM_VOICE: 'bogus' });
-  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, '', 'an unknown voice name is ignored');
+  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, 'fable', 'an unknown voice name is ignored');
   await s.post('/api/settings', { VOICE_PROVIDER: 'openai', IMAGE_PROVIDER_REGIONAL: 'none' });
 });

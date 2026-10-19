@@ -113,7 +113,6 @@
       <select id="voiceProvider">
         <option value="none">None (text only)</option>
         <option value="openai">ChatGPT voices (OpenAI)</option>
-        <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
         <option value="browser">Microsoft voices (this computer)</option>
       </select>
     </label>
@@ -143,7 +142,6 @@
       <select id="npcProvider">
         <option value="none">None (text only)</option>
         <option value="openai">ChatGPT voices (OpenAI)</option>
-        <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
         <option value="browser">Microsoft voices (this computer)</option>
       </select>
     </label>
@@ -300,18 +298,23 @@ const msVoices = () => (synth ? synth.getVoices().filter((v) => /^en/i.test(v.la
 const OPENAI_NOTES = { alloy: 'balanced', ash: 'gravelly, older', ballad: 'soft, theatrical', coral: 'warm, friendly', echo: 'calm, measured', fable: 'storyteller, lively', nova: 'bright, energetic', onyx: 'deep, authoritative', sage: 'wise, steady', shimmer: 'light, airy', verse: 'expressive' };
 let openaiVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
 let savedDmVoice = '';       // the ChatGPT voice saved on the server
+// How good a Microsoft voice is (the same idea as the tabletop's): neural and online voices first.
+const quality = (v) => (/natural|neural|online/i.test(v.name) ? 100 : 0) + (/premium|enhanced|studio|wavenet/i.test(v.name) ? 60 : 0) + (/google/i.test(v.name) ? 40 : 0) + (v.localService ? 0 : 20) - (/desktop|espeak|compact/i.test(v.name) ? 50 : 0);
 function fillVoices(sel, provider, current) {
   sel.innerHTML = '';
   const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  let fallback = '';
   if (provider === 'openai') {
-    add('', 'Automatic (the default narrator voice)');
     for (const v of openaiVoices) add(v, v.charAt(0).toUpperCase() + v.slice(1) + (OPENAI_NOTES[v] ? ' (' + OPENAI_NOTES[v] + ')' : ''));
+    fallback = 'fable';
   } else if (provider === 'browser') {
-    add('', 'Automatic (the best voice this browser has)');
-    for (const v of msVoices()) add(v.name, v.name);
+    const list = msVoices().sort((a, b) => quality(b) - quality(a));
+    for (const v of list) add(v.name, v.name);
+    if (!list.length) add('', 'No Microsoft voices found in this browser');
+    fallback = list.length ? list[0].name : '';
   } else add('', '(no voice)');
-  sel.value = [...sel.options].some((o) => o.value === current) ? current : '';
-  sel.disabled = provider === 'none' || provider === 'claude';
+  sel.value = [...sel.options].some((o) => o.value === current) ? current : fallback;
+  sel.disabled = provider === 'none';
 }
 function showVoice() {
   const person = $('#dmProvider').value === 'none', dmV = person ? 'none' : $('#voiceProvider').value;
@@ -320,8 +323,8 @@ function showVoice() {
   fillVoices($('#dmVoice'), dmV, dmV === 'openai' ? savedDmVoice : dmV === 'browser' ? lsGet('vtt.narratorVoice') : '');
   $('#oaModel').disabled = dmV !== 'openai';
   $('#npcModel').disabled = person || $('#npcProvider').value !== 'openai';
-  $('#npcSample').disabled = person || ['none', 'claude'].includes($('#npcProvider').value);
-  $('#dmSample').disabled = dmV === 'none' || dmV === 'claude';
+  $('#npcSample').disabled = person || $('#npcProvider').value === 'none';
+  $('#dmSample').disabled = dmV === 'none';
   $('#browserNote').hidden = dmV !== 'browser';
 }
 if (synth) { synth.getVoices(); if ('onvoiceschanged' in synth) synth.onvoiceschanged = showVoice; }
@@ -330,7 +333,7 @@ $('#npcProvider').addEventListener('change', showVoice);
 $('#voiceSave').addEventListener('click', () => {
   const dmV = $('#voiceProvider').value, v = $('#dmVoice').value;
   if (dmV === 'browser') lsSet('vtt.narratorVoice', v);
-  save({ VOICE_PROVIDER: dmV, TTS_MODEL: $('#oaModel').value, ...(dmV === 'openai' ? { DM_VOICE: v || 'auto' } : {}) }, $('#voiceMsg'));
+  save({ VOICE_PROVIDER: dmV, TTS_MODEL: $('#oaModel').value, ...(dmV === 'openai' && v ? { DM_VOICE: v } : {}) }, $('#voiceMsg'));
 });
 $('#npcSave').addEventListener('click', () => save({ NPC_VOICE_PROVIDER: $('#npcProvider').value, NPC_TTS_MODEL: $('#npcModel').value }, $('#npcMsg')));
 // Hear a voice before saving it: a ChatGPT voice through the server (one short clip, in the model that is saved), a Microsoft voice right here.

@@ -2572,7 +2572,7 @@ app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
     dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL },
-    voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(DM_VOICE), provider: VOICE_PROVIDER, effective: voiceProviderNow(), npc: NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: NPC_TTS_MODEL, model: TTS_MODEL },
+    voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(DM_VOICE) || TTS_PROFILES.narrator.voices[0], provider: VOICE_PROVIDER, effective: voiceProviderNow(), npc: NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: NPC_TTS_MODEL, model: TTS_MODEL },
     maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },
       imageKeys: { openai: { set: Boolean(IMAGE_KEY || OPENAI_KEY), own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY || OPENAI_KEY) }, gemini: { set: Boolean(GEMINI_KEY), hint: hint(GEMINI_KEY) }, fal: { set: Boolean(FAL_KEY), hint: hint(FAL_KEY) } } }
