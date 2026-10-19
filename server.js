@@ -275,6 +275,19 @@ app.post('/api/characters', asyncRoute(async (req, res) => {
   res.json(character);
 }));
 
+// Only the token (picture and colour) of a saved character, so changing it can never overwrite what the DM changed on the sheet in the meantime.
+app.put('/api/characters/:id/token', localOnly, asyncRoute(async (req, res) => {
+  const id = canonId(safeId(req.params.id));
+  if (!id) return res.status(400).json({ error: 'Invalid id' });
+  let old;
+  try { old = JSON.parse(await readFile(path.join(CHAR_DIR, `${id}.json`), 'utf8')); } catch { return res.status(404).json({ error: 'Character not found' }); }
+  const { image, color } = req.body ?? {};
+  if (image !== undefined) old.image = TOKEN_URL_RE.test(image ?? '') ? image : '';
+  if (color !== undefined && /^#[0-9a-f]{6}$/i.test(color ?? '')) old.color = color;
+  await saveCharacter(old);
+  res.json({ ok: true, image: old.image || '', color: old.color });
+}));
+
 app.delete('/api/characters/:id', asyncRoute(async (req, res) => {
   const id = canonId(safeId(req.params.id));
   if (!id) return res.status(400).json({ error: 'Invalid id' });
@@ -1630,7 +1643,7 @@ app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, r
 // ---------------------------------------------------------------- cloud voices (OpenAI text-to-speech)
 
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
-let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_NONE = process.env.VOICE_PROVIDER === 'none';
+let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
 let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
 const IMAGE_PROVIDERS = ['openai', 'gemini', 'fal'];
 const IMAGE_QUALITIES = ['low', 'medium', 'high', '1K', '2K', '4K', 'standard'];
@@ -1718,8 +1731,9 @@ async function resolveVoice(tag, speaker) {
   return { voice, instructions: speaker === 'Narrator' ? profile.style : `You are voicing ${speaker}. ${profile.style}`, named: false };
 }
 
+const voiceProviderNow = () => (DM_NONE ? 'none' : VOICE_PROVIDER);        // a person running the game needs no narration
 app.get('/api/tts/status', (_req, res) => {
-  res.json({ enabled: Boolean(OPENAI_KEY) && !VOICE_NONE, model: TTS_MODEL });
+  res.json({ enabled: Boolean(OPENAI_KEY) && voiceProviderNow() === 'openai', provider: voiceProviderNow(), model: TTS_MODEL });
 });
 
 // Which cloud voice will each (voice tag, speaker) pair use? Used to label the UI.
@@ -1736,7 +1750,7 @@ app.post('/api/tts/voices', asyncRoute(async (req, res) => {
 }));
 
 app.post('/api/tts', asyncRoute(async (req, res) => {
-  if (VOICE_NONE) return res.status(503).json({ error: 'Narration is set to None in Settings.' });
+  if (voiceProviderNow() !== 'openai') return res.status(503).json({ error: 'ChatGPT voices are not selected in Settings.' });
   if (!OPENAI_KEY) return res.status(503).json({ error: 'Cloud voices are off: set OPENAI_API_KEY in .env and restart.' });
   const text = String(req.body?.text ?? '').trim().slice(0, 1500);
   if (!text) return res.status(400).json({ error: 'text is required' });
@@ -2466,7 +2480,7 @@ function applySettings() {
   IMAGE_QUALITY = IMAGE_QUALITIES.includes(process.env.IMAGE_QUALITY) ? process.env.IMAGE_QUALITY : 'medium';
   OPENAI_KEY = process.env.OPENAI_API_KEY || '';
   DM_NONE = process.env.DM_PROVIDER === 'none';                    // Settings > Dungeon Master: None (a person runs the game)
-  VOICE_NONE = process.env.VOICE_PROVIDER === 'none';
+  VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
   const key = process.env.ANTHROPIC_API_KEY || '';
   anthropic = key && !DM_NONE ? new Anthropic({ apiKey: key }) : null;
 }
@@ -2495,7 +2509,7 @@ app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
     dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL },
-    voice: { provider: VOICE_NONE ? 'none' : 'openai', model: TTS_MODEL },
+    voice: { provider: VOICE_PROVIDER, effective: voiceProviderNow(), model: TTS_MODEL },
     maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },
       imageKeys: { openai: { set: Boolean(IMAGE_KEY || OPENAI_KEY), own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY || OPENAI_KEY) }, gemini: { set: Boolean(GEMINI_KEY), hint: hint(GEMINI_KEY) }, fal: { set: Boolean(FAL_KEY), hint: hint(FAL_KEY) } } }

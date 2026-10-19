@@ -50,6 +50,11 @@ test('characters: party filtering, save keeps the stored sheet, validation, dele
   const after = (await s.get('/api/characters')).json.find((c) => c.id === ID.edric);
   assert.equal(after.hp, 3); assert.deepEqual(after.sheet, edric.sheet, 'a save without a sheet keeps the stored sheet');
   assert.deepEqual(after.campaigns, edric.campaigns);
+  const tok = await s.put(`/api/characters/${ID.edric}/token`, { image: '/tokens/not a token', color: '#112233' });
+  ok(tok); assert.equal(tok.json.image, '', 'a bad token address is dropped');
+  const tok2 = (await s.get('/api/characters')).json.find((c) => c.id === ID.edric);
+  assert.equal(tok2.color, '#112233'); assert.equal(tok2.hp, 3, 'the token call changes nothing else'); assert.deepEqual(tok2.sheet, edric.sheet);
+  assert.equal((await s.put('/api/characters/nobody-here/token', { color: '#112233' })).status, 404);
   assert.equal((await s.post('/api/characters', { name: '   ' })).status, 400);
   const clamp = await s.post('/api/characters', { id: 'tmp-char', name: 'Tmp', maxHp: 5000, hp: 9999, color: 'red', abilities: { str: 99 } });
   assert.deepEqual([clamp.json.maxHp, clamp.json.hp, clamp.json.color, clamp.json.abilities.str, clamp.json.abilities.dex], [999, 999, '#4f9dff', 30, 10]);
@@ -607,8 +612,12 @@ test('settings: the Dungeon Master, the narration and each kind of map have thei
   assert.equal((await s.post('/api/settings', { DM_PROVIDER: 'none', VOICE_PROVIDER: 'none' })).status, 200);
   const off = (await s.get('/api/settings')).json;
   assert.equal(off.dm.provider, 'none'); assert.equal(off.voice.provider, 'none');
+  await s.post('/api/settings', { VOICE_PROVIDER: 'browser' });
+  const st = (await s.get('/api/tts/status')).json; assert.equal(st.enabled, false); assert.equal(st.provider, 'none', 'a person as Dungeon Master needs no narration, whatever the voice was');
   assert.equal((await s.get('/api/tts/status')).json.enabled, false, 'narration None turns the cloud voices off');
   const chat = await s.post('/api/chat', { message: 'hello' });
   assert.equal(chat.status, 200); assert.match(chat.json.narrative, /a person runs this game/, 'the DM None says a person runs the game');
-  await s.post('/api/settings', { DM_PROVIDER: 'claude', VOICE_PROVIDER: 'openai', IMAGE_PROVIDER_REGIONAL: 'none' });
+  await s.post('/api/settings', { DM_PROVIDER: 'claude', VOICE_PROVIDER: 'browser' });
+  const mine = (await s.get('/api/tts/status')).json; assert.equal(mine.provider, 'browser'); assert.equal(mine.enabled, false, 'Microsoft voices use no cloud voices');
+  await s.post('/api/settings', { VOICE_PROVIDER: 'openai', IMAGE_PROVIDER_REGIONAL: 'none' });
 });

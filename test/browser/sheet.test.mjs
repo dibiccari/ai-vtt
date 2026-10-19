@@ -34,7 +34,7 @@ test('a saved sheet is drawn from HTML (no PDF), has three pages, and is read on
   assert.equal(out.pages, 3); assert.equal(out.canvases, 0); assert.deepEqual(out.pdfScripts, []);
   assert.equal(out.name, 'Astarion'); assert.equal(out.dex, '17'); assert.ok(/^\+/.test(out.stealth));
   assert.equal(out.editable, 0, 'no box can be typed in'); assert.equal(out.boxesEnabled, 0, 'no proficiency box can be changed'); assert.equal(out.combos, 0);
-  assert.equal(out.save, true); assert.equal(out.pick, true); assert.equal(out.print, false, 'printing stays');
+  assert.equal(out.save, true); assert.equal(out.pick, false, 'the token can still be changed on a saved sheet'); assert.equal(out.print, false, 'printing stays');
 });
 
 test('a new character is built with lists of the real spells, weapons and armor, worked out numbers, and is read only once saved', opts, async () => {

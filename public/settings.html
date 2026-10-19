@@ -41,6 +41,7 @@
   .help { font-size:12px; color:var(--muted); }
   code { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 5px; font:12px Consolas,monospace; }
   select:disabled, option:disabled { color:#6b778a; }
+  [hidden] { display:none !important; }
   .jobrow { border:1px solid var(--border); border-radius:10px; padding:12px; margin:0 0 10px; }
   .jobrow h4 { margin:0 0 6px; font-size:14px; }
   .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; } @media (max-width: 700px) { .grid3 { grid-template-columns:1fr; } }
@@ -104,13 +105,27 @@
   <div class="msg" id="dmMsg"></div>
 </div>
 
-<div class="card">
-  <h2>Narration (voices)</h2>
-  <p>Who speaks the narrator and each NPC aloud. It only speaks the words the Dungeon Master writes, and ChatGPT voices need credit on the OpenAI account. The Microsoft voices below are free and need no setup.</p>
-  <div class="grid3">
-    <label>Narrator
-      <select id="voiceProvider"><option value="none">None</option><option value="openai">ChatGPT voices (OpenAI)</option><option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option></select>
-    </label>
+<div class="card" id="voiceCard">
+  <h2>Dungeon Master voice</h2>
+  <p>Who speaks the Dungeon Master's words aloud. It does not apply when a person is the Dungeon Master.</p>
+  <label>Voice
+    <select id="voiceProvider">
+      <option value="none">None (text only)</option>
+      <option value="openai">ChatGPT voices (OpenAI)</option>
+      <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
+      <option value="browser">Microsoft voices (this computer)</option>
+    </select>
+  </label>
+  <p class="help" id="voiceNote"></p>
+  <div class="row"><button class="primary" id="voiceSave">Save</button></div>
+  <div class="msg" id="voiceMsg"></div>
+</div>
+
+<div class="card" id="narrationCard">
+  <h2>Narration</h2>
+  <p id="narrationIntro">Settings for the voice chosen above.</p>
+  <div id="openaiNarration">
+    <p class="help">ChatGPT voices give the narrator and each NPC their own voice, use the OpenAI key above, and need credit on that account. If one fails the table falls back to Microsoft voices.</p>
     <label>Model
       <select id="oaModel">
         <option value="gpt-4o-mini-tts">gpt-4o-mini-tts (recommended: takes acting directions)</option>
@@ -118,9 +133,20 @@
         <option value="tts-1-hd">tts-1-hd (higher quality, no acting directions)</option>
       </select>
     </label>
+    <div class="row"><button class="primary" id="modelSave">Save model</button><button id="oaSample">🔊 Hear a sample</button></div>
+    <div class="msg" id="oaMsg"></div>
   </div>
-  <div class="row"><button class="primary" id="voiceSave">Save</button><button id="oaSample">🔊 Hear a sample</button></div>
-  <div class="msg" id="oaMsg"></div>
+  <div id="browserNarration">
+    <p class="help">Microsoft voices are free and offline. The narrator voice is chosen per browser, because each computer has its own list.</p>
+    <label>Narrator voice
+      <select id="narratorVoice"><option value="">Auto (best available)</option></select>
+    </label>
+    <div class="row">
+      <button type="button" id="narratorTest">🔊 Play a sample</button>
+      <span class="help" id="narratorMsg">The list shows the English voices installed in this browser.</span>
+    </div>
+  </div>
+  <p class="help" id="noNarration">No voice is chosen, so replies are shown as text only.</p>
 </div>
 
 <div class="card">
@@ -138,20 +164,6 @@
   <div class="row"><button class="primary" id="mapsSave">Save map generators</button></div>
   <div class="msg" id="mapsMsg"></div>
 </div>
-
-<div class="card">
-  <h2>Voice engine in this browser</h2>
-  <p>Saved in this browser. You can switch any time. The tabletop shows which engine is on and links back here.</p>
-  <label class="radio"><input type="radio" name="engine" value="cloud"><span><b>ChatGPT voices (OpenAI)</b><small>Natural, distinct voices for the narrator and each NPC. Needs the OpenAI key above. Falls back to Microsoft voices if it fails.</small></span></label>
-  <label class="radio"><input type="radio" name="engine" value="browser"><span><b>Microsoft voices</b><small>Free and offline. Uses the voices installed on this computer.</small></span></label>
-  <div class="msg" id="engMsg"></div>
-  <label style="margin-top:6px">Microsoft narrator voice <span class="help">(used when the engine is Microsoft)</span>
-    <select id="narratorVoice"><option value="">Auto (best available)</option></select>
-  </label>
-  <div class="row">
-    <button type="button" id="narratorTest">Play a sample</button>
-    <span class="help" id="narratorMsg">The list shows the English voices installed in this browser.</span>
-  </div>
 
 <script>
 'use strict';
@@ -235,7 +247,8 @@ async function load() {
     $('#dmModel').disabled = s.dm.provider === 'none';
     $('#voiceProvider').value = s.voice.provider;
     if (![...$('#oaModel').options].some((o) => o.value === s.voice.model)) fill($('#oaModel'), [...$('#oaModel').options].map((o) => [o.value, o.textContent]), s.voice.model);
-    $('#oaModel').value = s.voice.model; $('#oaModel').disabled = s.voice.provider === 'none';
+    $('#oaModel').value = s.voice.model;
+    showVoice();
     for (const kind of ['regional', 'town', 'battle']) { const g = s.maps[kind]; showRow(rowOf(kind), g.provider, g.model, g.quality); }
   } catch (err) {
     setMsg($('#keysMsg'), `Could not load settings: ${err.message}`, false);
@@ -260,10 +273,22 @@ async function test(which, msgEl) {
 $('#anTest').addEventListener('click', () => test('anthropic', $('#keysMsg')));
 $('#oaTest').addEventListener('click', () => test('openai', $('#keysMsg')));
 
-$('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = e.target.value === 'none'; });
+$('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = e.target.value === 'none'; showVoice(); });
 $('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value }, $('#dmMsg')));
-$('#voiceProvider').addEventListener('change', (e) => { $('#oaModel').disabled = e.target.value === 'none'; });
-$('#voiceSave').addEventListener('click', () => save({ VOICE_PROVIDER: $('#voiceProvider').value, TTS_MODEL: $('#oaModel').value }, $('#oaMsg')));
+// The voice and narration cards depend on who runs the game: a person needs neither, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
+function showVoice() {
+  const person = $('#dmProvider').value === 'none', v = person ? 'none' : $('#voiceProvider').value;
+  $('#voiceProvider').disabled = $('#voiceSave').disabled = person;
+  $('#voiceNote').textContent = person ? 'A person is the Dungeon Master, so there is nothing to narrate. Choose Claude AI above to pick a voice.' : '';
+  $('#openaiNarration').hidden = person || v !== 'openai';
+  $('#browserNarration').hidden = person || v !== 'browser';
+  $('#noNarration').hidden = !(person || v === 'none');
+  $('#noNarration').textContent = person ? 'Not applicable: a person is the Dungeon Master.' : 'No voice is chosen, so replies are shown as text only.';
+  $('#narrationIntro').hidden = person || v === 'none';
+}
+$('#voiceProvider').addEventListener('change', showVoice);
+$('#voiceSave').addEventListener('click', () => save({ VOICE_PROVIDER: $('#voiceProvider').value }, $('#voiceMsg')));
+$('#modelSave').addEventListener('click', () => save({ TTS_MODEL: $('#oaModel').value }, $('#oaMsg')));
 async function saveMaps(quiet) {
   const fields = {};
   for (const kind of ['regional', 'town', 'battle']) {
@@ -301,16 +326,6 @@ document.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('clic
   input.type = input.type === 'password' ? 'text' : 'password';
   b.textContent = input.type === 'password' ? 'Show' : 'Hide';
 }));
-
-// Voice engine preference (browser-local).
-function readEngine() { try { return localStorage.getItem('vtt.voiceEngine') === '"browser"' ? 'browser' : 'cloud'; } catch { return 'cloud'; } }
-document.querySelectorAll('input[name="engine"]').forEach((r) => {
-  r.checked = r.value === readEngine();
-  r.addEventListener('change', () => {
-    try { localStorage.setItem('vtt.voiceEngine', JSON.stringify(r.value)); setMsg($('#engMsg'), `Using ${r.value === 'cloud' ? 'ChatGPT voices' : 'Microsoft voices'}.`, true); }
-    catch { setMsg($('#engMsg'), 'This browser blocked saving the choice.', false); }
-  });
-});
 
 // Microsoft (browser) narrator voice, shared with the tabletop through the same saved setting.
 const synth = window.speechSynthesis || null;

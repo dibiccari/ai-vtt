@@ -379,11 +379,10 @@
     $('#toolbar').hidden = false;
     $('#color').value = c.color || '#4f9dff';
     $('#delBtn').disabled = !c.id;
-    for (const id of ['#saveBtn', '#pickBtn', '#clearTokBtn']) $(id).hidden = locked();
-    $('#color').closest('label').hidden = locked();
+    $('#saveBtn').hidden = locked();            // the token and its colour can still be changed on a saved sheet (they save by themselves)
     $('#nameInput').readOnly = locked();
-    $('#tokImg').style.cursor = locked() ? 'default' : 'pointer';
-    setStatus(c.id ? 'Read only: the DM and character creation change a sheet' : 'New character: fill it in and Save (it is locked after that)', c.id ? '' : 'dirty');
+    $('#tokImg').style.cursor = 'pointer';
+    setStatus(c.id ? 'Read only: the DM and character creation change a sheet (the token you can change)' : 'New character: fill it in and Save (it is locked after that)', c.id ? '' : 'dirty');
     updateWho();
     renderList();
     renderLog();
@@ -501,10 +500,8 @@
     const page = el('div', 'page');
     const head = el('div', 'head');
     const ib = el('div', 'imgbox'); ib.tabIndex = 0; ib.setAttribute('role', 'button'); ib.setAttribute('aria-label', 'Choose the character token');
-    if (!locked()) {
-      ib.addEventListener('click', openPicker);
-      ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
-    } else { ib.style.cursor = 'default'; ib.removeAttribute('role'); ib.tabIndex = -1; }
+    ib.addEventListener('click', openPicker);
+    ib.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } });
     registerImageBox(ib);
     const idGrid = el('div', 'grid g3');
     idGrid.append(
@@ -888,20 +885,31 @@
   }
 
   function openPicker() {
-    if (!S.cur || locked()) return;
+    if (!S.cur) return;
     $('#modal').classList.add('open');
     renderPicker();
     $('#mFind').focus();
   }
   function closePicker() { $('#modal').classList.remove('open'); }
 
+  // A saved sheet is locked, but its token is not: the picture and colour are saved at once through their own call, which touches nothing else on the character.
+  async function saveToken() {
+    if (!S.cur || !S.cur.id) return;
+    try {
+      await api('/api/characters/' + encodeURIComponent(S.cur.id) + '/token', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: S.cur.image || '', color: S.cur.color }) });
+      const i = S.chars.findIndex((c) => c.id === S.cur.id);
+      if (i >= 0) { S.chars[i].image = S.cur.image || ''; S.chars[i].color = S.cur.color; }
+      renderList(); setStatus('Token saved', 'ok');
+    } catch (err) { setStatus('Could not save the token: ' + err.message, 'bad'); }
+  }
+  function tokenChanged() { if (locked()) saveToken(); else markDirty(); }
   function pickToken(url) {
     if (!S.cur) return;
     S.cur.image = url;
     updateWho();
     paintImageBoxes();
     closePicker();
-    markDirty();
+    tokenChanged();
   }
 
   /* ---------------- wiring ---------------- */
@@ -918,8 +926,9 @@
   $('#pickBtn').addEventListener('click', openPicker);
   $('#tokImg').addEventListener('click', openPicker);
   $('#tokImg').addEventListener('keydown', (e) => { if (e.key === 'Enter') openPicker(); });
-  $('#clearTokBtn').addEventListener('click', () => { if (S.cur) { S.cur.image = ''; updateWho(); paintImageBoxes(); markDirty(); } });
-  $('#color').addEventListener('input', (e) => { if (S.cur) { S.cur.color = e.target.value; updateWho(); paintImageBoxes(); markDirty(); } });
+  $('#clearTokBtn').addEventListener('click', () => { if (S.cur) { S.cur.image = ''; updateWho(); paintImageBoxes(); tokenChanged(); } });
+  $('#color').addEventListener('input', (e) => { if (S.cur) { S.cur.color = e.target.value; updateWho(); paintImageBoxes(); if (!locked()) markDirty(); } });
+  $('#color').addEventListener('change', () => { if (S.cur && locked()) saveToken(); });
   $('#mClose').addEventListener('click', closePicker);
   $('#modal').addEventListener('click', (e) => { if (e.target === $('#modal')) closePicker(); });
   $('#mFind').addEventListener('input', renderPicker);

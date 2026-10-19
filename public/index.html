@@ -4210,13 +4210,14 @@ const voice = (() => {
   }
 
   /* ---------- cloud voices (server /api/tts, OpenAI) ---------- */
-  const cloud = { enabled: false, audio: new Audio(), resolve: null };
+  const cloud = { enabled: false, provider: 'openai', audio: new Audio(), resolve: null };
 
-  const enginePref = () => (store.get('vtt.voiceEngine', 'cloud') === 'browser' ? 'browser' : 'cloud');
-  const wantCloud = () => cloud.enabled && enginePref() === 'cloud';
+  const wantCloud = () => cloud.enabled && cloud.provider === 'openai';       // Settings > Dungeon Master voice: ChatGPT, Microsoft or None (text only)
 
   function updateEngineNote() {
-    $('#voiceEngine').textContent = enginePref() === 'browser'
+    $('#voiceEngine').textContent = cloud.provider === 'none'
+      ? 'Voices: off (text only)'
+      : cloud.provider === 'browser'
       ? 'Voices: Microsoft'
       : cloud.enabled
         ? 'Voices: ChatGPT (OpenAI)'
@@ -4226,7 +4227,7 @@ const voice = (() => {
   async function checkCloud() {
     try {
       const s = await api('/api/tts/status');
-      cloud.enabled = Boolean(s.enabled);
+      cloud.enabled = Boolean(s.enabled); cloud.provider = s.provider || 'openai';
     } catch { cloud.enabled = false; }
     updateEngineNote();
   }
@@ -4328,7 +4329,7 @@ const voice = (() => {
   }
 
   function speak(lines, msgEl) {
-    if (!$('#speakToggle').checked) return;
+    if (!$('#speakToggle').checked || cloud.provider === 'none') return;
     const gen = beginSpeaking();
     if (!wantCloud()) { speakBrowser(lines, msgEl, 0, gen); return; }
     speakCloud(lines, msgEl, gen)
