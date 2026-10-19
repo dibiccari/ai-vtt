@@ -232,3 +232,21 @@ test('pronunciations: the campaign file swaps names for the voices and the table
   const { pronounce } = await import('../lib/pronounce.js');
   assert.equal(pronounce('Raechyl kneels; Raechyl\'s sword. Raechylson stays.', { Raechyl: 'Rachel' }), "Rachel kneels; Rachel's sword. Raechylson stays.");
 });
+
+test('the wall segments are not sent to the DM: only how many of each kind, and the doors listed apart', async () => {
+  setReply({ rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'Quiet.' }], mapUpdates: [] });
+  const walls = [];
+  for (let i = 0; i < 300; i++) walls.push({ x1: i * 7, y1: 10, x2: i * 7 + 5, y2: 10, type: 'wall', open: false });
+  walls.push({ x1: 100, y1: 200, x2: 150, y2: 200, type: 'door', open: false, locked: true }, { x1: 1, y1: 2, x2: 3, y2: 4, type: 'fence', open: false }, { x1: 5, y1: 6, x2: 7, y2: 8, type: 'window', open: false });
+  const r = await s.post('/api/chat', { message: '[Edric] I look at the walls', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls, gridSize: 50 });
+  assert.equal(r.status, 200, r.text);
+  const req = fake.requests.at(-1), state = boardStateOf(req);
+  assert.equal(Array.isArray(state.walls), false);
+  assert.deepEqual([state.walls.walls, state.walls.doors, state.walls.fences, state.walls.windows], [300, 1, 1, 1]);
+  assert.ok(state.doors.length === 1 && state.doors[0].state === 'locked', 'the doors are still listed, with their state');
+  // the size no longer grows with the map: the same request with 3 walls instead of 300 is within a few hundred characters (the dice tray is random)
+  setReply({ rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'Quiet.' }], mapUpdates: [] });
+  await s.post('/api/chat', { message: '[Edric] I look at the walls', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: walls.slice(-3), gridSize: 50 });
+  const small = boardStateOf(fake.requests.at(-1));
+  assert.ok(Math.abs(JSON.stringify(state).length - JSON.stringify(small).length) < 1500, `300 walls ${JSON.stringify(state).length} against 3 walls ${JSON.stringify(small).length}`);
+});
