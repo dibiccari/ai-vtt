@@ -491,7 +491,7 @@ function normalizeMapConfig(body) {
     if ([x, y, w, h].includes(null) || w <= 0 || h <= 0) continue;
     difficult.push({ x, y, w, h });
   }
-  // Rooms (rectangles in image pixels) that the object-top rule must not reveal, and secret doors kept for the DM (both written by scripts/build-walls-from-layout.mjs).
+  // Rooms (rectangles in image pixels) that the object-top rule must not reveal, and secret doors kept for the DM (both written by scripts/maps/build-walls-from-layout.mjs).
   const rooms = [];
   for (const r of Array.isArray(body?.rooms) ? body.rooms.slice(0, 300) : []) { const v = Array.isArray(r) ? r.map(num) : []; if (v.length === 4 && !v.includes(null)) rooms.push(v); }
   const secrets = [];

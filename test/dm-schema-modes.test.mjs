@@ -1,7 +1,7 @@
 // The DM's reply form follows the situation: a fight form and a scene form, both cut from the full schema.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadServerPieces, validateSchema } from '../scripts/dm-schema.mjs';
+import { loadServerPieces, validateSchema } from '../scripts/dev/dm-schema.mjs';
 import { schemaForMode, modeOf, modeNote, COMBAT_ONLY_ACTIONS, SCENE_ONLY_ACTIONS } from '../lib/dm-schema-modes.js';
 
 const { DM_SCHEMA } = loadServerPieces();

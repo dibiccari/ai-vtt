@@ -38,7 +38,7 @@ Then open **Campaigns**, press Continue on a campaign, and press **Begin the adv
 | `public/data/` | Data the browser and the server both read (effect durations, light from gear). |
 | `public/tokens`, `audio`, `scenarios`, `vendor` | Token art, sound recordings, sample scenarios, third-party scripts. |
 | `data/` | Your data: campaigns, characters, map sets, SRD tables. Tracked in git so a clone works. |
-| `scripts/` | Command-line tools: checks, map and picture generators, the live Dungeon Master checks. |
+| `scripts/` | Command-line tools in four folders (`dev`, `maps`, `images`, `characters`); see `scripts/README.md`. |
 | `test/` | Offline tests (`test/*.test.mjs`) and browser tests (`test/browser`). |
 | `docs/` | Architecture, plans and the to-do list. |
 
@@ -54,7 +54,7 @@ npm run test:browser  # drives headless Chrome over the tabletop and Map Test (n
 
 The tests never touch your real data: they run the server on a random port in a throwaway copy of the app, starting from the last committed data.
 
-Two scripts spend real money and are never run by the tests: `npm run dm-check -- --live` (a scripted check of the Dungeon Master) and `node scripts/replay-session.mjs --live` (replays a recorded session and times it).
+Two scripts spend real money and are never run by the tests: `npm run dm-check -- --live` (a scripted check of the Dungeon Master) and `node scripts/dev/replay-session.mjs --live` (replays a recorded session and times it).
 
 ## Data, licences and copyright
 

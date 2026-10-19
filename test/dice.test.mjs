@@ -1,4 +1,4 @@
-// Dice: range, evenness, advantage/disadvantage, the expression parser and the tray (folded in from scripts/test-dice.mjs).
+// Dice: range, evenness, advantage/disadvantage, the expression parser and the tray (folded in from scripts/dev/test-dice.mjs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DICE, rollDie, rollExpr, diceTray } from '../lib/dice.js';

@@ -5,7 +5,7 @@ import { startServer, fakeAnthropic } from './helpers/sandbox.mjs';
 import { ID } from './helpers/ids.mjs';
 import { buildServices, toolsFor, runService, MOVED_TO_SERVICES, enabledServices, movedFor, servicesNote, DEFAULT_SERVICES } from '../lib/services.js';
 import { schemaForMode } from '../lib/dm-schema-modes.js';
-import { loadServerPieces } from '../scripts/dm-schema.mjs';
+import { loadServerPieces } from '../scripts/dev/dm-schema.mjs';
 
 const { DM_SCHEMA } = loadServerPieces();
 const LOST = 'lost-mine-of-phandelver';

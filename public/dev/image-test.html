@@ -123,7 +123,7 @@
   const verdict = { 'fal-canny': 'Top-down, but it barely repaints: the picture is the flat drawing with a little texture.', 'fal-kontext': 'Not top-down: it redrew the room from a slanted angle, so these walls cannot fit it.', 'openai-high': 'The room drifted to the left of the saved walls.', 'gemini-nano-banana': 'Painted and top-down; the kitchen wall is the one that sits off.', 'gemini-3-pro': 'Painted and top-down; the closest fit of the painted ones.' };
   const grade = (m) => (m <= 10 ? 'good' : m <= 22 ? 'meh' : 'poor');
   const done = bake ? bake.runs.filter((r) => r.ok).length : 0;
-  document.getElementById('bakeNote').textContent = bake ? done + ' of ' + bake.runs.length + ' contenders have a picture. The others wait for a key with credit: add it in Settings > Image Generator, then the bake-off is run again (node scripts/image-bakeoff.mjs). The drift figure is an estimate read off the picture, so judge with the overlay too.' : 'The bake-off has not been run yet.';
+  document.getElementById('bakeNote').textContent = bake ? done + ' of ' + bake.runs.length + ' contenders have a picture. The others wait for a key with credit: add it in Settings > Image Generator, then the bake-off is run again (node scripts/images/image-bakeoff.mjs). The drift figure is an estimate read off the picture, so judge with the overlay too.' : 'The bake-off has not been run yet.';
   // one column per service, its pictures stacked: OpenAI, FLUX, Google Gemini
   const columns = {};
   for (const [id, title] of [['openai', 'OpenAI'], ['fal', 'FLUX (fal.ai)'], ['gemini', 'Google Gemini']]) { const col = el('div', 'col'); col.appendChild(el('h3', 'coltitle', title)); grid3.appendChild(col); columns[id] = col; }

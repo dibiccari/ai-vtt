@@ -3,7 +3,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, fakeAnthropic } from './helpers/sandbox.mjs';
 import { bookkeeperMessage, cleanBookkeeperReply, bookkeeperSchema, BOOKKEEPER_SYSTEM } from '../lib/bookkeeper.js';
-import { loadServerPieces } from '../scripts/dm-schema.mjs';
+import { loadServerPieces } from '../scripts/dev/dm-schema.mjs';
 import { schemaForMode } from '../lib/dm-schema-modes.js';
 
 test('the bookkeeper is given the turn and the journal, and its entries are cleaned', () => {

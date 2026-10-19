@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import { startServer, makeSandbox, fakeAnthropic, boardStateOf } from './helpers/sandbox.mjs';
-import { loadServerPieces, validateSchema } from '../scripts/dm-schema.mjs';
+import { loadServerPieces, validateSchema } from '../scripts/dev/dm-schema.mjs';
 import { ID } from './helpers/ids.mjs';
 
 const { DM_SCHEMA } = loadServerPieces();

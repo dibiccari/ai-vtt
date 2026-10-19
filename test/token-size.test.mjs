@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import '../public/js/token-size.js';
-import { loadServerPieces } from '../scripts/dm-schema.mjs';
+import { loadServerPieces } from '../scripts/dev/dm-schema.mjs';
 import { loadAdventureMonsters } from '../lib/adventure-monsters.js';
 import { fileURLToPath } from 'node:url';
 const TS = globalThis.TokenSize;

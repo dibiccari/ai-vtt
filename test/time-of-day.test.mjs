@@ -2,7 +2,7 @@
 // the update reaches the table through /api/chat (against a FAKE Anthropic API), and the DM prompt explains who decides it. The tabletop side is in test/browser.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadServerPieces, validateSchema } from '../scripts/dm-schema.mjs';
+import { loadServerPieces, validateSchema } from '../scripts/dev/dm-schema.mjs';
 import { schemaForMode, modeNote, SCENE_ONLY_ACTIONS } from '../lib/dm-schema-modes.js';
 import { movedFor } from '../lib/services.js';
 import { startServer, fakeAnthropic, boardStateOf } from './helpers/sandbox.mjs';

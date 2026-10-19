@@ -1,8 +1,8 @@
 // The flat updates the DM sends (DM_SCHEMA) and the pure helpers that turn them into specific updates. The helpers are read out of server.js as text
-// (scripts/dm-schema.mjs), so these tests exercise the real code without starting the server.
+// (scripts/dev/dm-schema.mjs), so these tests exercise the real code without starting the server.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadServerPieces, validateSchema } from '../scripts/dm-schema.mjs';
+import { loadServerPieces, validateSchema } from '../scripts/dev/dm-schema.mjs';
 import { EFFECT_KINDS, normalizeItem, processPartyUpdates } from '../lib/party.js';
 import { applyUpdate } from '../lib/sheet-edit.js';
 import { ID } from './helpers/ids.mjs';

@@ -1,4 +1,4 @@
-// The scripted DM check itself, run for free: scripts/dm-check.mjs is pointed (DM_CHECK_UPSTREAM) at a fake Anthropic API that answers like a good DM
+// The scripted DM check itself, run for free: scripts/dev/dm-check.mjs is pointed (DM_CHECK_UPSTREAM) at a fake Anthropic API that answers like a good DM
 // (dice from the tray, no secrets) and like a bad one (invented dice, leaked secret, dangling token), and must pass and fail accordingly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -46,7 +46,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
 
 function runCheck(fakeUrl, extra = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/dm-check.mjs', '--live', '--max-calls', '48', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['scripts/dev/dm-check.mjs', '--live', '--max-calls', '48', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     child.on('exit', (code) => resolve({ code, out }));
   });
@@ -77,6 +77,6 @@ for (const [name, mode, pattern] of [['invented dice', { badDice: true }, /FAIL 
 }
 
 test('without --live nothing is run and nothing is spent', async () => {
-  const r = await new Promise((resolve) => { const c = spawn(process.execPath, ['scripts/dm-check.mjs'], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: '' } }); let o = ''; c.stdout.on('data', (d) => { o += d; }); c.on('exit', (code) => resolve({ code, o })); });
+  const r = await new Promise((resolve) => { const c = spawn(process.execPath, ['scripts/dev/dm-check.mjs'], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: '' } }); let o = ''; c.stdout.on('data', (d) => { o += d; }); c.on('exit', (code) => resolve({ code, o })); });
   assert.equal(r.code, 0); assert.match(r.o, /Add --live to run it/);
 });

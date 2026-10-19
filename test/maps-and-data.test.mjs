@@ -19,7 +19,7 @@ for (const f of (await readdir(path.join(ROOT, 'data', 'mapsets'))).filter((n) =
   for (const lv of set.levels || []) for (const look of lv.looks || []) configs[look.player] = { ...(configs[look.player] || {}), ...(lv.squares ? { squares: lv.squares } : {}), walls: lv.walls || [], starts: lv.starts || [], difficult: lv.difficult || [] };
 }
 
-// The same check scripts/check.mjs makes: every installed battle or camp map has a "start" pin.
+// The same check scripts/dev/check.mjs makes: every installed battle or camp map has a "start" pin.
 for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
   test(`start pins: every battle and camp map of ${campaign} has a start pin`, () => {
     const missing = mapsFor(campaign, uploads).filter((m) => m.kind === 'battle' || m.kind === 'camp').filter((m) => !(configs[m.url.split('/').pop()]?.starts || []).some((s) => s.name === 'start')).map((m) => m.id);

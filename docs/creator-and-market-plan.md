@@ -80,7 +80,7 @@ So, by map type:
 | Regional | image model, prompt "hand drawn fantasy region map, rivers, mountains..." | our hex grid (size, offset, 5 miles) | good: no walls needed; the hex overlay hides any misalignment |
 | Town | image model, prompt "top-down fantasy village map, no text" | our name labels (pins) | good: ask for no text, then add ours |
 | Battle, drawn | the generators in lib/mapkit.js with parameters (rooms, size, style) | walls, doors and lights come with the drawing | very good and exact; the art is simpler than a painted map |
-| Battle, painted | image model | walls, doors and lights traced by Claude from the picture (the experiment in scripts/build-walls-from-layout.mjs) and fixed by hand in the editor | **weak today**: painted maps rarely sit on a grid and the traced walls need correcting; I would offer it only with the editor's fix-up tools |
+| Battle, painted | image model | walls, doors and lights traced by Claude from the picture (the experiment in scripts/maps/build-walls-from-layout.mjs) and fixed by hand in the editor | **weak today**: painted maps rarely sit on a grid and the traced walls need correcting; I would offer it only with the editor's fix-up tools |
 
 Grid and scale for any generated picture are set in the editor (the calibration tool exists). Generated pictures are saved with their prompt, model and date.
 

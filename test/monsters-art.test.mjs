@@ -6,7 +6,7 @@ import path from 'node:path';
 import { ROOT } from './helpers/sandbox.mjs';
 import { loadAdventureMonsters, adventureMonsterFor, adventureMonstersForPrompt } from '../lib/adventure-monsters.js';
 import { monsterImageMatch, getEntry, listEntries } from '../lib/compendium.js';
-import { loadServerPieces } from '../scripts/dm-schema.mjs';
+import { loadServerPieces } from '../scripts/dev/dm-schema.mjs';
 
 const { expandTokenUpdates } = loadServerPieces();
 const dir = path.join(ROOT, 'data', 'campaigns', 'lost-mine-of-phandelver');
