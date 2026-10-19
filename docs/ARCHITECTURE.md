@@ -33,7 +33,7 @@ AI-VTT is one Node process that serves static pages and a JSON API, and a set of
 | Voices | `server.js` (`/api/tts`), `lib/creature-voices.js`, `lib/pronounce.js`, `public/js/voice-fx.js` | `data/creature-voices.json` |
 | SRD reference | `lib/compendium.js` | `data/srd/` |
 | Play log | `lib/playlog.js` | `data/logs/` (not tracked) |
-| The tabletop | `public/index.html` (one large page) plus `public/js/` | the saved game in `data/campaigns/<id>/game.json` and the browser |
+| The tabletop | `public/index.html` (markup), `public/css/tabletop.css`, `public/js/tabletop/*.js` (17 files by concern) and the shared `public/js/` | the saved game in `data/campaigns/<id>/game.json` and the browser |
 
 ## Conventions
 
@@ -45,4 +45,4 @@ AI-VTT is one Node process that serves static pages and a JSON API, and a set of
 
 ## Where the code is heading
 
-The two big files are the main thing a newcomer meets: `server.js` (about 2,800 lines, 18 areas) and `public/index.html` (about 5,000 lines, one inline script). The plan, in order of value and safety, is in `docs/todo.md`: a `config.js` for the settings, shared geometry, sight and light modules that the tabletop and Map Test both use, `server.js` split into routers with a `createApp` factory, and the tabletop's script split into ES modules.
+The big file a newcomer meets is `server.js` (about 2,800 lines, 18 areas); the tabletop page has already been split into a stylesheet and 17 scripts, and Map Test (`public/map-test.html`, about 2,500 lines) is the next page to split. The plan, in order of value and safety, is in `docs/todo.md`: a `config.js` for the settings, shared geometry, sight and light modules that the tabletop and Map Test both use, then `server.js` split into route modules, and the browser scripts turned into ES modules.
