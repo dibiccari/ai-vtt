@@ -37,7 +37,7 @@ for (const campaign of Object.keys(CAMPAIGN_MAPS)) {
     else { failed = true; console.error(`FAIL ${campaign}/${m.id} has no start spot: open Map Test, choose Set start and click where the party arrives`); }
   }
 }
-for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/compendium.js', 'lib/safety.js', 'public/js/scenes.js', 'public/js/wallobjects.js', 'public/js/flicker.js', 'public/js/ambience.js', 'public/js/uvtt.js', 'public/js/pdf-extract.js', 'public/js/nav.js', 'public/js/levelup-wizard.js', 'public/js/place-pins.js', 'public/js/map-labels.js', 'public/js/fog-style.js', 'public/js/inventory-wizard.js', 'public/js/voice-fx.js']) check(file, path.join(root, file));
+for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/compendium.js', 'lib/safety.js', 'public/js/scenes.js', 'public/js/wallobjects.js', 'public/js/flicker.js', 'public/js/ambience.js', 'public/js/uvtt.js', 'public/js/pdf-extract.js', 'public/js/nav.js', 'public/js/levelup-wizard.js', 'public/js/place-pins.js', 'public/js/map-labels.js', 'public/js/fog-style.js', 'public/js/inventory-wizard.js', 'public/js/voice-fx.js', 'public/js/sight.js']) check(file, path.join(root, file));
 
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
 // The tabletop's script lives in public/js/tabletop/*.js (classic scripts sharing one global scope, in the order index.html loads them): each one is syntax-checked on its own.
