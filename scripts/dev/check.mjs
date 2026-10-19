@@ -20,6 +20,7 @@ function check(label, file) {
 }
 
 check('server.js', path.join(root, 'server.js'));
+for (const f of (await readdir(path.join(root, 'routes'))).filter((x) => x.endsWith('.js')).sort()) check(`routes/${f}`, path.join(root, 'routes', f));
 
 // Every installed battle map must have a saved start spot (data/maps/<image>.json, starts[name 'start']).
 const { CAMPAIGN_MAPS, mapsFor } = await import(pathToFileURL(path.join(root, 'lib', 'campaign-maps.js')).href);

@@ -11,10 +11,10 @@ import { CATEGORIES, STATUSES } from '../../lib/journal.js';
 import { EFFECT_KINDS } from '../../lib/party.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const src = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+const src = fs.readFileSync(path.join(root, 'routes', 'ai-dm.js'), 'utf8');
 const a = src.indexOf('const upd = (types, properties)');
 const b = src.indexOf('DM_SCHEMA.properties.voiceLines = {');
-const end = src.indexOf('\n};\n', b) + 4;
+const end = src.indexOf('\n  };\n', b) + 6;
 const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine'];
 const schema = new Function('SKILLS', 'CATEGORIES', 'STATUSES', 'EFFECT_KINDS', 'VOICES', src.slice(a, end) + '\nreturn DM_SCHEMA;')(SKILLS, CATEGORIES, STATUSES, EFFECT_KINDS, VOICES);
 const variants = schema.properties.mapUpdates.items.anyOf.length;

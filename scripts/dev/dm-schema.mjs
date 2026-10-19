@@ -1,4 +1,4 @@
-// Test helpers that read server.js as TEXT (so server.js does not need to change and nothing is started): the DM reply schema (DM_SCHEMA),
+// Test helpers that read routes/ai-dm.js (the DM routes) as TEXT (so the route file does not need to change and nothing is started): the DM reply schema (DM_SCHEMA),
 // the three pure expanders for the DM's flat updates (expandTokenUpdates, gearToPartyUpdates, expandSheetEdits), and a small JSON-schema checker.
 // Used by test/*.test.mjs and scripts/dev/dm-check.mjs.
 import { readFileSync } from 'node:fs';
@@ -13,18 +13,18 @@ import '../../public/js/token-size.js';              // sets globalThis.TokenSiz
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-export function loadServerPieces(serverFile = path.join(ROOT, 'server.js')) {
+export function loadServerPieces(serverFile = path.join(ROOT, 'routes', 'ai-dm.js')) {
   // Windows checkouts convert files to CRLF; the searches below look for plain "\n", so read it as LF.
   const src = readFileSync(serverFile, 'utf8').replace(/\r\n/g, '\n');
   const cut = (from, to, label) => {
     const a = src.indexOf(from), b = src.indexOf(to, a);
-    if (a < 0 || b < 0) throw new Error(`server.js changed shape: cannot find ${label} (${from} .. ${to}). Update scripts/dev/dm-schema.mjs.`);
+    if (a < 0 || b < 0) throw new Error(`routes/ai-dm.js changed shape: cannot find ${label} (${from} .. ${to}). Update scripts/dev/dm-schema.mjs.`);
     return src.slice(a, b);
   };
   const expanders = cut('function expandSheetEdits', "const VOICES = [", 'the update expanders');
-  const schemaEnd = src.indexOf('\n};\n', src.indexOf('DM_SCHEMA.properties.voiceLines = {')) + 4;
+  const schemaEnd = src.indexOf('\n  };\n', src.indexOf('DM_SCHEMA.properties.voiceLines = {')) + 6;
   const schemaSrc = src.slice(src.indexOf("const VOICES = ["), schemaEnd);
-  if (src.indexOf("const VOICES = [") < 0 || schemaEnd < 4) throw new Error('server.js changed shape: cannot find DM_SCHEMA. Update scripts/dev/dm-schema.mjs.');
+  if (src.indexOf("const VOICES = [") < 0 || schemaEnd < 4) throw new Error('routes/ai-dm.js changed shape: cannot find DM_SCHEMA. Update scripts/dev/dm-schema.mjs.');
   const make = new Function('SKILLS', 'CATEGORIES', 'STATUSES', 'EFFECT_KINDS', 'getEntry', 'monsterImage', 'adventureMonsterFor',
     `${expanders}\n${schemaSrc}\nreturn { expandSheetEdits, expandTokenUpdates, gearToPartyUpdates, DM_SCHEMA, VOICES };`);
   return make(SKILLS, CATEGORIES, STATUSES, EFFECT_KINDS, getEntry, monsterImage, adventureMonsterFor);
