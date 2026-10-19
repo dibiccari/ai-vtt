@@ -36,6 +36,11 @@
 - DONE (Nov 2026): a window is its own kind (type 'window', purple in Map Test, Window button) beside Fence; both stop movement but not sight or light. Zone corners can be dragged, added (Alt + click an edge) and removed (right-click).
 - Terrain and Eraser tools still paint on a drag, so the map pans there only with Space or the middle button.
 
+## Architecture and tokens (user, Nov 2026)
+- Have agents review the ARCHITECTURE of the code (not bugs: the earlier reviews tested behaviour). The user sees a lot of files and cannot tell whether that is normal or bloat: ask for file and folder structure, size of server.js and public/index.html, duplicated code between pages, scripts that are no longer used, data that does not need to be tracked, and what to split, merge or delete.
+- Image token upload on the character sheet: choose a picture from the computer, save it to the token library (public/tokens, with the manifest) and set it as the player's token. Works on a saved sheet (the token can be changed there).
+- Token from a photo: upload a photo and an AI converts it to fit the style of the current D&D tokens (round, framed, same look), then saves it to the library and can set it as the token. Needs an image generator that edits pictures (see Settings > Map generators for the services); the style should match the existing token art.
+
 ## Characters
 - The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.
 - A saved character's new weapon: Party > Manage gear > Shop takes it for free from the SRD (works today). A new spell: only level-up or the DM (saved sheets stay read only by design).
