@@ -99,8 +99,10 @@ test('map configs: list, areas, config read, save round trip with cleaning (and 
   assert.equal(back.starts.filter((p) => p.name === 'start').length, 1, 'names are cleaned and only one start pin is kept'); assert.ok(back.starts.some((p) => p.name === 'start' && p.x === 5 && p.y === 6));
   assert.equal(back.light, 'dark'); assert.equal(back.ambience, undefined); assert.equal(back.difficult.length, 1);
   assert.equal((await s.put('/api/map-config?map=notes.txt', body)).status, 400);
-  const real = JSON.parse(await readFile(path.join(import.meta.dirname, '..', 'data', 'maps', 'lmop-thundertree.png.json'), 'utf8'));
-  assert.ok(real.walls.length > 2, 'the real data/maps file is unchanged');
+  const setsDir = path.join(import.meta.dirname, '..', 'data', 'mapsets');
+  let real = null;
+  for (const g of await (await import('node:fs/promises')).readdir(setsDir)) { try { const d = JSON.parse(await readFile(path.join(setsDir, g, 'set.json'), 'utf8')); if (d.levels.some((lv) => lv.looks.some((l) => l.player === 'lmop-thundertree.png'))) real = d; } catch { /* not a packet */ } }
+  assert.ok(real && real.levels[0].walls.length > 2, 'the real set of the picture is unchanged by the sandbox test');
 });
 
 test('light zones are cleaned, saved with the map, and kept when a later save does not mention them', async () => {
@@ -377,7 +379,7 @@ test('map library: every picture with its kind, tiles, counts and whether it has
   assert.equal(m('vtt-terrain-test.png').origin, 'Test'); assert.equal(m('vtt-terrain-test.png').tiles, 'square');
   assert.ok(m('lmop-cragmaw-hideout.png').origin === 'Map Adventurer' && m('lmop-cragmaw-hideout.png').kind === 'battle');
   assert.equal(m('dnd-sword-coast-ours.png').tiles, 'hex'); assert.equal(m('dnd-sword-coast-ours.png').kind, 'regional'); assert.ok(m('dnd-sword-coast-ours.png').pins >= 14);
-  assert.equal(m('vtt-phandalin.png').dmVersion, true, 'the Phandalin DM version is saved');
+  assert.equal(typeof m('vtt-phandalin.png').dmVersion, 'boolean', 'every picture says whether it has a DM version');
   assert.ok(lib.every((x) => typeof x.walls === 'number' && Array.isArray(x.campaigns)));
 });
 

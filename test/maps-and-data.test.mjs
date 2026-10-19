@@ -12,7 +12,7 @@ import { CAMPAIGN_MAPS, mapsFor, mapsForPrompt, resolveChangeMap, cleanMapList, 
 const json = async (...p) => JSON.parse(await readFile(path.join(ROOT, ...p), 'utf8'));
 const uploads = listPictures(ROOT);
 const configs = {};
-for (const f of await readdir(path.join(ROOT, 'data', 'maps'))) if (f.endsWith('.json')) configs[f.slice(0, -5)] = await json('data', 'maps', f);
+for (const f of await readdir(path.join(ROOT, 'data', 'maps')).catch(() => [])) if (f.endsWith('.json')) configs[f.slice(0, -5)] = await json('data', 'maps', f);
 // Pictures that belong to a map set (data/mapsets/<guid>.json) take their walls, doors and pins from it: the old per-picture files are no longer read.
 for (const f of (await readdir(path.join(ROOT, 'data', 'mapsets'))).filter((n) => !n.startsWith('.'))) {       // Finder leaves .DS_Store files
   const set = await json('data', 'mapsets', f.endsWith('.json') ? f : path.join(f, 'set.json'));
