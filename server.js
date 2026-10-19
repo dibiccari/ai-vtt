@@ -43,6 +43,15 @@ import { ReplyStreamer } from './lib/partial-reply.js';
 import { createPlayLog, logAsText } from './lib/playlog.js';
 import { CATEGORIES, STATUSES, readSave, replaceEntries, addJournalUpdates, journalForPrompt } from './lib/journal.js';
 import { registerUploads } from './routes/uploads.js';
+import { registerCompendium } from './routes/compendium.js';
+import { registerSoundTakes } from './routes/sound.js';
+import { registerSoundNotes } from './routes/sound-notes.js';
+import { registerMapMaker } from './routes/map-maker.js';
+import { registerSafety } from './routes/safety.js';
+import { registerSavedGame } from './routes/saved-game.js';
+import { registerTableSettings } from './routes/table-settings.js';
+import { registerJournal } from './routes/journal.js';
+import { registerCampaignSelector } from './routes/campaign-selector.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -196,12 +205,33 @@ const app = express();
 // <deps>
 // What the route modules (routes/*.js) reach in this file, by name and read when a route runs (so the order things start in does not change). Maintained as routes are moved out.
 const deps = Object.defineProperties({}, {
+  __dirname: { get: () => __dirname },
+  ACTIVE_CAMPAIGN_FILE: { get: () => ACTIVE_CAMPAIGN_FILE },
+  anthropic: { get: () => anthropic, set: (v) => { anthropic = v; } },
   asyncRoute: { get: () => asyncRoute },
+  CAMPAIGN_FILE_RE: { get: () => CAMPAIGN_FILE_RE },
+  campaignFiles: { get: () => campaignFiles },
+  campaignIds: { get: () => campaignIds },
+  CAMPAIGNS_DIR: { get: () => CAMPAIGNS_DIR },
+  canonId: { get: () => canonId },
+  CHAR_DIR: { get: () => CHAR_DIR },
+  chosenCampaignId: { get: () => chosenCampaignId },
+  getActiveCampaignId: { get: () => getActiveCampaignId },
   IMAGE_EXT: { get: () => IMAGE_EXT },
+  listCharacters: { get: () => listCharacters },
+  loadCharacterVoices: { get: () => loadCharacterVoices },
+  localOnly: { get: () => localOnly },
+  MODEL: { get: () => MODEL, set: (v) => { MODEL = v; } },
   pictureFiles: { get: () => pictureFiles },
+  PUBLIC_DIR: { get: () => PUBLIC_DIR },
+  readCampaignMeta: { get: () => readCampaignMeta },
+  readMapConfig: { get: () => readMapConfig },
+  safeCampaignId: { get: () => safeCampaignId },
+  templateOfCampaign: { get: () => templateOfCampaign },
   TOKEN_DIR: { get: () => TOKEN_DIR },
   TOKEN_URL_RE: { get: () => TOKEN_URL_RE },
   UPLOAD_DIR: { get: () => UPLOAD_DIR },
+  usageTracker: { get: () => usageTracker },
 });
 // </deps>
 const jsonBody = express.json({ limit: '10mb' });
@@ -952,18 +982,7 @@ app.get('/api/maps/available', asyncRoute(async (_req, res) => {
 }));
 
 // ---------------------------------------------------------------- compendium (SRD monsters, spells, magic items)
-
-app.get('/api/compendium/:kind', asyncRoute(async (req, res) => {
-  const entries = await listEntries(req.params.kind);
-  if (!entries) return res.status(404).json({ error: 'Unknown compendium' });
-  res.json({ entries });
-}));
-
-app.get('/api/compendium/:kind/:index', asyncRoute(async (req, res) => {
-  const entry = await getEntry(req.params.kind, String(req.params.index).toLowerCase().replace(/[^a-z0-9-]/g, ''));
-  if (!entry) return res.status(404).json({ error: 'Not found' });
-  res.json({ entry });
-}));
+registerCompendium(app, deps);
 
 // ---------------------------------------------------------------- party API (gear, coins, attunement, stash)
 
@@ -1258,379 +1277,28 @@ app.get('/api/audio-files', asyncRoute(async (_req, res) => {
 }));
 
 // ---------------------------------------------------------------- sound takes: several recordings per effect to choose from by ear (Sound Test page)
-// public/audio/candidates/<effect>-<name>.mp3 with a manifest.json [{effect, file, title, url}]; choosing one copies it to public/audio/sfx-<effect>.mp3.
-const CANDIDATE_DIR = path.join(PUBLIC_DIR, 'audio', 'candidates');
-const SOUND_CHOICES_FILE = path.join(__dirname, 'data', 'sound-choices.json');
-const readJson = async (file, fallback) => { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } };
-app.get('/api/sound-candidates', asyncRoute(async (_req, res) => {
-  const manifest = await readJson(path.join(CANDIDATE_DIR, 'manifest.json'), []);
-  const have = new Set((await readdir(CANDIDATE_DIR).catch(() => [])));
-  const byEffect = {};
-  for (const c of manifest) if (have.has(c.file)) (byEffect[c.effect] ||= []).push({ file: c.file, title: c.title, url: c.url });
-  res.json({ candidates: byEffect, chosen: await readJson(SOUND_CHOICES_FILE, {}) });
-}));
-app.post('/api/sound-choice', localOnly, asyncRoute(async (req, res) => {
-  const effect = String(req.body?.effect ?? '').replace(/[^a-z0-9-]/g, '');
-  const file = path.basename(String(req.body?.file ?? ''));
-  const manifest = await readJson(path.join(CANDIDATE_DIR, 'manifest.json'), []);
-  if (!manifest.some((c) => c.effect === effect && c.file === file)) return res.status(400).json({ error: 'That is not a candidate for this sound.' });
-  for (const f of await readdir(path.join(PUBLIC_DIR, 'audio'))) if (new RegExp(`^sfx-${effect}\\.(mp3|ogg|wav|m4a|webm|flac)$`, 'i').test(f)) await unlink(path.join(PUBLIC_DIR, 'audio', f));
-  await copyFile(path.join(CANDIDATE_DIR, file), path.join(PUBLIC_DIR, 'audio', `sfx-${effect}.mp3`));
-  const chosen = await readJson(SOUND_CHOICES_FILE, {});
-  chosen[effect] = file;
-  await writeFile(SOUND_CHOICES_FILE, JSON.stringify(chosen, null, 2));
-  res.json({ ok: true, effect, file });
-}));
+const { readJson } = registerSoundTakes(app, deps);
 
 // ---------------------------------------------------------------- sound review notes (from the Sound Test page)
-const SOUND_FEEDBACK_FILE = path.join(__dirname, 'data', 'sound-feedback.json');
-app.get('/api/sound-feedback', asyncRoute(async (_req, res) => {
-  try { res.json(JSON.parse(await readFile(SOUND_FEEDBACK_FILE, 'utf8'))); } catch { res.json({}); }
-}));
-app.put('/api/sound-feedback', localOnly, asyncRoute(async (req, res) => {
-  const clean = {};
-  for (const [key, v] of Object.entries(req.body && typeof req.body === 'object' ? req.body : {}).slice(0, 80)) {
-    if (!/^[a-z0-9-]{1,30}:[a-z0-9-]{1,30}$/.test(key)) continue;
-    clean[key] = { rating: ['good', 'close', 'wrong'].includes(v?.rating) ? v.rating : '', note: String(v?.note ?? '').slice(0, 500) };
-  }
-  await writeFile(SOUND_FEEDBACK_FILE, JSON.stringify(clean, null, 2));
-  res.json({ ok: true, saved: Object.keys(clean).length });
-}));
+registerSoundNotes(app, deps);
 
 // ---------------------------------------------------------------- Map Maker (maps I generate for you, your requests and feedback)
-// Requests and feedback are written here from the Map Maker page and read by the assistant in the coding session, which then generates or
-// improves the maps (scripts/make-*-map.mjs). data/map-requests.json and data/map-feedback.json.
-const MAP_REQUESTS_FILE = path.join(__dirname, 'data', 'map-requests.json');
-const MAP_FEEDBACK_FILE = path.join(__dirname, 'data', 'map-feedback.json');
-const REQUEST_STATUS = ['new', 'working', 'done'];
-const FEATURES = ['doors', 'lights', 'water', 'trees', 'difficult terrain', 'stairs', 'secret door', 'traps', 'night version'];
-
-app.get('/api/map-maker', asyncRoute(async (_req, res) => {
-  const scen = (await readdir(path.join(PUBLIC_DIR, 'scenarios'))).filter((f) => f.endsWith('.dd2vtt')).map((f) => f.slice(0, -7));
-  const pictures = await pictureFiles();
-  const maps = [];
-  for (const stem of scen) {
-    const picture = pictures.find((f) => new RegExp(`^${stem.replace(/[^a-z0-9-]/gi, '')}(-[a-z0-9]{6,10})?\\.png$`, 'i').test(f));
-    if (!picture) { maps.push({ stem, picture: '', imported: false }); continue; }
-    let c = {};
-    c = (await readMapConfig(picture)) || {};
-    maps.push({
-      stem, picture, imported: true, squares: Number(c.squares) || 0,
-      walls: (c.walls || []).filter((w) => w.type !== 'door').length, doors: (c.walls || []).filter((w) => w.type === 'door').length,
-      lights: (c.lights || []).length, pins: (c.starts || []).length, difficult: (c.difficult || []).length, light: c.light || 'bright'
-    });
-  }
-  const read = async (file, fallback) => { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } };
-  res.json({ maps, requests: await read(MAP_REQUESTS_FILE, []), feedback: await read(MAP_FEEDBACK_FILE, {}), features: FEATURES });
-}));
-
-app.put('/api/map-maker/requests', localOnly, asyncRoute(async (req, res) => {
-  const list = (Array.isArray(req.body) ? req.body : []).slice(0, 100).map((r) => ({
-    id: String(r?.id ?? '').replace(/[^a-z0-9-]/gi, '').slice(0, 40) || `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
-    at: String(r?.at ?? new Date().toISOString()).slice(0, 40),
-    title: String(r?.title ?? '').trim().slice(0, 80),
-    description: String(r?.description ?? '').trim().slice(0, 1500),
-    cols: Math.min(80, Math.max(10, Math.round(Number(r?.cols)) || 40)),
-    rows: Math.min(80, Math.max(10, Math.round(Number(r?.rows)) || 30)),
-    features: (Array.isArray(r?.features) ? r.features : []).filter((f) => FEATURES.includes(f)),
-    status: REQUEST_STATUS.includes(r?.status) ? r.status : 'new'
-  })).filter((r) => r.title);
-  await writeFile(MAP_REQUESTS_FILE, JSON.stringify(list, null, 2));
-  res.json({ ok: true, requests: list });
-}));
-
-app.put('/api/map-maker/feedback', localOnly, asyncRoute(async (req, res) => {
-  const clean = {};
-  for (const [pic, notes] of Object.entries(req.body && typeof req.body === 'object' ? req.body : {}).slice(0, 100)) {
-    if (!/^[A-Za-z0-9._-]{1,120}$/.test(pic) || !Array.isArray(notes)) continue;
-    clean[pic] = notes.slice(0, 60).map((n) => ({
-      id: String(n?.id ?? '').replace(/[^a-z0-9-]/gi, '').slice(0, 40) || `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
-      at: String(n?.at ?? new Date().toISOString()).slice(0, 40),
-      text: String(n?.text ?? '').trim().slice(0, 1000),
-      done: Boolean(n?.done)
-    })).filter((n) => n.text);
-  }
-  await writeFile(MAP_FEEDBACK_FILE, JSON.stringify(clean, null, 2));
-  res.json({ ok: true });
-}));
+registerMapMaker(app, deps);
 
 // ---------------------------------------------------------------- safety tools
-
-app.get('/api/campaigns/:id/safety', asyncRoute(async (req, res) => {
-  res.json(await readSafety(path.join(CAMPAIGNS_DIR, safeCampaignId(req.params.id))));
-}));
-
-app.put('/api/campaigns/:id/safety', localOnly, asyncRoute(async (req, res) => {
-  const id = safeCampaignId(req.params.id);
-  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
-  res.json(await writeSafety(path.join(CAMPAIGNS_DIR, id), req.body));
-}));
+registerSafety(app, deps);
 
 // ---------------------------------------------------------------- saved game (board, chat, explored fog)
-// The tabletop keeps its board and chat in the browser for speed and mirrors them here, so the game survives clearing the browser
-// and can be continued from another computer. data/campaigns/<id>/game.json {savedAt, board, chat}; fog.json {<map url>: png data URL}.
-
-const gamePaths = (id) => ({ game: path.join(CAMPAIGNS_DIR, id, 'game.json'), fog: path.join(CAMPAIGNS_DIR, id, 'fog.json') });
-async function readJsonOr(file, fallback) { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } }
-async function writeJsonAtomic(file, value) {
-  const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`;       // one name per write, so overlapping saves cannot trample each other's temporary file
-  await writeFile(tmp, JSON.stringify(value));
-  await rename(tmp, file);
-}
-async function gameCampaign(req, res) {
-  const id = safeCampaignId(req.params.id);
-  if (!id || !(await campaignIds()).includes(id)) { res.status(404).json({ error: 'No such campaign' }); return null; }
-  return id;
-}
-
-app.get('/api/campaigns/:id/live', liveHandler(gameCampaign));          // server-sent events: see lib/live.js and docs/multiplayer-plan.md
-app.get('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
-  const id = await gameCampaign(req, res); if (!id) return;
-  const p = gamePaths(id);
-  const game = await readJsonOr(p.game, null);
-  res.json({ rev: revisionOf(id), savedAt: game?.savedAt || 0, board: game?.board || null, chat: game?.chat || [], fog: await readJsonOr(p.fog, {}) });
-}));
-
-app.put('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
-  const id = await gameCampaign(req, res); if (!id) return;
-  const board = req.body?.board && typeof req.body.board === 'object' && !Array.isArray(req.body.board) ? req.body.board : null;
-  if (!board) return res.status(400).json({ error: 'No board to save' });
-  const chat = (Array.isArray(req.body?.chat) ? req.body.chat : []).slice(-200);
-  const savedAt = Number.isFinite(Number(req.body?.savedAt)) ? Number(req.body.savedAt) : Date.now();
-  await writeJsonAtomic(gamePaths(id).game, { savedAt, board, chat });
-  res.json({ ok: true, savedAt });
-}));
-
-app.put('/api/campaigns/:id/game/fog', asyncRoute(async (req, res) => {
-  const id = await gameCampaign(req, res); if (!id) return;
-  const mapUrl = String(req.body?.mapUrl ?? '');
-  const data = String(req.body?.data ?? '');
-  if (!/^(\/uploads\/[A-Za-z0-9._-]{1,120}|set-[0-9a-f-]{36})$/i.test(mapUrl) || !data.startsWith('data:image/png;base64,') || data.length > 8_000_000) return res.status(400).json({ error: 'Not a fog image' });
-  const p = gamePaths(id);
-  const fog = await readJsonOr(p.fog, {});
-  fog[mapUrl] = data;
-  await writeJsonAtomic(p.fog, fog);
-  res.json({ ok: true });
-}));
-
-// Start a campaign over: forget everything the story has built up. The saved game (board, chat, fog), the journal the DM reads every turn and
-// the party's shared stash all go; documents, settings, maps, party and the characters themselves stay.
-app.post('/api/campaigns/:id/start-over', localOnly, asyncRoute(async (req, res) => {
-  const id = await gameCampaign(req, res); if (!id) return;
-  const dir = path.join(CAMPAIGNS_DIR, id);
-  await replaceEntries(dir, []);
-  await writeStash(dir, {});
-  for (const f of Object.values(gamePaths(id))) { try { await unlink(f); } catch { /* nothing saved */ } }
-  try { await unlink(path.join(dir, 'merchants.json')); } catch { /* no shopkeeper remembered */ }       // shopkeepers forget the party too
-  res.json({ ok: true });
-}));
-
-// Forget the saved game of a campaign.
-app.delete('/api/campaigns/:id/game', asyncRoute(async (req, res) => {
-  const id = await gameCampaign(req, res); if (!id) return;
-  const p = gamePaths(id);
-  for (const f of [p.game, p.fog]) { try { await unlink(f); } catch { /* nothing saved */ } }
-  res.json({ ok: true });
-}));
+const { writeJsonAtomic } = registerSavedGame(app, deps);
 
 // ---------------------------------------------------------------- table settings
-
-// The Test Lab starts the tavern scenario with its four characters back at their starting kit and full hit points.
-app.post('/api/test-lab/reset-party', localOnly, asyncRoute(async (_req, res) => {
-  const party = await writeTavernParty(CHAR_DIR, { keepHp: false, resolve: canonId });
-  res.json({ ok: true, party: party.map((c) => ({ id: c.id, name: c.name, hp: c.hp, maxHp: c.maxHp })) });
-}));
-
-// Real dice, for the tabletop's Roll for me button (free: no AI call).
-app.post('/api/roll', (req, res) => {
-  try {
-    const mode = ['advantage', 'disadvantage'].includes(req.body?.mode) ? req.body.mode : 'normal';
-    res.json(rollExpr(req.body?.expr ?? 'd20', mode));
-  } catch (err) { res.status(400).json({ error: err.message }); }
-});
-
-app.get('/api/campaigns/:id/settings', asyncRoute(async (req, res) => {
-  res.json(await readSettings(path.join(CAMPAIGNS_DIR, safeCampaignId(req.params.id))));
-}));
-
-app.put('/api/campaigns/:id/settings', localOnly, asyncRoute(async (req, res) => {
-  const id = safeCampaignId(req.params.id);
-  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
-  res.json(await writeSettings(path.join(CAMPAIGNS_DIR, id), req.body));
-}));
+registerTableSettings(app, deps);
 
 // ---------------------------------------------------------------- journal / save file API
-
-const campaignDir = (id) => {
-  const cid = safeCampaignId(id);
-  if (!cid) throw Object.assign(new Error('Invalid campaign'), { status: 400 });
-  return path.join(CAMPAIGNS_DIR, cid);
-};
-
-app.get('/api/campaigns/:id/journal', asyncRoute(async (req, res) => {
-  res.json(await readSave(campaignDir(req.params.id)));
-}));
-
-// Replace the journal: deleting one entry, importing a save, or starting over (an empty list).
-app.put('/api/campaigns/:id/journal', localOnly, asyncRoute(async (req, res) => {
-  const entries = await replaceEntries(campaignDir(req.params.id), req.body?.entries);
-  res.json({ ok: true, count: entries.length });
-}));
-
-const RECAP_SYSTEM = `You are the Dungeon Master of a Dungeons & Dragons game, opening a new session. Write a "Previously on..." recap for the players from the journal you are given: 2 to 4 short paragraphs, spoken aloud, vivid but brief, in order, covering what the party did, who they met, what is unresolved, and the promises they made. End with where they stand now and a line that invites them to continue. Use only what the journal says; do not invent events or reveal secrets. Plain text only, no lists or headings.`;
-
-app.post('/api/recap', asyncRoute(async (_req, res) => {
-  const id = await getActiveCampaignId();
-  const text = journalForPrompt((await readSave(campaignDir(id))).entries);
-  if (!text) {
-    const narrative = 'There is nothing to recap yet: the journal is empty. Play a little and the Dungeon Master will start writing it.';
-    return res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], empty: true });
-  }
-  if (!anthropic) return res.status(503).json({ error: 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured.' });
-  try {
-    const response = await anthropic.messages.create({ model: MODEL, max_tokens: 1500, system: RECAP_SYSTEM, messages: [{ role: 'user', content: `JOURNAL:\n${text}` }] });
-    usageTracker.record(response.model || MODEL, response.usage, await getActiveCampaignId().catch(() => ''), 'recap');
-    const block = response.content.find((b) => b.type === 'text');
-    const narrative = String(block?.text ?? '').trim();
-    if (!narrative) throw new Error('The recap came back empty.');
-    res.json({ narrative, voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }] });
-  } catch (err) {
-    if (err instanceof Anthropic.APIError) return res.status(502).json({ error: `AI DM error: ${err.message}` });
-    throw err;
-  }
-}));
+registerJournal(app, deps);
 
 // ---------------------------------------------------------------- campaign selector API
-
-app.get('/api/campaigns', asyncRoute(async (_req, res) => {
-  const active = await chosenCampaignId();
-  const campaigns = [];
-  for (const id of await campaignIds()) {
-    const meta = await readCampaignMeta(id);
-    const files = await campaignFiles(id);
-    const totalChars = files.reduce((n, f) => n + f.chars, 0);
-    let voiceCount = 0;
-    try { voiceCount = Object.keys(await loadCharacterVoices(id)).length; } catch { /* none */ }
-    campaigns.push({
-      party: (await listCharacters(id)).map((ch) => ({ id: ch.id, name: ch.name, class: ch.class, level: ch.level, color: ch.color, image: ch.image || '' })),
-      id, template: meta.template || id, name: meta.name, system: meta.system, levels: meta.levels, description: meta.description, test: Boolean(meta.test), custom: Boolean(meta.custom),
-      active: id === active,
-      files: files.map((f) => ({ name: f.name, chars: f.chars })),
-      totalChars, approxTokens: Math.round(totalChars / 4), voiceCount
-    });
-  }
-  let returnTo = '';
-  try { returnTo = safeCampaignId(JSON.parse(await readFile(ACTIVE_CAMPAIGN_FILE, 'utf8')).returnTo); } catch { /* none */ }
-  res.json({ active, returnTo: returnTo && returnTo !== active ? returnTo : '', campaigns });
-}));
-
-// The party of a campaign (character ids), read and changed from the Campaigns page.
-app.get('/api/campaigns/:id/party', asyncRoute(async (req, res) => {
-  res.json({ party: (await listCharacters(safeCampaignId(req.params.id))).map((c) => c.id) });
-}));
-
-app.put('/api/campaigns/:id/party', localOnly, asyncRoute(async (req, res) => {
-  const id = safeCampaignId(req.params.id);
-  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
-  const known = new Set((await listCharacters()).map((c) => c.id));
-  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
-  if (!party.length) return res.status(400).json({ error: 'A campaign needs at least one character.' });
-  let saved = {};
-  try { saved = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), 'utf8')); } catch { /* built-in campaigns have no campaign.json yet */ }
-  await writeFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), JSON.stringify({ ...saved, party }, null, 2));
-  res.json({ ok: true, party });
-}));
-
-// Start another playthrough of a campaign: copies its documents, voices and maps list (so the maps and their starting positions are already chosen) and takes the party and table settings from the request; its journal, party stash and chat start empty.
-// A campaign built from nothing (the wizard's "Build my own"): its own name, a premise written for the DM, the maps picked from the uploaded pictures, a party and the table settings.
-async function createScratchCampaign(req, res) {
-  const ids = await campaignIds();
-  const name = String(req.body?.name ?? '').trim().slice(0, 80);
-  if (!name) return res.status(400).json({ error: 'Give the campaign a name.' });
-  let id = safeCampaignId(name.replace(/\s+/g, '-')) || 'campaign';
-  for (let n = 2; ids.includes(id); n++) id = safeCampaignId(`${id.replace(/-\d+$/, '')}-${n}`);
-  const known = new Set((await listCharacters()).map((c) => c.id));
-  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
-  if (!party.length) return res.status(400).json({ error: 'Pick at least one character for the party (make new ones on the Character Sheets page first).' });
-  const premise = String(req.body?.premise ?? '').trim().slice(0, 20000);
-  const { list, problems } = cleanMapList(req.body?.maps, await pictureFiles());
-  const dest = path.join(CAMPAIGNS_DIR, id);
-  await mkdir(dest, { recursive: true });
-  await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: id, system: 'D&D 5th Edition', levels: String(req.body?.levels ?? '').slice(0, 40), description: premise.split(/\n/)[0].slice(0, 200), party, custom: true }, null, 2));
-  if (premise) await writeFile(path.join(dest, '00-premise.md'), `# ${name}\n\n${premise}\n`);
-  await writeFile(path.join(dest, 'maps.json'), JSON.stringify({ maps: list }, null, 2));
-  await writeSettings(dest, req.body?.settings);
-  res.json({ ok: true, id, name, template: id, party, maps: list.length, problems });
-}
-
-app.post('/api/campaigns/new', localOnly, asyncRoute(async (req, res) => {
-  if (req.body?.scratch === true) return createScratchCampaign(req, res);
-  const from = safeCampaignId(req.body?.template);
-  const ids = await campaignIds();
-  if (!from || !ids.includes(from)) return res.status(404).json({ error: 'No such campaign to copy' });
-  const root = await templateOfCampaign(from);
-  const base = await readCampaignMeta(root);
-  const name = String(req.body?.name ?? '').trim().slice(0, 80) || `${base.name} (new)`;
-  let id = safeCampaignId(name.replace(/\s+/g, '-')) || safeCampaignId(root + '-new');
-  for (let n = 2; ids.includes(id); n++) id = safeCampaignId(`${id.replace(/-\d+$/, '')}-${n}`);
-  const src = path.join(CAMPAIGNS_DIR, root), dest = path.join(CAMPAIGNS_DIR, id);
-  await mkdir(dest, { recursive: true });
-  for (const f of await readdir(src)) {
-    if (/\.(md|txt)$/i.test(f) || ['voices.json', 'maps.json', 'pronunciations.json', 'relevance.json'].includes(f)) await copyFile(path.join(src, f), path.join(dest, f));
-  }
-  const known = new Set((await listCharacters()).map((c) => c.id));
-  const party = (Array.isArray(req.body?.party) ? req.body.party : []).map((x) => canonId(x)).filter((x) => known.has(x));
-  if (!party.length) { await rm(dest, { recursive: true, force: true }); return res.status(400).json({ error: 'Pick at least one character for the party (make new ones on the Character Sheets page first).' }); }
-  await writeFile(path.join(dest, 'campaign.json'), JSON.stringify({ name, template: root, system: base.system, levels: base.levels, description: base.description, party }, null, 2));
-  await writeSettings(dest, req.body?.settings);
-  res.json({ ok: true, id, name, template: root, party });
-}));
-
-app.post('/api/campaigns/active', localOnly, asyncRoute(async (req, res) => {
-  const id = safeCampaignId(req.body?.id);
-  if (!id || !(await campaignIds()).includes(id)) return res.status(404).json({ error: 'No such campaign' });
-  // returnTo: the campaign to go back to after a side trip (the Test Lab remembers the one you were playing). Switching normally forgets it.
-  const asked = safeCampaignId(req.body?.returnTo);
-  const returnTo = asked && asked !== id && (await campaignIds()).includes(asked) ? asked : '';
-  await writeFile(ACTIVE_CAMPAIGN_FILE, JSON.stringify(returnTo ? { id, returnTo } : { id }, null, 2));
-  res.json({ ok: true, active: id, returnTo });
-}));
-
-function campaignFilePath(id, name) {
-  const cid = safeCampaignId(id);
-  if (!cid || !CAMPAIGN_FILE_RE.test(String(name ?? ''))) throw Object.assign(new Error('Invalid campaign or file name'), { status: 400 });
-  return path.join(CAMPAIGNS_DIR, cid, path.basename(String(name)));
-}
-
-app.get('/api/campaigns/:id/files/:name', asyncRoute(async (req, res) => {
-  try {
-    const text = await readFile(campaignFilePath(req.params.id, req.params.name), 'utf8');
-    res.json({ name: req.params.name, chars: text.length, text: text.slice(0, 200000) });
-  } catch (err) {
-    if (err.code === 'ENOENT') return res.status(404).json({ error: 'File not found' });
-    throw err;
-  }
-}));
-
-app.put('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, res) => {
-  const text = String(req.body?.text ?? '');
-  if (!text.trim()) return res.status(400).json({ error: 'text is required' });
-  if (text.length > 3_000_000) return res.status(413).json({ error: 'File is too large (3 million characters at most)' });
-  const file = campaignFilePath(req.params.id, req.params.name);
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, text);
-  res.json({ ok: true, chars: text.trim().length });
-}));
-
-app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, res) => {
-  try {
-    await unlink(campaignFilePath(req.params.id, req.params.name));
-  } catch (err) {
-    if (err.code === 'ENOENT') return res.status(404).json({ error: 'File not found' });
-    throw err;
-  }
-  res.json({ ok: true });
-}));
+registerCampaignSelector(app, deps);
 
 // ---------------------------------------------------------------- cloud voices (OpenAI text-to-speech)
 
