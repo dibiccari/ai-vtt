@@ -1348,3 +1348,51 @@ test('map labels: a regional map shows its written names on the tabletop with a 
   assert.equal(r.stored, '0'); assert.equal(r.storedAgain, '1'); assert.equal(r.drawnAgain, 2);
   assert.equal(r.battleBoxShown, false, 'a battle map has no labels switch'); assert.equal(r.battleLabels, 0);
 });
+
+test('a game that starts on a regional map gets fog of war when the party reaches a battle map (the Lost Mine never had it on)', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state, out = {};
+    s.fogBeforeOverland = null;
+    await vtt.travelTo({ mapUrl: '/uploads/dnd-sword-coast-ours.png', mapName: 'Sword Coast', kind: 'regional', col: 5, row: 5 });
+    s.fogBeforeOverland = null; out.onRegional = s.fogEnabled;
+    await vtt.travelTo({ mapUrl: '/uploads/vtt-terrain-test.png', mapName: 'Terrain', kind: 'battle', col: 5, row: 5 });
+    out.onBattle = s.fogEnabled; out.mapKind = s.mapKind;
+    return out;
+  })()`);
+  assert.equal(r.onRegional, false); assert.equal(r.mapKind, 'battle'); assert.equal(r.onBattle, true, 'fog is on at the battle map: ' + JSON.stringify(r));
+});
+
+test('the table remembers which doors are open and the walls the DM added, not the whole wall list: a Map Test edit reaches it', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(() => {
+    const fresh = () => [{ x1: 0, y1: 0, x2: 100, y2: 0, type: 'wall', open: false }, { x1: 100, y1: 0, x2: 150, y2: 0, type: 'door', open: false }, { x1: 150, y1: 0, x2: 200, y2: 0, type: 'door', open: false, locked: true }];
+    const out = {};
+    const s = vtt.state; const keep = s.walls; s.walls = fresh(); s.walls[1].open = true; s.walls.push({ x1: 5, y1: 5, x2: 9, y2: 9, type: 'wall', open: false, added: true });
+    const saved = wallStateToSave(); out.saved = saved;
+    out.again = applyWallState(fresh(), saved).map((w) => [w.type, w.open, !!w.added]);
+    const edited = fresh(); edited[0].x2 = 120; edited.push({ x1: 300, y1: 0, x2: 350, y2: 0, type: 'wall', open: false });
+    out.edited = applyWallState(edited, saved).length;
+    out.legacy = applyWallState(fresh(), [{ x1: 100, y1: 0, x2: 150, y2: 0, type: 'door', open: true }]).map((w) => w.open);
+    out.none = applyWallState(fresh(), null).length;
+    s.walls = keep; return out;
+  })()`);
+  assert.deepEqual(Object.keys(r.saved.open), ['100,0,150,0', '150,0,200,0']); assert.equal(r.saved.extra.length, 1, 'only the DM-added wall is kept as geometry');
+  assert.deepEqual(r.again, [['wall', false, false], ['door', true, false], ['door', false, false], ['wall', false, true]], 'the open door is open again, the locked one is not, the added wall is back: ' + JSON.stringify(r.again));
+  assert.equal(r.edited, 5, 'the geometry comes from the set: its new wall is there (4) plus the one the DM added (1)');
+  assert.deepEqual(r.legacy, [false, true, false], 'an older save of the whole list still gives its open doors'); assert.equal(r.none, 3);
+});
+
+test('state.places holds the pins of the map on the table and state.availableMaps the campaign\'s map list: loading one never overwrites the other', opts, async () => {
+  await page.eval(setup);
+  const r = await page.eval(`(async () => {
+    const s = vtt.state, out = {};
+    await loadPlaces();
+    out.maps = Array.isArray(s.availableMaps) && s.availableMaps.length > 0 && s.availableMaps.every((m) => typeof m.url === 'string');
+    await vtt.travelTo({ mapUrl: '/uploads/dnd-sword-coast-ours.png', mapName: 'Sword Coast', kind: 'regional', col: 5, row: 5 });
+    out.pinsAreNames = s.places.every((p) => typeof p.name === 'string' && p.url === undefined);
+    await loadPlaces(); out.afterReload = s.places.every((p) => p.url === undefined) && s.availableMaps.length > 0;
+    return out;
+  })()`);
+  assert.equal(r.maps, true); assert.equal(r.pinsAreNames, true); assert.equal(r.afterReload, true, 'reloading the map list leaves the pins alone');
+});

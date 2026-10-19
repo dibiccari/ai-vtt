@@ -520,7 +520,8 @@ const state = {
   lightZones: [],                    // parts of the map with their own light (bright, dim, dark or following the time of day), from its config
   effects: [],                       // animated regions over the picture (rivers, lava)
   lightsOff: {},                     // per map: ids of map lights that were put out
-  places: [],                 // the maps this campaign can move to
+  availableMaps: [],          // the maps this campaign can move to
+  places: [],                 // the named places (pins) of the map on the table, for the DM
   dmView: false,
   sight: []
 };
@@ -1827,6 +1828,7 @@ function setMap(url) {
 async function travelTo(u) {
   if (!u || !u.mapUrl || u.mapUrl === state.map.url) return;
   const from = state.map.url || 'default';
+  const leftKind = state.mapKind;                    // what kind of place the party is leaving: arriving at a battle map from a plain one turns the fog on
   state.mapMemory[from] = {
     npcs: state.tokens.filter((t) => !t.isPC && !t.dead).map(serializeToken),         // bodies stay behind when the party leaves
     party: Object.fromEntries(state.tokens.filter((t) => t.isPC).map((t) => [t.id, { col: t.col, row: t.row }]))
@@ -1864,6 +1866,7 @@ async function travelTo(u) {
     state.gridOpacity = 0;
     if (state.mapKind === 'camp') state.fogEnabled = false;
     else if (state.fogBeforeOverland !== null) { state.fogEnabled = state.fogBeforeOverland; state.fogBeforeOverland = null; }
+    else if (!state.fogEnabled && (leftKind === 'regional' || leftKind === 'town' || leftKind === 'camp' || !leftKind)) state.fogEnabled = true;       // a game that started on a plain map (the Lost Mine starts on the Sword Coast) has never had fog on: a battle map has it by default
   }
   state.zoomToParty = !plainMap() && cols() > 45;
   $('#fogToggle').checked = state.fogEnabled;
@@ -1891,8 +1894,8 @@ function syncMapUi() {
 // The maps this campaign can move to, offered in the top bar.
 async function loadPlaces() {
   try {
-    state.places = (await api('/api/maps/available')).maps || [];
-  } catch { state.places = []; }
+    state.availableMaps = (await api('/api/maps/available')).maps || [];
+  } catch { state.availableMaps = []; }
   renderMapPick();
 }
 
@@ -1904,7 +1907,7 @@ function visitMap(url) {
 function renderMapPick() {
   const sel = $('#mapPick');
   sel.innerHTML = '';
-  const open = state.places.filter((p) => p.kind === 'regional' || p.kind === 'camp' || p.id === 'phandalin' || state.visitedMaps.includes(p.url) || p.url === state.map.url);
+  const open = state.availableMaps.filter((p) => p.kind === 'regional' || p.kind === 'camp' || p.id === 'phandalin' || state.visitedMaps.includes(p.url) || p.url === state.map.url);
   open.sort((a, b) => (a.kind === 'regional' ? 0 : 1) - (b.kind === 'regional' ? 0 : 1));       // the regional map comes first; the rest keep the campaign's order
   for (const p of open) {
     const o = document.createElement('option');
@@ -1918,8 +1921,8 @@ function renderMapPick() {
 
 function syncMapPick() {
   const sel = $('#mapPick');
-  if (state.places.some((p) => p.url === state.map.url)) sel.value = state.map.url;
-  else if (state.places.length) sel.selectedIndex = -1;
+  if (state.availableMaps.some((p) => p.url === state.map.url)) sel.value = state.map.url;
+  else if (state.availableMaps.length) sel.selectedIndex = -1;
 }
 
 // Walls saved for this map on the server (data/maps/, made on the Map Test page), converted from image pixels to board pixels.
@@ -1944,10 +1947,8 @@ async function serverWalls() {
 async function onMapChanged() {
   state.wallsInPicture = false;
   await loadMapLighting();
-  state.walls = store.get(wallsKey(), []);
-  if (!Array.isArray(state.walls)) state.walls = [];
   syncAmbience();
-  if (!state.walls.length) state.walls = await serverWalls();
+  state.walls = applyWallState(await serverWalls(), store.get(wallsKey(), null));       // the geometry always comes from the map set; only what play changed is remembered here
   state.wallsVersion++;
   clampTokensToMap();
   resetShroud();
@@ -1967,9 +1968,26 @@ function snapToCorner(x, y) {
   };
 }
 
+// What play changes about the walls is all this browser remembers: which doors are open, and the walls the DM added. The walls themselves (and the doors' locks) come from the map set every time,
+// so an edit in Map Test reaches the table.
+const wallKey = (w) => [w.x1, w.y1, w.x2, w.y2].map((v) => Math.round(v)).join(',');
+function wallStateToSave() {
+  return { v: 2, open: Object.fromEntries(state.walls.filter((w) => w.type === 'door').map((w) => [wallKey(w), Boolean(w.open)])), extra: state.walls.filter((w) => w.added).map((w) => ({ x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type, open: Boolean(w.open), added: true })) };
+}
+function applyWallState(walls, saved) {
+  const list = Array.isArray(walls) ? walls : [];
+  if (Array.isArray(saved)) {                          // an older save kept the whole wall list: only its door states are used
+    const open = Object.fromEntries(saved.filter((w) => w && w.type === 'door').map((w) => [wallKey(w), Boolean(w.open)]));
+    saved = { open, extra: [] };
+  }
+  if (!saved || typeof saved !== 'object') return list;
+  for (const w of list) if (w.type === 'door' && !w.secret && !w.locked && saved.open && Object.hasOwn(saved.open, wallKey(w))) w.open = Boolean(saved.open[wallKey(w)]);
+  for (const w of Array.isArray(saved.extra) ? saved.extra : []) if (w && [w.x1, w.y1, w.x2, w.y2].every(Number.isFinite)) list.push({ x1: w.x1, y1: w.y1, x2: w.x2, y2: w.y2, type: w.type === 'door' ? 'door' : 'wall', open: Boolean(w.open), added: true });
+  return list;
+}
 function wallsChanged() {
   state.wallsVersion++;
-  store.set(wallsKey(), state.walls);
+  store.set(wallsKey(), wallStateToSave());
   revealFog();
   renderTurnBar();
 }
@@ -2566,7 +2584,7 @@ function finishPointer(e, cancelled) {
     interaction.wallStart = null;
     interaction.wallEnd = null;
     if (!cancelled && a && b && (a.x !== b.x || a.y !== b.y)) {
-      state.walls.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, type: state.wallType, open: false });
+      state.walls.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, type: state.wallType, open: false, added: true });
       wallsChanged();
     }
     requestRender();
@@ -3155,7 +3173,7 @@ async function applyScene(name) {
   const creatures = sc.creatures.map((c) => ({ ...c, conditions: Array.isArray(c.conditions) ? c.conditions : [] }));
   state.combat = { active: false, round: 0, order: [] };
   if (sc.mapUrl && sc.mapUrl !== state.map.url) {
-    const place = state.places.find((p) => p.url === sc.mapUrl);
+    const place = state.availableMaps.find((p) => p.url === sc.mapUrl);
     if (place) {
       state.mapMemory[sc.mapUrl] = { npcs: creatures, party: {} };
       await travelTo({ mapUrl: place.url, mapName: place.name, kind: place.kind, col: place.start.col, row: place.start.row, px: place.startPx });
@@ -4636,7 +4654,7 @@ async function applyMapUpdates(updates) {
       }
       case 'addWall': {
         if (![u.x1, u.y1, u.x2, u.y2].every(Number.isFinite)) break;
-        state.walls.push({ x1: u.x1, y1: u.y1, x2: u.x2, y2: u.y2, type: u.wallType === 'door' ? 'door' : 'wall', open: false });
+        state.walls.push({ x1: u.x1, y1: u.y1, x2: u.x2, y2: u.y2, type: u.wallType === 'door' ? 'door' : 'wall', open: false, added: true });
         wallsTouched = true;
         addChat('system', `↳ A ${u.wallType === 'door' ? 'door' : 'wall'} was added to the map`);
         break;
@@ -4785,7 +4803,7 @@ function removeTokenAt(t) {
    ===================================================================== */
 function bindUi() {
   $('#mapPick').addEventListener('change', async (e) => {
-    const p = state.places.find((x) => x.url === e.target.value);
+    const p = state.availableMaps.find((x) => x.url === e.target.value);
     if (p) await travelTo({ mapUrl: p.url, mapName: p.name, kind: p.kind, col: p.start.col, row: p.start.row, px: p.startPx });
   });
   $('#resetFogBtn').addEventListener('click', () => {
