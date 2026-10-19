@@ -99,7 +99,7 @@ export async function registerMarket(app, deps) {
 
   // The places the active campaign can move the table to (only maps that are installed).
   // The maps a campaign can use: the list saved on the Campaigns page (maps.json), or the built-in registry for the shipped campaigns.
-  const pictureFiles = async () => { if (!deps.SETS) await deps.loadSets(); return [...new Set([...(await readdir(deps.UPLOAD_DIR)).filter((f) => deps.IMAGE_EXT.has(path.extname(f).toLowerCase())), ...deps.PACKET_FILES.keys()])]; };
+  const pictureFiles = async () => { if (!deps.setsLoaded()) await deps.loadSets(); return [...new Set([...(await readdir(deps.UPLOAD_DIR)).filter((f) => deps.IMAGE_EXT.has(path.extname(f).toLowerCase())), ...deps.packetFileNames()])]; };
   async function savedMapList(id) {
     try { return JSON.parse(await readFile(path.join(deps.CAMPAIGNS_DIR, deps.safeCampaignId(id), 'maps.json'), 'utf8')).maps; } catch { return null; }
   }
