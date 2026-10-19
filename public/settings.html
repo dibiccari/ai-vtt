@@ -40,56 +40,78 @@
   .radio small { display:block; color:var(--muted); font-size:12px; }
   .help { font-size:12px; color:var(--muted); }
   code { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 5px; font:12px Consolas,monospace; }
-  table.usage { width:100%; border-collapse:collapse; font-size:13px; }
-  table.usage th, table.usage td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--border, #2a3242); }
-  table.usage th:first-child, table.usage td:first-child { text-align:left; }
-  table.usage td.cost { color:#f0c048; font-weight:700; }
-</style>
+  select:disabled, option:disabled { color:#6b778a; }
+  .jobrow { border:1px solid var(--border); border-radius:10px; padding:12px; margin:0 0 10px; }
+  .jobrow h4 { margin:0 0 6px; font-size:14px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; } @media (max-width: 700px) { .grid3 { grid-template-columns:1fr; } }
+  </style>
 </head>
 <body>
 <div class="page">
 <script src="/nav.js"></script>
 <h1>AI<span>·</span>VTT Settings</h1>
-<p class="lead">Keys are saved to the <code>.env</code> file on this computer and take effect immediately, with no restart. They are never shown again once saved.</p>
+<p class="lead">Add a key for each service once, then say which service does which job. Keys are saved to the <code>.env</code> file on this computer and take effect immediately, with no restart. They are never shown again once saved. What the AI has cost so far is on the <a href="/usage.html">AI usage</a> page.</p>
 
 <div class="card">
-  <h2>Claude (AI Dungeon Master) <span class="badge" id="anBadge">checking…</span></h2>
-  <p>Claude, from Anthropic, runs the Dungeon Master: all narration, rules and NPC dialogue. </p>
-  <p class="links">Get a key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">create a Claude API key</a> · <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">add credit / reload balance</a> · <a href="https://console.anthropic.com/settings/usage" target="_blank" rel="noopener">usage</a></p>
-  <label>Claude API key (Anthropic) <span class="help" id="anHint"></span>
-    <div class="inline"><input type="password" id="anKey" placeholder="sk-ant-… (Claude key)" autocomplete="off" spellcheck="false"><button type="button" data-show="anKey">Show</button></div>
-  </label>
-  <label>Claude model
-    <input type="text" id="anModel" placeholder="claude-opus-5-5" spellcheck="false">
-  </label>
-  <div class="row">
-    <button class="primary" id="anSave">Save</button>
-    <button id="anTest">Test key</button>
-    <button class="danger" id="anClear">Remove key</button>
-  </div>
-  <div class="msg" id="anMsg"></div>
-</div>
-
-<div class="card">
-  <h2>AI Dungeon Master: usage and estimated cost</h2>
-  <p class="help" style="margin:0 0 8px">Tokens used by the DM and the "Previously on" recap. The dollar figures are <b>estimates</b> at list prices (data/usage-prices.json); the real bill is on the Anthropic Console. Your Claude subscription does not cover these calls, the API key above does. ChatGPT voices are billed by OpenAI and are not counted here.</p>
-  <table class="usage" id="usageTable"><thead><tr><th></th><th>Calls</th><th>In</th><th>Out</th><th>Cached in</th><th>Est. cost</th></tr></thead><tbody></tbody></table>
-  <div class="help" id="usageNote" style="margin-top:8px"></div>
-  <div class="row" style="margin-top:8px"><button id="usageRefresh">Refresh</button> <button class="danger" id="usageReset">Reset the totals</button></div>
-</div>
-
-<div class="card">
-  <h2>Voice Generator <span class="badge" id="oaBadge">checking…</span></h2>
-  <p>The voice generator speaks the narrator and each NPC with a natural voice. It only speaks the words Claude writes, and it needs credit on the provider's account.</p>
-  <label>Provider
-    <select id="voiceProvider"><option value="openai">OpenAI (ChatGPT voices)</option></select>
-  </label>
-  <p class="links" id="voiceLinks"></p>
-  <div data-voice="openai">
-    <label>OpenAI API key <span class="help" id="oaHint"></span>
-      <div class="inline"><input type="password" id="oaKey" placeholder="sk-… (OpenAI key)" autocomplete="off" spellcheck="false"><button type="button" data-show="oaKey">Show</button></div>
+  <h2>API keys <span class="help" style="font-weight:400">one per service</span></h2>
+  <div class="keyblock">
+    <h4>Anthropic (Claude) <span class="badge" id="anBadge">checking…</span></h4>
+    <p class="links">Get a key: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">create a Claude API key</a> · <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener">add credit</a> · <a href="https://console.anthropic.com/settings/usage" target="_blank" rel="noopener">usage</a></p>
+    <label>Claude API key <span class="help" id="anHint"></span>
+      <div class="inline"><input type="password" id="anKey" placeholder="sk-ant-… (Claude key)" autocomplete="off" spellcheck="false"><button type="button" data-show="anKey">Show</button><button type="button" id="anTest">Test</button><button type="button" class="danger" data-clearkey="ANTHROPIC_API_KEY" data-confirm="Remove the Claude key? The AI Dungeon Master will go offline.">Remove</button></div>
     </label>
-    <label>Voice model
+  </div>
+  <div class="keyblock">
+    <h4>OpenAI (ChatGPT) <span class="badge" id="oaBadge">checking…</span></h4>
+    <p class="links" id="linksOpenai"></p>
+    <label>OpenAI API key <span class="help" id="oaHint"></span>
+      <div class="inline"><input type="password" id="oaKey" placeholder="sk-… (OpenAI key)" autocomplete="off" spellcheck="false"><button type="button" data-show="oaKey">Show</button><button type="button" id="oaTest">Test</button><button type="button" class="danger" data-clearkey="OPENAI_API_KEY" data-confirm="Remove the OpenAI key? ChatGPT voices and pictures will stop.">Remove</button></div>
+    </label>
+    <label>A separate key for pictures (optional) <span class="help" id="imKeyHint"></span>
+      <div class="inline"><input type="password" id="imKey" placeholder="blank = pictures use the key above" autocomplete="off" spellcheck="false"><button type="button" data-show="imKey">Show</button><button type="button" class="danger" data-clearkey="OPENAI_IMAGE_API_KEY" data-confirm="Remove the separate picture key? Pictures will use the main OpenAI key again.">Remove</button></div>
+    </label>
+  </div>
+  <div class="keyblock">
+    <h4>Google Gemini <span class="badge" id="imBadgeGemini">…</span></h4>
+    <p class="links" id="linksGemini"></p>
+    <label>Gemini key <span class="help" id="gmHint"></span>
+      <div class="inline"><input type="password" id="gmKey" placeholder="AIza… (Gemini key)" autocomplete="off" spellcheck="false"><button type="button" data-show="gmKey">Show</button><button type="button" class="danger" data-clearkey="GEMINI_API_KEY" data-confirm="Remove the saved Gemini key?">Remove</button></div>
+    </label>
+  </div>
+  <div class="keyblock">
+    <h4>FLUX on fal.ai <span class="badge" id="imBadgeFal">…</span></h4>
+    <p class="links" id="linksFal"></p>
+    <label>fal.ai key <span class="help" id="flHint"></span>
+      <div class="inline"><input type="password" id="flKey" placeholder="fal key (id:secret)" autocomplete="off" spellcheck="false"><button type="button" data-show="flKey">Show</button><button type="button" class="danger" data-clearkey="FAL_API_KEY" data-confirm="Remove the saved fal.ai key?">Remove</button></div>
+    </label>
+  </div>
+  <div class="row"><button class="primary" id="keysSave">Save keys</button></div>
+  <div class="msg" id="keysMsg"></div>
+</div>
+
+<div class="card">
+  <h2>Dungeon Master</h2>
+  <p>Who runs the game. Choose None when a person is the Dungeon Master: the table then works without any AI replies.</p>
+  <div class="grid3">
+    <label>Dungeon Master
+      <select id="dmProvider"><option value="none">None (a person)</option><option value="claude">Claude AI (Anthropic)</option></select>
+    </label>
+    <label>Model
+      <select id="dmModel"></select>
+    </label>
+  </div>
+  <div class="row"><button class="primary" id="dmSave">Save</button></div>
+  <div class="msg" id="dmMsg"></div>
+</div>
+
+<div class="card">
+  <h2>Narration (voices)</h2>
+  <p>Who speaks the narrator and each NPC aloud. It only speaks the words the Dungeon Master writes, and ChatGPT voices need credit on the OpenAI account. The Microsoft voices below are free and need no setup.</p>
+  <div class="grid3">
+    <label>Narrator
+      <select id="voiceProvider"><option value="none">None</option><option value="openai">ChatGPT voices (OpenAI)</option><option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option></select>
+    </label>
+    <label>Model
       <select id="oaModel">
         <option value="gpt-4o-mini-tts">gpt-4o-mini-tts (recommended: takes acting directions)</option>
         <option value="tts-1">tts-1 (cheaper, no acting directions)</option>
@@ -97,64 +119,28 @@
       </select>
     </label>
   </div>
-  <div class="row">
-    <button class="primary" id="oaSave">Save</button>
-    <button id="oaTest">Test key</button>
-    <button id="oaSample">🔊 Hear a sample</button>
-    <button class="danger" id="oaClear">Remove key</button>
-  </div>
+  <div class="row"><button class="primary" id="voiceSave">Save</button><button id="oaSample">🔊 Hear a sample</button></div>
   <div class="msg" id="oaMsg"></div>
 </div>
 
 <div class="card">
-  <h2>Image Generator <span class="badge" id="imBadge">checking…</span></h2>
-  <p>The image generator paints the map pictures (battle maps, towns, regions) that I trace walls onto. Each picture is charged to the account whose key is used when it is made. Each service has its own key below; then pick which one makes new pictures, with its model and quality.</p>
-  <h3 class="sub">Keys: one per service</h3>
-  <div class="keyblock" data-image="openai">
-    <h4>OpenAI (ChatGPT images) <span class="badge" id="imBadgeOpenai">…</span></h4>
-    <p class="links" id="linksOpenai"></p>
-    <p class="help" style="margin:0 0 8px">By default this uses the <b>same OpenAI key</b> as the voices above, so there is nothing to paste. Paste a key here only to bill the pictures to a different OpenAI account.</p>
-    <label>Image key (optional) <span class="help" id="imKeyHint"></span>
-      <div class="inline"><input type="password" id="imKey" placeholder="blank = use the voices key above" autocomplete="off" spellcheck="false"><button type="button" data-show="imKey">Show</button><button type="button" class="danger" data-clearkey="OPENAI_IMAGE_API_KEY" data-confirm="Remove the separate image key? The pictures will use the voices key again.">Remove</button></div>
-    </label>
-  </div>
-  <div class="keyblock" data-image="gemini">
-    <h4>Google Gemini <span class="badge" id="imBadgeGemini">…</span></h4>
-    <p class="links" id="linksGemini"></p>
-    <label>Gemini key <span class="help" id="gmHint"></span>
-      <div class="inline"><input type="password" id="gmKey" placeholder="AIza… (Gemini key)" autocomplete="off" spellcheck="false"><button type="button" data-show="gmKey">Show</button><button type="button" class="danger" data-clearkey="GEMINI_API_KEY" data-confirm="Remove the saved Gemini key?">Remove</button></div>
-    </label>
-  </div>
-  <div class="keyblock" data-image="fal">
-    <h4>FLUX on fal.ai <span class="badge" id="imBadgeFal">…</span></h4>
-    <p class="links" id="linksFal"></p>
-    <label>fal.ai key <span class="help" id="flHint"></span>
-      <div class="inline"><input type="password" id="flKey" placeholder="fal key (id:secret)" autocomplete="off" spellcheck="false"><button type="button" data-show="flKey">Show</button><button type="button" class="danger" data-clearkey="FAL_API_KEY" data-confirm="Remove the saved fal.ai key?">Remove</button></div>
-    </label>
-  </div>
-  <h3 class="sub">Make new pictures with</h3>
-  <label>Service
-    <select id="imProvider">
-      <option value="openai">OpenAI (ChatGPT images)</option>
-      <option value="gemini">Google (Gemini images)</option>
-      <option value="fal">fal.ai (FLUX models)</option>
-    </select>
-  </label>
-  <label>Image model
-    <select id="imModel"></select>
-  </label>
-  <label>Picture quality
-    <select id="imQuality"></select>
-  </label>
-  <div class="row">
-    <button class="primary" id="imSave">Save</button>
-    <button id="imTest">Check this model</button>
-  </div>
-  <div class="msg" id="imMsg"></div>
+  <h2>Map generators</h2>
+  <p>Which service paints each kind of map picture, with its model and quality. A kind set to None has no generator assigned. Each service needs its key above and credit on its own account.</p>
+  <div class="jobrow" data-kind="regional"><h4>Regional maps <span class="help">hexagons, 5 miles</span></h4><div class="grid3">
+    <label>Generator<select data-field="provider"></select></label><label>Model<select data-field="model"></select></label><label>Quality<select data-field="quality"></select></label></div>
+    <p class="links" data-field="links"></p><div class="row"><button data-check>Check this model</button></div><div class="msg" data-field="msg"></div></div>
+  <div class="jobrow" data-kind="town"><h4>Town maps <span class="help">no tiles</span></h4><div class="grid3">
+    <label>Generator<select data-field="provider"></select></label><label>Model<select data-field="model"></select></label><label>Quality<select data-field="quality"></select></label></div>
+    <p class="links" data-field="links"></p><div class="row"><button data-check>Check this model</button></div><div class="msg" data-field="msg"></div></div>
+  <div class="jobrow" data-kind="battle"><h4>Battle maps <span class="help">squares, 5 feet</span></h4><div class="grid3">
+    <label>Generator<select data-field="provider"></select></label><label>Model<select data-field="model"></select></label><label>Quality<select data-field="quality"></select></label></div>
+    <p class="links" data-field="links"></p><div class="row"><button data-check>Check this model</button></div><div class="msg" data-field="msg"></div></div>
+  <div class="row"><button class="primary" id="mapsSave">Save map generators</button></div>
+  <div class="msg" id="mapsMsg"></div>
 </div>
 
 <div class="card">
-  <h2>Who speaks the DM's words?</h2>
+  <h2>Voice engine in this browser</h2>
   <p>Saved in this browser. You can switch any time. The tabletop shows which engine is on and links back here.</p>
   <label class="radio"><input type="radio" name="engine" value="cloud"><span><b>ChatGPT voices (OpenAI)</b><small>Natural, distinct voices for the narrator and each NPC. Needs the OpenAI key above. Falls back to Microsoft voices if it fails.</small></span></label>
   <label class="radio"><input type="radio" name="engine" value="browser"><span><b>Microsoft voices</b><small>Free and offline. Uses the voices installed on this computer.</small></span></label>
@@ -166,119 +152,129 @@
     <button type="button" id="narratorTest">Play a sample</button>
     <span class="help" id="narratorMsg">The list shows the English voices installed in this browser.</span>
   </div>
-</div>
 
 <script>
 'use strict';
 const $ = (s) => document.querySelector(s);
-
 function setMsg(el, text, ok) { el.textContent = text; el.className = `msg ${ok ? 'ok' : 'bad'}`; }
-
 async function api(path, body) {
   const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
   return data;
 }
+function badge(el, set) { el.textContent = set ? 'key saved' : 'no key'; el.className = `badge ${set ? 'on' : 'off'}`; }
 
-function badge(el, set) {
-  el.textContent = set ? 'key saved' : 'no key';
-  el.className = `badge ${set ? 'on' : 'off'}`;
+const DM_MODELS = [['claude-opus-5-5', 'Claude Opus 5.5 (best, the one the checks use)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (faster, cheaper)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest, simplest)'], ['claude-fable-5-1', 'Claude Fable 5.1']];
+const SERVICES = { openai: 'OpenAI (ChatGPT images)', gemini: 'Google Gemini', fal: 'FLUX on fal.ai' };
+const IMAGE_INFO = {
+  openai: {
+    links: [['add credit / reload balance', 'https://platform.openai.com/settings/organization/billing/overview'], ['create an OpenAI API key', 'https://platform.openai.com/api-keys'], ['usage', 'https://platform.openai.com/usage'], ['verify the organization (the image models may need it)', 'https://help.openai.com/en/articles/10910291-api-organization-verification']],
+    models: [['gpt-image-1', 'gpt-image-1 (the one the maps were made with; about $0.05 a picture at medium, $0.20 at high)'], ['gpt-image-1-mini', 'gpt-image-1-mini (cheaper, a little less detailed)']],
+    qualities: [['low', 'Low (cheapest, for tests)'], ['medium', 'Medium (a good first try)'], ['high', 'High (best maps, about four times the price of medium)']]
+  },
+  gemini: {
+    links: [['get a Gemini API key (Google AI Studio)', 'https://aistudio.google.com/apikey'], ['billing and credit', 'https://aistudio.google.com/billing'], ['pricing', 'https://ai.google.dev/gemini-api/docs/pricing'], ['usage', 'https://aistudio.google.com/usage']],
+    models: [['gemini-nano-banana-2.1', 'gemini-nano-banana-2.1 (cheapest: about $0.03 a 1K picture)'], ['gemini-3.1-flash-image', 'gemini-3.1-flash-image (about $0.07 a 1K picture)'], ['gemini-3-pro-image', 'gemini-3-pro-image (best quality, about $0.13)']],
+    qualities: [['1K', '1K (about 1000 px, cheapest)'], ['2K', '2K (about 2000 px)']]
+  },
+  fal: {
+    links: [['create a fal.ai key', 'https://fal.ai/dashboard/keys'], ['billing and credit', 'https://fal.ai/dashboard/billing'], ['usage', 'https://fal.ai/dashboard/usage'], ['pricing', 'https://fal.ai/pricing']],
+    models: [['fal-ai/flux-control-lora-canny', 'FLUX Control LoRA (canny): follows the wall lines of a drawing closely'], ['fal-ai/flux-pro/kontext', 'FLUX Kontext: edits a picture and keeps its layout']],
+    qualities: [['standard', 'Standard']]
+  }
+};
+function linkRow(el, list) { el.innerHTML = ''; list.forEach(([text, href], i) => { if (i) el.append(' · '); const a = document.createElement('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text; el.appendChild(a); }); }
+function fill(sel, items, want) {
+  sel.innerHTML = '';
+  for (const [v, t] of items) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+  if (want && !items.some(([v]) => v === want)) { const o = document.createElement('option'); o.value = o.textContent = want; sel.appendChild(o); }
+  if (want) sel.value = want;
+}
+let loaded = null;
+
+// ---- the key links and the key boxes
+linkRow($('#linksOpenai'), IMAGE_INFO.openai.links); linkRow($('#linksGemini'), IMAGE_INFO.gemini.links); linkRow($('#linksFal'), IMAGE_INFO.fal.links);
+
+// ---- the map generator rows: the generator choice decides the models, the qualities and the links under it
+const rowOf = (kind) => document.querySelector(`.jobrow[data-kind="${kind}"]`);
+const fld = (row, name) => row.querySelector(`[data-field="${name}"]`);
+function showRow(row, provider, model, quality) {
+  const p = fld(row, 'provider'), m = fld(row, 'model'), q = fld(row, 'quality');
+  if (!p.options.length) fill(p, [['none', 'None'], ...Object.entries(SERVICES)]);
+  p.value = provider;
+  const info = IMAGE_INFO[provider];
+  fill(m, info ? info.models : [['', '(no generator)']], info ? model : '');
+  fill(q, info ? info.qualities : [['', '(no generator)']], info ? quality : '');
+  m.disabled = q.disabled = !info;
+  linkRow(fld(row, 'links'), info ? info.links : []);
+  fld(row, 'links').hidden = !info;
+}
+for (const row of document.querySelectorAll('.jobrow')) {
+  fld(row, 'provider').addEventListener('change', (e) => showRow(row, e.target.value, '', ''));
+  row.querySelector('[data-check]').addEventListener('click', async () => {
+    const msg = fld(row, 'msg'); setMsg(msg, 'Checking…', true);
+    try { await saveMaps(true); const r = await api('/api/settings/test', { which: 'images', kind: row.dataset.kind }); setMsg(msg, r.ok ? r.message : r.error, r.ok); } catch (err) { setMsg(msg, err.message, false); }
+  });
 }
 
 async function load() {
   try {
-    const s = await api('/api/settings');
+    const s = loaded = await api('/api/settings');
     badge($('#anBadge'), s.anthropic.set);
     $('#anHint').textContent = s.anthropic.set ? `(saved, ${s.anthropic.hint}; leave blank to keep it)` : '(not set)';
-    $('#anModel').value = s.anthropic.model;
     badge($('#oaBadge'), s.openai.set);
     $('#oaHint').textContent = s.openai.set ? `(saved, ${s.openai.hint}; leave blank to keep it)` : '(not set)';
-    $('#oaModel').value = s.openai.ttsModel;
-    const prov = s.openai.imageProvider || 'openai';
-    $('#imProvider').value = prov;
-    showImageProvider(prov, { model: s.openai.imageModel, quality: s.openai.imageQuality });
-    const keys = imageKeys = s.openai.imageKeys;
-    badge($('#imBadge'), keys[prov].set);
-    badge($('#imBadgeOpenai'), keys.openai.set); badge($('#imBadgeGemini'), keys.gemini.set); badge($('#imBadgeFal'), keys.fal.set);
-    $('#imKeyHint').textContent = keys.openai.own ? `(own key saved, ${keys.openai.hint}; leave blank to keep it)` : keys.openai.set ? '(not set: the voices key is used)' : '(not set)';
+    const keys = s.openai.imageKeys;
+    $('#imKeyHint').textContent = keys.openai.own ? `(own key saved, ${keys.openai.hint}; leave blank to keep it)` : '(not set: the key above is used)';
+    badge($('#imBadgeGemini'), keys.gemini.set); badge($('#imBadgeFal'), keys.fal.set);
     $('#gmHint').textContent = keys.gemini.set ? `(saved, ${keys.gemini.hint}; leave blank to keep it)` : '(not set)';
     $('#flHint').textContent = keys.fal.set ? `(saved, ${keys.fal.hint}; leave blank to keep it)` : '(not set)';
-    if (![...$('#oaModel').options].some((o) => o.value === s.openai.ttsModel)) {
-      const o = document.createElement('option');
-      o.value = o.textContent = s.openai.ttsModel;
-      $('#oaModel').appendChild(o);
-      $('#oaModel').value = s.openai.ttsModel;
-    }
+    $('#dmProvider').value = s.dm.provider;
+    fill($('#dmModel'), DM_MODELS, s.dm.model);
+    $('#dmModel').disabled = s.dm.provider === 'none';
+    $('#voiceProvider').value = s.voice.provider;
+    if (![...$('#oaModel').options].some((o) => o.value === s.voice.model)) fill($('#oaModel'), [...$('#oaModel').options].map((o) => [o.value, o.textContent]), s.voice.model);
+    $('#oaModel').value = s.voice.model; $('#oaModel').disabled = s.voice.provider === 'none';
+    for (const kind of ['regional', 'town', 'battle']) { const g = s.maps[kind]; showRow(rowOf(kind), g.provider, g.model, g.quality); }
   } catch (err) {
-    setMsg($('#anMsg'), `Could not load settings: ${err.message}`, false);
+    setMsg($('#keysMsg'), `Could not load settings: ${err.message}`, false);
   }
 }
 
 async function save(fields, msgEl, clearInputs) {
   try {
     await api('/api/settings', fields);
-    clearInputs.forEach((id) => { $(id).value = ''; });
+    (clearInputs || []).forEach((id) => { $(id).value = ''; });
     setMsg(msgEl, 'Saved. Active now, no restart needed.', true);
     await load();
-  } catch (err) {
-    setMsg(msgEl, err.message, false);
-  }
+  } catch (err) { setMsg(msgEl, err.message, false); }
 }
-
+const KEY_INPUTS = ['#anKey', '#oaKey', '#imKey', '#gmKey', '#flKey'];
+$('#keysSave').addEventListener('click', () => save({ ANTHROPIC_API_KEY: $('#anKey').value, OPENAI_API_KEY: $('#oaKey').value, OPENAI_IMAGE_API_KEY: $('#imKey').value, GEMINI_API_KEY: $('#gmKey').value, FAL_API_KEY: $('#flKey').value }, $('#keysMsg'), KEY_INPUTS));
+document.querySelectorAll('[data-clearkey]').forEach((b) => b.addEventListener('click', () => { if (confirm(b.dataset.confirm)) save({ clear: [b.dataset.clearkey] }, $('#keysMsg'), KEY_INPUTS); }));
 async function test(which, msgEl) {
   setMsg(msgEl, 'Testing…', true);
-  try {
-    const r = await api('/api/settings/test', { which });
-    setMsg(msgEl, r.ok ? r.message : r.error, r.ok);
-  } catch (err) {
-    setMsg(msgEl, err.message, false);
-  }
+  try { const r = await api('/api/settings/test', { which }); setMsg(msgEl, r.ok ? r.message : r.error, r.ok); } catch (err) { setMsg(msgEl, err.message, false); }
 }
+$('#anTest').addEventListener('click', () => test('anthropic', $('#keysMsg')));
+$('#oaTest').addEventListener('click', () => test('openai', $('#keysMsg')));
 
-$('#anSave').addEventListener('click', () => save({ ANTHROPIC_API_KEY: $('#anKey').value, ANTHROPIC_MODEL: $('#anModel').value }, $('#anMsg'), ['#anKey']));
-$('#anTest').addEventListener('click', () => test('anthropic', $('#anMsg')));
-$('#anClear').addEventListener('click', () => { if (confirm('Remove the Claude key? The AI DM will go offline.')) save({ clear: ['ANTHROPIC_API_KEY'] }, $('#anMsg'), ['#anKey']); });
-
-// ---- Voice Generator and Image Generator: the provider choice decides the key box, the models and the links
-const VOICE_PROVIDERS = {
-  openai: { links: [['create an OpenAI API key', 'https://platform.openai.com/api-keys'], ['add credit / reload balance', 'https://platform.openai.com/settings/organization/billing/overview'], ['usage', 'https://platform.openai.com/usage']] }
-};
-const IMAGE_PROVIDER_INFO = {
-  openai: {
-    links: [['add credit / reload balance', 'https://platform.openai.com/settings/organization/billing/overview'], ['create an OpenAI API key', 'https://platform.openai.com/api-keys'], ['usage', 'https://platform.openai.com/usage'], ['verify the organization (the image models may need it)', 'https://platform.openai.com/settings/organization/general']],
-    models: [['gpt-image-1', 'gpt-image-1 (the one the maps were made with; about $0.05 a picture at medium, $0.20 at high)'], ['gpt-image-1-mini', 'gpt-image-1-mini (cheaper, a little less detailed)']],
-    qualities: [['low', 'Low (cheapest, for tests)'], ['medium', 'Medium (a good first try)'], ['high', 'High (best maps, about four times the price of medium)']], key: 'OPENAI_IMAGE_API_KEY', keyInput: '#imKey', clear: 'OPENAI_IMAGE_API_KEY'
-  },
-  gemini: {
-    links: [['get a Gemini API key (Google AI Studio)', 'https://aistudio.google.com/apikey'], ['billing and credit', 'https://aistudio.google.com/billing'], ['pricing', 'https://ai.google.dev/gemini-api/docs/pricing'], ['usage', 'https://aistudio.google.com/usage']],
-    models: [['gemini-nano-banana-2.1', 'gemini-nano-banana-2.1 (cheapest: about $0.03 a 1K picture)'], ['gemini-3.1-flash-image', 'gemini-3.1-flash-image (about $0.07 a 1K picture)'], ['gemini-3-pro-image', 'gemini-3-pro-image (best quality, about $0.13)']],
-    qualities: [['1K', '1K (about 1000 px, cheapest)'], ['2K', '2K (about 2000 px)']], key: 'GEMINI_API_KEY', keyInput: '#gmKey', clear: 'GEMINI_API_KEY'
-  },
-  fal: {
-    links: [['create a fal.ai key', 'https://fal.ai/dashboard/keys'], ['billing and credit', 'https://fal.ai/dashboard/billing'], ['usage', 'https://fal.ai/dashboard/usage'], ['pricing', 'https://fal.ai/pricing']],
-    models: [['fal-ai/flux-control-lora-canny', 'FLUX Control LoRA (canny): follows the wall lines of a drawing closely'], ['fal-ai/flux-pro/kontext', 'FLUX Kontext: edits a picture and keeps its layout']],
-    qualities: [['standard', 'Standard']], key: 'FAL_API_KEY', keyInput: '#flKey', clear: 'FAL_API_KEY'
+$('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = e.target.value === 'none'; });
+$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value }, $('#dmMsg')));
+$('#voiceProvider').addEventListener('change', (e) => { $('#oaModel').disabled = e.target.value === 'none'; });
+$('#voiceSave').addEventListener('click', () => save({ VOICE_PROVIDER: $('#voiceProvider').value, TTS_MODEL: $('#oaModel').value }, $('#oaMsg')));
+async function saveMaps(quiet) {
+  const fields = {};
+  for (const kind of ['regional', 'town', 'battle']) {
+    const row = rowOf(kind), K = kind.toUpperCase(), provider = fld(row, 'provider').value;
+    fields['IMAGE_PROVIDER_' + K] = provider;
+    if (provider !== 'none') { fields['IMAGE_MODEL_' + K] = fld(row, 'model').value; fields['IMAGE_QUALITY_' + K] = fld(row, 'quality').value; }
   }
-};
-function linkRow(el, list) { el.innerHTML = ''; list.forEach(([text, href], i) => { if (i) el.append(' · '); const a = document.createElement('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text; el.appendChild(a); }); }
-function showImageProvider(p, keepModel) {
-  const info = IMAGE_PROVIDER_INFO[p];
-  const fill = (sel, items, want) => { sel.innerHTML = ''; for (const [v, t] of items) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); } if (want && !items.some(([v]) => v === want)) { const o = document.createElement('option'); o.value = o.textContent = want; sel.appendChild(o); } sel.value = want && [...sel.options].some((o) => o.value === want) ? want : items[0][0]; };
-  fill($('#imModel'), info.models, keepModel && keepModel.model);
-  fill($('#imQuality'), info.qualities, keepModel && keepModel.quality);
+  if (quiet) { await api('/api/settings', fields); return; }
+  await save(fields, $('#mapsMsg'));
 }
-let imageKeys = null;
-document.getElementById('imProvider').addEventListener('change', (e) => { showImageProvider(e.target.value, null); if (imageKeys) badge($('#imBadge'), imageKeys[e.target.value].set); });
-linkRow(document.getElementById('voiceLinks'), VOICE_PROVIDERS.openai.links);
-linkRow($('#linksOpenai'), IMAGE_PROVIDER_INFO.openai.links); linkRow($('#linksGemini'), IMAGE_PROVIDER_INFO.gemini.links); linkRow($('#linksFal'), IMAGE_PROVIDER_INFO.fal.links);
-document.querySelectorAll('[data-clearkey]').forEach((b) => b.addEventListener('click', () => { if (confirm(b.dataset.confirm)) save({ clear: [b.dataset.clearkey] }, $('#imMsg'), ['#imKey', '#gmKey', '#flKey']); }));
-
-$('#oaSave').addEventListener('click', () => save({ OPENAI_API_KEY: $('#oaKey').value, TTS_MODEL: $('#oaModel').value }, $('#oaMsg'), ['#oaKey']));
-$('#oaTest').addEventListener('click', () => test('openai', $('#oaMsg')));
-$('#imSave').addEventListener('click', () => save({ IMAGE_PROVIDER: $('#imProvider').value, OPENAI_IMAGE_API_KEY: $('#imKey').value, GEMINI_API_KEY: $('#gmKey').value, FAL_API_KEY: $('#flKey').value, IMAGE_MODEL: $('#imModel').value, IMAGE_QUALITY: $('#imQuality').value }, $('#imMsg'), ['#imKey', '#gmKey', '#flKey']));
-$('#imTest').addEventListener('click', () => test('images', $('#imMsg')));
-$('#oaClear').addEventListener('click', () => { if (confirm('Remove the OpenAI key? ChatGPT voices will turn off.')) save({ clear: ['OPENAI_API_KEY'] }, $('#oaMsg'), ['#oaKey']); });
+$('#mapsSave').addEventListener('click', () => saveMaps(false));
 
 $('#oaSample').addEventListener('click', async () => {
   const msg = $('#oaMsg');
@@ -356,30 +352,6 @@ $('#narratorTest').addEventListener('click', () => {
 });
 
 load();
-
-(function () {
-  var fmt = function (n) { return Number(n || 0).toLocaleString(); };
-  var money = function (v) { return '$' + Number(v || 0).toFixed(v >= 10 ? 2 : 3); };
-  async function loadUsage() {
-    var body = document.querySelector('#usageTable tbody');
-    try {
-      var res = await fetch('/api/usage'); var u = await res.json(); if (!res.ok) throw new Error(u.error || 'HTTP ' + res.status);
-      var rows = [['This session (since the server started)', u.session], ['Today', u.today], ['All time (since ' + String(u.since || '').slice(0, 10) + ')', u.total]];
-      Object.keys(u.byCampaign || {}).forEach(function (k) { rows.push(['Campaign: ' + k, u.byCampaign[k]]); });
-      Object.keys(u.byKind || {}).forEach(function (k) { rows.push([k === 'dm' ? 'DM replies' : k === 'recap' ? 'Recaps' : k, u.byKind[k]]); });
-      body.innerHTML = '';
-      rows.forEach(function (r) {
-        var tr = document.createElement('tr'); var d = r[1] || {};
-        [r[0], fmt(d.calls), fmt(d.input), fmt(d.output), fmt((d.cacheRead || 0) + (d.cacheWrite || 0)), money(d.cost)].forEach(function (t, i) { var td = document.createElement('td'); td.textContent = t; if (i === 5) td.className = 'cost'; tr.appendChild(td); });
-        body.appendChild(tr);
-      });
-      document.getElementById('usageNote').textContent = 'Estimated: input tokens at the model price, cached input at 0.1x (read) and 1.25x (written), output at its price. Prices per million tokens: ' + Object.keys(u.prices || {}).slice(0, 3).map(function (k) { return k + ' ' + u.prices[k][0] + '/' + u.prices[k][1]; }).join(', ') + ' (in/out).';
-    } catch (e) { body.innerHTML = '<tr><td colspan="6">Could not load the usage: ' + e.message + '</td></tr>'; }
-  }
-  document.getElementById('usageRefresh').addEventListener('click', loadUsage);
-  document.getElementById('usageReset').addEventListener('click', async function () { if (confirm('Reset the saved usage totals to zero? (The Anthropic Console is not affected.)')) { await fetch('/api/usage/reset', { method: 'POST' }); loadUsage(); } });
-  loadUsage();
-})();
 </script>
 </div>
 </body>

@@ -14,7 +14,8 @@ const env = await readFile(path.join(root, '.env'), 'utf8').catch(() => '');
 const key = (await import(path.join(root, 'lib', 'image-settings.js'))).imageSettings(root).key;
 if (!key) { console.error('No OPENAI_API_KEY in .env'); process.exit(1); }
 const { imageSettings } = await import(path.join(root, 'lib', 'image-settings.js'));
-const chosen = imageSettings(root);
+const chosen = imageSettings(root, opt('kind'));
+if (chosen.provider !== 'openai') { console.error('The Settings page assigns ' + (chosen.provider === 'none' ? 'no generator' : chosen.provider) + ' to ' + (opt('kind') || 'maps') + ': this script only paints with OpenAI. Change the assignment in Settings, or paint it another way.'); process.exit(1); }
 const model = opt('model', chosen.model), size = opt('size', '1536x1024'), quality = opt('quality', chosen.quality);       // the Settings page card picks the defaults
 const prompt = (await readFile(path.resolve(promptFile), 'utf8')).trim();
 const t0 = Date.now();

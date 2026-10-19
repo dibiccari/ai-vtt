@@ -1630,6 +1630,7 @@ app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, r
 // ---------------------------------------------------------------- cloud voices (OpenAI text-to-speech)
 
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
+let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_NONE = process.env.VOICE_PROVIDER === 'none';
 let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
 const IMAGE_PROVIDERS = ['openai', 'gemini', 'fal'];
 const IMAGE_QUALITIES = ['low', 'medium', 'high', '1K', '2K', '4K', 'standard'];
@@ -1718,7 +1719,7 @@ async function resolveVoice(tag, speaker) {
 }
 
 app.get('/api/tts/status', (_req, res) => {
-  res.json({ enabled: Boolean(OPENAI_KEY), model: TTS_MODEL });
+  res.json({ enabled: Boolean(OPENAI_KEY) && !VOICE_NONE, model: TTS_MODEL });
 });
 
 // Which cloud voice will each (voice tag, speaker) pair use? Used to label the UI.
@@ -1735,6 +1736,7 @@ app.post('/api/tts/voices', asyncRoute(async (req, res) => {
 }));
 
 app.post('/api/tts', asyncRoute(async (req, res) => {
+  if (VOICE_NONE) return res.status(503).json({ error: 'Narration is set to None in Settings.' });
   if (!OPENAI_KEY) return res.status(503).json({ error: 'Cloud voices are off: set OPENAI_API_KEY in .env and restart.' });
   const text = String(req.body?.text ?? '').trim().slice(0, 1500);
   if (!text) return res.status(400).json({ error: 'text is required' });
@@ -2235,7 +2237,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   if (!text) return res.status(400).json({ error: 'message is required' });
 
   if (!anthropic) {
-    const narrative = 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured on the server. Add it to .env and restart to bring the DM to life. Your action was received.';
+    const narrative = DM_NONE ? 'The Dungeon Master is set to None in Settings: a person runs this game. Your action was received.' : 'The AI Dungeon Master is offline: no ANTHROPIC_API_KEY is configured on the server. Add it in Settings to bring the DM to life. Your action was received.';
     return res.json({
       narrative,
       voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: narrative }],
@@ -2430,7 +2432,11 @@ const SETTINGS = {
   IMAGE_PROVIDER: { secret: false },
   VOICE_PROVIDER: { secret: false },
   IMAGE_MODEL: { secret: false },
-  IMAGE_QUALITY: { secret: false }
+  IMAGE_QUALITY: { secret: false },
+  DM_PROVIDER: { secret: false },
+  IMAGE_PROVIDER_REGIONAL: { secret: false }, IMAGE_MODEL_REGIONAL: { secret: false }, IMAGE_QUALITY_REGIONAL: { secret: false },
+  IMAGE_PROVIDER_TOWN: { secret: false }, IMAGE_MODEL_TOWN: { secret: false }, IMAGE_QUALITY_TOWN: { secret: false },
+  IMAGE_PROVIDER_BATTLE: { secret: false }, IMAGE_MODEL_BATTLE: { secret: false }, IMAGE_QUALITY_BATTLE: { secret: false }
 };
 
 // Keys are secrets: only this computer may read or change settings (blocks LAN devices, other sites, DNS rebinding).
@@ -2459,8 +2465,16 @@ function applySettings() {
   IMAGE_PROVIDER = IMAGE_PROVIDERS.includes(process.env.IMAGE_PROVIDER) ? process.env.IMAGE_PROVIDER : 'openai';
   IMAGE_QUALITY = IMAGE_QUALITIES.includes(process.env.IMAGE_QUALITY) ? process.env.IMAGE_QUALITY : 'medium';
   OPENAI_KEY = process.env.OPENAI_API_KEY || '';
+  DM_NONE = process.env.DM_PROVIDER === 'none';                    // Settings > Dungeon Master: None (a person runs the game)
+  VOICE_NONE = process.env.VOICE_PROVIDER === 'none';
   const key = process.env.ANTHROPIC_API_KEY || '';
-  anthropic = key ? new Anthropic({ apiKey: key }) : null;
+  anthropic = key && !DM_NONE ? new Anthropic({ apiKey: key }) : null;
+}
+// Which service paints each kind of map (Settings > Map generators): the kind's own choice, else the one global choice the scripts always used. 'none' means nobody is assigned.
+function mapGen(kind) {
+  const K = String(kind || '').toUpperCase(), own = (n) => (['REGIONAL', 'TOWN', 'BATTLE'].includes(K) ? process.env[`${n}_${K}`] || '' : '');
+  const prov = own('IMAGE_PROVIDER');
+  return { provider: prov === 'none' ? 'none' : IMAGE_PROVIDERS.includes(prov) ? prov : IMAGE_PROVIDER, model: own('IMAGE_MODEL') || IMAGE_MODEL, quality: IMAGE_QUALITIES.includes(own('IMAGE_QUALITY')) ? own('IMAGE_QUALITY') : IMAGE_QUALITY };
 }
 
 async function updateEnvFile(updates) {
@@ -2480,6 +2494,9 @@ async function updateEnvFile(updates) {
 app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
+    dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL },
+    voice: { provider: VOICE_NONE ? 'none' : 'openai', model: TTS_MODEL },
+    maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },
       imageKeys: { openai: { set: Boolean(IMAGE_KEY || OPENAI_KEY), own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY || OPENAI_KEY) }, gemini: { set: Boolean(GEMINI_KEY), hint: hint(GEMINI_KEY) }, fal: { set: Boolean(FAL_KEY), hint: hint(FAL_KEY) } } }
   });
@@ -2525,24 +2542,26 @@ app.post('/api/settings/test', localOnly, asyncRoute(async (req, res) => {
       if (!r.ok) return res.json({ ok: false, error: r.status === 401 ? 'OpenAI rejected the key (401).' : `OpenAI returned ${r.status}.` });
       return res.json({ ok: true, message: 'OpenAI key accepted. Use "Hear a sample" to confirm your credit balance works.' });
     }
-    if (which === 'images' && IMAGE_PROVIDER === 'gemini') {
+    const gen = mapGen(req.body?.kind);
+    if (which === 'images' && gen.provider === 'none') return res.json({ ok: false, error: 'No generator is assigned to this kind of map (None).' });
+    if (which === 'images' && gen.provider === 'gemini') {
       if (!GEMINI_KEY) return res.json({ ok: false, error: 'No Google Gemini key saved yet.' });
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(IMAGE_MODEL)}`, { headers: { 'x-goog-api-key': GEMINI_KEY } });
-      if (r.status === 404) return res.json({ ok: false, error: `Google does not list a model called ${IMAGE_MODEL} for this key.` });
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gen.model)}`, { headers: { 'x-goog-api-key': GEMINI_KEY } });
+      if (r.status === 404) return res.json({ ok: false, error: `Google does not list a model called ${gen.model} for this key.` });
       if (!r.ok) return res.json({ ok: false, error: r.status === 400 || r.status === 403 ? 'Google rejected the key.' : `Google returned ${r.status}.` });
-      return res.json({ ok: true, message: `${IMAGE_MODEL} is available to this Gemini key. Pictures are only charged when one is made.` });
+      return res.json({ ok: true, message: `${gen.model} is available to this Gemini key. Pictures are only charged when one is made.` });
     }
-    if (which === 'images' && IMAGE_PROVIDER === 'fal') {
+    if (which === 'images' && gen.provider === 'fal') {
       if (!FAL_KEY) return res.json({ ok: false, error: 'No fal.ai key saved yet.' });
       return res.json({ ok: true, message: 'A fal.ai key is saved. fal.ai has no free way to check a key, so the bake-off (Tools > Image Bake-off) is the real test.' });
     }
     if (which === 'images') {
       const imageKey = IMAGE_KEY || OPENAI_KEY;
       if (!imageKey) return res.json({ ok: false, error: 'No OpenAI key saved yet (the images use the same key as the voices unless you give them their own).' });
-      const r = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(IMAGE_MODEL)}`, { headers: { Authorization: `Bearer ${imageKey}` } });
-      if (r.status === 404) return res.json({ ok: false, error: `This key cannot use ${IMAGE_MODEL} (not found). Image models may need a verified OpenAI organization.` });
+      const r = await fetch(`https://api.openai.com/v1/models/${encodeURIComponent(gen.model)}`, { headers: { Authorization: `Bearer ${imageKey}` } });
+      if (r.status === 404) return res.json({ ok: false, error: `This key cannot use ${gen.model} (not found). Image models may need a verified OpenAI organization.` });
       if (!r.ok) return res.json({ ok: false, error: r.status === 401 ? 'OpenAI rejected the key (401).' : `OpenAI returned ${r.status}.` });
-      return res.json({ ok: true, message: `${IMAGE_MODEL} is available to ${IMAGE_KEY ? 'the image key' : 'the shared OpenAI key'}. Pictures are only charged when one is made, so the credit balance is not checked here.` });
+      return res.json({ ok: true, message: `${gen.model} is available to ${IMAGE_KEY ? 'the image key' : 'the shared OpenAI key'}. Pictures are only charged when one is made, so the credit balance is not checked here.` });
     }
     res.status(400).json({ error: 'which must be "anthropic", "openai" or "images"' });
   } catch (err) {

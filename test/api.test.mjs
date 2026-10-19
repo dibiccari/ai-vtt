@@ -594,3 +594,21 @@ test('names that are also object properties (constructor, __proto__, toString) a
   const out = resolveChangeMap(maps, { mapId: 'a', arrive: 'constructor' });
   assert.ok(out.update && out.update.col === 2 && out.update.row === 2, 'an unknown arrival spot named constructor falls back to the start');
 });
+
+test('settings: the Dungeon Master, the narration and each kind of map have their own choice; None switches the AI DM and the voices off', async () => {
+  const before = (await s.get('/api/settings')).json;
+  assert.ok(before.dm && before.voice && before.maps.regional && before.maps.town && before.maps.battle, 'the settings carry all the jobs');
+  assert.equal((await s.post('/api/settings', { IMAGE_PROVIDER_REGIONAL: 'gemini', IMAGE_MODEL_REGIONAL: 'gemini-3-pro-image', IMAGE_QUALITY_REGIONAL: '2K', IMAGE_PROVIDER_TOWN: 'none', IMAGE_PROVIDER_BATTLE: 'fal', IMAGE_MODEL_BATTLE: 'fal-ai/flux-pro/kontext', IMAGE_QUALITY_BATTLE: 'standard' })).status, 200);
+  const after = (await s.get('/api/settings')).json.maps;
+  assert.deepEqual([after.regional.provider, after.regional.model, after.regional.quality], ['gemini', 'gemini-3-pro-image', '2K']);
+  assert.equal(after.town.provider, 'none'); assert.deepEqual([after.battle.provider, after.battle.model], ['fal', 'fal-ai/flux-pro/kontext']);
+  const check = (await s.post('/api/settings/test', { which: 'images', kind: 'town' })).json;
+  assert.equal(check.ok, false); assert.match(check.error, /None/, 'a kind with no generator says so');
+  assert.equal((await s.post('/api/settings', { DM_PROVIDER: 'none', VOICE_PROVIDER: 'none' })).status, 200);
+  const off = (await s.get('/api/settings')).json;
+  assert.equal(off.dm.provider, 'none'); assert.equal(off.voice.provider, 'none');
+  assert.equal((await s.get('/api/tts/status')).json.enabled, false, 'narration None turns the cloud voices off');
+  const chat = await s.post('/api/chat', { message: 'hello' });
+  assert.equal(chat.status, 200); assert.match(chat.json.narrative, /a person runs this game/, 'the DM None says a person runs the game');
+  await s.post('/api/settings', { DM_PROVIDER: 'claude', VOICE_PROVIDER: 'openai', IMAGE_PROVIDER_REGIONAL: 'none' });
+});

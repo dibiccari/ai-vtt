@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-VTT AI Usage</title>
+<style>
+  :root { --bg:#0a0d12; --panel:#11151c; --border:#2a3242; --text:#edf1f7; --muted:#9ba7b9; --accent:#4f9dff; --gold:#f0c048; --ok:#3fd27f; --danger:#ff6b6b; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  .page { margin:0 auto; padding:24px 16px 60px; max-width:900px; }
+  h1 { margin:0 0 4px; font-size:22px; } h1 span { color:var(--gold); }
+  p.lead { color:var(--muted); margin:0 0 20px; }
+  a { color:var(--accent); }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card h2 { margin:0 0 4px; font-size:16px; }
+  .help { font-size:12px; color:var(--muted); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; color:inherit; cursor:pointer; padding:9px 14px; border-radius:6px; border:1px solid #3a4558; background:#1f2632; font-weight:600; white-space:nowrap; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button.danger { color:var(--danger); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.1); }
+  code { background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:0 5px; font:12px Consolas,monospace; }
+  table.usage { width:100%; border-collapse:collapse; font-size:13px; }
+  table.usage th, table.usage td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--border, #2a3242); }
+  table.usage th:first-child, table.usage td:first-child { text-align:left; }
+  table.usage td.cost { color:#f0c048; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="page">
+<script src="/nav.js"></script>
+<h1>AI<span>·</span>VTT AI usage</h1>
+<p class="lead">What the Dungeon Master and the other AI helpers have used, and roughly what it cost. Keys and models are on the <a href="/settings.html">Settings</a> page.</p>
+<div class="card">
+  <h2>AI Dungeon Master: usage and estimated cost</h2>
+  <p class="help" style="margin:0 0 8px">Tokens used by the DM and the "Previously on" recap. The dollar figures are <b>estimates</b> at list prices (data/usage-prices.json); the real bill is on the Anthropic Console. Your Claude subscription does not cover these calls, the API key above does. ChatGPT voices are billed by OpenAI and are not counted here.</p>
+  <table class="usage" id="usageTable"><thead><tr><th></th><th>Calls</th><th>In</th><th>Out</th><th>Cached in</th><th>Est. cost</th></tr></thead><tbody></tbody></table>
+  <div class="help" id="usageNote" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:8px"><button id="usageRefresh">Refresh</button> <button class="danger" id="usageReset">Reset the totals</button></div>
+
+<script>
+(function () {
+  var fmt = function (n) { return Number(n || 0).toLocaleString(); };
+  var money = function (v) { return '$' + Number(v || 0).toFixed(v >= 10 ? 2 : 3); };
+  async function loadUsage() {
+    var body = document.querySelector('#usageTable tbody');
+    try {
+      var res = await fetch('/api/usage'); var u = await res.json(); if (!res.ok) throw new Error(u.error || 'HTTP ' + res.status);
+      var rows = [['This session (since the server started)', u.session], ['Today', u.today], ['All time (since ' + String(u.since || '').slice(0, 10) + ')', u.total]];
+      Object.keys(u.byCampaign || {}).forEach(function (k) { rows.push(['Campaign: ' + k, u.byCampaign[k]]); });
+      Object.keys(u.byKind || {}).forEach(function (k) { rows.push([k === 'dm' ? 'DM replies' : k === 'recap' ? 'Recaps' : k, u.byKind[k]]); });
+      body.innerHTML = '';
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr'); var d = r[1] || {};
+        [r[0], fmt(d.calls), fmt(d.input), fmt(d.output), fmt((d.cacheRead || 0) + (d.cacheWrite || 0)), money(d.cost)].forEach(function (t, i) { var td = document.createElement('td'); td.textContent = t; if (i === 5) td.className = 'cost'; tr.appendChild(td); });
+        body.appendChild(tr);
+      });
+      document.getElementById('usageNote').textContent = 'Estimated: input tokens at the model price, cached input at 0.1x (read) and 1.25x (written), output at its price. Prices per million tokens: ' + Object.keys(u.prices || {}).slice(0, 3).map(function (k) { return k + ' ' + u.prices[k][0] + '/' + u.prices[k][1]; }).join(', ') + ' (in/out).';
+    } catch (e) { body.innerHTML = '<tr><td colspan="6">Could not load the usage: ' + e.message + '</td></tr>'; }
+  }
+  document.getElementById('usageRefresh').addEventListener('click', loadUsage);
+  document.getElementById('usageReset').addEventListener('click', async function () { if (confirm('Reset the saved usage totals to zero? (The Anthropic Console is not affected.)')) { await fetch('/api/usage/reset', { method: 'POST' }); loadUsage(); } });
+  loadUsage();
+})();
+</script>
+</div>
+</body>
+</html>
