@@ -1810,7 +1810,7 @@ app.post('/api/tts', asyncRoute(async (req, res) => {
   const speaker = String(req.body?.speaker ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator';
   const { voice: autoVoice, instructions: autoInstructions } = await resolveVoice(tag, speaker);
   const voice = chosenVoice(String(req.body?.voiceName ?? '')) || autoVoice;       // voiceName: Settings and the Bestiary play a sample of a voice before it is saved
-  const actingNotes = speaker !== 'Narrator' ? String(req.body?.acting ?? '').replace(/\s+/g, ' ').trim().slice(0, 400) : '';       // acting: the same, for the notes
+  const actingNotes = speaker !== 'Narrator' ? String(req.body?.acting ?? '').replace(/\s+/g, ' ').trim().slice(0, 2000) : '';       // acting: the same, for the notes
   const instructions = actingNotes ? `You are voicing ${speaker}. ${actingNotes}` : autoInstructions;
 
   const model = speaker === 'Narrator' ? TTS_MODEL : NPC_TTS_MODEL;        // the Dungeon Master voice and the NPC voices each have their own model

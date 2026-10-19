@@ -195,7 +195,7 @@
     var lv = el('label', '', 'ChatGPT voice'); var sel = el('select'); sel.setAttribute('aria-label', 'Voice for ' + name);
     voiceNames.forEach(function (n) { var o = el('option', '', n.charAt(0).toUpperCase() + n.slice(1)); o.value = n; sel.appendChild(o); });
     lv.appendChild(sel); box.appendChild(lv);
-    var la = el('label', '', 'Acting notes (how it sounds)'); var ta = el('textarea'); ta.rows = 3; ta.maxLength = 400; ta.setAttribute('aria-label', 'Acting notes for ' + name); la.appendChild(ta); box.appendChild(la);
+    var la = el('label', '', 'Acting notes (how it sounds)'); var ta = el('textarea'); ta.rows = 5; ta.maxLength = 2000; ta.setAttribute('aria-label', 'Acting notes for ' + name); la.appendChild(ta); box.appendChild(la);
     var ls = el('label', '', 'Sample line'); var line = el('input'); line.type = 'text'; line.value = 'Who dares come into my lair? You will not leave it alive.'; line.maxLength = 200; ls.appendChild(line); box.appendChild(ls);
     var row = el('div', 'row'); var play = el('button', '', '▶ Preview'); var save = el('button', 'primary', 'Save'); var reset = el('button', '', 'Back to the default');
     [play, save, reset].forEach(function (x) { x.type = 'button'; row.appendChild(x); }); box.appendChild(row);
