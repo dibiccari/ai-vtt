@@ -100,6 +100,12 @@
     <label>Model
       <select id="dmModel"></select>
     </label>
+    <label>Speed
+      <select id="dmSpeed">
+        <option value="fast">Fast (Opus models only: about 2.5 times faster writing, twice the price)</option>
+        <option value="standard">Standard (half the price)</option>
+      </select>
+    </label>
     <label>Thinking effort
       <select id="dmEffort">
         <option value="low">Low (fastest, shorter answers)</option>
@@ -262,6 +268,7 @@ async function load() {
     fill($('#dmModel'), DM_MODELS, s.dm.model);
     $('#dmModel').disabled = $('#dmEffort').disabled = s.dm.provider === 'none';
     $('#dmEffort').value = s.dm.effort || 'low';
+    $('#dmSpeed').value = s.dm.speed || 'fast'; $('#dmSpeed').disabled = s.dm.provider === 'none';
     $('#voiceProvider').value = s.voice.provider;
     $('#npcProvider').value = ['none', 'openai', 'browser'].includes(s.voice.npc) ? s.voice.npc : s.voice.provider;
     for (const [id, want] of [['#oaModel', s.voice.model], ['#npcModel', s.voice.npcModel]]) {
@@ -296,7 +303,7 @@ $('#anTest').addEventListener('click', () => test('anthropic', $('#keysMsg')));
 $('#oaTest').addEventListener('click', () => test('openai', $('#keysMsg')));
 
 $('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = $('#dmEffort').disabled = e.target.value === 'none'; showVoice(); });
-$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value, DM_EFFORT: $('#dmEffort').value }, $('#dmMsg')));
+$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value, DM_EFFORT: $('#dmEffort').value, DM_SPEED: $('#dmSpeed').value }, $('#dmMsg')));
 // The voice cards depend on who runs the game: a person needs none, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
 // The Dungeon Master voice has a list of voices per provider: ChatGPT's are fixed and saved on the server, the Microsoft ones are whatever this browser has installed and are remembered per browser.
 const synth = window.speechSynthesis || null;

@@ -39,7 +39,7 @@ const key = process.env.ANTHROPIC_API_KEY || (/^ANTHROPIC_API_KEY=(.+)$/m.exec(e
 if (!key) { console.error('No ANTHROPIC_API_KEY in .env.'); process.exit(1); }
 
 const sb = await makeSandbox('vtt-replay-');
-const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '0', ...(process.env.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL } : {}), ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}), ...(process.env.VTT_DM_STREAM ? { VTT_DM_STREAM: process.env.VTT_DM_STREAM } : {}), ...(process.env.ANTHROPIC_MODEL ? { ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL } : {}) } });
+const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '0', ...(process.env.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL } : {}), ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}), ...(process.env.DM_SPEED ? { DM_SPEED: process.env.DM_SPEED } : {}), ...(process.env.VTT_DM_STREAM ? { VTT_DM_STREAM: process.env.VTT_DM_STREAM } : {}), ...(process.env.ANTHROPIC_MODEL ? { ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL } : {}) } });
 try {
   await server.post('/api/campaigns/active', { id: LOST });
   const characters = (await server.get(`/api/characters?campaign=${LOST}`)).json;

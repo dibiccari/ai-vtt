@@ -1654,7 +1654,10 @@ let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
 // The newest models (the 5.5 family and Fable) always think before they answer and cannot be told not to; the others can, and the DM replies much sooner without it (replay, Nov 2026).
 const canSkipThinking = (model) => !/-5-5$|fable/i.test(String(model));
+// Fast mode (Anthropic, Opus 5.5 / 5 / 4.8): the same model writing about 2.5 times faster, at twice the price. It changes the speed of the writing, not the wait before it starts.
+const canGoFast = (model) => /^claude-opus-(5-5|5|4-8)$/.test(String(model));
 const EFFORTS = ['low', 'medium', 'high'];
+let DM_SPEED = process.env.DM_SPEED === 'standard' ? 'standard' : 'fast';       // fast unless Settings says otherwise (it only applies to the models that have it)
 let DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';      // how hard the DM thinks before it answers: low is much faster (replay, Nov 2026: about 45 percent less waiting)
 let DM_VOICE = process.env.DM_VOICE || '';      // the ChatGPT voice the Dungeon Master (the narrator) speaks with ('' or 'auto': the default narrator voice)
 let NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';      // the characters the DM plays: 'same' = the Dungeon Master voice's provider
@@ -2472,6 +2475,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       ...(tools.length ? { tools } : {}),
+      ...(DM_SPEED === 'fast' && canGoFast(MODEL) ? { speed: 'fast' } : {}),
       ...(canSkipThinking(MODEL) ? { thinking: { type: 'disabled' } } : {}),       // no hidden thinking before the answer: the first words arrive in seconds instead of ten
       output_config: { effort: DM_EFFORT, format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
@@ -2482,9 +2486,10 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     let response, rounds = 0;
     for (;;) {
       const callStart = Date.now();
+      const callOnce = async (params) => {
       if (streaming || process.env.VTT_DM_STREAM === '1') {
         // The reply is read while it is written: each roll and voice line goes out the moment it is complete (streaming), and the play log notes when the first words and the first full line arrived.
-        const stream = anthropic.beta.messages.stream({ ...dmParams, messages: dmMessages });
+        const stream = anthropic.beta.messages.stream({ ...params, messages: dmMessages }, { timeout: 150000 });       // a call that goes quiet is given up on (the API's own limit is ten minutes)
         const reader = new ReplyStreamer();
         stream.on('text', (delta) => {
           if (!firstTokenMs) firstTokenMs = Date.now() - callStart;
@@ -2495,8 +2500,16 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
             else { const [line] = cleanVoiceLines([ev.line]); if (line) emit({ event: 'line', index: ev.index, line }); }
           }
         });
-        response = await stream.finalMessage();
-      } else response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });
+        return await stream.finalMessage();
+      }
+      return anthropic.beta.messages.create({ ...params, messages: dmMessages });
+      };
+      try { response = await callOnce(dmParams); }
+      catch (err) {
+        // Fast mode refused (a rate limit or no capacity): the same request at standard speed, once, instead of an error at the table.
+        if (dmParams.speed && err && (err.status === 429 || err.status === 529 || /speed|fast/i.test(String(err.message)))) { console.warn('Fast mode refused, using standard speed:', err.message); delete dmParams.speed; response = await callOnce(dmParams); }
+        else throw err;
+      }
       apiMs += Date.now() - callStart; lastBlocks = (response.content || []).map((b) => `${b.type}:${String(b.text ?? b.thinking ?? JSON.stringify(b.input ?? '')).length}`).join(' '); lastStop = response.stop_reason || ''; lastUsage = response.usage || null; lastModel = response.model || MODEL; logRounds = rounds;
       usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
       if (response.stop_reason !== 'tool_use' || rounds >= 6) break;
@@ -2555,7 +2568,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
-    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, firstTokenMs: firstTokenMs || undefined, firstLineMs: firstLineMs || undefined, effort: DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
+    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, speed: lastUsage?.speed, firstTokenMs: firstTokenMs || undefined, firstLineMs: firstLineMs || undefined, effort: DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
     res.json({
       rolls,
       narrative,
@@ -2618,6 +2631,7 @@ const SETTINGS = {
   NPC_VOICE_PROVIDER: { secret: false },
   DM_VOICE: { secret: false },
   DM_EFFORT: { secret: false },
+  DM_SPEED: { secret: false },
   IMAGE_MODEL: { secret: false },
   IMAGE_QUALITY: { secret: false },
   DM_PROVIDER: { secret: false },
@@ -2658,6 +2672,7 @@ function applySettings() {
   NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';
   DM_VOICE = process.env.DM_VOICE || '';
   DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';
+  DM_SPEED = process.env.DM_SPEED === 'standard' ? 'standard' : 'fast';
   const key = process.env.ANTHROPIC_API_KEY || '';
   anthropic = key && !DM_NONE ? new Anthropic({ apiKey: key }) : null;
 }
@@ -2685,7 +2700,7 @@ async function updateEnvFile(updates) {
 app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
-    dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL, effort: DM_EFFORT },
+    dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL, effort: DM_EFFORT, speed: DM_SPEED },
     voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(DM_VOICE) || TTS_PROFILES.narrator.voices[0], provider: VOICE_PROVIDER, effective: voiceProviderNow(), npc: NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: NPC_TTS_MODEL, model: TTS_MODEL },
     maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },

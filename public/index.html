@@ -661,7 +661,13 @@ async function api(path, options = {}) {
 const jsonPost = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 // The DM's answer as it is written: the server sends one JSON line per event (roll, line, then done or error). handlers.onRoll(text) and handlers.onLine(line, index) are called as they arrive; resolves with the final reply.
 async function chatStream(body, handlers) {
-  const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, stream: true }) });
+  // If nothing at all arrives for 90 seconds the connection is given up on, so the table never sits on 'thinking' for good.
+  const ctl = new AbortController();
+  let idle = null;
+  const bump = () => { clearTimeout(idle); idle = setTimeout(() => ctl.abort(), 90000); };
+  bump();
+  try {
+  const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, stream: true }), signal: ctl.signal });
   if (!(res.headers.get('content-type') || '').includes('ndjson')) { const data = await res.json().catch(() => ({})); throw new Error(data.error || `${res.status} ${res.statusText}`); }
   const reader = res.body.getReader(), dec = new TextDecoder();
   let buf = '', done = null;
@@ -676,12 +682,17 @@ async function chatStream(body, handlers) {
   for (;;) {
     const { done: finished, value } = await reader.read();
     if (finished) break;
+    bump();
     buf += dec.decode(value, { stream: true });
     for (let i; (i = buf.indexOf('\n')) >= 0;) { const raw = buf.slice(0, i); buf = buf.slice(i + 1); handle(raw); }
   }
   handle(buf);
   if (!done) throw new Error('The AI DM stopped answering before it finished');
   return done;
+  } catch (err) {
+    if (err && err.name === 'AbortError') throw new Error('The AI DM did not answer for 90 seconds. Nothing was applied: try again.');
+    throw err;
+  } finally { clearTimeout(idle); }
 }
 
 /* =====================================================================
@@ -3985,7 +3996,12 @@ async function sendTurn(spokenText, opts) {
     if (state.pendingCorrections.length && state.autoTurns < 12) {
       state.autoTurns += 1;
       sendTurn(`[Correction] ${state.pendingCorrections.join('; ')}. In one or two sentences say where they really stand now, without repeating the earlier narration or redoing any rolls.`, { typed: true, auto: true, as: { name: 'Table' } });
-    } else aiTakesItsTurn();
+    } else {
+      // The reply played this creature's turn but did not end it (the DM sometimes forgets endTurn): the table ends it, instead of asking about the same creature again.
+      const still = activeToken();
+      if (opts && opts.nudgeFor && state.combat.active && still && still.id === opts.nudgeFor) { nextCombatTurn(); commitBoard(); renderCombat(); }
+      aiTakesItsTurn();
+    }
   }
 }
 
@@ -3995,7 +4011,8 @@ function aiTakesItsTurn() {
   if (!state.combat.active || !t || t.isPC || t.dead || isSummon(t) || state.busy || state.autoTurns >= 12) return;
   if (combatTokens().some((c) => c.isPC && !Number.isFinite(c.initiative))) return;       // the order is not settled until every player has an initiative: asking the DM to play a creature now only makes it loop (it cannot end a turn the tracker will not advance)
   state.autoTurns += 1;
-  sendTurn(`It is ${t.name}'s turn.`, { typed: true, auto: true, as: { name: 'Table' } });
+  // One request for the whole run of creatures: the DM plays this one and every creature after it until a player character is up (it used to be one request per creature).
+  sendTurn(`It is ${t.name}'s turn. Play it, and then every creature turn that follows it in the order, one after another in this one reply, until a player character is up. Send endTurn for each creature.`, { typed: true, auto: true, nudgeFor: t.id, as: { name: 'Table' } });
 }
 
 /* =====================================================================

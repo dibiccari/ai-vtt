@@ -86,7 +86,8 @@ test('2. the table does not ask the DM to play a creature while a player has no 
     return { whileWaiting, afterwards: posts.length, auto: s.autoTurns };
   })()`);
   assert.equal(r.whileWaiting, 0, 'nothing is sent while the players\' initiatives are missing');
-  assert.ok(r.afterwards >= 1 && r.auto >= 1, 'the DM is asked once the order is settled (the pretend server answers each time, so the table keeps going until its cap of 12)');
+  assert.equal(r.afterwards, 1, 'the DM is asked once the order is settled, once for the goblin: its reply did not end the turn, so the table ended it and a player is next');
+  assert.equal(r.auto, 1);
 });
 
 test('3. a table nudge does not cut off the narration; its reply waits its turn; a player speaking does cut it off', opts, async () => {

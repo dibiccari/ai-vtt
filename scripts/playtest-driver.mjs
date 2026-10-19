@@ -21,7 +21,7 @@ const key = process.env.ANTHROPIC_API_KEY || (/^ANTHROPIC_API_KEY=(.+)$/m.exec(e
 if (!key) { console.error('No ANTHROPIC_API_KEY in .env.'); process.exit(1); }
 
 const sb = await makeSandbox('vtt-playtest-');
-const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '1', ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}) } });
+const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '1', ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}), ...(process.env.DM_SPEED ? { DM_SPEED: process.env.DM_SPEED } : {}) } });
 await server.post('/api/campaigns/active', { id: LOST });
 await server.post(`/api/campaigns/${LOST}/start-over`, {});
 await server.post('/api/party/rest', { kind: 'long' });       // everyone at full hit points and spell slots, in the throwaway copy only
@@ -87,6 +87,7 @@ const http = createServer(async (req, res) => {
   let body = ''; for await (const c of req) body += c;
   const send = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj, null, 1)); };
   try {
+    if (req.url === '/serverlog') return send(200, { log: server.log().slice(-4000) });
     if (req.url === '/state') return send(200, { messages: await newChat(), state: await summary() });
     if (req.url === '/say' && req.method === 'POST') { const b = JSON.parse(body || '{}'); return send(200, await say(String(b.who || ''), String(b.text || ''))); }
     if (req.url === '/stop') {

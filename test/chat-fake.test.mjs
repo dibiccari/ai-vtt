@@ -290,3 +290,22 @@ test('streaming: the rolls and each voice line come out as they are written, the
   const lines = (await bad.text()).trim().split('\n').map((l) => JSON.parse(l));
   assert.equal(lines.length, 1); assert.equal(lines[0].event, 'error'); assert.equal(lines[0].status, 502); assert.match(lines[0].error, /usage limits/);
 });
+
+test('fast mode: Opus asks for it, a model without it does not, and a refusal falls back to standard speed once', async () => {
+  const ok = { rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'Quiet.' }], mapUpdates: [] };
+  const body = { message: '[Edric] I look', history: [], tokens: [], characters: [], walls: [] };
+  setReply(ok); await s.post('/api/chat', body);
+  assert.equal(fake.requests.at(-1).speed, 'fast', 'Opus 5.5 is asked for fast mode by default');
+  await s.post('/api/settings', { ANTHROPIC_MODEL: 'claude-sonnet-5' });
+  try { setReply(ok); await s.post('/api/chat', body); assert.equal(fake.requests.at(-1).speed, undefined, 'a model with no fast mode is not asked'); }
+  finally { await s.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5' }); }
+  // fast mode refused (rate limit): one more request, without speed, and the reply comes through
+  fake.requests.length = 0;
+  fake.__set((req) => (req.speed === 'fast' ? { __status: 429, __message: 'fast mode capacity' } : ok));
+  const r = await s.post('/api/chat', body);
+  assert.equal(r.status, 200, r.text); assert.equal(r.json.narrative, 'Quiet.');
+  assert.ok(fake.requests.some((q) => q.speed === 'fast') && fake.requests.at(-1).speed === undefined, 'the last request was at standard speed');
+  await s.post('/api/settings', { DM_SPEED: 'standard' });
+  try { setReply(ok); await s.post('/api/chat', body); assert.equal(fake.requests.at(-1).speed, undefined, 'standard when Settings says so'); }
+  finally { await s.post('/api/settings', { DM_SPEED: 'fast' }); }
+});
