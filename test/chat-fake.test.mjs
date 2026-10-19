@@ -30,6 +30,7 @@ test('the request to the model: system blocks, strict schema, board state with d
   assert.equal(fake.requests.length, 1);
   const req = fake.requests[0];
   assert.equal(req.output_config.format.type, 'json_schema');
+  assert.equal(req.output_config.effort, 'low', 'the DM is asked for low effort by default');
   assert.deepEqual(req.output_config.format.schema, schemaForMode(DM_SCHEMA, 'scene', movedFor(['record_journal'])), 'no fight is running: the scene form without what moved to services (with the bookkeeper off the journal is a service)');
   assert.ok(req.system.some((b) => /REPLY FORM: no fight/.test(b.text)));
   assert.ok(req.system.length >= 3);

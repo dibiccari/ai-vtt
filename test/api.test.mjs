@@ -609,6 +609,9 @@ test('settings: the Dungeon Master, the voices and each kind of map have their o
   assert.equal(after.town.provider, 'none'); assert.deepEqual([after.battle.provider, after.battle.model], ['fal', 'fal-ai/flux-pro/kontext']);
   const check = (await s.post('/api/settings/test', { which: 'images', kind: 'town' })).json;
   assert.equal(check.ok, false); assert.match(check.error, /None/, 'a kind with no generator says so');
+  assert.equal(before.dm.effort, 'low', 'the DM thinks at low effort unless told otherwise');
+  await s.post('/api/settings', { DM_EFFORT: 'high' }); assert.equal((await s.get('/api/settings')).json.dm.effort, 'high');
+  assert.equal((await s.post('/api/settings', { DM_EFFORT: 'turbo' })).status, 200); assert.equal((await s.get('/api/settings')).json.dm.effort, 'low', 'an unknown value means the default');
   assert.equal((await s.post('/api/settings', { DM_PROVIDER: 'none', VOICE_PROVIDER: 'none' })).status, 200);
   const off = (await s.get('/api/settings')).json;
   assert.equal(off.dm.provider, 'none'); assert.equal(off.voice.provider, 'none');

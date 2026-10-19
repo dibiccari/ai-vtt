@@ -1650,6 +1650,8 @@ app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, r
 
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
+const EFFORTS = ['low', 'medium', 'high'];
+let DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';      // how hard the DM thinks before it answers: low is much faster (replay, Nov 2026: about 45 percent less waiting)
 let DM_VOICE = process.env.DM_VOICE || '';      // the ChatGPT voice the Dungeon Master (the narrator) speaks with ('' or 'auto': the default narrator voice)
 let NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';      // the characters the DM plays: 'same' = the Dungeon Master voice's provider
 let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';        // the Dungeon Master's own voice (the narrator)
@@ -2314,7 +2316,7 @@ async function partyForPrompt(campaign) {
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
   const t0 = Date.now();
-  let apiMs = 0, logCampaign = '', lastUsage = null, lastModel = '', logRounds = 0;
+  let apiMs = 0, logCampaign = '', lastUsage = null, lastModel = '', logRounds = 0, lastBlocks = '', lastStop = '';
   const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas, dmPad, places, visitedMaps } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
@@ -2413,7 +2415,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       ...(tools.length ? { tools } : {}),
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
+      output_config: { effort: DM_EFFORT, format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default'
@@ -2423,7 +2425,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     for (;;) {
       const callStart = Date.now();
       response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });
-      apiMs += Date.now() - callStart; lastUsage = response.usage || null; lastModel = response.model || MODEL; logRounds = rounds;
+      apiMs += Date.now() - callStart; lastBlocks = (response.content || []).map((b) => `${b.type}:${String(b.text ?? b.thinking ?? JSON.stringify(b.input ?? '')).length}`).join(' '); lastStop = response.stop_reason || ''; lastUsage = response.usage || null; lastModel = response.model || MODEL; logRounds = rounds;
       usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
       if (response.stop_reason !== 'tool_use' || rounds >= 6) break;
       rounds += 1;
@@ -2481,7 +2483,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
-    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
+    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, effort: DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
     res.json({
       rolls,
       narrative,
@@ -2543,6 +2545,7 @@ const SETTINGS = {
   VOICE_PROVIDER: { secret: false },
   NPC_VOICE_PROVIDER: { secret: false },
   DM_VOICE: { secret: false },
+  DM_EFFORT: { secret: false },
   IMAGE_MODEL: { secret: false },
   IMAGE_QUALITY: { secret: false },
   DM_PROVIDER: { secret: false },
@@ -2582,6 +2585,7 @@ function applySettings() {
   VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
   NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';
   DM_VOICE = process.env.DM_VOICE || '';
+  DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';
   const key = process.env.ANTHROPIC_API_KEY || '';
   anthropic = key && !DM_NONE ? new Anthropic({ apiKey: key }) : null;
 }
@@ -2609,7 +2613,7 @@ async function updateEnvFile(updates) {
 app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
-    dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL },
+    dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL, effort: DM_EFFORT },
     voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(DM_VOICE) || TTS_PROFILES.narrator.voices[0], provider: VOICE_PROVIDER, effective: voiceProviderNow(), npc: NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: NPC_TTS_MODEL, model: TTS_MODEL },
     maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },

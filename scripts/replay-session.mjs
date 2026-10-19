@@ -4,6 +4,7 @@
 //   node scripts/replay-session.mjs            prints the plan and the cost estimate, spends nothing
 //   node scripts/replay-session.mjs --live     SPENDS MONEY: one DM call per message (about 7), plus one bookkeeper call each; roughly $2
 //   node scripts/replay-session.mjs --live --turns 3     only the first 3 messages
+//   add --show to print each reply, and DM_EFFORT=low|medium|high to try the DM's reasoning effort
 // It needs ANTHROPIC_API_KEY in .env and credit on that account. It never touches the real data folder.
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -36,7 +37,7 @@ const key = process.env.ANTHROPIC_API_KEY || (/^ANTHROPIC_API_KEY=(.+)$/m.exec(e
 if (!key) { console.error('No ANTHROPIC_API_KEY in .env.'); process.exit(1); }
 
 const sb = await makeSandbox('vtt-replay-');
-const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '0', ...(process.env.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL } : {}) } });
+const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '0', ...(process.env.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL } : {}), ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}) } });
 try {
   await server.post('/api/campaigns/active', { id: LOST });
   const characters = (await server.get(`/api/characters?campaign=${LOST}`)).json;
@@ -52,6 +53,7 @@ try {
     if (r.status !== 200) { console.error(`HTTP ${r.status}: ${r.text.slice(0, 300)}`); break; }
     history.push({ role: 'user', content: p.text }, { role: 'assistant', content: r.json.narrative });
     rows.push({ text: p.text, seconds, before: p.baseline, chars: r.json.narrative.length, lines: r.json.voiceLines.length });
+    if (process.argv.includes('--show')) console.log(`\n  DM: ${r.json.narrative}\n`);
     console.log(`  ${seconds.toFixed(1).padStart(5)} s   (before ${String(p.baseline ?? '?').padStart(5)} s)   ${r.json.narrative.length} characters   ${p.text.replace(/\s+/g, ' ').slice(0, 50)}`);
   }
   // what the server's play log says about each call
@@ -59,7 +61,7 @@ try {
   const entries = [];
   for (const f of (await readdir(logDir).catch(() => [])).sort()) for (const l of (await readFile(path.join(logDir, f), 'utf8')).split('\n')) { try { const e = JSON.parse(l); if (e.kind === 'chat') entries.push(e); } catch { /* skip */ } }
   console.log('\nFrom the play log (model wait, tokens):');
-  for (const e of entries) console.log(`  model ${(e.apiMs / 1000).toFixed(1).padStart(5)} s of ${(e.totalMs / 1000).toFixed(1)} s   in ${e.usage?.input_tokens ?? '?'} + cached ${e.usage?.cache_read_input_tokens ?? 0} + written ${e.usage?.cache_creation_input_tokens ?? 0}   out ${e.usage?.output_tokens ?? '?'}   ${e.error ? 'ERROR ' + e.error : ''}`);
+  for (const e of entries) console.log(`  model ${(e.apiMs / 1000).toFixed(1).padStart(5)} s of ${(e.totalMs / 1000).toFixed(1)} s   in ${e.usage?.input_tokens ?? '?'} + cached ${e.usage?.cache_read_input_tokens ?? 0} + written ${e.usage?.cache_creation_input_tokens ?? 0}   out ${e.usage?.output_tokens ?? '?'}   blocks [${e.blocks ?? ''}]   ${e.error ? 'ERROR ' + e.error : ''}`);
   const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
   console.log(`\nMedian reply time: ${med(rows.map((r) => r.seconds)).toFixed(1)} s now, ${med(rows.map((r) => r.before)).toFixed(1)} s before the fixes (the first call also writes the prompt cache, so it is slower).`);
 } finally { await server.stop(); }

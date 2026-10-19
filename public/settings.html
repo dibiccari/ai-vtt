@@ -100,6 +100,13 @@
     <label>Model
       <select id="dmModel"></select>
     </label>
+    <label>Thinking effort
+      <select id="dmEffort">
+        <option value="low">Low (fastest, shorter answers)</option>
+        <option value="medium">Medium (slower, fuller answers)</option>
+        <option value="high">High (slowest, most careful)</option>
+      </select>
+    </label>
   </div>
   <div class="row"><button class="primary" id="dmSave">Save</button></div>
   <div class="msg" id="dmMsg"></div>
@@ -253,7 +260,8 @@ async function load() {
     $('#flHint').textContent = keys.fal.set ? `(saved, ${keys.fal.hint}; leave blank to keep it)` : '(not set)';
     $('#dmProvider').value = s.dm.provider;
     fill($('#dmModel'), DM_MODELS, s.dm.model);
-    $('#dmModel').disabled = s.dm.provider === 'none';
+    $('#dmModel').disabled = $('#dmEffort').disabled = s.dm.provider === 'none';
+    $('#dmEffort').value = s.dm.effort || 'low';
     $('#voiceProvider').value = s.voice.provider;
     $('#npcProvider').value = ['none', 'openai', 'browser'].includes(s.voice.npc) ? s.voice.npc : s.voice.provider;
     for (const [id, want] of [['#oaModel', s.voice.model], ['#npcModel', s.voice.npcModel]]) {
@@ -287,8 +295,8 @@ async function test(which, msgEl) {
 $('#anTest').addEventListener('click', () => test('anthropic', $('#keysMsg')));
 $('#oaTest').addEventListener('click', () => test('openai', $('#keysMsg')));
 
-$('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = e.target.value === 'none'; showVoice(); });
-$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value }, $('#dmMsg')));
+$('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = $('#dmEffort').disabled = e.target.value === 'none'; showVoice(); });
+$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value, DM_EFFORT: $('#dmEffort').value }, $('#dmMsg')));
 // The voice cards depend on who runs the game: a person needs none, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
 // The Dungeon Master voice has a list of voices per provider: ChatGPT's are fixed and saved on the server, the Microsoft ones are whatever this browser has installed and are remembered per browser.
 const synth = window.speechSynthesis || null;
