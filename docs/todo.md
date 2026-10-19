@@ -24,6 +24,7 @@
 - Campaigns, the tabletop and the DM's changeMap to use GUIDs (characters already do).
 - DONE: the Group and This version is called fields are gone from Map Test.
 - The .vttmap container and the Market.
+- Import and export of a map set (user, Nov 2026): export one place as a single file (its packet: set.json, pictures, blueprint) and import it on another machine. Today a friend can copy a packet folder into data/mapsets by hand; ideas for that case: rename on a name clash, an Add folder / rescan button, a campaign and arrival block in set.json.
 - Import and trace scripts still write the old per-picture files in data/maps.
 
 
@@ -68,4 +69,5 @@
 
 ### Clean-up progress (Nov 2026)
 - DONE: README.md, docs/ARCHITECTURE.md, .editorconfig, CI workflow, SDK pinned, public/js + public/data + public/dev (the old dev page addresses redirect), scripts grouped into scripts/{dev,maps,images,characters} with a README, git gc, tests start from committed data.
-- Still open from the reviews: archive or remove public/scenarios/compare (166 MB of image experiments; the Image Test and Sword Coast prototype pages read them), the ~120 MB of byte-identical map pictures and 61 duplicate tokens (saved sets and the token manifest point at the file names: check first), LICENSE (the owner's choice, and the repo holds copyrighted module text and art), ESLint and Prettier, a pre-commit hook, `.claude/settings.local.json` is tracked (personal), server.js split into routers with a createApp factory and config.js, shared sight/light/movement modules for the tabletop and Map Test, index.html split into ES modules, splitting CLAUDE.md into a short rules file plus a changelog.
+- DONE (Nov 2026, later): server.js split from 2,790 to about 475 lines (routes/*.js, lib/campaigns.js, lib/runtime-settings.js, lib/local-only.js), the tabletop page into 17 scripts, Map Test into 18 scripts and a stylesheet, 61 duplicate tokens removed, `.claude/settings.local.json` untracked. LICENSE skipped for now (the owner's choice).
+- Still open from the reviews: archive or remove public/scenarios/compare (166 MB of image experiments; the Image Test and Sword Coast prototype pages read them), the ~120 MB of byte-identical map pictures and 61 duplicate tokens (saved sets and the token manifest point at the file names: check first), ESLint and Prettier, a pre-commit hook, a createApp factory and a config module for the environment reads, shared sight/light/movement modules for the tabletop and Map Test (castRay, visibilityPolygon, litRegion are duplicated), the tabletop and Map Test scripts as ES modules instead of shared-global scripts, splitting CLAUDE.md into a short rules file plus a changelog.
