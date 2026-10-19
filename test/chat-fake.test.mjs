@@ -343,3 +343,13 @@ test('a page that goes away stops the model call: the reply nobody receives is n
   const logText = days.length ? (await s.get(`/api/campaigns/${LOST}/log?format=text&day=${days.at(-1)}`)).text : '';
   assert.doesNotMatch(logText, /ABORTEDREPLYMARKER/, 'the finished reply was not logged as if it had been delivered');
 });
+
+test('the DM sheets drop the spell lines that have a card and keep the ones that do not (so no spell is in neither place)', async () => {
+  setReply(reply);
+  const mage = { id: 'mage1', name: 'Lyra', class: 'Wizard', level: 3, sheet: { 'Spells 1014': 'Fire Bolt', 'Spells 1016': "Zork's Fancy Ward", CharacterName: 'Lyra' } };
+  await s.post('/api/chat', { message: '[Lyra] I ready a spell', history: [], tokens: [], characters: [mage], walls: [] });
+  const sent = boardStateOf(fake.requests[0]).characters.find((c) => c.name === 'Lyra');
+  assert.equal(sent.sheet['Spells 1014'], undefined, 'Fire Bolt has a spell card, so its line is left off the sheet');
+  assert.equal(sent.sheet['Spells 1016'], "Zork's Fancy Ward", 'a spell with no card keeps its line');
+  assert.ok(fake.requests[0].system.some((b) => /SPELL CARDS/.test(b.text) && /Fire Bolt/.test(b.text)));
+});

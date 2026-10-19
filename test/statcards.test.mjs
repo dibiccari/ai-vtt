@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { statCards, spellNamesOf, creatureCard, spellCard } from '../lib/statcards.js';
+import { statCards, spellNamesOf, creatureCard, spellCard, partySpellKeys } from '../lib/statcards.js';
 import { startServer, fakeAnthropic } from './helpers/sandbox.mjs';
 
 const monsters = JSON.parse(readFileSync(new URL('../data/srd/monsters.json', import.meta.url), 'utf8'));
@@ -59,4 +59,14 @@ test('/api/chat puts the party spell cards (cached) and the creature cards (not 
   fake.requests.length = 0;
   await s.post('/api/chat', { message: '[Edric] hello', history: [], tokens: [tok({ id: 'pc2', name: 'Edric', isPC: true })], characters: [{ name: 'Edric', sheet: {} }], walls: [] });
   assert.ok(!fake.requests.at(-1).system.some((b) => /^(SPELL|STAT) CARDS/.test(b.text)));
+});
+
+test('a party with many spells still gets a card for each (up to 150), and the sheet lines are only dropped for spells that have one', () => {
+  const lines = ['Spells 1014', 'Spells 1015', 'Spells 1016', 'Spells 1017', 'Spells 1018', 'Spells 1019', 'Spells 1020', 'Spells 1021', 'Spells 1022', 'Spells 1023', 'Spells 1024', 'Spells 1025'];
+  const big = (offset) => ({ name: 'C' + offset, sheet: Object.fromEntries(lines.map((l, i) => [l, spells[offset + i].name])) });
+  const party = [0, 12, 24, 36, 48, 60, 72].map(big);                 // 84 different SRD spells in all: more than the old limit of 60
+  const keys = partySpellKeys(party, spells);
+  assert.equal(keys.length, 84);
+  assert.equal(statCards({ tokens: [], characters: party, monsters, spells }).spellCount, 84);
+  assert.deepEqual(partySpellKeys([mage], spells), ['fire bolt', 'fireball', 'magic missile'], 'a name that is not an SRD spell has no card, so its sheet line must stay');
 });

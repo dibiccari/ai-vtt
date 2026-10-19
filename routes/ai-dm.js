@@ -17,7 +17,7 @@ import { safetyForPrompt, readSafety } from '../lib/safety.js';
 import { modeOf, modeNote, schemaForMode } from '../lib/dm-schema-modes.js';
 import { enabledServices, movedFor, buildServices, toolsFor, servicesNote, runService } from '../lib/services.js';
 import { processTrackUpdates } from '../lib/rules-apply.js';
-import { statCards } from '../lib/statcards.js';
+import { statCards, partySpellKeys, spellKeyOf } from '../lib/statcards.js';
 import { ReplyStreamer } from '../lib/partial-reply.js';
 import { processCharacterUpdates } from '../lib/sheet-edit.js';
 import Anthropic from '@anthropic-ai/sdk';
@@ -135,7 +135,8 @@ transcribed from speech and may contain recognition errors - interpret it charit
   // The party as the DM reads it every turn: what it needs to run them, without the empty form fields, the check boxes, the spell lines (the spell cards have those), the inventory (the party block has it) and, in a fight,
   // the backstory and personality text. Whole sheets of four characters were about a fifth of every prompt.
   const FLAVOR_FIELDS = new Set(['Backstory', 'PersonalityTraits ', 'PersonalityTraits', 'Ideals', 'Bonds', 'Flaws', 'Allies', 'Treasure', 'Feat+Traits', 'CharacterName 2']);
-  function briefCharacters(characters, fight) {
+  // carded: the keys of the spells that have a card (lib/statcards.js partySpellKeys); a spell line is left out of the sheet only when its spell has one.
+  function briefCharacters(characters, fight, carded) {
     const spellLines = SPELL_LINES;
     return (Array.isArray(characters) ? characters : []).map((c) => {
       if (!c || typeof c !== 'object') return c;
@@ -143,7 +144,7 @@ transcribed from speech and may contain recognition errors - interpret it charit
       if (rest.sheet && typeof rest.sheet === 'object') {
         const sheet = {};
         for (const [k, v] of Object.entries(rest.sheet)) {
-          if (v === '' || v === false || v == null || /^Check Box/i.test(k) || spellLines.has(k) || (fight && FLAVOR_FIELDS.has(k))) continue;
+          if (v === '' || v === false || v == null || /^Check Box/i.test(k) || (spellLines.has(k) && carded.has(spellKeyOf(v))) || (fight && FLAVOR_FIELDS.has(k))) continue;
           sheet[k] = v;
         }
         rest.sheet = sheet;
@@ -443,7 +444,7 @@ transcribed from speech and may contain recognition errors - interpret it charit
       activeTokenId: activeTokenId ?? null,
       gridSize: Number(gridSize) || 50,
       tokens: Array.isArray(tokens) ? tokens : [],
-      characters: briefCharacters(characters, Boolean(combat && combat.active)),
+      characters: briefCharacters(characters, Boolean(combat && combat.active), new Set(partySpellKeys(characters, await allEntries('spells')))),
       walls: wallsSummary(walls),
       ...(Array.isArray(walls) && walls.some((w) => w && w.type === 'door') ? { doors: doorsForPrompt(walls, gridSize, places) } : {}),
       diceMode: diceMode === 'player' ? 'player' : 'ai',

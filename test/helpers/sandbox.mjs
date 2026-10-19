@@ -51,19 +51,29 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
 // Start server.js in a sandbox. opts.env adds environment variables; no API key is set unless opts.env provides one.
 export async function startServer({ env = {}, sandbox } = {}) {
   const sb = sandbox || await makeSandbox();
-  const port = 20000 + Math.floor(Math.random() * 20000);
-  const childEnv = { ...process.env, PORT: String(port), HOST: '127.0.0.1', VTT_KEEP_CHARACTER_IDS: '1', VTT_BOOKKEEPER: '0' };
-  delete childEnv.ANTHROPIC_API_KEY; delete childEnv.OPENAI_API_KEY; delete childEnv.ANTHROPIC_BASE_URL;
-  Object.assign(childEnv, env);
-  const child = spawn(process.execPath, ['server.js'], { cwd: sb.dir, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
-  let log = '';
-  child.stdout.on('data', (d) => { log += d; });
-  child.stderr.on('data', (d) => { log += d; });
-  await new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('server did not start in 20 s\n' + log)), 20000);
-    const check = setInterval(() => { if (log.includes('AI-VTT running')) { clearTimeout(t); clearInterval(check); resolve(); } }, 50);
-    child.on('exit', (code) => { clearTimeout(t); clearInterval(check); reject(new Error(`server exited early (${code})\n${log}`)); });
-  });
+  // Test files run side by side and each picks a random port: if two pick the same one, the second server says EADDRINUSE and is started again on another.
+  let port, child, log;
+  for (let attempt = 1; ; attempt++) {
+    port = 20000 + Math.floor(Math.random() * 20000);
+    const childEnv = { ...process.env, PORT: String(port), HOST: '127.0.0.1', VTT_KEEP_CHARACTER_IDS: '1', VTT_BOOKKEEPER: '0' };
+    delete childEnv.ANTHROPIC_API_KEY; delete childEnv.OPENAI_API_KEY; delete childEnv.ANTHROPIC_BASE_URL;
+    Object.assign(childEnv, env);
+    child = spawn(process.execPath, ['server.js'], { cwd: sb.dir, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+    log = '';
+    child.stdout.on('data', (d) => { log += d; });
+    child.stderr.on('data', (d) => { log += d; });
+    try {
+      await new Promise((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('server did not start in 20 s\n' + log)), 20000);
+        const check = setInterval(() => { if (log.includes('AI-VTT running')) { clearTimeout(t); clearInterval(check); resolve(); } }, 50);
+        child.on('exit', (code) => { clearTimeout(t); clearInterval(check); reject(new Error(`server exited early (${code})\n${log}`)); });
+      });
+      break;
+    } catch (err) {
+      if (attempt < 4 && /EADDRINUSE/.test(log)) continue;
+      throw err;
+    }
+  }
   const base = `http://127.0.0.1:${port}`;
   const call = async (method, url, body, headers = {}) => {
     const res = await fetch(base + url, { method, headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body !== undefined ? JSON.stringify(body) : undefined });
