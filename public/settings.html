@@ -15,6 +15,9 @@
   .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:16px; }
   .card h2 { margin:0 0 4px; font-size:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .card p { margin:0 0 12px; color:var(--muted); font-size:13px; }
+  .sub { margin:18px 0 6px; font-size:14px; color:var(--muted, #9ba7b9); }
+  .keyblock { border:1px solid var(--border, #2a3242); border-radius:10px; padding:10px 12px; margin:0 0 10px; }
+  .keyblock h4 { margin:0 0 4px; font-size:14px; }
   .badge { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
   .badge.on { color:var(--ok); border-color:rgba(63,210,127,.5); background:rgba(63,210,127,.1); }
   .badge.off { color:var(--danger); border-color:rgba(255,107,107,.5); background:rgba(255,107,107,.1); }
@@ -105,31 +108,38 @@
 
 <div class="card">
   <h2>Image Generator <span class="badge" id="imBadge">checking…</span></h2>
-  <p>The image generator paints the map pictures (battle maps, towns, regions) that I trace walls onto. Each picture is charged to the account whose key is used when it is made. Pick a provider; the key, models and links below follow your choice.</p>
-  <label>Provider
+  <p>The image generator paints the map pictures (battle maps, towns, regions) that I trace walls onto. Each picture is charged to the account whose key is used when it is made. Each service has its own key below; then pick which one makes new pictures, with its model and quality.</p>
+  <h3 class="sub">Keys: one per service</h3>
+  <div class="keyblock" data-image="openai">
+    <h4>OpenAI (ChatGPT images) <span class="badge" id="imBadgeOpenai">…</span></h4>
+    <p class="links" id="linksOpenai"></p>
+    <p class="help" style="margin:0 0 8px">By default this uses the <b>same OpenAI key</b> as the voices above, so there is nothing to paste. Paste a key here only to bill the pictures to a different OpenAI account.</p>
+    <label>Image key (optional) <span class="help" id="imKeyHint"></span>
+      <div class="inline"><input type="password" id="imKey" placeholder="blank = use the voices key above" autocomplete="off" spellcheck="false"><button type="button" data-show="imKey">Show</button><button type="button" class="danger" data-clearkey="OPENAI_IMAGE_API_KEY" data-confirm="Remove the separate image key? The pictures will use the voices key again.">Remove</button></div>
+    </label>
+  </div>
+  <div class="keyblock" data-image="gemini">
+    <h4>Google Gemini <span class="badge" id="imBadgeGemini">…</span></h4>
+    <p class="links" id="linksGemini"></p>
+    <label>Gemini key <span class="help" id="gmHint"></span>
+      <div class="inline"><input type="password" id="gmKey" placeholder="AIza… (Gemini key)" autocomplete="off" spellcheck="false"><button type="button" data-show="gmKey">Show</button><button type="button" class="danger" data-clearkey="GEMINI_API_KEY" data-confirm="Remove the saved Gemini key?">Remove</button></div>
+    </label>
+  </div>
+  <div class="keyblock" data-image="fal">
+    <h4>FLUX on fal.ai <span class="badge" id="imBadgeFal">…</span></h4>
+    <p class="links" id="linksFal"></p>
+    <label>fal.ai key <span class="help" id="flHint"></span>
+      <div class="inline"><input type="password" id="flKey" placeholder="fal key (id:secret)" autocomplete="off" spellcheck="false"><button type="button" data-show="flKey">Show</button><button type="button" class="danger" data-clearkey="FAL_API_KEY" data-confirm="Remove the saved fal.ai key?">Remove</button></div>
+    </label>
+  </div>
+  <h3 class="sub">Make new pictures with</h3>
+  <label>Service
     <select id="imProvider">
       <option value="openai">OpenAI (ChatGPT images)</option>
       <option value="gemini">Google (Gemini images)</option>
       <option value="fal">fal.ai (FLUX models)</option>
     </select>
   </label>
-  <p class="links" id="imLinks"></p>
-  <div data-image="openai">
-    <p class="help" style="margin:0 0 8px">By default this uses the <b>same OpenAI key</b> as the voices, so there is nothing to paste. Paste a key here only to bill the pictures to a different OpenAI account.</p>
-    <label>Image key (optional) <span class="help" id="imKeyHint"></span>
-      <div class="inline"><input type="password" id="imKey" placeholder="blank = use the voices key above" autocomplete="off" spellcheck="false"><button type="button" data-show="imKey">Show</button></div>
-    </label>
-  </div>
-  <div data-image="gemini" hidden>
-    <label>Google Gemini key <span class="help" id="gmHint"></span>
-      <div class="inline"><input type="password" id="gmKey" placeholder="AIza… (Gemini key)" autocomplete="off" spellcheck="false"><button type="button" data-show="gmKey">Show</button></div>
-    </label>
-  </div>
-  <div data-image="fal" hidden>
-    <label>fal.ai key <span class="help" id="flHint"></span>
-      <div class="inline"><input type="password" id="flKey" placeholder="fal key (id:secret)" autocomplete="off" spellcheck="false"><button type="button" data-show="flKey">Show</button></div>
-    </label>
-  </div>
   <label>Image model
     <select id="imModel"></select>
   </label>
@@ -139,7 +149,6 @@
   <div class="row">
     <button class="primary" id="imSave">Save</button>
     <button id="imTest">Check this model</button>
-    <button class="danger" id="imClear">Remove this provider's key</button>
   </div>
   <div class="msg" id="imMsg"></div>
 </div>
@@ -191,6 +200,7 @@ async function load() {
     showImageProvider(prov, { model: s.openai.imageModel, quality: s.openai.imageQuality });
     const keys = imageKeys = s.openai.imageKeys;
     badge($('#imBadge'), keys[prov].set);
+    badge($('#imBadgeOpenai'), keys.openai.set); badge($('#imBadgeGemini'), keys.gemini.set); badge($('#imBadgeFal'), keys.fal.set);
     $('#imKeyHint').textContent = keys.openai.own ? `(own key saved, ${keys.openai.hint}; leave blank to keep it)` : keys.openai.set ? '(not set: the voices key is used)' : '(not set)';
     $('#gmHint').textContent = keys.gemini.set ? `(saved, ${keys.gemini.hint}; leave blank to keep it)` : '(not set)';
     $('#flHint').textContent = keys.fal.set ? `(saved, ${keys.fal.hint}; leave blank to keep it)` : '(not set)';
@@ -254,8 +264,6 @@ const IMAGE_PROVIDER_INFO = {
 function linkRow(el, list) { el.innerHTML = ''; list.forEach(([text, href], i) => { if (i) el.append(' · '); const a = document.createElement('a'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text; el.appendChild(a); }); }
 function showImageProvider(p, keepModel) {
   const info = IMAGE_PROVIDER_INFO[p];
-  document.querySelectorAll('[data-image]').forEach((d) => { d.hidden = d.dataset.image !== p; });
-  linkRow($('#imLinks'), info.links);
   const fill = (sel, items, want) => { sel.innerHTML = ''; for (const [v, t] of items) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); } if (want && !items.some(([v]) => v === want)) { const o = document.createElement('option'); o.value = o.textContent = want; sel.appendChild(o); } sel.value = want && [...sel.options].some((o) => o.value === want) ? want : items[0][0]; };
   fill($('#imModel'), info.models, keepModel && keepModel.model);
   fill($('#imQuality'), info.qualities, keepModel && keepModel.quality);
@@ -263,11 +271,12 @@ function showImageProvider(p, keepModel) {
 let imageKeys = null;
 document.getElementById('imProvider').addEventListener('change', (e) => { showImageProvider(e.target.value, null); if (imageKeys) badge($('#imBadge'), imageKeys[e.target.value].set); });
 linkRow(document.getElementById('voiceLinks'), VOICE_PROVIDERS.openai.links);
+linkRow($('#linksOpenai'), IMAGE_PROVIDER_INFO.openai.links); linkRow($('#linksGemini'), IMAGE_PROVIDER_INFO.gemini.links); linkRow($('#linksFal'), IMAGE_PROVIDER_INFO.fal.links);
+document.querySelectorAll('[data-clearkey]').forEach((b) => b.addEventListener('click', () => { if (confirm(b.dataset.confirm)) save({ clear: [b.dataset.clearkey] }, $('#imMsg'), ['#imKey', '#gmKey', '#flKey']); }));
 
 $('#oaSave').addEventListener('click', () => save({ OPENAI_API_KEY: $('#oaKey').value, TTS_MODEL: $('#oaModel').value }, $('#oaMsg'), ['#oaKey']));
 $('#oaTest').addEventListener('click', () => test('openai', $('#oaMsg')));
 $('#imSave').addEventListener('click', () => save({ IMAGE_PROVIDER: $('#imProvider').value, OPENAI_IMAGE_API_KEY: $('#imKey').value, GEMINI_API_KEY: $('#gmKey').value, FAL_API_KEY: $('#flKey').value, IMAGE_MODEL: $('#imModel').value, IMAGE_QUALITY: $('#imQuality').value }, $('#imMsg'), ['#imKey', '#gmKey', '#flKey']));
-$('#imClear').addEventListener('click', () => { const p = $('#imProvider').value; if (confirm(p === 'openai' ? 'Remove the separate image key? The pictures will use the voices key again.' : 'Remove the saved key for this provider?')) save({ clear: [IMAGE_PROVIDER_INFO[p].clear] }, $('#imMsg'), ['#imKey', '#gmKey', '#flKey']); });
 $('#imTest').addEventListener('click', () => test('images', $('#imMsg')));
 $('#oaClear').addEventListener('click', () => { if (confirm('Remove the OpenAI key? ChatGPT voices will turn off.')) save({ clear: ['OPENAI_API_KEY'] }, $('#oaMsg'), ['#oaKey']); });
 
