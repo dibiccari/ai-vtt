@@ -182,12 +182,6 @@
    "sub": null
   },
   {
-   "file": "kraken-head-d6204.png",
-   "name": "kraken head",
-   "category": "Aberrations",
-   "sub": null
-  },
-  {
    "file": "kraken-tentacle-55d47.png",
    "name": "kraken tentacle",
    "category": "Aberrations",
@@ -1065,12 +1059,6 @@
   },
   {
    "file": "roaring-dragon-36feb.png",
-   "name": "roaring dragon",
-   "category": "Dragons",
-   "sub": null
-  },
-  {
-   "file": "roaring-dragon-da145.png",
    "name": "roaring dragon",
    "category": "Dragons",
    "sub": null
@@ -1996,12 +1984,6 @@
   {
    "file": "contemplative-woman-of-the-wil-e660e.png",
    "name": "contemplative woman of the wilds",
-   "category": "Humans",
-   "sub": "Humans Female"
-  },
-  {
-   "file": "corrupted-rogue-c9101.png",
-   "name": "corrupted rogue",
    "category": "Humans",
    "sub": "Humans Female"
   },
@@ -4364,12 +4346,6 @@
    "sub": "Cultists"
   },
   {
-   "file": "viscera-diviner-b64da.png",
-   "name": "viscera diviner",
-   "category": "Spellcasters",
-   "sub": "Cultists"
-  },
-  {
    "file": "attentive-druid-9f471.png",
    "name": "attentive druid",
    "category": "Spellcasters",
@@ -4389,12 +4365,6 @@
   },
   {
    "file": "death-druid-48d1c.png",
-   "name": "death druid",
-   "category": "Spellcasters",
-   "sub": "Druids"
-  },
-  {
-   "file": "death-druid-98ff7.png",
    "name": "death druid",
    "category": "Spellcasters",
    "sub": "Druids"
@@ -4546,18 +4516,6 @@
   {
    "file": "cultist-warlock-1efc9.png",
    "name": "cultist warlock",
-   "category": "Spellcasters",
-   "sub": "Witches, Warlocks"
-  },
-  {
-   "file": "cuombajj-witch-1-a5b75.png",
-   "name": "cuombajj witch 1",
-   "category": "Spellcasters",
-   "sub": "Witches, Warlocks"
-  },
-  {
-   "file": "cuombajj-witch-2-7bc80.png",
-   "name": "cuombajj witch 2",
    "category": "Spellcasters",
    "sub": "Witches, Warlocks"
   },
@@ -5162,38 +5120,8 @@
    "sub": "Ghosts, Specters, Nightmares, etc"
   },
   {
-   "file": "ghoul-enchanted-f6e41.png",
-   "name": "ghoul enchanted",
-   "category": "Undead",
-   "sub": "Ghouls"
-  },
-  {
-   "file": "silversmote-ghoul-8ac78.png",
-   "name": "silversmote ghoul",
-   "category": "Undead",
-   "sub": "Ghouls"
-  },
-  {
-   "file": "demilich-with-jewels-as-eyes-c0bb0.png",
-   "name": "demilich with jewels as eyes",
-   "category": "Undead",
-   "sub": "Liches, Demiliches"
-  },
-  {
    "file": "demilich-3edf0.png",
    "name": "demilich",
-   "category": "Undead",
-   "sub": "Liches, Demiliches"
-  },
-  {
-   "file": "lich-1-97134.png",
-   "name": "lich 1",
-   "category": "Undead",
-   "sub": "Liches, Demiliches"
-  },
-  {
-   "file": "lich-2-859be.png",
-   "name": "lich 2",
    "category": "Undead",
    "sub": "Liches, Demiliches"
   },
@@ -5216,20 +5144,8 @@
    "sub": "Revenants"
   },
   {
-   "file": "undead-knight-token-ee758.png",
-   "name": "undead knight token",
-   "category": "Undead",
-   "sub": "Revenants"
-  },
-  {
    "file": "skeleton-knight-59522.png",
    "name": "skeleton knight",
-   "category": "Undead",
-   "sub": "Skeletons"
-  },
-  {
-   "file": "skeleton-with-crown-e7385.png",
-   "name": "skeleton with crown",
    "category": "Undead",
    "sub": "Skeletons"
   },
@@ -5258,18 +5174,6 @@
    "sub": "Undead beasts, animals"
   },
   {
-   "file": "undead-dinosaur-80c63.png",
-   "name": "undead dinosaur",
-   "category": "Undead",
-   "sub": "Undead beasts, animals"
-  },
-  {
-   "file": "undead-horse-efeec.png",
-   "name": "undead horse",
-   "category": "Undead",
-   "sub": "Undead beasts, animals"
-  },
-  {
    "file": "undead-raven-1349f.png",
    "name": "undead raven",
    "category": "Undead",
@@ -5290,12 +5194,6 @@
   {
    "file": "blighted-undead-dragon-5616c.png",
    "name": "blighted undead dragon",
-   "category": "Undead",
-   "sub": "Undead Dragons"
-  },
-  {
-   "file": "bone-dragon-485ea.png",
-   "name": "bone dragon",
    "category": "Undead",
    "sub": "Undead Dragons"
   },
@@ -5342,26 +5240,8 @@
    "sub": "Undead experiments"
   },
   {
-   "file": "winged-undead-ceafc.png",
-   "name": "winged undead",
-   "category": "Undead",
-   "sub": "Undead experiments"
-  },
-  {
    "file": "zombie-colossus-74e62.png",
    "name": "zombie colossus",
-   "category": "Undead",
-   "sub": "Undead experiments"
-  },
-  {
-   "file": "zombie-stitched-1-bc26c.png",
-   "name": "zombie stitched 1",
-   "category": "Undead",
-   "sub": "Undead experiments"
-  },
-  {
-   "file": "zombie-stitched-2-fc824.png",
-   "name": "zombie stitched 2",
    "category": "Undead",
    "sub": "Undead experiments"
   },
@@ -5384,20 +5264,8 @@
    "sub": "Zombies et al"
   },
   {
-   "file": "stalking-zombie-e4462.png",
-   "name": "stalking zombie",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
    "file": "zombie-1-21f07.png",
    "name": "zombie 1",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
-   "file": "zombie-2-cb706.png",
-   "name": "zombie 2",
    "category": "Undead",
    "sub": "Zombies et al"
   },
@@ -5408,26 +5276,8 @@
    "sub": "Zombies et al"
   },
   {
-   "file": "zombie-4-d92f4.png",
-   "name": "zombie 4",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
-   "file": "zombie-5-4a31b.png",
-   "name": "zombie 5",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
    "file": "zombie-7-111bc.png",
    "name": "zombie 7",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
-   "file": "zombie-8-7638a.png",
-   "name": "zombie 8",
    "category": "Undead",
    "sub": "Zombies et al"
   },
@@ -5444,50 +5294,14 @@
    "sub": "Zombies et al"
   },
   {
-   "file": "zombie-couple-dafa2.png",
-   "name": "zombie couple",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
-   "file": "zombie-decomposing-with-dress-505b4.png",
-   "name": "zombie decomposing with dress",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
    "file": "zombies-invasion-3c713.png",
    "name": "zombies invasion",
    "category": "Undead",
    "sub": "Zombies et al"
   },
   {
-   "file": "zombies-rising-6d8bb.png",
-   "name": "zombies rising",
-   "category": "Undead",
-   "sub": "Zombies et al"
-  },
-  {
    "file": "armored-undead-general-1f9df.png",
    "name": "armored undead general",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "blight-dracolich-a68f0.png",
-   "name": "blight dracolich",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "blight-skeletal-dragon-bf111.png",
-   "name": "blight skeletal dragon",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "blighted-undead-dragon-f8e96.png",
-   "name": "blighted undead dragon",
    "category": "Undead",
    "sub": null
   },
@@ -5510,32 +5324,8 @@
    "sub": null
   },
   {
-   "file": "decaying-ooze-fe880.png",
-   "name": "decaying ooze",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "demilich-with-jewels-as-eyes-1fd42.png",
    "name": "demilich with jewels as eyes",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "demilich-8c0e0.png",
-   "name": "demilich",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "dracolich-black-93c01.png",
-   "name": "dracolich black",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "dragon-skeleton-6eb65.png",
-   "name": "dragon skeleton",
    "category": "Undead",
    "sub": null
   },
@@ -5548,12 +5338,6 @@
   {
    "file": "flying-specter-c9422.png",
    "name": "flying specter",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "fungal-zombie-939e0.png",
-   "name": "fungal zombie",
    "category": "Undead",
    "sub": null
   },
@@ -5594,44 +5378,14 @@
    "sub": null
   },
   {
-   "file": "lich-3-e3d61.png",
-   "name": "lich 3",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "medusa-undead-06cb0.png",
    "name": "medusa undead",
    "category": "Undead",
    "sub": null
   },
   {
-   "file": "nightstalker-e9871.png",
-   "name": "nightstalker",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "revenant-death-knight-ab282.png",
-   "name": "revenant death knight",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "revenant-token-d4532.png",
-   "name": "revenant token",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "silversmote-ghoul-12a4e.png",
    "name": "silversmote ghoul",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "skeleton-knight-6f5bd.png",
-   "name": "skeleton knight",
    "category": "Undead",
    "sub": null
   },
@@ -5666,18 +5420,6 @@
    "sub": null
   },
   {
-   "file": "undead-dog-96376.png",
-   "name": "undead dog",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "undead-goblin-aa557.png",
-   "name": "undead goblin",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "undead-goblin-8ce63.png",
    "name": "undead goblin",
    "category": "Undead",
@@ -5702,44 +5444,14 @@
    "sub": null
   },
   {
-   "file": "undead-mage-c8e5d.png",
-   "name": "undead mage",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "undead-naga-e4160.png",
-   "name": "undead naga",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "undead-naga-8adde.png",
    "name": "undead naga",
    "category": "Undead",
    "sub": null
   },
   {
-   "file": "undead-raven-a3489.png",
-   "name": "undead raven",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "undead-rider-29c35.png",
    "name": "undead rider",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "undead-rider-b094c.png",
-   "name": "undead rider",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "undead-ritualist-af0cb.png",
-   "name": "undead ritualist",
    "category": "Undead",
    "sub": null
   },
@@ -5756,26 +5468,8 @@
    "sub": null
   },
   {
-   "file": "undead-sentient-ed889.png",
-   "name": "undead sentient",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "vengeful-scaab-d27fa.png",
    "name": "vengeful scaab",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "wall-of-bones-7532a.png",
-   "name": "wall of bones",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "winged-stitched-zombie-600f7.png",
-   "name": "winged stitched zombie",
    "category": "Undead",
    "sub": null
   },
@@ -5786,20 +5480,8 @@
    "sub": null
   },
   {
-   "file": "zombie-1-6686a.png",
-   "name": "zombie 1",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "zombie-2-1c346.png",
    "name": "zombie 2",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombie-3-b7d9a.png",
-   "name": "zombie 3",
    "category": "Undead",
    "sub": null
   },
@@ -5816,32 +5498,8 @@
    "sub": null
   },
   {
-   "file": "zombie-7-c7ff8.png",
-   "name": "zombie 7",
-   "category": "Undead",
-   "sub": null
-  },
-  {
    "file": "zombie-8-51462.png",
    "name": "zombie 8",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombie-9-59bca.png",
-   "name": "zombie 9",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombie-barbarian-7b805.png",
-   "name": "zombie barbarian",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombie-colossus-a399e.png",
-   "name": "zombie colossus",
    "category": "Undead",
    "sub": null
   },
@@ -5866,24 +5524,6 @@
   {
    "file": "zombie-stitched-2-ea311.png",
    "name": "zombie stitched 2",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombie-stitched-60fe0.png",
-   "name": "zombie stitched",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombie-stitcher-fc9bb.png",
-   "name": "zombie stitcher",
-   "category": "Undead",
-   "sub": null
-  },
-  {
-   "file": "zombies-invasion-56e61.png",
-   "name": "zombies invasion",
    "category": "Undead",
    "sub": null
   },
@@ -5950,12 +5590,6 @@
   {
    "file": "assassin-with-blades-2ec42.png",
    "name": "assassin with blades",
-   "category": "Warriors and Rogues",
-   "sub": null
-  },
-  {
-   "file": "attentive-druid-e0900.png",
-   "name": "attentive druid",
    "category": "Warriors and Rogues",
    "sub": null
   },
