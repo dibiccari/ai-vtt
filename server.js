@@ -136,6 +136,8 @@ function normalizeCharacter(body) {
     ...(Array.isArray(body.inventory) ? { inventory: normalizeInventory(body.inventory) } : {}),
     ...(body.coins && typeof body.coins === 'object' ? { coins: normalizeCoins(body.coins) } : {}),
     ...(expertise.length ? { expertise } : {}),
+    ...(['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'].includes(String(body.size ?? '').toLowerCase()) ? { size: String(body.size).toLowerCase() } : {}),
+    ...(String(body.race ?? '').trim() ? { race: String(body.race).trim().slice(0, 40) } : {}),
     ...(String(body.subclass ?? '').trim() ? { subclass: String(body.subclass).trim().slice(0, 60) } : {}),
     ...(Array.isArray(body.feats) && body.feats.length ? { feats: body.feats.map((f) => String(f).slice(0, 60)).slice(0, 20) } : {}),
     ...(sheetLog.length ? { sheetLog } : {})
@@ -197,6 +199,12 @@ const currentMapName = (name) => { const base = path.basename(String(name ?? '')
 app.use('/uploads/:file', (req, res, next) => { const now = currentMapName(req.params.file); if (now !== req.params.file) return res.redirect(301, '/uploads/' + now); next(); });
 app.get('/uploads/:file', (req, res, next) => { const p = PACKET_FILES.get(path.basename(req.params.file)); if (!p) return next(); res.sendFile(p); });     // pictures that live in a map set's packet
 app.use(express.static(PUBLIC_DIR));
+// Anything that changes state or spends credit (every non-GET call to /api) must be addressed to this computer by name: a page on another site that rebinds its domain to 127.0.0.1 sends its own Host and is refused.
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(req.get('host') || '')) return res.status(403).json({ error: 'This can only be done from this computer.' });
+  next();
+});
 
 const asyncRoute = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
@@ -257,6 +265,8 @@ app.post('/api/characters', asyncRoute(async (req, res) => {
       if (req.body?.armor === undefined && old.armor) character.armor = old.armor;
       if (req.body?.shield === undefined && old.shield) character.shield = true;
       if (req.body?.darkvision === undefined && old.darkvision) character.darkvision = int(old.darkvision, 0, 0, 120);
+      for (const k of ['size', 'race', 'subclass']) if (req.body?.[k] === undefined && old[k]) character[k] = old[k];
+      if (req.body?.feats === undefined && Array.isArray(old.feats) && old.feats.length) character.feats = old.feats;
     } catch { /* new character: nothing to keep */ }
   }
   // The rules track (Hit Dice, exhaustion, features) is changed only by the rules endpoints and the DM, never by a page's copy of the character (which may be stale).
@@ -344,7 +354,9 @@ async function adoptPictures(doc) {
 }
 async function saveSet(doc) {
   await mkdir(packetDir(doc.id), { recursive: true });
-  await writeFile(path.join(packetDir(doc.id), 'set.json'), JSON.stringify(doc, null, 2));
+  const setFile = path.join(packetDir(doc.id), 'set.json'), tmp = `${setFile}.${process.pid}.${randomUUID()}.tmp`;
+  await writeFile(tmp, JSON.stringify(doc, null, 2));
+  await rename(tmp, setFile);                                      // never a half-written set.json: a read during a save sees the old file or the new one
   await adoptPictures(doc);
   await writeBlueprint(doc);
 }
@@ -372,7 +384,10 @@ async function loadSets() {
       if (checkSetDoc(d).length) continue;
       docs.push(d);
       for (const f of await readdir(path.join(SETS_DIR, ent.name))) if (IMAGE_EXT.has(path.extname(f).toLowerCase())) files.set(f, path.join(SETS_DIR, ent.name, f));
-    } catch { /* not a packet */ }
+    } catch {
+      const prev = SETS && SETS.docs.get(ent.name);              // a set that cannot be read right now keeps its last good copy instead of vanishing
+      if (prev) { docs.push(prev); for (const f of await readdir(path.join(SETS_DIR, ent.name)).catch(() => [])) if (IMAGE_EXT.has(path.extname(f).toLowerCase())) files.set(f, path.join(SETS_DIR, ent.name, f)); }
+    }
   }
   PACKET_FILES = files;
   SETS = { docs: new Map(docs.map((d) => [d.id, d])), index: indexSets(docs) };
@@ -780,6 +795,9 @@ app.put('/api/map-config', localOnly, asyncRoute(async (req, res) => {
       if (Array.isArray(old.secrets) && !config.secrets) config.secrets = old.secrets;
     } catch { /* no earlier config */ }
   }
+  // A body that does not mention a field keeps what the set has (a call that only sets the publisher or the name must not empty the map).
+  { const old = await readMapConfig(file).catch(() => null);
+    if (old) for (const k of ['squares', 'walls', 'starts', 'difficult', 'light', 'ambience', 'ambient', 'mood', 'kind', 'tiles', 'hexSize', 'group', 'variant', 'publisher', 'name', 'source']) if (req.body?.[k] === undefined && old[k] !== undefined) config[k] = old[k]; }
   await writeMapConfig(file, config);
   const { index: after } = await ensureSets();
   const now = after.get(currentMapName(file));
@@ -1804,7 +1822,7 @@ async function campaignIds() {
 }
 
 async function readCampaignMeta(id) {
-  const base = BUILT_IN_CAMPAIGNS[id] || { name: id.replace(/-/g, ' '), system: 'D&D 5th Edition', levels: '', description: '' };
+  const base = (Object.hasOwn(BUILT_IN_CAMPAIGNS, id) && BUILT_IN_CAMPAIGNS[id]) || { name: id.replace(/-/g, ' '), system: 'D&D 5th Edition', levels: '', description: '' };
   try {
     const saved = JSON.parse(await readFile(path.join(CAMPAIGNS_DIR, id, 'campaign.json'), 'utf8'));
     return { ...base, ...saved };
@@ -2330,12 +2348,15 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     }
     const block = response.content.find((b) => b.type === 'text');
     if (!block) throw new Error(`No text in model response (stop_reason: ${response.stop_reason})`);
-    const parsed = JSON.parse(block.text);
+    if (response.stop_reason === 'max_tokens') return res.status(502).json({ error: 'The DM ran out of room before it finished its reply, so nothing was applied. Try again, or ask for something smaller.' });
+    let parsed;
+    try { parsed = JSON.parse(block.text); } catch { return res.status(502).json({ error: 'The DM answered in a form the table could not read. Nothing was applied: try again.' }); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return res.status(502).json({ error: 'The DM answered in a form the table could not read. Nothing was applied: try again.' });
     const narrative = String(parsed.narrative ?? '');
     const rolls = (Array.isArray(parsed.rolls) ? parsed.rolls : []).map((x) => String(x ?? '').trim().slice(0, 200)).filter(Boolean).slice(0, 30);
     const voiceLines = cleanVoiceLines(parsed.voiceLines);
     // Sheet edits are applied and saved here; the table gets the updated characters back to show.
-    const allUpdates = await expandTokenUpdates(Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : [], adventureMonsters);
+    const allUpdates = await expandTokenUpdates((Array.isArray(parsed.mapUpdates) ? parsed.mapUpdates : []).filter((u) => u && typeof u === 'object' && !Array.isArray(u)), adventureMonsters);
     const mapProblems = [];
     const travel = [];
     for (const u of allUpdates.filter((x) => x && x.type === 'changeMap')) {
@@ -2477,7 +2498,7 @@ app.post('/api/settings', localOnly, asyncRoute(async (req, res) => {
     if (typeof body[name] !== 'string') continue;
     const value = body[name].trim();
     if (!value) continue; // blank means "leave unchanged"
-    const valid = cfg.secret ? /^[^\s"'`\\]{8,400}$/.test(value) : /^[\w.:-]{1,80}$/.test(value);
+    const valid = cfg.secret ? /^[^\s"'`\\]{8,400}$/.test(value) : /^[\w./:-]{1,80}$/.test(value);
     if (!valid) return res.status(400).json({ error: `${name} has an invalid format (no spaces or quotes allowed).` });
     updates[name] = value;
   }

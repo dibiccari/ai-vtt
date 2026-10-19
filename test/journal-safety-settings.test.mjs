@@ -68,3 +68,13 @@ test('settings: defaults, validation, round trip and the prompt follows the swit
   assert.match(on, /2024/); assert.match(on, /Death: permanent/); assert.match(on, /optional variant rule is on/); assert.match(on, /no puns/);
   assert.match(off, /2014/); assert.match(off, /no permanent character death/); assert.match(off, /standard rule only/);
 }));
+
+test('the journal the DM reads keeps its quests, people and promises when the events pile up', () => {
+  const entries = [];
+  for (let i = 0; i < 25; i++) entries.push({ category: 'quest', title: 'Quest ' + i, text: 'Find the thing number ' + i + ' and bring it back.', status: 'open', when: '' });
+  for (let i = 0; i < 40; i++) entries.push({ category: 'event', title: 'Event ' + i, text: 'Something happened here, number ' + i + ', with some detail about who did what and where.', status: 'none', when: '' });
+  const out = journalForPrompt(entries);
+  assert.ok(out.length <= 9100);
+  for (const q of ['Quest 0', 'Quest 12', 'Quest 24']) assert.ok(out.includes(q), q + ' survives');
+  assert.ok(out.includes('Event 39') && !out.includes('Event 0:'), 'the newest events stay and the oldest go');
+});

@@ -545,3 +545,52 @@ test('map labels are cleaned, saved in the set, kept when a later save does not 
   ok(await s.put('/api/map-config?map=' + f, { ...base, labels: [] }));
   assert.equal((await s.get('/api/map-config?map=' + f)).json.config.labels, undefined, 'an empty list removes them');
 });
+
+test('map config: a call that mentions only the publisher keeps everything else, and overlapping saves never make a set vanish', async () => {
+  const sets = (await s.get('/api/mapsets')).json.sets;
+  const one = sets.find((x) => x.id === 'vtt-terrain-test') || sets[0];
+  const file = one.levels[0].looks[0].player;
+  const before = (await s.get('/api/map-config?map=' + file)).json.config;
+  assert.ok(before.walls.length > 0, 'the picture has walls to lose');
+  assert.equal((await s.put('/api/map-config?map=' + file, { publisher: 'Test' })).status, 200);
+  const after = (await s.get('/api/map-config?map=' + file)).json.config;
+  assert.equal(after.walls.length, before.walls.length, 'walls kept'); assert.equal(after.squares, before.squares, 'grid kept'); assert.equal((after.starts || []).length, (before.starts || []).length, 'pins kept');
+  assert.equal((after.difficult || []).length, (before.difficult || []).length, 'terrain kept');
+  // saves and archive calls at the same moment: the place is still there afterwards, picture and all
+  for (let round = 0; round < 6; round++) {
+    await Promise.all([s.put('/api/map-config?map=' + file, { ...before }), s.post('/api/mapsets/' + one.guid + '/archive', { archived: false }), s.post('/api/mapsets/' + one.guid + '/archive', { archived: false })]);
+  }
+  assert.ok((await s.get('/api/mapsets?archived=1')).json.sets.some((x) => x.guid === one.guid), 'the set is still listed');
+  assert.equal((await fetch(s.base + '/uploads/' + file)).status, 200, 'and its picture is still served');
+});
+
+test('calls that change state or spend credit are refused when the Host header is not this computer (DNS rebinding)', async () => {
+  const url = new URL(s.base);
+  const http = await import('node:http');
+  const send = (method, pathName, host) => new Promise((resolve, reject) => {
+    const req = http.request({ host: url.hostname, port: url.port, path: pathName, method, headers: { Host: host, 'Content-Type': 'application/json', 'Content-Length': 2 } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+    req.on('error', reject); req.end('{}');
+  });
+  assert.equal(await send('POST', '/api/roll', 'evil.example:3000'), 403, 'a changing call from another Host is refused');
+  assert.equal(await send('DELETE', '/api/characters/nobody', 'evil.example:3000'), 403);
+  assert.notEqual(await send('POST', '/api/roll', '127.0.0.1:' + url.port), 403, 'the same call to this computer by name still works');
+  assert.equal(await send('GET', '/api/campaigns', 'evil.example:3000'), 200, 'reading is not blocked');
+});
+
+test('starter characters start with the XP of their level, and an XP total written with a comma is read whole', async () => {
+  const r = await s.post('/api/characters/quick', { name: 'T Fighter 4', race: 'Human', cls: 'Fighter', level: 4 });
+  assert.equal(r.status, 200, r.text);
+  const c = r.json.character || r.json;
+  assert.equal(String(c.sheet.XP), '2700', 'a level 4 character has the 2700 XP of level 4 (the 2014 table)');
+  const { applyUpdate } = await import('../lib/sheet-edit.js');
+  const out = applyUpdate({ ...c, sheet: { ...c.sheet, XP: '1,200' } }, { reason: 'test', edits: [{ field: 'xpGain', value: 100 }] });
+  assert.equal(String(out.character.sheet.XP), '1300', '"1,200" plus 100 is 1300, not 101');
+});
+
+test('names that are also object properties (constructor, __proto__, toString) are just unknown names, never a 500', async () => {
+  for (const k of ['constructor', '__proto__', 'toString']) assert.ok([400, 404].includes((await s.get('/api/compendium/' + k)).status), k + ' as a compendium kind');
+  const { resolveChangeMap } = await import('../lib/campaign-maps.js');
+  const maps = [{ id: 'a', url: '/uploads/a.png', name: 'A', kind: 'battle', start: [2, 2], startPx: { x: 5, y: 5 }, spots: {} }];
+  const out = resolveChangeMap(maps, { mapId: 'a', arrive: 'constructor' });
+  assert.ok(out.update && out.update.col === 2 && out.update.row === 2, 'an unknown arrival spot named constructor falls back to the start');
+});

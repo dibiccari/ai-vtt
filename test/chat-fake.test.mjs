@@ -188,3 +188,18 @@ test('doors: the DM is given numbered doors with their state, dc and nearby plac
   await s.post('/api/chat', { message: 'look', walls: [{ x1: 0, y1: 0, x2: 10, y2: 0, type: 'wall' }], tokens: [tok({ id: 'pc1', name: 'Edric' })] });
   assert.equal(boardStateOf(fake.requests.at(-1)).doors, undefined, 'no doors, no door list');
 });
+
+test('a reply that was cut short or is not an object is refused with a clear message, and odd update entries are dropped', async () => {
+  setReply({ ...reply, __stop: 'max_tokens' });
+  let r = await s.post('/api/chat', { message: 'I look around' });
+  assert.equal(r.status, 502, r.text); assert.match(r.json.error, /ran out of room/);
+  fake.__set(null);
+  r = await s.post('/api/chat', { message: 'I look around' });
+  assert.equal(r.status, 502, 'a null reply is not a 500 with a stack message'); assert.match(r.json.error, /could not read/);
+  fake.__set([1, 2]);
+  r = await s.post('/api/chat', { message: 'I look around' });
+  assert.equal(r.status, 502);
+  setReply({ ...reply, mapUpdates: [5, 'text', null, [1], { type: 'setHp', tokenId: 'x', hp: 3 }] });
+  r = await s.post('/api/chat', { message: 'I look around' });
+  assert.equal(r.status, 200, r.text); assert.ok(r.json.mapUpdates.every((u) => u && typeof u === 'object' && !Array.isArray(u)), 'only objects reach the table: ' + JSON.stringify(r.json.mapUpdates));
+});

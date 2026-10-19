@@ -151,3 +151,11 @@ test('a feature the DM added before the level gave it is not duplicated when the
   assert.equal(list.length, 1, 'still one entry after the class gives it');
   assert.equal(list[0].auto, true); assert.equal(list[0].used, 1, 'what was spent stays spent');
 });
+
+test('the DM may name a character by token id, first name or id start: the shared lookup finds them', async () => {
+  const { findCharacterRef } = await import('../lib/sheet-edit.js');
+  const list = [{ id: '9ccde74f-aaaa', name: 'Edric Stonehand' }, { id: '1234abcd-bbbb', name: 'Raechyl' }];
+  assert.equal(findCharacterRef(list, 'pc-edric').name, 'Edric Stonehand'); assert.equal(findCharacterRef(list, 'tok-9ccde74f').name, 'Edric Stonehand');
+  assert.equal(findCharacterRef(list, 'raechyl').name, 'Raechyl'); assert.equal(findCharacterRef(list, 'Edric Stonehand').id, '9ccde74f-aaaa');
+  assert.equal(findCharacterRef(list, 'nobody'), null); assert.equal(findCharacterRef(list, ''), null);
+});
