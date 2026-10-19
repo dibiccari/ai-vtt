@@ -41,6 +41,8 @@
 - Image token upload on the character sheet: choose a picture from the computer, save it to the token library (public/tokens, with the manifest) and set it as the player's token. Works on a saved sheet (the token can be changed there).
 - Token from a photo: upload a photo and an AI converts it to fit the style of the current D&D tokens (round, framed, same look), then saves it to the library and can set it as the token. Needs an image generator that edits pictures (see Settings > Map generators for the services); the style should match the existing token art.
 
+- DONE (Nov 2026): stat cards for SRD creatures on the board and spell cards for the party's spells (lib/statcards.js). Still open: cards for magic items and class features, the table rolling creature attacks itself, a live check that the DM uses the cards.
+
 ## Characters
 - The campaign wizard's quick characters do not use the searchable spell, weapon and armor lists.
 - A saved character's new weapon: Party > Manage gear > Shop takes it for free from the SRD (works today). A new spell: only level-up or the DM (saved sheets stay read only by design).

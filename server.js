@@ -24,7 +24,8 @@ import { blueprintSvg } from './lib/blueprint.js';
 import { newGuid, docFromBuilt, configFromSet, applyConfigToSet, indexSets, summarizeSet, checkSetDoc, isGuid } from './lib/mapsetstore.js';
 import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from './lib/market.js';
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
-import { listEntries, getEntry, monsterImage } from './lib/compendium.js';
+import { listEntries, getEntry, monsterImage, allEntries } from './lib/compendium.js';
+import { statCards } from './lib/statcards.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
 import { rollExpr, diceTray } from './lib/dice.js';
 import { lightItemsFor } from './lib/light-gear.js';
@@ -1988,6 +1989,8 @@ Keeping sheets up to date: apply routine changes from play with updateCharacter 
 
 Levelling up is a conversation. When a character has enough XP for the next level (300, 900, 2,700, 6,500, 14,000, 23,000, 34,000, 48,000, 64,000, 85,000 and so on), tell the player and ask what they want. Do not change the sheet until they have answered. List what they gain at that level: hit points (offer the fixed average for the hit die plus Constitution modifier, or a roll), the class features of that level, a subclass at 3 for most classes, new spells or slots for casters, and at levels 4, 8, 12, 16 and 19 a choice between ability score increases and a feat. Ask them to pick (which skills or expertise, which ability scores, which spells, which feat), one short question at a time, then call updateCharacter once with everything they chose (classLevel, maxHp and hp, abilities, skill, spell and slots edits, and an edit to Features and Traits that lists the new features), and summarise what changed. Only use options that exist in 5th edition for their class and level, and say so if a request is not allowed.
 
+Stat cards: when a STAT CARDS or SPELL CARDS block is in front of you, it is the book open on the table. Take attack bonuses, damage dice, save DCs, ranges, durations and special abilities from it exactly, and do not recall them from memory when the card has them; for a creature or spell with no card, use your knowledge of the 2014 SRD rules and say if you are unsure. Hit points and AC come from the token, which is live.
+
 What the characters know: the names in the module are for you. Do not name a person, a creature or a place the characters have not been told about or met, even when you know who they are (two dead horses are two dead horses, an empty map case is an empty map case): describe what the characters can perceive, and let the story, a clue or a conversation give the name. Keep what you know apart from what they know, and take the table notes as the last word on it.
 
 Secrets stay secret. Each token in the board state has hidden, kind and visibleToParty. Never mention, name, describe or hint at a token that is hidden or not visibleToParty (a hiding or invisible creature, a trap, an enemy in another room): not in the narrative, not in the voice lines, not in a rules note. An undiscovered trap is not mentioned at all until a character finds it with a check, triggers it, or it is revealed. Narrate only what the characters can perceive from where they stand. When a hidden thing is found or acts, call revealToken and then describe it.
@@ -2341,15 +2344,19 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       }
     }) : []).filter((x) => serviceNames.includes(x.name));
     const tools = toolsFor(services, mode);
+    const cards = statCards({ tokens: state.tokens, characters: state.characters, monsters: await allEntries('monsters'), spells: await allEntries('spells') });
     const dmParams = {
       model: MODEL,
       max_tokens: 16000,
       system: [
         { type: 'text', text: DM_SYSTEM },
         ...(campaignText ? [{ type: 'text', text: `${CAMPAIGN_RULES}\n\n${campaignText}`, cache_control: { type: 'ephemeral' } }] : []),
+        // The party's spells change only when somebody learns one, so they are cached too; the creatures on the board change more often and come after the journal.
+        ...(cards.spellsText ? [{ type: 'text', text: cards.spellsText, cache_control: { type: 'ephemeral' } }] : []),
         // The journal changes every few turns, so it comes after the cached campaign text.
         { type: 'text', text: journalText ? `CAMPAIGN JOURNAL (what the party has done and learned so far):\n${journalText}` : 'CAMPAIGN JOURNAL: empty so far. This is the start of the adventure.' },
         { type: 'text', text: settingsText },
+        ...(cards.creaturesText ? [{ type: 'text', text: cards.creaturesText }] : []),
         { type: 'text', text: modeNote(mode) },
         ...(servicesOn ? [{ type: 'text', text: servicesNote(serviceNames) }] : []),
         ...(bookkeeperOn ? [{ type: 'text', text: 'JOURNAL: a bookkeeper writes the campaign journal from your narration after each reply, so you do not send journal updates. Make names, places, promises, quests and what the party found plain in what you narrate, and the journal will keep them.' }] : []),
