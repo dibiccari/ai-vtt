@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 
 export function registerVoices(app, deps) {
   // The newest models (the 5.5 family and Fable) always think before they answer and cannot be told not to; the others can, and the DM replies much sooner without it (replay, Nov 2026).
-  const canSkipThinking = (model) => !/-5-5$|fable/i.test(String(model));
+  const canSkipThinking = (model) => !/-5-5(?![0-9])|fable/i.test(String(model));
   // Fast mode (Anthropic, Opus 5.5 / 5 / 4.8): the same model writing about 2.5 times faster, at twice the price. It changes the speed of the writing, not the wait before it starts.
   const canGoFast = (model) => /^claude-opus-(5-5|5|4-8)$/.test(String(model));
 
@@ -90,6 +90,7 @@ export function registerVoices(app, deps) {
   }
 
   // The ChatGPT voice picked in Settings > Dungeon Master voice replaces the narrator's default voice. Every other speaker (the NPCs) keeps the voice that fits them. The acting directions stay.
+  const cleanSpeaker = (s) => { const name = String(s ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator'; return name.toLowerCase() === 'narrator' ? 'Narrator' : name; };
   const chosenVoice = (name) => (KNOWN_OPENAI_VOICES.has(name) ? name : '');
   async function resolveVoice(tag, speaker) {
     const out = await resolveVoiceAuto(tag, speaker);
@@ -146,7 +147,7 @@ export function registerVoices(app, deps) {
     const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 100) : [];
     const out = [];
     for (const it of items) {
-      const speaker = String(it?.speaker ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator';
+      const speaker = cleanSpeaker(it?.speaker);
       const tag = TTS_PROFILES[it?.voice] ? it.voice : 'narrator';
       const r = await resolveVoice(tag, speaker);
       out.push({ speaker, voice: r.voice, named: r.named });
@@ -160,7 +161,7 @@ export function registerVoices(app, deps) {
     const text = pronounce(String(req.body?.text ?? '').trim().slice(0, 1500), await loadPronunciations());
     if (!text) return res.status(400).json({ error: 'text is required' });
     const tag = TTS_PROFILES[req.body?.voice] ? req.body.voice : 'narrator';
-    const speaker = String(req.body?.speaker ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator';
+    const speaker = cleanSpeaker(req.body?.speaker);
     const { voice: autoVoice, instructions: autoInstructions } = await resolveVoice(tag, speaker);
     const voice = chosenVoice(String(req.body?.voiceName ?? '')) || autoVoice;       // voiceName: Settings and the Bestiary play a sample of a voice before it is saved
     const actingNotes = speaker !== 'Narrator' ? String(req.body?.acting ?? '').replace(/\s+/g, ' ').trim().slice(0, 2000) : '';       // acting: the same, for the notes

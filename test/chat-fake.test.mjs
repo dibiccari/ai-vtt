@@ -309,3 +309,37 @@ test('fast mode: Opus asks for it, a model without it does not, and a refusal fa
   try { setReply(ok); await s.post('/api/chat', body); assert.equal(fake.requests.at(-1).speed, undefined, 'standard when Settings says so'); }
   finally { await s.post('/api/settings', { DM_SPEED: 'fast' }); }
 });
+
+test('the DM is told how long each effect lasts (the effect data is found from the routes folder), and a dated model id is still a 5.5 model', async () => {
+  setReply(reply);
+  await s.post('/api/chat', { message: '[Edric] I look', history: [], tokens: [], characters: [], walls: [] });
+  const text = fake.requests[0].system.map((b) => b.text).join('\n');
+  assert.match(text, /known effects and how long they last: \w+ \(/, 'the durations paragraph has its list (the file was once looked for in the wrong folder and the list came out empty)');
+  assert.match(text, /sanctuary \(/);
+  await s.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5-20261101' });
+  try { fake.requests.length = 0; await s.post('/api/chat', { message: '[Edric] I look', history: [], tokens: [], characters: [], walls: [] }); assert.equal(fake.requests[0].thinking, undefined, 'a dated 5.5 id cannot be told to skip thinking either'); }
+  finally { await s.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5' }); }
+});
+
+test('settings saved at the same moment all reach the .env file (the writes go one after another)', async () => {
+  const names = ['DM_VOICE', 'TTS_MODEL', 'NPC_TTS_MODEL', 'IMAGE_MODEL', 'DM_EFFORT'], values = ['fable', 'gpt-4o-mini-tts', 'gpt-4o-mini-tts-2025-03-20', 'gpt-image-1', 'low'];
+  await Promise.all(names.map((n, i) => s.post('/api/settings', { [n]: values[i] })));
+  const { readFile } = await import('node:fs/promises');
+  const env = await readFile(path.join(s.dir, '.env'), 'utf8');
+  for (const [i, n] of names.entries()) assert.match(env, new RegExp(`^${n}=${values[i]}$`, 'm'), `${n} is in .env`);
+});
+
+test('a page that goes away stops the model call: the reply nobody receives is not applied or logged', async () => {
+  const dm = { rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'ABORTEDREPLYMARKER the lantern gutters and the long slow tale goes on and on.' }], mapUpdates: [], __chunkMs: 120, __chunkSize: 12 };
+  setReply(dm);
+  const ctl = new AbortController();
+  const res = await fetch(`${s.base}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal, body: JSON.stringify({ message: '[Edric] I wait', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: [], stream: true }) });
+  assert.equal(res.status, 200);
+  const reader = res.body.getReader();
+  setTimeout(() => ctl.abort(), 250);
+  await reader.read().catch(() => {});
+  await new Promise((r) => setTimeout(r, 2500));          // longer than the fake needs to finish writing the reply
+  const days = (await s.get(`/api/campaigns/${LOST}/log`)).json?.days || [];
+  const logText = days.length ? (await s.get(`/api/campaigns/${LOST}/log?format=text&day=${days.at(-1)}`)).text : '';
+  assert.doesNotMatch(logText, /ABORTEDREPLYMARKER/, 'the finished reply was not logged as if it had been delivered');
+});

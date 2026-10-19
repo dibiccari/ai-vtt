@@ -32,7 +32,9 @@ export function registerSettings(app, deps) {
 
   const hint = (key) => (key ? `ends in ${key.slice(-4)}` : '');
 
-  async function updateEnvFile(updates) {
+  let envWrites = Promise.resolve();       // saves that arrive together are written one after another, each reading what the one before wrote
+  const updateEnvFile = (updates) => (envWrites = envWrites.catch(() => {}).then(() => writeEnvFile(updates)));
+  async function writeEnvFile(updates) {
     let text = '';
     try { text = await readFile(ENV_FILE, 'utf8'); } catch (err) { if (err.code !== 'ENOENT') throw err; }
     const lines = text.length ? text.split(/\r?\n/) : [];

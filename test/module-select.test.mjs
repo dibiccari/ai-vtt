@@ -87,3 +87,8 @@ test('a fight reads the rules index and the map\'s own chapter only, the areas n
   const second = system(fake.requests.at(-1));
   assert.match(second, /## 7\. TWIN POOLS CAVE/); assert.match(second, /## 1\. CAVE MOUTH/, 'the areas already read stay while the fight lasts');
 });
+
+test('the note about left-out chapters does not say the module has more when nothing was left out', () => {
+  assert.doesNotMatch(filteredNote([], false, null), /also has/);
+  assert.match(filteredNote(['a.md', 'b.md'], false, null), /The module also has: a\.md, b\.md\./);
+});

@@ -1,7 +1,6 @@
 // AI DM: routes registered by server.js. What it needs from server.js comes through `deps` (read when a route runs); what server.js needs from it is returned.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getEntry, monsterImage, allEntries } from '../lib/compendium.js';
 import { adventureMonsterFor, loadAdventureMonsters, adventureMonstersForPrompt } from '../lib/adventure-monsters.js';
 import { EFFECT_KINDS, seedFromSheet, computeEffective, normalizeInventory, normalizeCoins, readStash, processPartyUpdates, writeStash } from '../lib/party.js';
@@ -25,9 +24,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { logAsText } from '../lib/playlog.js';
 
 export async function registerAiDm(app, deps) {
+  // The sheet's spell-line fields (read once; the spell cards cover those spells, so the sheets sent to the DM leave them out).
+  const SPELL_LINES = new Set(Object.values(JSON.parse(readFileSync(path.join(deps.__dirname, 'lib', 'sheet-fields.json'), 'utf8')).spellLines).flat());
   // Effects with their durations (public/data/effect-data.json): the DM is told how long each lasts and what ends it, so it does not have to remember.
   let EFFECT_DATA = {};
-  try { EFFECT_DATA = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public', 'data', 'effect-data.json'), 'utf8')).effects || {}; } catch { EFFECT_DATA = {}; }
+  try { EFFECT_DATA = JSON.parse(readFileSync(path.join(deps.__dirname, 'public', 'data', 'effect-data.json'), 'utf8')).effects || {}; } catch { EFFECT_DATA = {}; }
   function effectDurationText() {
     const lasts = (e) => [e.rounds ? `${e.rounds} round${e.rounds === 1 ? '' : 's'}` : '', e.minutes ? (e.minutes >= 60 && e.minutes % 60 === 0 ? `${e.minutes / 60} hour${e.minutes === 60 ? '' : 's'}` : `${e.minutes} min`) : ''].filter(Boolean).join(' / ') || 'until ended';
     const rows = Object.entries(EFFECT_DATA).map(([name, e]) => `${name} (${lasts(e)}${e.concentration ? ', concentration' : ''}${e.endsOn ? (e.trigger === 'turn-save' ? '; the table reminds you at the end of its holder\'s turn to roll the save and you end it on a success: ' : e.trigger && e.trigger !== 'dm' ? '; the table ends it by itself when ' : '; end it when ') + e.endsOn : ''})`);
@@ -135,7 +136,7 @@ transcribed from speech and may contain recognition errors - interpret it charit
   // the backstory and personality text. Whole sheets of four characters were about a fifth of every prompt.
   const FLAVOR_FIELDS = new Set(['Backstory', 'PersonalityTraits ', 'PersonalityTraits', 'Ideals', 'Bonds', 'Flaws', 'Allies', 'Treasure', 'Feat+Traits', 'CharacterName 2']);
   function briefCharacters(characters, fight) {
-    const spellLines = new Set(Object.values(JSON.parse(readFileSync(path.join(deps.__dirname, 'lib', 'sheet-fields.json'), 'utf8')).spellLines).flat());
+    const spellLines = SPELL_LINES;
     return (Array.isArray(characters) ? characters : []).map((c) => {
       if (!c || typeof c !== 'object') return c;
       const { sheetLog, inventory, image, color, campaigns, ...rest } = c;
@@ -404,6 +405,9 @@ transcribed from speech and may contain recognition errors - interpret it charit
     // body.stream: the answer comes as lines of JSON (application/x-ndjson): {event:'roll'}, {event:'line'} as each roll and voice line of the DM's reply is complete, then {event:'done', ...the usual reply}
     // or {event:'error', status, error}. The table prints the rolls and speaks the first line while the rest is still being written. Every existing res.json/res.status call below keeps working.
     const streaming = req.body?.stream === true;
+    // The page gave up or closed: the paid call is stopped too, so nothing is applied for a reply nobody receives (a resend would otherwise buy, pay and award twice).
+    const aborter = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) aborter.abort(); });
     const emit = streaming ? (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch { /* the page went away */ } } : () => {};
     if (streaming) {
       res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
@@ -523,28 +527,29 @@ transcribed from speech and may contain recognition errors - interpret it charit
       let response, rounds = 0;
       for (;;) {
         const callStart = Date.now();
+        let emitted = false;       // something of this try has already reached the page: a second try would say it twice
         const callOnce = async (params) => {
         if (streaming || process.env.VTT_DM_STREAM === '1') {
           // The reply is read while it is written: each roll and voice line goes out the moment it is complete (streaming), and the play log notes when the first words and the first full line arrived.
-          const stream = settings.anthropic.beta.messages.stream({ ...params, messages: dmMessages }, { timeout: 150000 });       // a call that goes quiet is given up on (the API's own limit is ten minutes)
+          const stream = settings.anthropic.beta.messages.stream({ ...params, messages: dmMessages }, { timeout: 150000, signal: aborter.signal });       // a call that goes quiet is given up on (the API's own limit is ten minutes)
           const reader = new ReplyStreamer();
           stream.on('text', (delta) => {
             if (!firstTokenMs) firstTokenMs = Date.now() - callStart;
             for (const ev of reader.push(delta)) {
               if (ev.type === 'line' && !firstLineMs) firstLineMs = Date.now() - callStart;
               if (!streaming) continue;
-              if (ev.type === 'roll') emit({ event: 'roll', text: String(ev.text).slice(0, 200) });
-              else { const [line] = cleanVoiceLines([ev.line]); if (line) emit({ event: 'line', index: ev.index, line }); }
+              if (ev.type === 'roll') { emitted = true; emit({ event: 'roll', text: String(ev.text).slice(0, 200) }); }
+              else { const [line] = cleanVoiceLines([ev.line]); if (line) { emitted = true; emit({ event: 'line', index: ev.index, line }); } }
             }
           });
           return await stream.finalMessage();
         }
-        return settings.anthropic.beta.messages.create({ ...params, messages: dmMessages });
+        return settings.anthropic.beta.messages.create({ ...params, messages: dmMessages }, { signal: aborter.signal });
         };
         try { response = await callOnce(dmParams); }
         catch (err) {
           // Fast mode refused (a rate limit or no capacity): the same request at standard speed, once, instead of an error at the table.
-          if (dmParams.speed && err && (err.status === 429 || err.status === 529 || /speed|fast/i.test(String(err.message)))) { console.warn('Fast mode refused, using standard speed:', err.message); delete dmParams.speed; response = await callOnce(dmParams); }
+          if (dmParams.speed && !emitted && err && (err.status === 429 || err.status === 529 || /speed|fast/i.test(String(err.message)))) { console.warn('Fast mode refused, using standard speed:', err.message); delete dmParams.speed; response = await callOnce(dmParams); }
         else throw err;
       }
       apiMs += Date.now() - callStart; lastBlocks = (response.content || []).map((b) => `${b.type}:${String(b.text ?? b.thinking ?? JSON.stringify(b.input ?? '')).length}`).join(' '); lastStop = response.stop_reason || ''; lastUsage = response.usage || null; lastModel = response.model || settings.MODEL; logRounds = rounds;
