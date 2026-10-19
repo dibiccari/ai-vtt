@@ -1651,6 +1651,8 @@ app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, r
 
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
+// The newest models (the 5.5 family and Fable) always think before they answer and cannot be told not to; the others can, and the DM replies much sooner without it (replay, Nov 2026).
+const canSkipThinking = (model) => !/-5-5$|fable/i.test(String(model));
 const EFFORTS = ['low', 'medium', 'high'];
 let DM_EFFORT = EFFORTS.includes(process.env.DM_EFFORT) ? process.env.DM_EFFORT : 'low';      // how hard the DM thinks before it answers: low is much faster (replay, Nov 2026: about 45 percent less waiting)
 let DM_VOICE = process.env.DM_VOICE || '';      // the ChatGPT voice the Dungeon Master (the narrator) speaks with ('' or 'auto': the default narrator voice)
@@ -2088,6 +2090,26 @@ function expandSheetEdits(u) {
 
 // The DM's flat "token" update, turned into the specific board updates the tabletop applies.
 // The doors the DM can work with: numbered in the order they come in the board's wall list (the table counts the same way), with where they are, what state they are in and the check that matters.
+// The party as the DM reads it every turn: what it needs to run them, without the empty form fields, the check boxes, the spell lines (the spell cards have those), the inventory (the party block has it) and, in a fight,
+// the backstory and personality text. Whole sheets of four characters were about a fifth of every prompt.
+const FLAVOR_FIELDS = new Set(['Backstory', 'PersonalityTraits ', 'PersonalityTraits', 'Ideals', 'Bonds', 'Flaws', 'Allies', 'Treasure', 'Feat+Traits', 'CharacterName 2']);
+function briefCharacters(characters, fight) {
+  const spellLines = new Set(Object.values(JSON.parse(readFileSync(path.join(__dirname, 'lib', 'sheet-fields.json'), 'utf8')).spellLines).flat());
+  return (Array.isArray(characters) ? characters : []).map((c) => {
+    if (!c || typeof c !== 'object') return c;
+    const { sheetLog, inventory, image, color, campaigns, ...rest } = c;
+    if (rest.sheet && typeof rest.sheet === 'object') {
+      const sheet = {};
+      for (const [k, v] of Object.entries(rest.sheet)) {
+        if (v === '' || v === false || v == null || /^Check Box/i.test(k) || spellLines.has(k) || (fight && FLAVOR_FIELDS.has(k))) continue;
+        sheet[k] = v;
+      }
+      rest.sheet = sheet;
+    }
+    return rest;
+  });
+}
+
 // The DM is not given the wall segments (a big map has hundreds, thousands of tokens each turn, and the table checks every move against them and tells the DM about a shortened one):
 // only how many there are of each kind. The doors, which the DM can work, are listed apart (doorsForPrompt).
 function wallsSummary(walls) {
@@ -2338,7 +2360,7 @@ async function partyForPrompt(campaign) {
 
 app.post('/api/chat', asyncRoute(async (req, res) => {
   const t0 = Date.now();
-  let apiMs = 0, logCampaign = '', lastUsage = null, lastModel = '', logRounds = 0, lastBlocks = '', lastStop = '';
+  let apiMs = 0, logCampaign = '', lastUsage = null, lastModel = '', logRounds = 0, lastBlocks = '', lastStop = '', firstTokenMs = 0, firstLineMs = 0;
   const { message, history, activeTokenId, tokens, characters, walls, gridSize, inputMode, mapName, movementRule, mapUrl, combat, diceMode, lighting, corrections, notes, areas, dmPad, places, visitedMaps } = req.body ?? {};
   const text = String(message ?? '').trim();
   if (!text) return res.status(400).json({ error: 'message is required' });
@@ -2360,12 +2382,12 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
   const state = {
     mapName: String(mapName ?? 'blank grid').slice(0, 120),
     movementRule: ['standard', 'alternating', 'circle'].includes(movementRule) ? movementRule : 'standard',
-    maps: availableMaps ? mapsForPrompt(availableMaps, Array.isArray(visitedMaps) ? visitedMaps.map(String) : [], mapUrl) : [],
+    maps: availableMaps && !(combat && combat.active) ? mapsForPrompt(availableMaps, Array.isArray(visitedMaps) ? visitedMaps.map(String) : [], mapUrl) : [],       // in a fight the DM cannot change maps (the fight form has no such update), so the list is left out
     currentMap: availableMaps?.find((m) => m.url === mapUrl)?.id ?? null,
     activeTokenId: activeTokenId ?? null,
     gridSize: Number(gridSize) || 50,
     tokens: Array.isArray(tokens) ? tokens : [],
-    characters: Array.isArray(characters) ? characters : [],
+    characters: briefCharacters(characters, Boolean(combat && combat.active)),
     walls: wallsSummary(walls),
     ...(Array.isArray(walls) && walls.some((w) => w && w.type === 'door') ? { doors: doorsForPrompt(walls, gridSize, places) } : {}),
     diceMode: diceMode === 'player' ? 'player' : 'ai',
@@ -2417,7 +2439,8 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       }
     }) : []).filter((x) => serviceNames.includes(x.name));
     const tools = toolsFor(services, mode);
-    const cards = statCards({ tokens: state.tokens, characters: state.characters, monsters: await allEntries('monsters'), spells: await allEntries('spells') });
+    const cards = statCards({ tokens: state.tokens, characters,       // the sheets as sent (the brief ones in the board state have no spell lines, the cards read them here)
+       monsters: await allEntries('monsters'), spells: await allEntries('spells') });
     const dmParams = {
       model: MODEL,
       max_tokens: 16000,
@@ -2437,6 +2460,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
         ...(safetyText ? [{ type: 'text', text: safetyText }] : [])
       ],
       ...(tools.length ? { tools } : {}),
+      ...(canSkipThinking(MODEL) ? { thinking: { type: 'disabled' } } : {}),       // no hidden thinking before the answer: the first words arrive in seconds instead of ten
       output_config: { effort: DM_EFFORT, format: { type: 'json_schema', schema: schemaForMode(DM_SCHEMA, mode, movedNow()) } },
       // Server-side fallback: if a safety classifier declines, the API retries on a suitable model.
       betas: ['server-side-fallback-2026-07-01'],
@@ -2446,7 +2470,17 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
     let response, rounds = 0;
     for (;;) {
       const callStart = Date.now();
-      response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });
+      if (process.env.VTT_DM_STREAM === '1') {
+        // Measurement: the same request streamed, noting when the first words and the first complete voice line arrive (what a player could hear if the table spoke as the reply is written).
+        const stream = anthropic.beta.messages.stream({ ...dmParams, messages: dmMessages });
+        let text = '';
+        stream.on('text', (delta) => {
+          if (!firstTokenMs) firstTokenMs = Date.now() - callStart;
+          text += delta;
+          if (!firstLineMs && /"voiceLines"\s*:\s*\[\s*\{[^{}]*?"text"\s*:\s*"(?:[^"\\]|\\.)*"\s*[,}]/.test(text)) firstLineMs = Date.now() - callStart;
+        });
+        response = await stream.finalMessage();
+      } else response = await anthropic.beta.messages.create({ ...dmParams, messages: dmMessages });
       apiMs += Date.now() - callStart; lastBlocks = (response.content || []).map((b) => `${b.type}:${String(b.text ?? b.thinking ?? JSON.stringify(b.input ?? '')).length}`).join(' '); lastStop = response.stop_reason || ''; lastUsage = response.usage || null; lastModel = response.model || MODEL; logRounds = rounds;
       usageTracker.record(response.model || MODEL, response.usage, activeCampaign, 'dm');
       if (response.stop_reason !== 'tool_use' || rounds >= 6) break;
@@ -2505,7 +2539,7 @@ app.post('/api/chat', asyncRoute(async (req, res) => {
       list: () => listCharacters(activeCampaign),
       save: async (c) => { const clean = normalizeCharacter(c); await saveCharacter(clean); return clean; }
     }).catch((err) => { console.warn('Character update failed:', err.message); return { results: [], problems: ['The DM tried to change a character sheet, but it could not be saved.'] }; });
-    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, effort: DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
+    playLog.log(activeCampaign, { kind: 'chat', player: text, tableNotes: state.tableNotes, corrections: state.moveCorrections, combat: state.combat && state.combat.active ? { round: state.combat.round, current: state.combat.currentTokenId } : undefined, rolls, lines: voiceLines.length ? voiceLines : [{ speaker: 'Narrator', voice: 'narrator', text: narrative }], mapUpdates: allUpdates.filter((u) => u && u.type !== 'journal'), problems: [...mapProblems, ...sheetResults.problems, ...buyResult.problems, ...partyResult.problems, ...trackResult.problems], model: lastModel, usage: lastUsage, blocks: lastBlocks, stop: lastStop, firstTokenMs: firstTokenMs || undefined, firstLineMs: firstLineMs || undefined, effort: DM_EFFORT, apiMs, totalMs: Date.now() - t0, rounds: logRounds, history: Array.isArray(history) ? history.length : 0, inputMode: inputMode || '' });
     res.json({
       rolls,
       narrative,

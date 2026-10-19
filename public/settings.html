@@ -193,7 +193,7 @@ async function api(path, body) {
 }
 function badge(el, set) { el.textContent = set ? 'key saved' : 'no key'; el.className = `badge ${set ? 'on' : 'off'}`; }
 
-const DM_MODELS = [['claude-opus-5-5', 'Claude Opus 5.5 (best; the model the DM was tested with)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (faster, cheaper)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest, simplest)'], ['claude-fable-5-1', 'Claude Fable 5.1']];
+const DM_MODELS = [['claude-sonnet-5', 'Claude Sonnet 5 (fastest reply: answers without thinking first)'], ['claude-opus-4-8', 'Claude Opus 4.8 (fast start, no thinking step)'], ['claude-opus-5-5', 'Claude Opus 5.5 (best; the model the DM was tested with; thinks first, slower)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (faster, cheaper)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest, simplest)'], ['claude-fable-5-1', 'Claude Fable 5.1']];
 const SERVICES = { openai: 'OpenAI (ChatGPT images)', gemini: 'Google Gemini', fal: 'FLUX on fal.ai' };
 const IMAGE_INFO = {
   openai: {

@@ -31,6 +31,7 @@ test('the request to the model: system blocks, strict schema, board state with d
   const req = fake.requests[0];
   assert.equal(req.output_config.format.type, 'json_schema');
   assert.equal(req.output_config.effort, 'low', 'the DM is asked for low effort by default');
+  assert.equal(req.thinking, undefined, 'Opus 5.5 always thinks: the request does not ask for it to be off');
   assert.deepEqual(req.output_config.format.schema, schemaForMode(DM_SCHEMA, 'scene', movedFor(['record_journal'])), 'no fight is running: the scene form without what moved to services (with the bookkeeper off the journal is a service)');
   assert.ok(req.system.some((b) => /REPLY FORM: no fight/.test(b.text)));
   assert.ok(req.system.length >= 3);
@@ -250,4 +251,15 @@ test('the wall segments are not sent to the DM: only how many of each kind, and 
   await s.post('/api/chat', { message: '[Edric] I look at the walls', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: walls.slice(-3), gridSize: 50 });
   const small = boardStateOf(fake.requests.at(-1));
   assert.ok(Math.abs(JSON.stringify(state).length - JSON.stringify(small).length) < 1500, `300 walls ${JSON.stringify(state).length} against 3 walls ${JSON.stringify(small).length}`);
+});
+
+test('a model that can answer without thinking first is asked to; the 5.5 models are not (they cannot be told)', async () => {
+  const ask = async (model) => { await s.post('/api/settings', { ANTHROPIC_MODEL: model }); fake.requests.length = 0; await s.post('/api/chat', { message: '[Edric] I look', history: [], tokens: [], characters: [], walls: [] }); return fake.requests.at(-1); };
+  try {
+    assert.deepEqual((await ask('claude-sonnet-5')).thinking, { type: 'disabled' });
+    assert.deepEqual((await ask('claude-opus-4-8')).thinking, { type: 'disabled' });
+    assert.equal((await ask('claude-sonnet-5-5')).thinking, undefined);
+    assert.equal((await ask('claude-opus-5-5')).thinking, undefined);
+    assert.equal((await ask('claude-fable-5-1')).thinking, undefined);
+  } finally { await s.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5' }); }
 });

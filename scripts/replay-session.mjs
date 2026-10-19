@@ -39,7 +39,7 @@ const key = process.env.ANTHROPIC_API_KEY || (/^ANTHROPIC_API_KEY=(.+)$/m.exec(e
 if (!key) { console.error('No ANTHROPIC_API_KEY in .env.'); process.exit(1); }
 
 const sb = await makeSandbox('vtt-replay-');
-const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '0', ...(process.env.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL } : {}), ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}) } });
+const server = await startServer({ sandbox: sb, env: { ANTHROPIC_API_KEY: key, VTT_BOOKKEEPER: '0', ...(process.env.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL } : {}), ...(process.env.DM_EFFORT ? { DM_EFFORT: process.env.DM_EFFORT } : {}), ...(process.env.VTT_DM_STREAM ? { VTT_DM_STREAM: process.env.VTT_DM_STREAM } : {}), ...(process.env.ANTHROPIC_MODEL ? { ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL } : {}) } });
 try {
   await server.post('/api/campaigns/active', { id: LOST });
   const characters = (await server.get(`/api/characters?campaign=${LOST}`)).json;
@@ -63,7 +63,7 @@ try {
   const entries = [];
   for (const f of (await readdir(logDir).catch(() => [])).sort()) for (const l of (await readFile(path.join(logDir, f), 'utf8')).split('\n')) { try { const e = JSON.parse(l); if (e.kind === 'chat') entries.push(e); } catch { /* skip */ } }
   console.log('\nFrom the play log (model wait, tokens):');
-  for (const e of entries) console.log(`  model ${(e.apiMs / 1000).toFixed(1).padStart(5)} s of ${(e.totalMs / 1000).toFixed(1)} s   in ${e.usage?.input_tokens ?? '?'} + cached ${e.usage?.cache_read_input_tokens ?? 0} + written ${e.usage?.cache_creation_input_tokens ?? 0}   out ${e.usage?.output_tokens ?? '?'}   blocks [${e.blocks ?? ''}]   ${e.error ? 'ERROR ' + e.error : ''}`);
+  for (const e of entries) console.log(`  model ${(e.apiMs / 1000).toFixed(1).padStart(5)} s of ${(e.totalMs / 1000).toFixed(1)} s   in ${e.usage?.input_tokens ?? '?'} + cached ${e.usage?.cache_read_input_tokens ?? 0} + written ${e.usage?.cache_creation_input_tokens ?? 0}   out ${e.usage?.output_tokens ?? '?'}   blocks [${e.blocks ?? ''}]${e.firstTokenMs ? `   first word ${(e.firstTokenMs / 1000).toFixed(1)} s, first full voice line ${e.firstLineMs ? (e.firstLineMs / 1000).toFixed(1) + ' s' : '?'}` : ''}   ${e.error ? 'ERROR ' + e.error : ''}`);
   const med = (a) => { const s = a.filter(Number.isFinite).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
   console.log(`\nMedian reply time: ${med(rows.map((r) => r.seconds)).toFixed(1)} s now, ${med(rows.map((r) => r.before)).toFixed(1)} s before the fixes (the first call also writes the prompt cache, so it is slower).`);
 } finally { await server.stop(); }
