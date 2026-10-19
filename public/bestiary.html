@@ -40,12 +40,22 @@
   .block p b.nm { font-style:italic; }
   .empty { color:var(--muted); padding:30px; text-align:center; }
   .notice { color:var(--muted); font-size:12px; margin-top:16px; }
+  .voicebox { margin-top:14px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .voicebox h3 { margin:0 0 4px; font-size:16px; } .voicebox .vtag { font-size:11px; color:var(--gold); border:1px solid #5b4a1c; border-radius:4px; padding:1px 7px; margin-left:8px; font-weight:400; }
+  .voicebox label { display:block; color:var(--muted); font-size:12px; margin-top:10px; }
+  .voicebox select, .voicebox input, .voicebox textarea { display:block; width:100%; margin-top:3px; }
+  .voicebox textarea { font:inherit; font-size:13px; color:var(--text); background:#0d1117; border:1px solid #3a4558; border-radius:6px; padding:6px 8px; resize:vertical; }
+  .voicebox .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .voicebox button { font:inherit; font-size:13px; color:var(--text); background:#1f2632; border:1px solid #3a4558; border-radius:6px; padding:6px 12px; cursor:pointer; }
+  .voicebox button.primary { background:var(--accent); color:#06121f; border-color:var(--accent); font-weight:600; }
+  .voicebox .msg { margin-top:8px; font-size:12px; color:var(--muted); min-height:16px; } .voicebox .msg.bad { color:#ff8a80; } .voicebox .msg.ok { color:#7ee0a0; }
+  .item .own { color:var(--gold); font-size:10.5px; margin-left:6px; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>The <span>Bestiary</span></h1>
-  <p class="lead">Every creature in the SRD 5.1: search, filter by challenge rating, type or size, and read the full stat block.</p>
+  <p class="lead">Every creature in the SRD 5.1 and the campaign's own: search, filter by challenge rating, type or size, read the stat block, and hear or change the voice the Dungeon Master gives it.</p>
   <div class="layout">
     <div>
       <div class="filters">
@@ -71,6 +81,8 @@
   var CR_STEPS = [0, 0.125, 0.25, 0.5].concat(Array.from({ length: 30 }, function (_, i) { return i + 1; }));
   var crText = function (cr) { return cr === 0.125 ? '1/8' : cr === 0.25 ? '1/4' : cr === 0.5 ? '1/2' : String(cr); };
   var signed = function (n) { return (n >= 0 ? '+' : '') + n; };
+  var voices = {}, voiceNames = [], adventure = {};
+  var crNumber = function (s) { var t = String(s || '0'); if (t.indexOf('/') > 0) { var p = t.split('/'); return Number(p[0]) / Number(p[1]); } return Number(t) || 0; };
   var modOf = function (score) { return Math.floor((score - 10) / 2); };
   var cap = function (t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; };
 
@@ -97,7 +109,7 @@
       b.setAttribute('role', 'option');
       b.dataset.index = m.index;
       if (m.image) { var im = el('img'); im.src = m.image; im.alt = ''; im.loading = 'lazy'; b.appendChild(im); }
-      b.appendChild(el('span', 'nm', m.name));
+      var nm = el('span', 'nm', m.name); if (m.adventure) nm.appendChild(el('span', 'own', 'campaign')); b.appendChild(nm);
       b.appendChild(el('small', '', 'CR ' + crText(m.cr) + ' · ' + m.type));
       b.addEventListener('click', function () { show(m.index); });
       list.appendChild(b);
@@ -158,15 +170,73 @@
     return b;
   }
 
+  // A creature that belongs to the campaign (not in the SRD): the numbers the module gives it.
+  function renderAdventure(m) {
+    var b = el('div', 'block');
+    if (m.image) { var pic = el('img', 'pic'); pic.src = m.image; pic.alt = m.name; b.appendChild(pic); }
+    b.appendChild(el('h2', '', m.name));
+    b.appendChild(el('div', 'sub', (m.size || 'Medium') + ' ' + (m.type || 'humanoid') + ', from this campaign'));
+    b.appendChild(el('hr'));
+    b.appendChild(prop('Armor Class', (m.armor_class && m.armor_class[0] ? m.armor_class[0].value + (m.armor_class[0].type ? ' (' + m.armor_class[0].type + ')' : '') : '10')));
+    b.appendChild(prop('Hit Points', m.hit_points + (m.hit_dice ? ' (' + m.hit_dice + ')' : '')));
+    b.appendChild(prop('Speed', Object.keys(m.speed || {}).map(function (k) { return (k === 'walk' ? '' : k + ' ') + m.speed[k]; }).join(', ')));
+    b.appendChild(prop('Challenge', String(m.challenge_rating || '')));
+    if (m.attacks) { b.appendChild(el('h3', '', 'Attacks')); b.appendChild(el('p', '', m.attacks)); }
+    return b;
+  }
+
+  var SOURCE = { type: 'default for its type', chosen: 'chosen for this creature', edited: 'edited by you' };
+  // The voice the Dungeon Master gives this creature: which ChatGPT voice, and the acting notes that say how it talks. Preview plays it before you save.
+  function voiceBox(index, name) {
+    var v = voices[index] || { voice: 'alloy', acting: '', source: 'type' };
+    var box = el('div', 'voicebox');
+    var h3 = el('h3', '', 'Voice'); var tag = el('span', 'vtag', SOURCE[v.source] || ''); h3.appendChild(tag); box.appendChild(h3);
+    box.appendChild(el('div', 'count', 'Used when the Dungeon Master speaks as "' + name + '" (a number after the name is ignored, so Goblin 2 is a goblin). Characters with their own voice in the campaign, like Klarg, keep it.'));
+    var lv = el('label', '', 'ChatGPT voice'); var sel = el('select'); sel.setAttribute('aria-label', 'Voice for ' + name);
+    voiceNames.forEach(function (n) { var o = el('option', '', n.charAt(0).toUpperCase() + n.slice(1)); o.value = n; sel.appendChild(o); });
+    lv.appendChild(sel); box.appendChild(lv);
+    var la = el('label', '', 'Acting notes (how it sounds)'); var ta = el('textarea'); ta.rows = 3; ta.maxLength = 400; ta.setAttribute('aria-label', 'Acting notes for ' + name); la.appendChild(ta); box.appendChild(la);
+    var ls = el('label', '', 'Sample line'); var line = el('input'); line.type = 'text'; line.value = 'Who dares come into my lair? You will not leave it alive.'; line.maxLength = 200; ls.appendChild(line); box.appendChild(ls);
+    var row = el('div', 'row'); var play = el('button', '', '▶ Preview'); var save = el('button', 'primary', 'Save'); var reset = el('button', '', 'Back to the default');
+    [play, save, reset].forEach(function (x) { x.type = 'button'; row.appendChild(x); }); box.appendChild(row);
+    var msg = el('div', 'msg'); msg.setAttribute('role', 'status'); box.appendChild(msg);
+    function say(t, ok) { msg.textContent = t; msg.className = 'msg ' + (ok ? 'ok' : 'bad'); }
+    function fill(x) { sel.value = x.voice; ta.value = x.acting; tag.textContent = SOURCE[x.source] || ''; }
+    fill(v);
+    var audio = null;
+    play.addEventListener('click', async function () {
+      say('Making the sample…', true); play.disabled = true;
+      try {
+        var res = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: line.value || 'Hello there.', voice: 'narrator', speaker: name, voiceName: sel.value, acting: ta.value }) });
+        if (!res.ok) throw new Error((await res.json().catch(function () { return {}; })).error || String(res.status));
+        var url = URL.createObjectURL(await res.blob());
+        if (audio) audio.pause();
+        audio = new Audio(url); audio.onended = function () { URL.revokeObjectURL(url); };
+        await audio.play(); say('Playing with the NPC model that is saved in Settings.', true);
+      } catch (err) { say(err.message, false); } finally { play.disabled = false; }
+    });
+    async function put(method, body) {
+      var res = await fetch('/api/creature-voices/' + encodeURIComponent(index), { method: method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || String(res.status));
+      voices[index] = { voice: data.voice, acting: data.acting, source: data.source }; fill(voices[index]);
+    }
+    save.addEventListener('click', async function () { try { await put('PUT', { voice: sel.value, acting: ta.value }); say('Saved. The Dungeon Master uses it from the next line.', true); } catch (err) { say(err.message, false); } });
+    reset.addEventListener('click', async function () { try { await put('DELETE'); say('Back to the default.', true); } catch (err) { say(err.message, false); } });
+    return box;
+  }
+
   async function show(index) {
     document.querySelectorAll('.item').forEach(function (i) { i.setAttribute('aria-current', String(i.dataset.index === index)); });
     var box = $('#detail');
+    if (adventure[index]) { box.innerHTML = ''; box.appendChild(renderAdventure(adventure[index])); box.appendChild(voiceBox(index, adventure[index].name)); try { history.replaceState(null, '', '#' + index); } catch (e) { /* not critical */ } return; }
     try {
       var res = await fetch('/api/compendium/monsters/' + encodeURIComponent(index));
       var data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed');
       box.innerHTML = '';
       box.appendChild(render(data.entry));
+      box.appendChild(voiceBox(index, data.entry.name));
       try { history.replaceState(null, '', '#' + index); } catch (e) { /* not critical */ }
     } catch (err) { box.innerHTML = ''; box.appendChild(el('div', 'empty', err.message)); }
   }
@@ -174,6 +244,15 @@
   async function init() {
     var res = await fetch('/api/compendium/monsters');
     all = (await res.json()).entries;
+    try {
+      var vres = await fetch('/api/creature-voices'); var vd = await vres.json();
+      voiceNames = vd.voices || [];
+      (vd.srd || []).forEach(function (x) { voices[x.index] = { voice: x.voice, acting: x.acting, source: x.source }; });
+      (vd.adventure || []).forEach(function (x) {
+        voices[x.index] = { voice: x.voice, acting: x.acting, source: x.source }; adventure[x.index] = x;
+        all.push({ index: x.index, name: x.name, type: x.type || 'humanoid', size: x.size || 'Medium', cr: crNumber(x.challenge_rating), image: x.image, adventure: true });
+      });
+    } catch (e) { /* the list still works without voices */ }
     all.sort(function (a, b) { return a.name.localeCompare(b.name); });
     fillSelect($('#type'), Array.from(new Set(all.map(function (m) { return m.type; }))).sort(), 'type');
     var sizes = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];

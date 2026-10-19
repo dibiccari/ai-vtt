@@ -26,6 +26,7 @@ import { MAP_TYPES, MOODS, LICENCES, packId, whyNotShareable, cleanMeta } from '
 import { mapsFor, mapsForPrompt, resolveChangeMap, entriesToList, cleanMapList, mapsFromList, MAP_KINDS } from './lib/campaign-maps.js';
 import { listEntries, getEntry, monsterImage, allEntries } from './lib/compendium.js';
 import { statCards } from './lib/statcards.js';
+import { createStore as createCreatureVoiceStore, voiceFor, findCreature, OPENAI_VOICES } from './lib/creature-voices.js';
 import { readSafety, writeSafety, safetyForPrompt } from './lib/safety.js';
 import { rollExpr, diceTray } from './lib/dice.js';
 import { lightItemsFor } from './lib/light-gear.js';
@@ -51,6 +52,7 @@ characterAliases = readAliases(path.join(__dirname, 'data'));
 const canonId = (id) => canonicalId(characterAliases, String(id ?? ''));
 const usageTracker = createUsageTracker(path.join(__dirname, 'data'));
 const playLog = createPlayLog(path.join(__dirname, 'data'));
+const creatureVoices = createCreatureVoiceStore(path.join(__dirname, 'data'));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 let MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
@@ -1747,6 +1749,9 @@ async function resolveVoiceAuto(tag, speaker) {
   const named = characterVoiceFor(table, speaker);
   if (named) return { voice: named.voice, instructions: `You are voicing ${speaker}. ${named.style || profile.style}`, named: true };
   if (speaker === 'Narrator') return { voice: TTS_PROFILES.narrator.voices[0], instructions: TTS_PROFILES.narrator.style, named: true };
+  // A creature of the SRD or of this adventure ("Goblin 2" is a goblin): the voice and acting notes for its kind, as edited in the Bestiary.
+  const creature = findCreature(speaker, [await allEntries('monsters'), await campaignCreatures()]);
+  if (creature) { const v = voiceFor(creature, await creatureVoices.read()); return { voice: v.voice, instructions: `You are voicing ${speaker}. ${v.acting}`, named: true }; }
   // Unnamed characters: the same name always gets the same voice from the profile's list.
   const hash = [...speaker.toLowerCase()].reduce((n, ch) => n + ch.charCodeAt(0), 0);
   const voice = profile.voices[hash % profile.voices.length];
@@ -1757,6 +1762,30 @@ const voiceProviderNow = () => (DM_NONE ? 'none' : VOICE_PROVIDER);        // th
 const npcProviderNow = () => (DM_NONE ? 'none' : NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER);        // 'same' is only what an old setup has before NPC voices are chosen      // the characters the Dungeon Master plays (NPCs, monsters)
 app.get('/api/tts/status', asyncRoute(async (_req, res) => {
   res.json({ pronunciations: await loadPronunciations(), enabled: Boolean(OPENAI_KEY) && (voiceProviderNow() === 'openai' || npcProviderNow() === 'openai'), dm: voiceProviderNow(), npc: npcProviderNow(), model: TTS_MODEL });
+}));
+
+// The active campaign's own creatures (not in the SRD).
+async function campaignCreatures() { return loadAdventureMonsters(path.join(CAMPAIGNS_DIR, await templateOfCampaign(await getActiveCampaignId()))); }
+
+// The voice of every creature (the Bestiary shows and edits them): GET the lot, PUT one creature's voice or acting notes, DELETE to go back to the default.
+app.get('/api/creature-voices', asyncRoute(async (_req, res) => {
+  const overrides = await creatureVoices.read();
+  const srd = (await allEntries('monsters')).map((m) => ({ index: m.index, name: m.name, type: m.type, size: m.size, ...voiceFor(m, overrides) }));
+  const adventure = (await campaignCreatures()).map((m) => ({ index: m.index, name: m.name, type: m.type, size: m.size, hit_points: m.hit_points, hit_dice: m.hit_dice, armor_class: m.armor_class, speed: m.speed, attacks: m.attacks || '', challenge_rating: m.challenge_rating, image: m.image || '', ...voiceFor(m, overrides) }));
+  res.json({ voices: OPENAI_VOICES, srd, adventure });
+}));
+app.put('/api/creature-voices/:index', localOnly, asyncRoute(async (req, res) => {
+  const index = String(req.params.index).toLowerCase();
+  const known = [...(await allEntries('monsters')), ...(await campaignCreatures())].find((m) => m.index === index);
+  if (!known) return res.status(404).json({ error: 'No such creature' });
+  const all = await creatureVoices.set(index, req.body?.voice, req.body?.acting);
+  res.json({ ok: true, ...voiceFor(known, all) });
+}));
+app.delete('/api/creature-voices/:index', localOnly, asyncRoute(async (req, res) => {
+  const index = String(req.params.index).toLowerCase();
+  const known = [...(await allEntries('monsters')), ...(await campaignCreatures())].find((m) => m.index === index);
+  if (!known) return res.status(404).json({ error: 'No such creature' });
+  res.json({ ok: true, ...voiceFor(known, await creatureVoices.reset(index)) });
 }));
 
 // Which cloud voice will each (voice tag, speaker) pair use? Used to label the UI.
@@ -1779,8 +1808,10 @@ app.post('/api/tts', asyncRoute(async (req, res) => {
   if (!text) return res.status(400).json({ error: 'text is required' });
   const tag = TTS_PROFILES[req.body?.voice] ? req.body.voice : 'narrator';
   const speaker = String(req.body?.speaker ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator';
-  const { voice: autoVoice, instructions } = await resolveVoice(tag, speaker);
-  const voice = chosenVoice(String(req.body?.voiceName ?? '')) || autoVoice;       // voiceName: Settings plays a sample of a voice before it is saved
+  const { voice: autoVoice, instructions: autoInstructions } = await resolveVoice(tag, speaker);
+  const voice = chosenVoice(String(req.body?.voiceName ?? '')) || autoVoice;       // voiceName: Settings and the Bestiary play a sample of a voice before it is saved
+  const actingNotes = speaker !== 'Narrator' ? String(req.body?.acting ?? '').replace(/\s+/g, ' ').trim().slice(0, 400) : '';       // acting: the same, for the notes
+  const instructions = actingNotes ? `You are voicing ${speaker}. ${actingNotes}` : autoInstructions;
 
   const model = speaker === 'Narrator' ? TTS_MODEL : NPC_TTS_MODEL;        // the Dungeon Master voice and the NPC voices each have their own model
   const key = createHash('sha1').update(`${model}|${voice}|${instructions}|${text}`).digest('hex');
