@@ -17,7 +17,6 @@ const b = src.indexOf('DM_SCHEMA.properties.voiceLines = {');
 const end = src.indexOf('\n  };\n', b) + 6;
 const VOICES = ['narrator', 'gruff', 'sly', 'noble', 'elderly', 'child', 'monstrous', 'ethereal', 'feminine', 'masculine'];
 const schema = new Function('SKILLS', 'CATEGORIES', 'STATUSES', 'EFFECT_KINDS', 'VOICES', src.slice(a, end) + '\nreturn DM_SCHEMA;')(SKILLS, CATEGORIES, STATUSES, EFFECT_KINDS, VOICES);
-const variants = schema.properties.mapUpdates.items.anyOf.length;
 const { schemaForMode } = await import('../../lib/dm-schema-modes.js');
 const { buildServices, toolsFor, movedFor, enabledServices } = await import('../../lib/services.js');
 // What the server really sends: the form without what the services and the bookkeeper took over, together with the tools (tools count toward the same grammar budget).

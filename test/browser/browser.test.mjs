@@ -60,7 +60,6 @@ const setup = `(() => {
   s.activeIndex = 0; s.walls = []; s.wallsVersion++; s.fogEnabled = false;
   return hero.name;
 })()`;
-const keys = (m) => `new Set([...${m}.keys()])`;
 
 test('movement: free roam is limited by walls, doors and the edge of the map, never by a turn budget', opts, async () => {
   await page.eval(setup);

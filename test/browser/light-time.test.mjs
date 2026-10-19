@@ -74,7 +74,7 @@ test('zones in a bright map: a dark zone is cleared out of the lit region; a zon
     s.timeOfDay = 'day'; return out;
   })()`);
   const expect = { day: ['bright', true, false], dawn: ['dim', true, false], dusk: ['dim', true, false], night: ['dark', false, true] };
-  for (const [v, [lvl, litYard, anyDark]] of Object.entries(expect)) {
+  for (const [v, [lvl, litYard]] of Object.entries(expect)) {
     assert.equal(r[v].time, lvl, v); assert.equal(r[v].yard, lvl, v + ': the time zone follows'); assert.equal(r[v].cellar, 'dark', v + ': a fixed zone does not'); assert.equal(r[v].elsewhere, 'bright', v + ': a bright map is not dark by night');
     assert.equal(r[v].litYard, litYard, v + ' lit region of the yard'); assert.equal(r[v].litCellar, false); assert.equal(r[v].anyDark, true, 'the cellar is always dark');
     assert.deepEqual(r[v].told, [['Cellar', 'dark', false], ['Yard', lvl, true]], v + ': what the DM is told');

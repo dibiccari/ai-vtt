@@ -16,7 +16,6 @@ before(async () => {
 });
 after(async () => { if (page) await page.close(); if (server) await server.stop(); });
 const opts = { skip: skip || false };
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test('a saved sheet is drawn from HTML (no PDF), has three pages, and is read only', opts, async () => {
   const out = await page.eval(`(() => ({

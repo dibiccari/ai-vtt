@@ -68,7 +68,7 @@ p.fillWith((x, y) => {
     if (d < 10) col = tint([232, 240, 232], col, d / 10);                                          // surf along the shore
     return col;
   }
-  const h = height(x, y), hx = height(x + 3, y) - height(x - 3, y), hy = height(x, y + 3) - height(x, y - 3);
+  const hx = height(x + 3, y) - height(x - 3, y), hy = height(x, y + 3) - height(x, y - 3);
   const slope = clamp(1 + (hx * light[0] + hy * light[1]) * 11, 0.64, 1.4);
   let col = [176 + n * 30 + n2 * 8, 168 + n * 26 + n2 * 8, 98 + n * 20];                               // windswept moor
   col = tint(col, [128, 158, 80], smoothstep(0.35, 0.65, fbm(x / 140, y / 140, 41)) * 0.55);          // greener hollows

@@ -339,7 +339,7 @@ try {
       const adds = upd(j).filter((u) => u.type === 'addCondition');
       const find = (tok, name) => adds.find((u) => u.tokenId === tok && condOf(u) === name);
       check(!!find('pc-thorin', 'bless') && !!find('pc-vex', 'bless'), 'effects: bless put on Thorin and Vex', adds.map((u) => u.tokenId + ':' + condOf(u)).join(', '));
-      const b = find('pc-thorin', 'bless'), sa = find('pc-lyra', 'sanctuary'), conc = find('pc-seraphine', 'concentrating');
+      const b = find('pc-thorin', 'bless'), conc = find('pc-seraphine', 'concentrating');
       check(!!b && b.rounds === 0 && !b.minutes, 'effects: bless sent by name only (rounds 0, no minutes: the table gives the duration)', b ? "rounds " + b.rounds + ", minutes " + b.minutes : 'missing');
       check(!!b && b.source === 'pc-seraphine', 'effects: the concentration effect carries the caster\'s token id', b ? 'source ' + JSON.stringify(b.source) : 'missing');
       check(!!conc, 'effects: Seraphine is marked concentrating');
@@ -523,7 +523,7 @@ function boardTray(request) {
 function checkDice(lines, tray, usedCount) {
   const verdict = { ok: 0, unknown: 0, bad: [] };
   for (const line of lines) {
-    const explicit = [...String(line).matchAll(/\bd(4|6|8|10|12|20|100)\b\s*[\(\[:=]?\s*(\d{1,3})(?:\s*[,+]\s*(\d{1,3}))?/gi)];
+    const explicit = [...String(line).matchAll(/\bd(4|6|8|10|12|20|100)\b\s*[([:=]?\s*(\d{1,3})(?:\s*[,+]\s*(\d{1,3}))?/gi)];
     if (!explicit.length) { verdict.unknown++; continue; }
     for (const m of explicit) {
       const die = 'd' + m[1], naturals = [Number(m[2]), m[3] ? Number(m[3]) : null].filter((x) => x !== null && x >= 1 && x <= Number(m[1]));

@@ -231,13 +231,6 @@ function rubble(gx, gy, n = 9) {
     p.ellipse(x - r * 0.25, y - r * 0.25, r * 0.5, r * 0.4, 0, [150, 144, 136], 0.6);
   }
 }
-function pool(gx, gy, rx, ry) {
-  const x = sq(gx), y = sq(gy);
-  p.ellipse(x, y, sq(rx) + 8, sq(ry) + 8, 0.2, [64, 58, 52]);                       // the stone curb
-  p.ellipse(x, y, sq(rx), sq(ry), 0.2, [34, 74, 96]);
-  p.ellipse(x - 6, y - 4, sq(rx) * 0.8, sq(ry) * 0.75, 0.2, [48, 106, 132], 0.9);
-  for (let k = 0; k < 4; k++) p.ring(x + (k - 1.5) * 14, y + ((k * 7) % 11) - 5, 10 + k * 6, 1.5, [150, 200, 220], 0.28);
-}
 function stairs(gx, gy, w, h) {
   const x = sq(gx), y = sq(gy);
   for (let s = 0; s < 8; s++) {

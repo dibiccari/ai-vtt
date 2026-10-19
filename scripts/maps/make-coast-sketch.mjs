@@ -75,7 +75,7 @@ const PLACES = [
   ['Old Owl Well', 982, 886, 'ruins'], ['Leilon', 441, 1268, 'ruins'], ['Cragmaw Hideout', 455, 1036, 'point'], ['Wave Echo Cave', 720, 1120, 'point'], ['Wyvern Tor', 985, 988, 'point'],
   ["Agatha's Lair", 842, 760, 'point'], ['Mount Hotenow', 361, 410, 'peak'], ['Icespire Peak', 838, 1062, 'peak']
 ];
-for (const [name, x, y, kind] of PLACES) {
+for (const [, x, y, kind] of PLACES) {
   const px = X(x), py = Y(y);
   if (kind === 'city') { p.ellipse(px + 4, py + 6, 38, 34, 0, [30, 30, 30], 0.35); p.ellipse(px, py, 36, 32, 0, [96, 80, 66]); p.ellipse(px, py, 30, 26, 0, [196, 176, 140]); for (let a = 0; a < 6.28; a += 0.5) p.disc(px + Math.cos(a) * 36, py + Math.sin(a) * 32, 5, [110, 100, 92]); for (let i = 0; i < 12; i++) { const a = hash(i, 4, 1) * 6.28, d = 4 + hash(i, 5, 2) * 20; p.rect(px + Math.cos(a) * d - 5, py + Math.sin(a) * d - 4, 10, 8, i % 3 ? [176, 90, 62] : [150, 124, 92]); } }
   else if (kind === 'town') { for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28, d = 8 + (i % 2) * 8; const hx = px + Math.cos(a) * d, hy = py + Math.sin(a) * d; p.rect(hx - 6, hy - 5, 12, 10, [60, 50, 40], 0.3); p.rect(hx - 6, hy - 5, 12, 10, [186, 100, 70]); p.rect(hx - 6, hy - 5, 12, 4, [220, 140, 100]); } }

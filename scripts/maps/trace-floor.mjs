@@ -56,7 +56,7 @@ for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
 // 4. chain the edges into closed loops
 const loops = [];
 while (nexts.size) {
-  const [k0, list0] = nexts.entries().next().value;
+  const [k0] = nexts.entries().next().value;
   const sx = k0 % (cw + 1), sy = Math.floor(k0 / (cw + 1));
   const loop = [[sx, sy]];
   let [cx, cy] = [sx, sy], prevDir = null;

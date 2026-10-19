@@ -85,7 +85,6 @@ for (const [x1, y1, x2, y2] of segs) {
   }
 }
 // Remove pieces covered by a door or secret door span? No: doors replace wall there, secrets stay walls.
-const onSpan = (p, d) => { const mx = (p[0] + p[2]) / 2, my = (p[1] + p[3]) / 2; return d.h !== undefined ? Math.abs(my - d.h) < 0.05 && mx > d.from && mx < d.to : Math.abs(mx - d.v) < 0.05 && my > d.from && my < d.to; };
 const edgeLines = [...Object.values(layout.rooms).flatMap(([x0, y0, x1, y1]) => [{ h: y0, a: x0, b: x1 }, { h: y1, a: x0, b: x1 }, { v: x0, a: y0, b: y1 }, { v: x1, a: y0, b: y1 }]), ...(layout.fences || []).map((f) => ({ h: f.h, a: f.from, b: f.to }))];
 const onWall = (d) => edgeLines.some((e) => (d.h !== undefined ? e.h !== undefined && Math.abs(e.h - d.h) <= 0.6 : e.v !== undefined && Math.abs(e.v - d.v) <= 0.6) && Math.min(e.b, d.to) - Math.max(e.a, d.from) > 0.3);
 const allDoors = [...(layout.detectedDoors || []).filter(onWall), ...(layout.doors || [])];

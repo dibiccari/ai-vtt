@@ -110,7 +110,13 @@ export async function fakeAnthropic(replies) {
         send('message_start', { type: 'message_start', message: { id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 0 } } });
         send('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
         (async () => {
-          for (let i = 0; i < text.length; i += size) { send('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: text.slice(i, i + size) } }); if (wait) await new Promise((r) => setTimeout(r, wait)); }
+          // out.__errorAfter: the stream breaks with an error event after that many pieces (an overloaded server in the middle of an answer).
+          let pieces = 0;
+          for (let i = 0; i < text.length; i += size) {
+            send('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: text.slice(i, i + size) } });
+            if (out.__errorAfter && ++pieces >= out.__errorAfter) { send('error', { type: 'error', error: { type: 'overloaded_error', message: out.__message || 'fast mode capacity' } }); res.end(); return; }
+            if (wait) await new Promise((r) => setTimeout(r, wait));
+          }
           send('content_block_stop', { type: 'content_block_stop', index: 0 });
           send('message_delta', { type: 'message_delta', delta: { stop_reason: out.__stop || 'end_turn', stop_sequence: null }, usage: { output_tokens: 5 } });
           send('message_stop', { type: 'message_stop' });

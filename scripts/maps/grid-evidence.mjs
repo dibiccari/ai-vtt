@@ -24,7 +24,7 @@ const ev = makeEvidence(pic, layout, Q);
 const cr = makeCrop(pic, { cell: layout.cell, origin: layout.origin || [0, 0] }, range, S);
 const { out, W, H, toX, toY, line } = cr;
 if (args.includes('--mask')) {
-  for (const [name, cm] of Object.entries(layout.caveMasks || {})) {
+  for (const [, cm] of Object.entries(layout.caveMasks || {})) {
     const { mask, res, isInk } = caveFloorMask(pic, layout, cm);
     if (args.includes('--ink')) for (let j = Math.floor(range[1] * res); j < Math.ceil(range[3] * res); j++) for (let i = Math.floor(range[0] * res); i < Math.ceil(range[2] * res); i++) if (isInk(i, j)) cr.fillRect(toX(i / res), toY(j / res), toX((i + 1) / res), toY((j + 1) / res), [255, 0, 0], 0.55);
     for (const k of mask) { const [i, j] = k.split(',').map(Number); cr.fillRect(toX(i / res), toY(j / res), toX((i + 1) / res), toY((j + 1) / res), [255, 160, 0], 0.3); }

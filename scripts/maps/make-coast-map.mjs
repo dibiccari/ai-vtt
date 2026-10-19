@@ -77,7 +77,7 @@ const cell = (bx, by) => bx >= 0 && by >= 0 && bx < forest.w && by < forest.h &&
 // a spot is forest when it is forest and most of its neighbours are too (a lone block is noise in the colour reading, not a tree)
 const isForest = (ox, oy) => { const bx = Math.floor(ox / forest.block), by = Math.floor(oy / forest.block); if (!cell(bx, by)) return false; let n = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (cell(bx + dx, by + dy)) n++; return n >= 11; };
 const polyIn = (list) => { const q = pts(list); return (x, y) => pointInPoly(x, y, q); };
-const inHills = HILLS.map(polyIn), inMtn = MOUNTAINS.map(polyIn), inMarsh = polyIn(MARSH);
+const inHills = HILLS.map(polyIn), inMtn = MOUNTAINS.map(polyIn);
 const seaAt = (x, y) => y > S(470) - 30 && x < coastX(y) && x > S(75) - 6;
 p.fillWith((x, y) => {
   const n = fbm(x / 70, y / 70, 5), n2 = vnoise(x / 4, y / 4, 9);

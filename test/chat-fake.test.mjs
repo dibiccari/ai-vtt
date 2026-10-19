@@ -353,3 +353,20 @@ test('the DM sheets drop the spell lines that have a card and keep the ones that
   assert.equal(sent.sheet['Spells 1016'], "Zork's Fancy Ward", 'a spell with no card keeps its line');
   assert.ok(fake.requests[0].system.some((b) => /SPELL CARDS/.test(b.text) && /Fire Bolt/.test(b.text)));
 });
+
+test('a stream that breaks after the table has already been sent lines is not tried again (nothing is said twice); one that breaks before is tried again at standard speed', async () => {
+  const dm = { rolls: [], voiceLines: [{ speaker: 'Narrator', voice: 'narrator', text: 'The first line is complete.' }, { speaker: 'Narrator', voice: 'narrator', text: 'The second line never arrives whole.' }], mapUpdates: [] };
+  const body = { message: '[Edric] I listen', history: [], tokens: [tok({ id: 'pc1', name: 'Edric', isPC: true })], characters: [], walls: [], stream: true };
+  const events = async () => { const res = await fetch(`${s.base}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return (await res.text()).trim().split('\n').map((l) => JSON.parse(l)); };
+  // breaks late: the first line has gone out already, so no second try (it would say that line again)
+  fake.requests.length = 0; fake.__set({ ...dm, __errorAfter: 10, __chunkSize: 14 });
+  const late = await events();
+  assert.equal(fake.requests.length, 1, 'one request only: no second try after a line was sent');
+  assert.equal(late.filter((e) => e.event === 'line').length, 1, 'the first line was sent once');
+  assert.equal(late.at(-1).event, 'error');
+  // breaks at once: nothing was sent, so the second try at standard speed answers
+  fake.requests.length = 0; fake.__set((req) => (req.speed === 'fast' ? { ...dm, __errorAfter: 1, __chunkSize: 14 } : dm));
+  const early = await events();
+  assert.equal(fake.requests.length, 2, 'a second try at standard speed'); assert.equal(fake.requests[1].speed, undefined);
+  assert.equal(early.at(-1).event, 'done'); assert.equal(early.filter((e) => e.event === 'line').length, 2);
+});
