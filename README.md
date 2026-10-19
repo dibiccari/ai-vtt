@@ -42,7 +42,7 @@ Then open **Campaigns**, press Continue on a campaign, and press **Begin the adv
 | `test/` | Offline tests (`test/*.test.mjs`) and browser tests (`test/browser`). |
 | `docs/` | Architecture, plans and the to-do list. |
 
-`CLAUDE.md` is the long working document for the AI assistant that builds this project: the detailed API and behaviour notes.
+`CLAUDE.md` is the short working document for the AI assistant that builds this project (how to run it, the layout, the conventions and the standing rules); the long API and behaviour notes and the decision history are in `docs/notes/`.
 
 ## Tests
 

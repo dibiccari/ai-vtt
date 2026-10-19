@@ -102,6 +102,13 @@ async function loadMapList(initial = false) {
   try {
     const res = await fetch('/api/mapsets');
     places = (await res.json()).sets || [];
+    // A link to an archived place (?set=<id>) opens it: the archived places are not listed otherwise, so that one is fetched and added.
+    const askedSet = new URLSearchParams(location.search).get('set');
+    if (askedSet && !places.some((p) => p.guid === askedSet)) {
+      const withArchived = (await (await fetch('/api/mapsets?archived=1')).json()).sets || [];
+      const hit = withArchived.find((p) => p.guid === askedSet);
+      if (hit) places = places.concat(hit);
+    }
   } catch (err) {
     $('#banner').textContent = `Could not list maps: ${err.message}`;
     return;

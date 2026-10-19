@@ -1086,3 +1086,10 @@ test('a town or regional map in the DM view shows its own picture with live mark
   })()`);
   assert.equal(r.kind, 'town'); assert.equal(r.magenta, false, 'the stored DM picture is not drawn on a town map');
 });
+
+test('a link to an archived place (?set=) opens that place, not the first map in the list', opts, async () => {
+  await page.goto(`${server.base}/map-test.html?set=25f32cf0-aedc-4b71-b0c9-4e6467b32439`);       // Goblin Ambush, the archived version
+  await page.waitFor('document.querySelector("#banner").textContent.includes("px")');
+  const url = await page.eval('window.mapTest.state.url');
+  assert.match(url, /vtt-goblin-ambush\.png$/, 'the archived place opened: ' + url);
+});
