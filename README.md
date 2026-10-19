@@ -34,7 +34,7 @@ Then open **Campaigns**, press Continue on a campaign, and press **Begin the adv
 | `lib/` | Server modules: rules, party and gear, journal, map sets, prompts, voices, usage. Mostly pure functions with tests. |
 | `public/` | The pages: the tabletop (`index.html`), Map Test, campaigns, characters, party, journal, bestiary, spells, settings. |
 | `public/js/` | Scripts shared by the pages (navigation, fog, effects, token sizes, wizards...). |
-| `public/dev/` | Developer and test pages (voice, sound, image, level-up, Test Lab). |
+| `public/dev/` | Developer and test pages (voice, sound, image, level-up, conditions, Test Lab) and the Sword Coast prototype. |
 | `public/data/` | Data the browser and the server both read (effect durations, light from gear). |
 | `public/tokens`, `audio`, `scenarios`, `vendor` | Token art, sound recordings, sample scenarios, third-party scripts. |
 | `data/` | Your data: campaigns, characters, map sets, SRD tables. Tracked in git so a clone works. |

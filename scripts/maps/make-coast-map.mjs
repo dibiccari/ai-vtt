@@ -1,7 +1,7 @@
 // Draws OUR OWN Sword Coast regional map in code, in a bold-ink atlas style, with the same geography as the published map in public/uploads/dnd-northswordcoast-playerversion.jpg.
 // Where things are comes from two places and nothing else: (1) data/map-layouts/coast-regions.json, a coarse grid of which blocks of the published picture are forest (scripts/maps/read-coast-regions.mjs reads
 // colour and texture only), and (2) the coastline, roads, rivers, hills, mountains and places written down below in the published picture's pixel coordinates (2648 x 3625), read by eye off ruler crops.
-// No pixel of the published art is copied and nothing is sent anywhere. The picture has no text and no grid: names and the 5-mile hex overlay are drawn on top by public/coast.html.
+// No pixel of the published art is copied and nothing is sent anywhere. The picture has no text and no grid: names and the 5-mile hex overlay are drawn on top by public/dev/coast.html.
 //   node scripts/maps/make-coast-map.mjs [out.png] [scale 0.5]
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
