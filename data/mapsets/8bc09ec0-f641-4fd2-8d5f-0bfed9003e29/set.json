@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 8,
+  "version": 9,
   "id": "8bc09ec0-f641-4fd2-8d5f-0bfed9003e29",
   "slug": "vtt-pack-thundertree-copy",
   "name": "Thundertree",
@@ -2069,8 +2069,7 @@
           "ambience": "",
           "mood": ""
         }
-      ],
-      "fog": false
+      ]
     }
   ],
   "links": [],

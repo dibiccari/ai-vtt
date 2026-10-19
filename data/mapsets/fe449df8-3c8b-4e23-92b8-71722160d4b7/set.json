@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 156,
+  "version": 178,
   "id": "fe449df8-3c8b-4e23-92b8-71722160d4b7",
   "slug": "vtt-pack-cragmaw-hideout-copy",
   "name": "Cragmaw Hideout",
@@ -1677,7 +1677,7 @@
           "time": "main",
           "player": "vtt-pack-cragmaw-hideout-copy.png",
           "dm": null,
-          "light": "dim",
+          "light": "dark",
           "lights": [
             {
               "x": 1656,
@@ -1694,30 +1694,6 @@
               "intensity": 1,
               "color": "ffeccd8b",
               "name": "daylight-1"
-            },
-            {
-              "x": 698,
-              "y": 1206,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "daylight-2"
-            },
-            {
-              "x": 1039,
-              "y": 1209,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "torch-1"
-            },
-            {
-              "x": 1377,
-              "y": 1219,
-              "range": 10,
-              "intensity": 1,
-              "color": "ffeccd8b",
-              "name": "torch-2"
             }
           ],
           "ambient": "",
@@ -1725,7 +1701,108 @@
           "mood": ""
         }
       ],
-      "objectTops": false
+      "objectTops": false,
+      "lightZones": [
+        {
+          "id": "zone-1",
+          "name": "zone-1",
+          "level": "bright",
+          "points": [
+            {
+              "x": 3,
+              "y": 969
+            },
+            {
+              "x": 175,
+              "y": 953
+            },
+            {
+              "x": 425,
+              "y": 963
+            },
+            {
+              "x": 496,
+              "y": 954
+            },
+            {
+              "x": 585,
+              "y": 897
+            },
+            {
+              "x": 643,
+              "y": 871
+            },
+            {
+              "x": 742,
+              "y": 873
+            },
+            {
+              "x": 772,
+              "y": 846
+            },
+            {
+              "x": 955,
+              "y": 850
+            },
+            {
+              "x": 941,
+              "y": 889
+            },
+            {
+              "x": 937,
+              "y": 989
+            },
+            {
+              "x": 1011,
+              "y": 1069
+            },
+            {
+              "x": 1067,
+              "y": 1105
+            },
+            {
+              "x": 1143,
+              "y": 1094
+            },
+            {
+              "x": 1247,
+              "y": 1136
+            },
+            {
+              "x": 1298,
+              "y": 1170
+            },
+            {
+              "x": 1355,
+              "y": 1155
+            },
+            {
+              "x": 1448,
+              "y": 1207
+            },
+            {
+              "x": 1608,
+              "y": 1355
+            },
+            {
+              "x": 1670,
+              "y": 1375
+            },
+            {
+              "x": 1713,
+              "y": 1400
+            },
+            {
+              "x": 1722,
+              "y": 1400
+            },
+            {
+              "x": 0,
+              "y": 1400
+            }
+          ]
+        }
+      ]
     }
   ],
   "links": [],

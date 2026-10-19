@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 119,
+  "version": 184,
   "id": "b0f61f20-0b90-461a-bf44-32dd01c42bff",
   "slug": "vtt-terrain-test",
   "name": "Terrain Test",
@@ -1120,7 +1120,7 @@
           "x2": 1590,
           "y2": 240,
           "type": "door",
-          "open": true
+          "open": false
         },
         {
           "x1": 1650,
@@ -1128,7 +1128,8 @@
           "x2": 1650,
           "y2": 170,
           "type": "door",
-          "open": false
+          "open": false,
+          "locked": true
         },
         {
           "x1": 1400,
@@ -1308,12 +1309,6 @@
           "x": 812,
           "y": 1340,
           "desc": "The top of a high cliff, about 40 ft up. Only a flyer can get here: the face stops anyone on foot."
-        },
-        {
-          "name": "brazier",
-          "x": 1615,
-          "y": 363,
-          "desc": "An iron brazier of cold coals beside the cabin. It can be lit."
         }
       ],
       "difficult": [
@@ -1589,6 +1584,17 @@
               "on": false,
               "kind": "campfire",
               "name": "campfire-1"
+            },
+            {
+              "x": 1561,
+              "y": 422,
+              "range": 8,
+              "intensity": 1,
+              "color": "ffff9a3c",
+              "flicker": true,
+              "on": false,
+              "kind": "brazier",
+              "name": "torch-1"
             }
           ],
           "ambient": "",
@@ -3429,7 +3435,7 @@
           "speed": 1
         }
       ],
-      "fog": false
+      "objectTops": false
     }
   ],
   "links": [],

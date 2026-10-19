@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 97,
+  "version": 167,
   "id": "02cbf28d-57ee-4746-a10f-4926fdf6b92e",
   "slug": "vtt-pack-redbrand-hideout-copy",
   "name": "Redbrand Hideout",
@@ -3187,44 +3187,39 @@
               "on": false
             },
             {
-              "x": 1099.67,
-              "y": 1522.41,
+              "x": 1101,
+              "y": 1524,
               "range": 2,
               "intensity": 0.6,
-              "color": "ffffad58",
-              "on": false
+              "color": "ffffad58"
             },
             {
-              "x": 1664,
-              "y": 1461,
+              "x": 1668,
+              "y": 1457,
               "range": 2,
               "intensity": 0.6,
-              "color": "ffffad58",
-              "on": false
+              "color": "ffffad58"
             },
             {
               "x": 1485.25,
               "y": 1131.43,
               "range": 2,
               "intensity": 0.6,
-              "color": "ffffad58",
-              "on": false
+              "color": "ffffad58"
             },
             {
-              "x": 1881.77,
-              "y": 908.16,
+              "x": 1882,
+              "y": 908,
               "range": 2,
               "intensity": 0.6,
-              "color": "ffffad58",
-              "on": false
+              "color": "ffffad58"
             },
             {
               "x": 1505.27,
               "y": 998.69,
               "range": 2,
               "intensity": 0.6,
-              "color": "ffffad58",
-              "on": false
+              "color": "ffffad58"
             },
             {
               "x": 1347.58,
@@ -3235,8 +3230,8 @@
               "on": false
             },
             {
-              "x": 1099.67,
-              "y": 531.48,
+              "x": 1106,
+              "y": 512,
               "range": 2,
               "intensity": 0.6,
               "color": "ffffad58",
@@ -3319,8 +3314,7 @@
               "y": 1373.68,
               "range": 2,
               "intensity": 0.6,
-              "color": "ffffad58",
-              "on": false
+              "color": "ffffad58"
             },
             {
               "x": 934,
@@ -3364,6 +3358,69 @@
               "on": false,
               "kind": "torch",
               "name": "torch-4"
+            },
+            {
+              "x": 1479,
+              "y": 1515,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-5"
+            },
+            {
+              "x": 1293,
+              "y": 1501,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-6"
+            },
+            {
+              "x": 1111,
+              "y": 1190,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-7"
+            },
+            {
+              "x": 1011,
+              "y": 1350,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-8"
+            },
+            {
+              "x": 1250,
+              "y": 1002,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-9"
+            },
+            {
+              "x": 1503,
+              "y": 903,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-10"
+            },
+            {
+              "x": 1245,
+              "y": 610,
+              "range": 2,
+              "intensity": 1,
+              "color": "ffffb060",
+              "on": false,
+              "name": "torch-11"
             }
           ],
           "ambient": "",

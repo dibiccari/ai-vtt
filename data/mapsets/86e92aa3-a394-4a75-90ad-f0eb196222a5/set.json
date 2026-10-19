@@ -1,6 +1,6 @@
 {
   "format": "vttmapset",
-  "version": 29,
+  "version": 30,
   "id": "86e92aa3-a394-4a75-90ad-f0eb196222a5",
   "slug": "vtt-pack-wyvern-tor-copy",
   "name": "Wyvern Tor",
@@ -634,8 +634,7 @@
           "ambience": "",
           "mood": ""
         }
-      ],
-      "fog": false
+      ]
     }
   ],
   "links": [],
