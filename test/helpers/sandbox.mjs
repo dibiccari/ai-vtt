@@ -1,13 +1,27 @@
 // Test sandbox: runs the real server.js on a random port inside a throwaway COPY of the app (code + data), so tests never touch the real data/ folder.
 // The big read-only folders (picture and token art, audio) are symlinked instead of copied. Optionally points the Anthropic SDK at a fake API.
-import { spawn } from 'node:child_process';
-import { cp, mkdtemp, mkdir, rm, symlink, readdir } from 'node:fs/promises';
+import { spawn, execFileSync } from 'node:child_process';
+import { cp, mkdtemp, mkdir, rm, symlink, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+// The tests must not depend on what the owner is editing right now (a map set open in Map Test, a character hurt in play): every tracked text file under data/ that differs from the last commit
+// is put back to its committed version in the sandbox. Files that are not tracked yet (new ones) are left as they are, so commit a data file before a test relies on a change to it.
+let committed = null;       // path -> committed text, read once per test file (a test file starts many sandboxes)
+async function restoreCommittedData(dir) {
+  if (!committed) {
+    committed = new Map();
+    try {
+      const changed = execFileSync('git', ['diff', '--name-only', 'HEAD', '--', 'data'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\n').filter((f) => /\.(json|md|txt|svg)$/.test(f));       // not a git checkout: the live data is used
+      for (const f of changed) { try { committed.set(f, execFileSync('git', ['show', `HEAD:${f}`], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 })); } catch { /* not in the last commit: left as it is */ } }
+    } catch { /* no git */ }
+  }
+  for (const [f, text] of committed) { await mkdir(path.dirname(path.join(dir, f)), { recursive: true }); await writeFile(path.join(dir, f), text); }
+}
 
 export async function makeSandbox(prefix = 'vtt-sandbox-') {
   const dir = await mkdtemp(path.join(tmpdir(), prefix));
@@ -16,9 +30,10 @@ export async function makeSandbox(prefix = 'vtt-sandbox-') {
   // data is copied, except the map packets (data/mapsets/<guid>/): their pictures are linked, only set.json is copied, so a test that edits a set never touches the real one
   const PLAYED = new Set(['clock.json', 'fog.json', 'merchants.json']);       // what playing writes (the clock, the saved game): a test starts from a campaign nobody has played, whatever the real one looks like
   await cp(path.join(ROOT, 'data'), path.join(dir, 'data'), { recursive: true, filter: (src) => !(PLAYED.has(path.basename(src)) && src.startsWith(path.join(ROOT, 'data', 'campaigns') + path.sep)) && src !== path.join(ROOT, 'data', 'creature-voices.json') && (!src.startsWith(path.join(ROOT, 'data', 'mapsets') + path.sep) || src.endsWith('set.json') || (src.split(path.sep).length === path.join(ROOT, 'data', 'mapsets').split(path.sep).length + 1)) });
+  await restoreCommittedData(dir);
   for (const ent of await readdir(path.join(ROOT, 'data', 'mapsets'), { withFileTypes: true })) {
     if (!ent.isDirectory()) continue;
-    for (const f of await readdir(path.join(ROOT, 'data', 'mapsets', ent.name))) if (f !== 'set.json') await symlink(path.join(ROOT, 'data', 'mapsets', ent.name, f), path.join(dir, 'data', 'mapsets', ent.name, f));
+    for (const f of await readdir(path.join(ROOT, 'data', 'mapsets', ent.name))) if (f !== 'set.json') await symlink(path.join(ROOT, 'data', 'mapsets', ent.name, f), path.join(dir, 'data', 'mapsets', ent.name, f)).catch((err) => { if (err.code !== 'EEXIST') throw err; });       // a file restored from the last commit (the blueprint) is already there
   }
   await symlink(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'));
   await mkdir(path.join(dir, 'public'));
