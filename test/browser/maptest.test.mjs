@@ -1011,7 +1011,7 @@ test('DM view of a town or regional map: Show Places draws the places, gold as t
     const S = window.mapTest.state, wait = (ms) => new Promise((r) => setTimeout(r, ms)), out = {};
     localStorage.removeItem('vtt.showPlaces');
     S.starts = [{ name: 'start', x: 100, y: 100 }, { name: 'known-town', x: 400, y: 400, known: true }, { name: 'secret-keep', x: 700, y: 400 }, { name: 'hidden-lair', x: 400, y: 900, known: true, dmOnly: true }];
-    S.showPins = true; $ = (q) => document.querySelector(q);
+    S.showPins = true;
     document.querySelector('#viewSwitch button[data-view="dm"]').click(); await wait(300);
     const cv = document.querySelector('canvas'), x = cv.getContext('2d'), dpr = cv.width / cv.getBoundingClientRect().width;
     const colour = (wx, wy) => { const d = x.getImageData(Math.round((S.view.ox + wx * S.view.scale + 3) * dpr), Math.round((S.view.oy + wy * S.view.scale) * dpr), 1, 1).data; const near = (c, t, e) => Math.abs(c - t) <= e; return near(d[0], 255, 10) && near(d[1], 90, 14) && near(d[2], 90, 14) ? 'red' : near(d[0], 240, 14) && near(d[1], 192, 14) && near(d[2], 72, 16) ? 'gold' : 'other'; };       // the exact dot colours

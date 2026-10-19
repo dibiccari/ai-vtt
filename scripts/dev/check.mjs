@@ -1,4 +1,4 @@
-// Syntax-checks server.js and the inline <script> of public/index.html, map-test.html, tokens.html, characters.html, campaigns.html and test-lab.html.
+// Syntax-checks server.js and the inline <script> of tokens.html, characters.html, campaigns.html and test-lab.html.
 import { readFileSync } from 'node:fs';
 import { readFile, writeFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -42,7 +42,9 @@ for (const file of ['lib/sheet-edit.js', 'lib/party.js', 'lib/journal.js', 'lib/
 const dir = await mkdtemp(path.join(tmpdir(), 'vtt-check-'));
 // The tabletop's script lives in public/js/tabletop/*.js (classic scripts sharing one global scope, in the order index.html loads them): each one is syntax-checked on its own.
 for (const f of (await readdir(path.join(root, 'public', 'js', 'tabletop'))).filter((x) => x.endsWith('.js')).sort()) check(`public/js/tabletop/${f}`, path.join(root, 'public', 'js', 'tabletop', f));
-for (const page of ['map-test.html', 'tokens.html', 'characters.html', 'campaigns.html', 'dev/test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html', 'dev/sound-test.html', 'maps.html', 'dev/image-test.html', 'market.html', 'dev/coast.html', 'map-maker.html', 'dev/conditions-test.html', 'dev/voice-test.html', 'settings.html', 'usage.html', 'dev/levelup-test.html']) {
+// Map Test's script lives in public/js/map-test/*.js the same way.
+for (const f of (await readdir(path.join(root, 'public', 'js', 'map-test'))).filter((x) => x.endsWith('.js')).sort()) check(`public/js/map-test/${f}`, path.join(root, 'public', 'js', 'map-test', f));
+for (const page of ['tokens.html', 'characters.html', 'campaigns.html', 'dev/test-lab.html', 'journal.html', 'party.html', 'bestiary.html', 'spells.html', 'dev/sound-test.html', 'maps.html', 'dev/image-test.html', 'market.html', 'dev/coast.html', 'map-maker.html', 'dev/conditions-test.html', 'dev/voice-test.html', 'settings.html', 'usage.html', 'dev/levelup-test.html']) {
   const html = await readFile(path.join(root, 'public', page), 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
   if (!scripts.length) {

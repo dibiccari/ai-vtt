@@ -45,7 +45,17 @@ export async function launchChrome() {
     problems,
     // Script run in every page before its own scripts (to fake the microphone and speech recognition, for example).
     async addInitScript(source) { await send('Page.addScriptToEvaluateOnNewDocument', { source }); },
-    async goto(url) { const loaded = new Promise((r) => waiters.push(r)); await send('Page.navigate', { url }); await loaded; },
+    // A load that never reports (it happens now and then in a long run) is tried again instead of hanging the whole suite.
+    async goto(url) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const loaded = new Promise((r) => waiters.push(r));
+        await send('Page.navigate', { url });
+        const done = await Promise.race([loaded.then(() => true), new Promise((r) => setTimeout(() => r(false), 30000))]);
+        if (done) return;
+        console.error(`chrome: ${url} did not finish loading in 30 s (try ${attempt} of 3)`);
+      }
+      throw new Error('the page did not finish loading: ' + url);
+    },
     // Evaluate an expression (or an async IIFE) in the page and return its JSON value. Page-level `const` and functions of the tabletop script are visible.
     async eval(expression) {
       const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
