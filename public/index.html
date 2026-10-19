@@ -4183,7 +4183,7 @@ const voice = (() => {
       + (/google/i.test(v.name) ? 40 : 0)
       + (v.localService ? 0 : 20)
       - (/desktop|espeak|compact/i.test(v.name) ? 50 : 0);
-    const chosenNarrator = store.get('vtt.narratorVoice', '');
+    const chosenNarrator = store.get('vtt.narratorVoice', '');       // Settings > Dungeon Master voice, when it is a Microsoft voice (kept per browser)
     if (key === 'narrator' && chosenNarrator) {
       const picked = pool.find((v) => v.name === chosenNarrator);
       if (picked) { assigned.set(key, picked); return picked; }
@@ -4218,23 +4218,23 @@ const voice = (() => {
   }
 
   /* ---------- cloud voices (server /api/tts, OpenAI) ---------- */
-  const cloud = { enabled: false, provider: 'openai', narration: 'openai', pronunciations: {}, audio: new Audio(), resolve: null };
+  const cloud = { enabled: false, dm: 'openai', npc: 'openai', pronunciations: {}, audio: new Audio(), resolve: null };
 
-  // Settings: the Dungeon Master voice (the characters the DM plays) and the Narration voice (the narrator) are each ChatGPT, Microsoft or None (text only).
+  // Settings: the Dungeon Master voice (the narrator) and the NPC voices (the characters the DM plays) are each ChatGPT, Microsoft or None (text only).
   const isNarrator = (line) => String(line.speaker || 'Narrator') === 'Narrator';
-  const providerOf = (line) => (isNarrator(line) ? cloud.narration : cloud.provider);
+  const providerOf = (line) => (isNarrator(line) ? cloud.dm : cloud.npc);
 
   function updateEngineNote() {
     const name = (p) => (p === 'none' ? 'off' : p === 'browser' ? 'Microsoft' : cloud.enabled ? 'ChatGPT' : 'Microsoft (no OpenAI key)');
-    $('#voiceEngine').textContent = cloud.provider === cloud.narration
-      ? (cloud.provider === 'none' ? 'Voices: off (text only)' : 'Voices: ' + name(cloud.provider))
-      : 'Voices: DM ' + name(cloud.provider) + ', narration ' + name(cloud.narration);
+    $('#voiceEngine').textContent = cloud.dm === cloud.npc
+      ? (cloud.dm === 'none' ? 'Voices: off (text only)' : 'Voices: ' + name(cloud.dm))
+      : 'Voices: DM ' + name(cloud.dm) + ', NPCs ' + name(cloud.npc);
   }
 
   async function checkCloud() {
     try {
       const s = await api('/api/tts/status');
-      cloud.enabled = Boolean(s.enabled); cloud.provider = s.provider || 'openai'; cloud.narration = s.narration || cloud.provider; cloud.pronunciations = s.pronunciations || {};
+      cloud.enabled = Boolean(s.enabled); cloud.dm = s.dm || 'openai'; cloud.npc = s.npc || cloud.dm; cloud.pronunciations = s.pronunciations || {};
     } catch { cloud.enabled = false; }
     updateEngineNote();
   }
@@ -4346,7 +4346,7 @@ const voice = (() => {
   }
 
   function speak(lines, msgEl, opts) {
-    if (!$('#speakToggle').checked || (cloud.provider === 'none' && cloud.narration === 'none')) return;
+    if (!$('#speakToggle').checked || (cloud.dm === 'none' && cloud.npc === 'none')) return;
     if (opts && opts.queue && speaking) { speechQueue.push([lines, msgEl]); logSpeech('queued', 'a reply to a table nudge waits for the narration that is playing'); return; }
     const gen = beginSpeaking();
     speechT0 = performance.now(); speechFirst = true;

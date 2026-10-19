@@ -600,7 +600,7 @@ test('names that are also object properties (constructor, __proto__, toString) a
   assert.ok(out.update && out.update.col === 2 && out.update.row === 2, 'an unknown arrival spot named constructor falls back to the start');
 });
 
-test('settings: the Dungeon Master, the narration and each kind of map have their own choice; None switches the AI DM and the voices off', async () => {
+test('settings: the Dungeon Master, the voices and each kind of map have their own choice; None switches the AI DM and the voices off', async () => {
   const before = (await s.get('/api/settings')).json;
   assert.ok(before.dm && before.voice && before.maps.regional && before.maps.town && before.maps.battle, 'the settings carry all the jobs');
   assert.equal((await s.post('/api/settings', { IMAGE_PROVIDER_REGIONAL: 'gemini', IMAGE_MODEL_REGIONAL: 'gemini-3-pro-image', IMAGE_QUALITY_REGIONAL: '2K', IMAGE_PROVIDER_TOWN: 'none', IMAGE_PROVIDER_BATTLE: 'fal', IMAGE_MODEL_BATTLE: 'fal-ai/flux-pro/kontext', IMAGE_QUALITY_BATTLE: 'standard' })).status, 200);
@@ -613,16 +613,30 @@ test('settings: the Dungeon Master, the narration and each kind of map have thei
   const off = (await s.get('/api/settings')).json;
   assert.equal(off.dm.provider, 'none'); assert.equal(off.voice.provider, 'none');
   await s.post('/api/settings', { VOICE_PROVIDER: 'browser' });
-  const st = (await s.get('/api/tts/status')).json; assert.equal(st.enabled, false); assert.equal(st.provider, 'none', 'a person as Dungeon Master needs no narration, whatever the voice was');
-  assert.equal((await s.get('/api/tts/status')).json.enabled, false, 'narration None turns the cloud voices off');
+  const st = (await s.get('/api/tts/status')).json; assert.equal(st.enabled, false); assert.equal(st.dm, 'none', 'a person as Dungeon Master needs no voice, whatever was chosen'); assert.equal(st.npc, 'none');
+  assert.equal((await s.get('/api/tts/status')).json.enabled, false, 'voice None turns the cloud voices off');
   const chat = await s.post('/api/chat', { message: 'hello' });
   assert.equal(chat.status, 200); assert.match(chat.json.narrative, /a person runs this game/, 'the DM None says a person runs the game');
   await s.post('/api/settings', { DM_PROVIDER: 'claude', VOICE_PROVIDER: 'browser' });
-  const mine = (await s.get('/api/tts/status')).json; assert.equal(mine.provider, 'browser'); assert.equal(mine.enabled, false, 'Microsoft voices use no cloud voices');
-  await s.post('/api/settings', { VOICE_PROVIDER: 'browser', NARRATION_PROVIDER: 'openai' });
-  const mixed = (await s.get('/api/tts/status')).json; assert.deepEqual([mixed.provider, mixed.narration], ['browser', 'openai'], 'the narrator can use another voice than the Dungeon Master');
-  assert.equal((await s.get('/api/settings')).json.voice.narration, 'openai');
-  await s.post('/api/settings', { NARRATION_PROVIDER: 'same' });
-  assert.equal((await s.get('/api/tts/status')).json.narration, 'browser', 'same follows the Dungeon Master voice');
+  const mine = (await s.get('/api/tts/status')).json; assert.equal(mine.dm, 'browser'); assert.equal(mine.enabled, false, 'Microsoft voices use no cloud voices');
+  await s.post('/api/settings', { VOICE_PROVIDER: 'browser', NPC_VOICE_PROVIDER: 'openai' });
+  const mixed = (await s.get('/api/tts/status')).json; assert.deepEqual([mixed.dm, mixed.npc], ['browser', 'openai'], 'the NPCs can use another provider than the Dungeon Master');
+  assert.equal((await s.get('/api/settings')).json.voice.npc, 'openai');
+  await s.post('/api/settings', { NPC_VOICE_PROVIDER: 'same' });
+  assert.equal((await s.get('/api/tts/status')).json.npc, 'browser', 'same follows the Dungeon Master voice');
+  const nv = (await s.get('/api/settings')).json.voice; assert.equal(nv.npcModel, 'gpt-4o-mini-tts-2025-03-20', 'the NPC voices have their own model, this one by default');
+  await s.post('/api/settings', { NPC_TTS_MODEL: 'tts-1-hd', TTS_MODEL: 'tts-1' });
+  const nv2 = (await s.get('/api/settings')).json.voice; assert.deepEqual([nv2.npcModel, nv2.model], ['tts-1-hd', 'tts-1'], 'the Dungeon Master voice and the NPC voices keep different models');
+  await s.post('/api/settings', { NPC_TTS_MODEL: 'gpt-4o-mini-tts-2025-03-20', TTS_MODEL: 'gpt-4o-mini-tts' });
+  // the Dungeon Master's own ChatGPT voice: a known name is kept, 'auto' and nonsense mean automatic; only the narrator uses it
+  const sv = (await s.get('/api/settings')).json.voice; assert.ok(sv.openaiVoices.includes('onyx') && sv.openaiVoices.length >= 10);
+  await s.post('/api/settings', { DM_VOICE: 'shimmer' });
+  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, 'shimmer');
+  const who = async () => (await s.post('/api/tts/voices', { items: [{ speaker: 'Narrator', voice: 'narrator' }, { speaker: 'Toblen Stonehill', voice: 'masculine' }, { speaker: 'Some Goblin', voice: 'monstrous' }] })).json.voices.map((v) => v.voice);
+  const picked = await who(); assert.equal(picked[0], 'shimmer', 'the narrator speaks with the chosen voice'); assert.notEqual(picked[1], 'shimmer', 'the NPCs keep their own'); 
+  await s.post('/api/settings', { DM_VOICE: 'auto' });
+  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, ''); assert.notEqual((await who())[0], 'shimmer');
+  await s.post('/api/settings', { DM_VOICE: 'bogus' });
+  assert.equal((await s.get('/api/settings')).json.voice.dmVoice, '', 'an unknown voice name is ignored');
   await s.post('/api/settings', { VOICE_PROVIDER: 'openai', IMAGE_PROVIDER_REGIONAL: 'none' });
 });

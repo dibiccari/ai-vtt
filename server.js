@@ -1648,8 +1648,10 @@ app.delete('/api/campaigns/:id/files/:name', localOnly, asyncRoute(async (req, r
 
 let OPENAI_KEY = process.env.OPENAI_API_KEY || '';
 let DM_NONE = process.env.DM_PROVIDER === 'none', VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
-let NARRATION_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NARRATION_PROVIDER) ? process.env.NARRATION_PROVIDER : 'same';      // 'same' = the narrator uses the Dungeon Master's voice choice
-let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
+let DM_VOICE = process.env.DM_VOICE || '';      // the ChatGPT voice the Dungeon Master (the narrator) speaks with ('' or 'auto': the default narrator voice)
+let NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';      // the characters the DM plays: 'same' = the Dungeon Master voice's provider
+let TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';        // the Dungeon Master's own voice (the narrator)
+let NPC_TTS_MODEL = process.env.NPC_TTS_MODEL || 'gpt-4o-mini-tts-2025-03-20';        // the NPC voices: their own model, so the two can differ
 const IMAGE_PROVIDERS = ['openai', 'gemini', 'fal'];
 const IMAGE_QUALITIES = ['low', 'medium', 'high', '1K', '2K', '4K', 'standard'];
 let IMAGE_PROVIDER = IMAGE_PROVIDERS.includes(process.env.IMAGE_PROVIDER) ? process.env.IMAGE_PROVIDER : 'openai';
@@ -1732,7 +1734,14 @@ function characterVoiceFor(table, speaker) {
   return null;
 }
 
+// The ChatGPT voice picked in Settings > Dungeon Master voice replaces the narrator's default voice. Every other speaker (the NPCs) keeps the voice that fits them. The acting directions stay.
+const chosenVoice = (name) => (KNOWN_OPENAI_VOICES.has(name) ? name : '');
 async function resolveVoice(tag, speaker) {
+  const out = await resolveVoiceAuto(tag, speaker);
+  const forced = speaker === 'Narrator' ? chosenVoice(DM_VOICE) : '';
+  return forced ? { ...out, voice: forced } : out;
+}
+async function resolveVoiceAuto(tag, speaker) {
   const profile = TTS_PROFILES[tag] || TTS_PROFILES.narrator;
   const table = await loadCharacterVoices();
   const named = characterVoiceFor(table, speaker);
@@ -1744,10 +1753,10 @@ async function resolveVoice(tag, speaker) {
   return { voice, instructions: speaker === 'Narrator' ? profile.style : `You are voicing ${speaker}. ${profile.style}`, named: false };
 }
 
-const voiceProviderNow = () => (DM_NONE ? 'none' : VOICE_PROVIDER);        // a person running the game needs no narration: the voice of the characters the Dungeon Master plays
-const narrationProviderNow = () => (DM_NONE ? 'none' : NARRATION_PROVIDER === 'same' ? VOICE_PROVIDER : NARRATION_PROVIDER);      // the narrator reading the scene
+const voiceProviderNow = () => (DM_NONE ? 'none' : VOICE_PROVIDER);        // the Dungeon Master's own voice (the narrator); a person running the game needs no voice at all
+const npcProviderNow = () => (DM_NONE ? 'none' : NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER);        // 'same' is only what an old setup has before NPC voices are chosen      // the characters the Dungeon Master plays (NPCs, monsters)
 app.get('/api/tts/status', asyncRoute(async (_req, res) => {
-  res.json({ pronunciations: await loadPronunciations(), enabled: Boolean(OPENAI_KEY) && (voiceProviderNow() === 'openai' || narrationProviderNow() === 'openai'), provider: voiceProviderNow(), narration: narrationProviderNow(), model: TTS_MODEL });
+  res.json({ pronunciations: await loadPronunciations(), enabled: Boolean(OPENAI_KEY) && (voiceProviderNow() === 'openai' || npcProviderNow() === 'openai'), dm: voiceProviderNow(), npc: npcProviderNow(), model: TTS_MODEL });
 }));
 
 // Which cloud voice will each (voice tag, speaker) pair use? Used to label the UI.
@@ -1764,15 +1773,17 @@ app.post('/api/tts/voices', asyncRoute(async (req, res) => {
 }));
 
 app.post('/api/tts', asyncRoute(async (req, res) => {
-  if (voiceProviderNow() !== 'openai' && narrationProviderNow() !== 'openai') return res.status(503).json({ error: 'ChatGPT voices are not selected in Settings.' });
+  if (voiceProviderNow() !== 'openai' && npcProviderNow() !== 'openai') return res.status(503).json({ error: 'ChatGPT voices are not selected in Settings.' });
   if (!OPENAI_KEY) return res.status(503).json({ error: 'Cloud voices are off: set OPENAI_API_KEY in .env and restart.' });
   const text = pronounce(String(req.body?.text ?? '').trim().slice(0, 1500), await loadPronunciations());
   if (!text) return res.status(400).json({ error: 'text is required' });
   const tag = TTS_PROFILES[req.body?.voice] ? req.body.voice : 'narrator';
   const speaker = String(req.body?.speaker ?? 'Narrator').replace(/[^\w .'-]/g, '').slice(0, 60) || 'Narrator';
-  const { voice, instructions } = await resolveVoice(tag, speaker);
+  const { voice: autoVoice, instructions } = await resolveVoice(tag, speaker);
+  const voice = chosenVoice(String(req.body?.voiceName ?? '')) || autoVoice;       // voiceName: Settings plays a sample of a voice before it is saved
 
-  const key = createHash('sha1').update(`${TTS_MODEL}|${voice}|${instructions}|${text}`).digest('hex');
+  const model = speaker === 'Narrator' ? TTS_MODEL : NPC_TTS_MODEL;        // the Dungeon Master voice and the NPC voices each have their own model
+  const key = createHash('sha1').update(`${model}|${voice}|${instructions}|${text}`).digest('hex');
   const file = path.join(TTS_CACHE_DIR, `${key}.mp3`);
   try {
     const cached = await readFile(file);
@@ -1785,11 +1796,11 @@ app.post('/api/tts', asyncRoute(async (req, res) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: TTS_MODEL,
+      model,
       voice,
       input: text,
       response_format: 'mp3',
-      ...(TTS_MODEL.startsWith('gpt-4o') ? { instructions } : {})
+      ...(model.startsWith('gpt-4o') ? { instructions } : {})
     })
   });
   if (!r.ok) {
@@ -2486,12 +2497,14 @@ const SETTINGS = {
   OPENAI_API_KEY: { secret: true },
   ANTHROPIC_MODEL: { secret: false },
   TTS_MODEL: { secret: false },
+  NPC_TTS_MODEL: { secret: false },
   OPENAI_IMAGE_API_KEY: { secret: true },
   GEMINI_API_KEY: { secret: true },
   FAL_API_KEY: { secret: true },
   IMAGE_PROVIDER: { secret: false },
   VOICE_PROVIDER: { secret: false },
-  NARRATION_PROVIDER: { secret: false },
+  NPC_VOICE_PROVIDER: { secret: false },
+  DM_VOICE: { secret: false },
   IMAGE_MODEL: { secret: false },
   IMAGE_QUALITY: { secret: false },
   DM_PROVIDER: { secret: false },
@@ -2520,6 +2533,7 @@ const hint = (key) => (key ? `ends in ${key.slice(-4)}` : '');
 function applySettings() {
   MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
   TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
+  NPC_TTS_MODEL = process.env.NPC_TTS_MODEL || 'gpt-4o-mini-tts-2025-03-20';
   IMAGE_MODEL = process.env.IMAGE_MODEL || 'gpt-image-1';
   IMAGE_KEY = process.env.OPENAI_IMAGE_API_KEY || '';
   GEMINI_KEY = process.env.GEMINI_API_KEY || ''; FAL_KEY = process.env.FAL_API_KEY || '';
@@ -2528,7 +2542,8 @@ function applySettings() {
   OPENAI_KEY = process.env.OPENAI_API_KEY || '';
   DM_NONE = process.env.DM_PROVIDER === 'none';                    // Settings > Dungeon Master: None (a person runs the game)
   VOICE_PROVIDER = ['none', 'browser'].includes(process.env.VOICE_PROVIDER) ? process.env.VOICE_PROVIDER : 'openai';
-  NARRATION_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NARRATION_PROVIDER) ? process.env.NARRATION_PROVIDER : 'same';
+  NPC_PROVIDER = ['none', 'browser', 'openai'].includes(process.env.NPC_VOICE_PROVIDER) ? process.env.NPC_VOICE_PROVIDER : 'same';
+  DM_VOICE = process.env.DM_VOICE || '';
   const key = process.env.ANTHROPIC_API_KEY || '';
   anthropic = key && !DM_NONE ? new Anthropic({ apiKey: key }) : null;
 }
@@ -2557,7 +2572,7 @@ app.get('/api/settings', localOnly, (_req, res) => {
   res.json({
     anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: MODEL },
     dm: { provider: DM_NONE ? 'none' : 'claude', model: MODEL },
-    voice: { provider: VOICE_PROVIDER, effective: voiceProviderNow(), narration: NARRATION_PROVIDER, narrationEffective: narrationProviderNow(), model: TTS_MODEL },
+    voice: { openaiVoices: [...KNOWN_OPENAI_VOICES], dmVoice: chosenVoice(DM_VOICE), provider: VOICE_PROVIDER, effective: voiceProviderNow(), npc: NPC_PROVIDER === 'same' ? VOICE_PROVIDER : NPC_PROVIDER, npcEffective: npcProviderNow(), npcModel: NPC_TTS_MODEL, model: TTS_MODEL },
     maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
     openai: { set: Boolean(OPENAI_KEY), hint: hint(OPENAI_KEY), ttsModel: TTS_MODEL, voiceProvider: 'openai', imageProvider: IMAGE_PROVIDER, imageModel: IMAGE_MODEL, imageQuality: IMAGE_QUALITY, imageKey: { own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY), usable: Boolean(IMAGE_KEY || OPENAI_KEY) },
       imageKeys: { openai: { set: Boolean(IMAGE_KEY || OPENAI_KEY), own: Boolean(IMAGE_KEY), hint: hint(IMAGE_KEY || OPENAI_KEY) }, gemini: { set: Boolean(GEMINI_KEY), hint: hint(GEMINI_KEY) }, fal: { set: Boolean(FAL_KEY), hint: hint(FAL_KEY) } } }

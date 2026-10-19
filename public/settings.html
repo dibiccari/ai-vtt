@@ -107,58 +107,57 @@
 
 <div class="card" id="voiceCard">
   <h2>Dungeon Master voice</h2>
-  <p>Who speaks the characters the Dungeon Master plays (people, monsters) aloud. It does not apply when a person is the Dungeon Master.</p>
-  <label>Voice
-    <select id="voiceProvider">
-      <option value="none">None (text only)</option>
-      <option value="openai">ChatGPT voices (OpenAI)</option>
-      <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
-      <option value="browser">Microsoft voices (this computer)</option>
-    </select>
-  </label>
-  <p class="help" id="voiceNote"></p>
-  <div class="row"><button class="primary" id="voiceSave">Save</button></div>
-  <div class="msg" id="voiceMsg"></div>
-</div>
-
-<div class="card" id="narrationCard">
-  <h2>Narration</h2>
-  <p>Who reads the narrator's scene descriptions aloud. It can be a different service from the Dungeon Master voice above, or the same one.</p>
-  <label>Narrator voice
-    <select id="narrationProvider">
-      <option value="same">Same as the Dungeon Master voice</option>
-      <option value="none">None (text only)</option>
-      <option value="openai">ChatGPT voices (OpenAI)</option>
-      <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
-      <option value="browser">Microsoft voices (this computer)</option>
-    </select>
-  </label>
-  <div class="row"><button class="primary" id="narrationSave">Save</button></div>
-  <div class="msg" id="narrationMsg"></div>
-  <p id="narrationIntro" class="help">Settings for the voices chosen above.</p>
-  <div id="openaiNarration">
-    <p class="help">ChatGPT voices give the narrator and each NPC their own voice, use the OpenAI key above, and need credit on that account. If one fails the table falls back to Microsoft voices.</p>
+  <p>The voice of the Dungeon Master itself: it reads the narration and the rules aloud. It does not apply when a person is the Dungeon Master.</p>
+  <div class="grid3">
+    <label>Provider
+      <select id="voiceProvider">
+        <option value="none">None (text only)</option>
+        <option value="openai">ChatGPT voices (OpenAI)</option>
+        <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
+        <option value="browser">Microsoft voices (this computer)</option>
+      </select>
+    </label>
+    <label>Voice
+      <select id="dmVoice"></select>
+    </label>
     <label>Model
       <select id="oaModel">
         <option value="gpt-4o-mini-tts">gpt-4o-mini-tts (recommended: takes acting directions)</option>
+        <option value="gpt-4o-mini-tts-2025-03-20">gpt-4o-mini-tts-2025-03-20 (a fixed release of the same model)</option>
         <option value="tts-1">tts-1 (cheaper, no acting directions)</option>
         <option value="tts-1-hd">tts-1-hd (higher quality, no acting directions)</option>
       </select>
     </label>
-    <div class="row"><button class="primary" id="modelSave">Save model</button><button id="oaSample">🔊 Hear a sample</button></div>
-    <div class="msg" id="oaMsg"></div>
   </div>
-  <div id="browserNarration">
-    <p class="help">Microsoft voices are free and offline. The narrator voice is chosen per browser, because each computer has its own list.</p>
-    <label>Narrator voice
-      <select id="narratorVoice"><option value="">Auto (best available)</option></select>
+  <p class="help" id="voiceNote"></p>
+  <p class="help" id="browserNote">Microsoft voices are free and run on this computer, so they have no model. Which voices you can pick depends on the browser, so that choice is remembered per browser.</p>
+  <div class="row"><button class="primary" id="voiceSave">Save</button><button id="dmSample">🔊 Hear a sample</button></div>
+  <div class="msg" id="voiceMsg"></div>
+</div>
+
+<div class="card" id="npcCard">
+  <h2>NPC voices</h2>
+  <p>Who speaks for the characters the Dungeon Master plays: people, monsters, animals. It can be a different provider and model from the Dungeon Master voice. Each character gets a fitting voice by itself.</p>
+  <div class="grid3">
+    <label>Provider
+      <select id="npcProvider">
+        <option value="none">None (text only)</option>
+        <option value="openai">ChatGPT voices (OpenAI)</option>
+        <option value="claude" disabled>Claude (not available: Claude cannot speak yet)</option>
+        <option value="browser">Microsoft voices (this computer)</option>
+      </select>
     </label>
-    <div class="row">
-      <button type="button" id="narratorTest">🔊 Play a sample</button>
-      <span class="help" id="narratorMsg">The list shows the English voices installed in this browser.</span>
-    </div>
+    <label>Model
+      <select id="npcModel">
+        <option value="gpt-4o-mini-tts">gpt-4o-mini-tts (recommended: takes acting directions)</option>
+        <option value="gpt-4o-mini-tts-2025-03-20">gpt-4o-mini-tts-2025-03-20 (a fixed release of the same model)</option>
+        <option value="tts-1">tts-1 (cheaper, no acting directions)</option>
+        <option value="tts-1-hd">tts-1-hd (higher quality, no acting directions)</option>
+      </select>
+    </label>
   </div>
-  <p class="help" id="noNarration">No voice is chosen, so replies are shown as text only.</p>
+  <div class="row"><button class="primary" id="npcSave">Save</button><button id="npcSample">🔊 Hear a sample</button></div>
+  <div class="msg" id="npcMsg"></div>
 </div>
 
 <div class="card">
@@ -258,9 +257,13 @@ async function load() {
     fill($('#dmModel'), DM_MODELS, s.dm.model);
     $('#dmModel').disabled = s.dm.provider === 'none';
     $('#voiceProvider').value = s.voice.provider;
-    if (![...$('#oaModel').options].some((o) => o.value === s.voice.model)) fill($('#oaModel'), [...$('#oaModel').options].map((o) => [o.value, o.textContent]), s.voice.model);
-    $('#oaModel').value = s.voice.model;
-    $('#narrationProvider').value = s.voice.narration || 'same';
+    $('#npcProvider').value = ['none', 'openai', 'browser'].includes(s.voice.npc) ? s.voice.npc : s.voice.provider;
+    for (const [id, want] of [['#oaModel', s.voice.model], ['#npcModel', s.voice.npcModel]]) {
+      if (want && ![...$(id).options].some((o) => o.value === want)) { const o = document.createElement('option'); o.value = o.textContent = want; $(id).appendChild(o); }
+      if (want) $(id).value = want;
+    }
+    if (Array.isArray(s.voice.openaiVoices) && s.voice.openaiVoices.length) openaiVoices = s.voice.openaiVoices;
+    savedDmVoice = s.voice.dmVoice || '';
     showVoice();
     for (const kind of ['regional', 'town', 'battle']) { const g = s.maps[kind]; showRow(rowOf(kind), g.provider, g.model, g.quality); }
   } catch (err) {
@@ -288,24 +291,73 @@ $('#oaTest').addEventListener('click', () => test('openai', $('#keysMsg')));
 
 $('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = e.target.value === 'none'; showVoice(); });
 $('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value }, $('#dmMsg')));
-// The voice and narration cards depend on who runs the game: a person needs neither, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
-function showVoice() {
-  const person = $('#dmProvider').value === 'none';
-  const dmV = person ? 'none' : $('#voiceProvider').value, nar = $('#narrationProvider').value, narV = person ? 'none' : (nar === 'same' ? dmV : nar);
-  $('#voiceProvider').disabled = $('#voiceSave').disabled = $('#narrationProvider').disabled = $('#narrationSave').disabled = person;
-  $('#voiceNote').textContent = person ? 'A person is the Dungeon Master, so there is nothing to narrate. Choose Claude AI above to pick voices.' : '';
-  const uses = (p) => dmV === p || narV === p;
-  $('#openaiNarration').hidden = !uses('openai');
-  $('#browserNarration').hidden = !uses('browser');
-  $('#noNarration').hidden = !(person || (dmV === 'none' && narV === 'none'));
-  $('#noNarration').textContent = person ? 'Not applicable: a person is the Dungeon Master.' : 'No voice is chosen, so replies are shown as text only.';
-  $('#narrationIntro').hidden = person || (dmV === 'none' && narV === 'none');
+// The voice cards depend on who runs the game: a person needs none, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
+// The Dungeon Master voice has a list of voices per provider: ChatGPT's are fixed and saved on the server, the Microsoft ones are whatever this browser has installed and are remembered per browser.
+const synth = window.speechSynthesis || null;
+const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || '""') || ''; } catch { return ''; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* blocked */ } };
+const msVoices = () => (synth ? synth.getVoices().filter((v) => /^en/i.test(v.lang)) : []);
+const OPENAI_NOTES = { alloy: 'balanced', ash: 'gravelly, older', ballad: 'soft, theatrical', coral: 'warm, friendly', echo: 'calm, measured', fable: 'storyteller, lively', nova: 'bright, energetic', onyx: 'deep, authoritative', sage: 'wise, steady', shimmer: 'light, airy', verse: 'expressive' };
+let openaiVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'];
+let savedDmVoice = '';       // the ChatGPT voice saved on the server
+function fillVoices(sel, provider, current) {
+  sel.innerHTML = '';
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  if (provider === 'openai') {
+    add('', 'Automatic (the default narrator voice)');
+    for (const v of openaiVoices) add(v, v.charAt(0).toUpperCase() + v.slice(1) + (OPENAI_NOTES[v] ? ' (' + OPENAI_NOTES[v] + ')' : ''));
+  } else if (provider === 'browser') {
+    add('', 'Automatic (the best voice this browser has)');
+    for (const v of msVoices()) add(v.name, v.name);
+  } else add('', '(no voice)');
+  sel.value = [...sel.options].some((o) => o.value === current) ? current : '';
+  sel.disabled = provider === 'none' || provider === 'claude';
 }
-$('#narrationProvider').addEventListener('change', showVoice);
-$('#narrationSave').addEventListener('click', () => save({ NARRATION_PROVIDER: $('#narrationProvider').value }, $('#narrationMsg')));
+function showVoice() {
+  const person = $('#dmProvider').value === 'none', dmV = person ? 'none' : $('#voiceProvider').value;
+  $('#voiceProvider').disabled = $('#voiceSave').disabled = $('#npcProvider').disabled = $('#npcSave').disabled = person;
+  $('#voiceNote').textContent = person ? 'A person is the Dungeon Master, so there is nothing to speak. Choose Claude AI above to pick voices.' : '';
+  fillVoices($('#dmVoice'), dmV, dmV === 'openai' ? savedDmVoice : dmV === 'browser' ? lsGet('vtt.narratorVoice') : '');
+  $('#oaModel').disabled = dmV !== 'openai';
+  $('#npcModel').disabled = person || $('#npcProvider').value !== 'openai';
+  $('#npcSample').disabled = person || ['none', 'claude'].includes($('#npcProvider').value);
+  $('#dmSample').disabled = dmV === 'none' || dmV === 'claude';
+  $('#browserNote').hidden = dmV !== 'browser';
+}
+if (synth) { synth.getVoices(); if ('onvoiceschanged' in synth) synth.onvoiceschanged = showVoice; }
 $('#voiceProvider').addEventListener('change', showVoice);
-$('#voiceSave').addEventListener('click', () => save({ VOICE_PROVIDER: $('#voiceProvider').value }, $('#voiceMsg')));
-$('#modelSave').addEventListener('click', () => save({ TTS_MODEL: $('#oaModel').value }, $('#oaMsg')));
+$('#npcProvider').addEventListener('change', showVoice);
+$('#voiceSave').addEventListener('click', () => {
+  const dmV = $('#voiceProvider').value, v = $('#dmVoice').value;
+  if (dmV === 'browser') lsSet('vtt.narratorVoice', v);
+  save({ VOICE_PROVIDER: dmV, TTS_MODEL: $('#oaModel').value, ...(dmV === 'openai' ? { DM_VOICE: v || 'auto' } : {}) }, $('#voiceMsg'));
+});
+$('#npcSave').addEventListener('click', () => save({ NPC_VOICE_PROVIDER: $('#npcProvider').value, NPC_TTS_MODEL: $('#npcModel').value }, $('#npcMsg')));
+// Hear a voice before saving it: a ChatGPT voice through the server (one short clip, in the model that is saved), a Microsoft voice right here.
+async function sample(who) {
+  const dm = who === 'dm', provider = $(dm ? '#voiceProvider' : '#npcProvider').value, msg = $(dm ? '#voiceMsg' : '#npcMsg'), name = dm ? $('#dmVoice').value : '';
+  const text = dm ? 'The torchlight flickers, and somewhere in the dark, something stirs.' : "Ye'll find no better ale in Phandalin, friend. Sit, sit, before the goblins hear ye.";
+  if (provider === 'browser') {
+    if (!synth) { setMsg(msg, 'This browser has no built-in speech voices.', false); return; }
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = synth.getVoices().find((x) => x.name === name);
+    if (v) u.voice = v;
+    synth.speak(u); setMsg(msg, 'Playing the sample.', true); return;
+  }
+  setMsg(msg, 'Making a sample… (it uses the model that is saved, so save a change first)', true);
+  try {
+    const res = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: dm ? 'narrator' : 'gruff', speaker: dm ? 'Narrator' : 'Innkeeper', voiceName: name }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || String(res.status));
+    const url = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url);
+    audio.onended = () => URL.revokeObjectURL(url);
+    await audio.play();
+    setMsg(msg, 'Playing the sample. Your key and credit work.', true);
+  } catch (err) { setMsg(msg, err.message, false); }
+}
+$('#dmSample').addEventListener('click', () => sample('dm'));
+$('#npcSample').addEventListener('click', () => sample('npc'));
 async function saveMaps(quiet) {
   const fields = {};
   for (const kind of ['regional', 'town', 'battle']) {
@@ -318,70 +370,11 @@ async function saveMaps(quiet) {
 }
 $('#mapsSave').addEventListener('click', () => saveMaps(false));
 
-$('#oaSample').addEventListener('click', async () => {
-  const msg = $('#oaMsg');
-  setMsg(msg, 'Generating a sample…', true);
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: 'The torchlight flickers, and somewhere in the dark, something stirs.', voice: 'narrator', speaker: 'Narrator' })
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `${res.status}`);
-    const url = URL.createObjectURL(await res.blob());
-    const audio = new Audio(url);
-    audio.onended = () => URL.revokeObjectURL(url);
-    await audio.play();
-    setMsg(msg, 'Playing the narrator sample. Your key and credit work.', true);
-  } catch (err) {
-    setMsg(msg, err.message, false);
-  }
-});
-
 document.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => {
   const input = $(`#${b.dataset.show}`);
   input.type = input.type === 'password' ? 'text' : 'password';
   b.textContent = input.type === 'password' ? 'Show' : 'Hide';
 }));
-
-// Microsoft (browser) narrator voice, shared with the tabletop through the same saved setting.
-const synth = window.speechSynthesis || null;
-function readNarrator() { try { return JSON.parse(localStorage.getItem('vtt.narratorVoice') || '""') || ''; } catch { return ''; } }
-function fillNarrators() {
-  const sel = $('#narratorVoice');
-  const voices = synth ? synth.getVoices().filter((v) => /^en/i.test(v.lang)) : [];
-  const saved = readNarrator();
-  sel.innerHTML = '';
-  const auto = document.createElement('option');
-  auto.value = '';
-  auto.textContent = 'Auto (best available)';
-  sel.appendChild(auto);
-  for (const v of voices) {
-    const o = document.createElement('option');
-    o.value = v.name;
-    o.textContent = v.name;
-    sel.appendChild(o);
-  }
-  sel.value = voices.some((v) => v.name === saved) ? saved : '';
-  if (!synth) $('#narratorMsg').textContent = 'This browser has no built-in speech voices.';
-}
-if (synth) {
-  synth.getVoices();
-  if ('onvoiceschanged' in synth) synth.onvoiceschanged = fillNarrators;
-}
-fillNarrators();
-$('#narratorVoice').addEventListener('change', (e) => {
-  try { localStorage.setItem('vtt.narratorVoice', JSON.stringify(e.target.value)); setMsg($('#narratorMsg'), 'Narrator voice saved.', true); }
-  catch { setMsg($('#narratorMsg'), 'This browser blocked saving the choice.', false); }
-});
-$('#narratorTest').addEventListener('click', () => {
-  if (!synth) return;
-  synth.cancel();
-  const u = new SpeechSynthesisUtterance('The torchlight flickers, and the door creaks open.');
-  const v = synth.getVoices().find((x) => x.name === $('#narratorVoice').value);
-  if (v) u.voice = v;
-  synth.speak(u);
-});
 
 load();
 </script>
