@@ -4,7 +4,7 @@
 //   node scripts/replay-session.mjs            prints the plan and the cost estimate, spends nothing
 //   node scripts/replay-session.mjs --live     SPENDS MONEY: one DM call per message (about 7), plus one bookkeeper call each; roughly $2
 //   node scripts/replay-session.mjs --live --turns 3     only the first 3 messages
-//   add --show to print each reply, and DM_EFFORT=low|medium|high to try the DM's reasoning effort
+//   add --skip 1 to leave out the first message (it only exists because of a bug that is fixed), --show to print each reply, and DM_EFFORT=low|medium|high to try the DM's reasoning effort
 // It needs ANTHROPIC_API_KEY in .env and credit on that account. It never touches the real data folder.
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -27,7 +27,9 @@ for (let i = Math.max(0, start); i < chat.length; i++) {
   const baseline = fixture.turns.find((t) => t.player === chat[i].content);
   players.push({ at: i, text: chat[i].content, baseline: baseline ? baseline.seconds : null });
 }
-const plan = players.slice(0, maxTurns);
+const skipFlag = process.argv.indexOf('--skip');
+const skip = skipFlag > 0 ? Math.max(0, Number(process.argv[skipFlag + 1]) || 0) : 0;       // the first message of the replay is a complaint about a bug that is fixed now, so --skip 1 leaves it out
+const plan = players.slice(skip, skip + maxTurns);
 console.log(`Replay of ${plan.length} player message(s) from the first session (goblin ambush, round 1):`);
 for (const p of plan) console.log(`  - ${p.text.replace(/\s+/g, ' ').slice(0, 90)}   (before the fixes: ${p.baseline ?? '?'} s)`);
 if (!live) { console.log('\nDry run: nothing was sent. Add --live to spend about $2 on the real DM (about 7 replies at 20 to 40 cents each).'); process.exit(0); }
