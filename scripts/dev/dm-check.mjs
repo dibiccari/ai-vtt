@@ -1,6 +1,6 @@
 // Scripted DM check: a short, fixed conversation with the REAL Dungeon Master (paid API calls), with invariants asserted on every reply.
 //   npm run dm-check -- --dry-run       print the plan, spend nothing
-//   npm run dm-check -- --live          run it (default at most 48 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
+//   npm run dm-check -- --live          run it (default at most 60 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
 // It starts a throwaway server on a COPY of the data (the real data/ is never touched) with a fresh campaign copied from the tavern test,
 // puts a local proxy between the server and api.anthropic.com to see the requests (dice tray) and the real token usage, and prints
 // pass/fail lines only: no story text. The key comes from ANTHROPIC_API_KEY or the repo's .env (never printed, never copied into the sandbox).
@@ -16,7 +16,7 @@ import { ID } from '../../test/helpers/ids.mjs';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt("--max-calls", 48));
+const MAX_CALLS = Number(opt("--max-calls", 60));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -55,6 +55,8 @@ const STEPS = [
   { id: 'travel', say: '[Thorin] The fight is over. We open the cellar hatch behind the bar and go down into the old cellars to look for the missing barrels, all four of us together.', expect: 'changeMap to the cellars map, resolved to a picture and an arrival square, no problems reported' },
   { id: 'shop', say: '[Thorin] I would like to browse what Orla the barkeep has for sale behind the bar. Show me her wares.', expect: 'the shop token action for Orla, opened for Thorin, with no goods added by the DM' },
   { id: 'discover', say: '[Thorin] The party is looking at the regional map. A traveller by the fire tells us the ruins of Thundertree lie in the forest north-west of Phandalin. We note it on our map.', expect: 'discover for Thundertree only (not the other undiscovered places)' },
+  { id: 'discovergo', say: '[Thorin] We are in Phandalin and my sword is chipped, so the party walks over to the smithy to have it looked at.', expect: 'discover for the smithy only: going to a place puts it on the town map' },
+  { id: 'discovertold', say: '[Thorin] A woman passing us on the road tells us that the Stonehill Inn is the place to find a room. We thank her and make a note of where it is.', expect: 'discover for the Stonehill Inn only: a person telling the party about a place puts it on the town map' },
   { id: 'journal', say: '[Seraphine] Please write the brawl into the journal as an event, and our promise to pay Orla for the damage as a promise.', expect: 'journal entries with valid categories' }
 ];
 
@@ -221,6 +223,8 @@ try {
         T.walls = [{ x1: (v.col + 1) * g, y1: (v.row - 3) * g, x2: (v.col + 2) * g, y2: (v.row - 3) * g, type: 'door', open: false, locked: true, dc: 12 },
                    { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
       },
+      discovergo: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/vtt-phandalin.png', name: 'Phandalin (town map)', places: [{ name: 'to-triboar-trail', note: 'The road out of town', col: 2, row: 30, known: true }, { name: 'town-green', note: 'The green in the middle of town', col: 20, row: 25 }, { name: 'smithy', note: 'The village smithy', col: 14, row: 20 }, { name: 'stonehill-inn', note: 'A two-storey inn', col: 24, row: 22 }, { name: 'barthens-provisions', note: 'A trading post', col: 28, row: 30 }, { name: 'shrine-of-luck', note: 'A small shrine', col: 18, row: 34 }] }; },
+      discovertold: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/vtt-phandalin.png', name: 'Phandalin (town map)', places: [{ name: 'to-triboar-trail', note: 'The road out of town', col: 2, row: 30, known: true }, { name: 'town-green', note: 'The green in the middle of town', col: 20, row: 25 }, { name: 'smithy', note: 'The village smithy', col: 14, row: 20 }, { name: 'stonehill-inn', note: 'A two-storey inn', col: 24, row: 22 }, { name: 'barthens-provisions', note: 'A trading post', col: 28, row: 30 }, { name: 'shrine-of-luck', note: 'A small shrine', col: 18, row: 34 }] }; },
       discover: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/dnd-sword-coast-ours.png', name: 'The Sword Coast (regional map)', places: [{ name: 'neverwinter', note: 'The great city on the coast', col: 10, row: 30, known: true }, { name: 'phandalin', note: 'A frontier town', col: 30, row: 55, known: true }, { name: 'thundertree', note: 'A ruined town in the forest', col: 20, row: 33 }, { name: 'conyberry', note: 'A ruined hamlet', col: 44, row: 37 }, { name: 'icespire-peak', note: 'A mountain', col: 36, row: 50 }] }; },
       searchwall: async () => { combat = { active: false }; setActive('pc-thorin'); },
       // The step says the fight is over: take away the goblins and the ogre the group step added, or the DM rightly says the room is not safe to leave.
@@ -456,6 +460,11 @@ try {
       const found = upd(j).filter((u) => u.type === 'discoverPlace' && u.on);
       check(found.some((u) => /thundertree/i.test(u.place)), 'discover: Thundertree was discovered', upd(j).map((u) => u.type + ':' + (u.place || '')).join(', '));
       check(!found.some((u) => !/thundertree/i.test(u.place)), 'discover: nothing else was discovered', found.map((u) => u.place).join(', '));
+    }
+    for (const [id, re, label] of [['discovergo', /smithy/i, 'the smithy'], ['discovertold', /stonehill/i, 'the Stonehill Inn']]) if (step.id === id) {
+      const found = upd(j).filter((u) => u.type === 'discoverPlace' && u.on);
+      check(found.some((u) => re.test(u.place)), id + ': ' + label + ' was discovered', upd(j).map((u) => u.type + ':' + (u.place || '')).join(', '));
+      check(!found.some((u) => !re.test(u.place)), id + ': nothing else was discovered', found.map((u) => u.place).join(', '));
     }
     if (step.id === 'gear') {
       // Buying goes through the buy_item service now (or, in an older reply, gear updates): either way what counts is what the table saved.

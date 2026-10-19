@@ -38,6 +38,8 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
     if (/search the old shelves/.test(said)) return { ...base, rolls: [`Thorin Perception: d20 (${d20[0]}) + 1 = ${d20[0] + 1}`], narrative: 'Behind the dusty shelves a seam in the stone gives way to a hidden latch and a narrow door swings back.', mapUpdates: [upd({ action: 'door', value: 2, condition: 'reveal' })] };
     if (/cellar hatch/.test(said)) return { ...base, mapUpdates: [{ type: 'changeMap', mapId: 'dungeon-cellars', arrive: 'start', reason: 'down the stairs' }] };
     if (/browse what Orla/.test(said)) return { ...base, mapUpdates: [upd({ action: 'shop', tokenId: 'pc-thorin', condition: 'Orla the barkeep: Standard Gear', value: 100 })] };
+    if (/walks over to the smithy/.test(said)) return { ...base, mapUpdates: [upd({ action: 'discover', condition: 'Smithy', value: 1 })] };
+    if (/the Stonehill Inn is the place/.test(said)) return { ...base, mapUpdates: [upd({ action: 'discover', condition: 'Stonehill Inn', value: 1 })] };
     if (/Thundertree lie in the forest/.test(said)) return { ...base, mapUpdates: [upd({ action: 'discover', condition: 'Thundertree', value: 1 })] };
     if (/journal/.test(said)) return { ...base, mapUpdates: [{ type: 'journal', category: 'event', title: 'Brawl', text: 'A brawl broke out.', status: 'none', when: 'Evening' }, { type: 'journal', category: 'promise', title: 'Pay Orla', text: 'Pay for the damage.', status: 'open', when: '' }] };
     return base;
@@ -46,7 +48,7 @@ function dm({ badDice = false, leak = false, dangling = false, removesEffect = f
 
 function runCheck(fakeUrl, extra = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/dev/dm-check.mjs', '--live', '--max-calls', '48', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, ['scripts/dev/dm-check.mjs', '--live', '--max-calls', '60', ...extra], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake', DM_CHECK_UPSTREAM: fakeUrl }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
     child.on('exit', (code) => resolve({ code, out }));
   });
@@ -58,7 +60,7 @@ test('dm-check passes against a well-behaved fake DM, prints no story text and r
     const r = await runCheck(f.url);
     assert.equal(r.code, 0, r.out);
     assert.match(r.out, /PASSED: 0 failure/);
-    assert.match(r.out, /USAGE [34][0-9] API request\(s\)/);
+    assert.match(r.out, /USAGE [3-6][0-9] API request\(s\)/);
     assert.match(r.out, /journal: \d+ entries saved by the bookkeeper/);
     assert.ok(!r.out.includes('tavern is loud'), 'no narrative is printed');
     assert.ok(!r.out.includes('sk-ant-fake'), 'the key is never printed');
