@@ -62,6 +62,8 @@
     $('#layoutNext').disabled = !s.layoutOk;
     $('#paintNext').disabled = !s.draft;
   }
+  // A painting belongs to the description, size and layout it was made from: change any of them and it is dropped.
+  function forgetPainting() { s.draft = null; render(); }
   function go(step) { s.step = step; say(''); render(); document.dispatchEvent(new CustomEvent('wizard-step', { detail: step })); if (step === 'paint') loadPaintOptions(); if (step === 'save') { showSavePreview(); $('#sName').value = s.name || ''; $('#sSummary').textContent = s.kind === 'battle' ? 'The walls, doors, lights, rough ground and start spots from the layout are saved with the picture.' : 'The picture is saved as a ' + s.kind + ' map.'; } }
   function next() { var l = steps(); go(l[l.indexOf(s.step) + 1]); }
   function back() { var l = steps(); go(l[Math.max(0, l.indexOf(s.step) - 1)]); }
@@ -72,7 +74,7 @@
     ['battle', 'town', 'regional'].forEach(function (k) {
       var c = el('button', 'kind'); c.type = 'button'; c.dataset.kind = k;
       c.append(el('b', '', KIND_TEXT[k][0]), el('span', '', KIND_TEXT[k][1]));
-      c.addEventListener('click', function () { s.kind = k; s.layoutOk = false; s.draft = null; render(); });
+      c.addEventListener('click', function () { s.kind = k; s.layoutOk = false; forgetPainting(); });
       host.appendChild(c);
     });
     api('/api/map-maker/options').then(function (o) {
@@ -81,18 +83,18 @@
       o.sizes.forEach(function (z) { var op = el('option', '', z.label + ': ' + z.cols + ' x ' + z.rows + ' squares, like ' + z.like); op.value = z.id; sel.appendChild(op); });
       sel.value = s.size;
     }).catch(showError);
-    $('#szSize').addEventListener('change', function (e) { s.size = e.target.value; });
-    $('#szOrient').addEventListener('change', function (e) { s.orientation = e.target.value; });
+    $('#szSize').addEventListener('change', function (e) { s.size = e.target.value; s.layoutOk = false; forgetPainting(); });
+    $('#szOrient').addEventListener('change', function (e) { s.orientation = e.target.value; s.layoutOk = false; forgetPainting(); });
     $('#typeNext').addEventListener('click', next);
   }
 
   // ---- step 2: the description, a microphone, Surprise me
   function buildDescribe() {
     var ta = $('#wzText');
-    ta.addEventListener('input', function () { s.description = ta.value; s.layoutOk = false; render(); });
+    ta.addEventListener('input', function () { s.description = ta.value; s.layoutOk = false; forgetPainting(); });
     $('#wzSurprise').addEventListener('click', function () {
       busy(true, 'Thinking up a ' + KIND_TEXT[s.kind][0].toLowerCase() + '...');
-      api('/api/map-maker/surprise', { kind: s.kind }).then(function (o) { ta.value = o.description; s.description = o.description; s.layoutOk = false; busy(false); say('Here is an idea. Change it however you like.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
+      api('/api/map-maker/surprise', { kind: s.kind }).then(function (o) { ta.value = o.description; s.description = o.description; s.layoutOk = false; s.draft = null; busy(false); say('Here is an idea. Change it however you like.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
     });
     function loadExamples() {
       var host = $('#wzExamples'); host.innerHTML = ''; $('#wzExampleNote').hidden = true;
@@ -101,7 +103,7 @@
         o.examples.forEach(function (ex) {
           var b = el('button', '', '🏚 ' + ex.title); b.type = 'button';
           b.addEventListener('click', function () {
-            ta.value = ex.description; s.description = ex.description; s.layoutOk = false; s.name = '';
+            ta.value = ex.description; s.description = ex.description; s.layoutOk = false; s.draft = null; s.name = '';
             if (ex.size) { s.size = ex.size; $('#szSize').value = ex.size; }
             if (ex.orientation) { s.orientation = ex.orientation; $('#szOrient').value = ex.orientation; }
             var n = $('#wzExampleNote'); n.textContent = ex.note || ''; n.hidden = !ex.note; render();
@@ -117,7 +119,7 @@
       if (rec) { rec.stop(); return; }
       rec = new SR(); rec.continuous = true; rec.interimResults = false; rec.lang = 'en-US';
       var base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
-      rec.onresult = function (ev) { var t = ''; for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; ta.value = base + t.trim(); s.description = ta.value; s.layoutOk = false; render(); };
+      rec.onresult = function (ev) { var t = ''; for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; ta.value = base + t.trim(); s.description = ta.value; s.layoutOk = false; forgetPainting(); };
       rec.onend = function () { rec = null; mic.textContent = '🎤 Speak'; mic.classList.remove('live'); };
       rec.onerror = function () { say('The microphone did not work here. Type instead.', 'bad'); };
       mic.textContent = '■ Stop'; mic.classList.add('live'); rec.start();
@@ -125,16 +127,19 @@
     $('#descBack').addEventListener('click', back);
     $('#descNext').addEventListener('click', function () {
       if (s.kind !== 'battle') { next(); return; }
+      // coming back to the same description and size keeps the layout (and any changes made to it): redrawing costs money, and is what "Design it again" is for
+      if (s.grid.length && s.designedFor === designKey()) { go('layout'); say('Kept your layout. Use "Design it again" to redraw it from the description.', 'ok'); return; }
       designLayout();
     });
   }
 
   // ---- step 3: the layout (battle maps)
+  function designKey() { return [s.description.trim(), s.size, s.orientation].join('|'); }
   function designLayout() {
     s.history = [];
     busy(true, 'The AI is drawing the layout (this takes about 20 to 60 seconds)...');
     api('/api/map-maker/layout', { description: s.description, size: s.size, orientation: s.orientation }).then(function (o) {
-      busy(false); s.name = s.name || o.name || ''; s.setting = o.setting || 'indoor'; $('#lySetting').value = s.setting;
+      s.draft = null; s.designedFor = designKey(); busy(false); s.name = s.name || o.name || ''; s.setting = o.setting || 'indoor'; $('#lySetting').value = s.setting;
       $('#lyCost').textContent = 'Designed by ' + o.model + (o.attempts > 1 ? ' (second try)' : '') + ' for about ' + money(o.cost || 0) + '. ' + (o.summary || '');
       go('layout'); showLayout(o);
     }).catch(function (e) { busy(false); showError(e); });
@@ -155,7 +160,7 @@
   function buildLayout() {
     $('#lyCheck').addEventListener('click', function () {
       busy(true, 'Checking...');
-      var before = s.grid.slice(); api('/api/map-maker/layout/check', { grid: $('#lyGrid').value.split('\n').map(function (r) { return r.replace(/\s+$/, ''); }).filter(function (r) { return r.length; }) }).then(function (o) { if (o.grid.join('\n') !== before.join('\n')) { s.history.push(before); s.draft = null; } busy(false); showLayout(o); say('Checked.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
+      var before = s.grid.slice(); api('/api/map-maker/layout/check', { grid: $('#lyGrid').value.split('\n').map(function (r) { return r.replace(/\s+$/, ''); }).filter(function (r) { return r.length; }) }).then(function (o) { if (o.grid.join('\n') !== before.join('\n')) { s.history.push(before); s.draft = null; } busy(false); showLayout(o); render(); say('Checked.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
     });
     $('#lyRedo').addEventListener('click', designLayout);
     $('#lyChange').addEventListener('click', function () {
@@ -166,14 +171,14 @@
       api('/api/map-maker/layout/revise', { grid: before, instruction: words, description: s.description }).then(function (o) {
         s.history.push(before); busy(false); showLayout(o); $('#lyWords').value = '';
         $('#lyCost').textContent = 'Changed by ' + o.model + ' for about ' + money(o.cost || 0) + '. ' + (o.summary || '');
-        s.draft = null;
+        forgetPainting();
       }).catch(function (e) { busy(false); showError(e); });
     });
     $('#lyUndo').addEventListener('click', function () {
       if (!s.history.length) return;
       var prev = s.history.pop();
       busy(true, 'Going back...');
-      api('/api/map-maker/layout/check', { grid: prev }).then(function (o) { busy(false); showLayout(o); s.draft = null; say('Went back one change.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
+      api('/api/map-maker/layout/check', { grid: prev }).then(function (o) { busy(false); showLayout(o); forgetPainting(); say('Went back one change.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
     });
     $('#lySetting').addEventListener('change', function (e) { s.setting = e.target.value; });
     $('#layoutBack').addEventListener('click', back);

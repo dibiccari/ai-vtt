@@ -83,9 +83,10 @@ test('a battle map is painted from the layout drawing, kept as a draft, and save
   assert.ok(place, 'the new place is listed'); assert.equal(place.kind, 'battle'); assert.equal(place.name, 'Test Keep');
 });
 
-test('portrait battle maps are painted on a tall canvas; town and regional maps come from the text alone', async () => {
+test('a battle map is painted on the canvas that fits its own shape (tall, square or wide); town and regional maps come from the text alone', async () => {
   calls.length = 0;
-  const tall = await withKey.post('/api/map-maker/paint', { kind: 'battle', description: 'a keep', grid: GOOD, orientation: 'portrait', provider: 'openai', model: 'gpt-image-1-mini', quality: 'low' });
+  const TALL = ['########', '#P.....#', '#......#', '#......#', '#..L...#', '#......#', '#......#', '#.....E#', '#......#', '#......#', '#......#', '########'];
+  const tall = await withKey.post('/api/map-maker/paint', { kind: 'battle', description: 'a keep', grid: TALL, provider: 'openai', model: 'gpt-image-1-mini', quality: 'low' });
   assert.equal(tall.status, 200, tall.text); assert.match(calls[0].body, /name="size"\r\n\r\n1024x1536/); assert.equal(tall.json.height, 1536);
 
   calls.length = 0;
@@ -118,4 +119,19 @@ test('the drawing the painter gets shows each light as an orange dot, and the pr
   assert.notDeepEqual(layoutPng(lit, { width: 600, height: 400 }), layoutPng(dark, { width: 600, height: 400 }), 'the torch is drawn');
   assert.doesNotMatch(await battlePrompt(process.cwd(), { setting: 'indoor', description: 'x', cols: 10, rows: 8, layout: dark }), /LIGHT SOURCE/);
   assert.match(await battlePrompt(process.cwd(), { setting: 'outdoor', description: 'x', cols: 10, rows: 8, layout: lit }), /campfire, lantern or torch/);
+});
+
+test('a square layout is painted on a square canvas, so its squares stay square', async () => {
+  const SQUARE = ['##########', '#P.......#', '#........#', '#...L....#', '#........#', '#........#', '#.......E#', '#........#', '#........#', '##########'];
+  calls.length = 0;
+  const r = await withKey.post('/api/map-maker/paint', { kind: 'battle', description: 'a yard', grid: SQUARE, orientation: 'landscape', provider: 'openai', model: 'gpt-image-1', quality: 'low' });
+  assert.equal(r.status, 200, r.text); assert.match(calls[0].body, /name="size"\r\n\r\n1024x1024/); assert.equal(r.json.width, 1024); assert.equal(r.json.height, 1024);
+});
+
+test('Gemini is asked for the nearest aspect ratio it offers, and the cheaper quality is the default', async () => {
+  const { aspectFor } = await import('../lib/image-providers.js'), { paintOptions } = await import('../lib/map-painter.js');
+  assert.equal(aspectFor(1536, 1024), '3:2'); assert.equal(aspectFor(1024, 1536), '2:3'); assert.equal(aspectFor(1024, 1024), '1:1'); assert.equal(aspectFor(1450, 1000), '3:2'); assert.equal(aspectFor(1000, 1450), '2:3'); assert.equal(aspectFor(1200, 900), '4:3');
+  const o = paintOptions({ gemini: 'k', openai: 'k' }, { provider: 'gemini', model: 'gemini-nano-banana-2.1' });
+  assert.equal(o.selected.quality, '1K', 'Gemini starts at the cheaper 1K, not 2K');
+  assert.equal(paintOptions({ openai: 'k' }, null).selected.quality, 'medium');
 });

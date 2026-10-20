@@ -33,7 +33,7 @@ export function registerMapMaker(app, deps) {
   // Descriptions of known places the person can try (to see how close the AI gets).
   app.get('/api/map-maker/examples', (req, res) => res.json({ examples: EXAMPLES.filter((e) => !req.query.kind || e.kind === req.query.kind) }));
 
-  app.post('/api/map-maker/surprise', deps.asyncRoute(async (req, res) => {
+  app.post('/api/map-maker/surprise', deps.localOnly, deps.asyncRoute(async (req, res) => {
     if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });
     try {
       const out = await surpriseMap({ client: settings.anthropicAny, model: settings.MAP_IDEA_MODEL, kind: String(req.body?.kind || 'battle'), record: (m, u) => deps.usageTracker.record(m, u, '', 'maps') });
@@ -41,7 +41,7 @@ export function registerMapMaker(app, deps) {
     } catch (err) { aiError(res, err); }
   }));
 
-  app.post('/api/map-maker/layout', deps.asyncRoute(async (req, res) => {
+  app.post('/api/map-maker/layout', deps.localOnly, deps.asyncRoute(async (req, res) => {
     if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });
     const description = String(req.body?.description ?? '').trim();
     if (!description) return res.status(400).json({ error: 'Describe the map first.' });
@@ -52,7 +52,7 @@ export function registerMapMaker(app, deps) {
   }));
 
   // A change asked for in words: the AI is given the current grid and the sentence and returns the whole map again.
-  app.post('/api/map-maker/layout/revise', deps.asyncRoute(async (req, res) => {
+  app.post('/api/map-maker/layout/revise', deps.localOnly, deps.asyncRoute(async (req, res) => {
     if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });
     const instruction = String(req.body?.instruction ?? '').trim();
     if (!instruction) return res.status(400).json({ error: 'Say what to change first.' });

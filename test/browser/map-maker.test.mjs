@@ -9,10 +9,12 @@ import { compileLayout, layoutPng } from '../../lib/map-layout.js';
 
 const skip = skipReason();
 const GOOD = ['##########', '#P.......#', '#........#', '######D###', '#........#', '#..L...E.#', '#..O.....#', '##########'];
+// what the pretend designer returns for a Medium (36 x 24) map
+const BIG = Array.from({ length: 24 }, (_, r) => (r === 0 || r === 23 ? '#'.repeat(36) : '#' + (r === 1 ? 'P' : r === 5 ? '..L' : r === 20 ? '.....E' : '.').padEnd(34, '.') + '#'));
 let fake, images, server, page;
 before(async () => {
   if (skip) return;
-  fake = await fakeAnthropic([{ name: 'Test hall', summary: 'Two rooms and a door.', setting: 'indoor', rows: GOOD }]);
+  fake = await fakeAnthropic([{ name: 'Test hall', summary: 'A hall.', setting: 'indoor', rows: BIG }]);
   const png = layoutPng(compileLayout(GOOD), { width: 1536, height: 1024 }).toString('base64');
   images = createServer((req, res) => { req.resume(); req.on('end', () => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ data: [{ b64_json: png }] })); }); });
   await new Promise((r) => images.listen(0, '127.0.0.1', r));
@@ -52,7 +54,7 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   assert.equal(await page.eval(`document.querySelector('#descNext').disabled`), false);
   assert.equal(await page.eval(`document.querySelector('#descNext').textContent`), 'Design the layout');
   await page.eval(`(() => { const t = document.querySelector('#wzText'); t.value = 'a small keep with a guard room and a storeroom'; t.dispatchEvent(new Event('input')); })()`);
-  fake.requests.length = 0; fake.__set({ name: 'Test hall', summary: 'Two rooms and a door.', setting: 'indoor', rows: GOOD, __chunkMs: 0 });
+  fake.requests.length = 0; fake.__set({ name: 'Test hall', summary: 'A hall.', setting: 'indoor', rows: BIG });
   // while the AI works there is a spinner with the words and a running clock (looked at in the same breath as the click, before any answer can arrive); it goes away when the answer is in
   const waiting = await page.eval(`(() => { document.querySelector('#descNext').click(); const bar = document.querySelector('#wzBusy'); return { shown: !bar.hidden, spins: getComputedStyle(bar.querySelector('.spinner')).animationName, words: document.querySelector('#wzBusyText').textContent, clock: document.querySelector('#wzBusyTime').textContent }; })()`);
   assert.equal(waiting.shown, true); assert.equal(waiting.spins, 'spin'); assert.match(waiting.words, /layout/); assert.match(waiting.clock, /^\d+ s$/);
@@ -64,17 +66,17 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   assert.match(await page.eval(`document.querySelector('#lyCost').textContent`), /about \$/);
 
   // a change in words: the grid on the page becomes what the AI sends back, and Undo goes back
-  const CHANGED = GOOD.map((r, i) => (i === 2 ? '#...O....#' : r));
+  const CHANGED = BIG.map((r, i) => (i === 2 ? '#...O' + '.'.repeat(30) + '#' : r));
   fake.__set({ name: 'Test hall', summary: 'Added a pillar.', setting: 'indoor', rows: CHANGED }); fake.requests.length = 0;
   assert.equal(await page.eval(`document.querySelector('#lyUndo').disabled`), true, 'nothing to undo yet');
   await page.eval(`document.querySelector('#lyWords').value = 'put a pillar in the upper room'`);
   await click(page, '#lyChange');
-  await page.waitFor(`document.querySelector('#lyGrid').value.includes('#...O....#')`);
+  await page.waitFor(`document.querySelector('#lyGrid').value.includes('#...O.')`);
   assert.match(JSON.stringify(fake.requests[0].messages), /put a pillar in the upper room/);
   assert.equal(await page.eval(`document.querySelector('#lyWords').value`), '', 'the box is cleared');
   assert.equal(await page.eval(`document.querySelector('#lyUndo').disabled`), false);
   await click(page, '#lyUndo');
-  await page.waitFor(`!document.querySelector('#lyGrid').value.includes('#...O....#') && document.querySelector('#lyUndo').disabled`);
+  await page.waitFor(`!document.querySelector('#lyGrid').value.includes('#...O.') && document.querySelector('#lyUndo').disabled`);
   assert.equal(await page.eval(`document.querySelector('#lyOk').textContent`), 'Playable');
 
   // a hand edit that cuts the lower room off is refused, and mending it brings the Next button back
@@ -86,6 +88,11 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   await page.eval(`document.querySelector('#lyGrid').value = ${JSON.stringify(GOOD.join('\n'))}`);
   await click(page, '#lyCheck');
   await page.waitFor(`document.querySelector('#lyOk').textContent === 'Playable'`);
+  // back to the description and on again keeps the layout (no new paid call); changing the description would ask for a new one
+  const askedBefore = fake.requests.length;
+  await click(page, '#layoutBack'); await click(page, '#descNext');
+  assert.deepEqual(await visible(page), ['layout']); assert.equal(fake.requests.length, askedBefore, 'no second call to the AI');
+  assert.equal(await page.eval(`document.querySelector('#layoutNext').disabled`), false);
   await click(page, '#layoutNext');
 
   assert.deepEqual(await visible(page), ['paint']);
@@ -98,6 +105,12 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   assert.match(await page.eval(`document.querySelector('#pvFacts').textContent`), /1536 x 1024/);
   assert.equal(await page.eval(`document.querySelector('#pvOverlayRow').hidden`), false, 'a battle map can be compared with its layout');
   assert.ok(await page.eval(`document.querySelector('#pvSvg svg') !== null`));
+  // the painting belongs to what it was made from: changing the description drops it, and Save is shut again
+  await page.eval(`(() => { const t = document.querySelector('#wzText'); t.value += ' with a well'; t.dispatchEvent(new Event('input')); })()`);
+  assert.equal(await page.eval(`document.querySelector('#paintNext').disabled`), true, 'a painting of the old description is not kept');
+  await page.eval(`(() => { const t = document.querySelector('#wzText'); t.value = t.value.replace(' with a well', ''); t.dispatchEvent(new Event('input')); })()`);
+  await click(page, '#pvPaint');
+  await page.waitFor(`!document.querySelector('#paintResult').hidden && document.querySelector('#pvImg').naturalWidth === 1536 && !document.querySelector('#paintNext').disabled`);
   await click(page, '#paintNext');
 
   assert.deepEqual(await visible(page), ['save']);

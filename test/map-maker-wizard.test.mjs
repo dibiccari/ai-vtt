@@ -19,25 +19,25 @@ const designer = (n = 0) => fake.requests.filter((r) => /battle maps/.test(JSON.
 
 test('a description becomes a checked layout with an SVG, and says what it cost', async () => {
   fake.__set(reply(GOOD)); fake.requests.length = 0;
-  const r = await s.post('/api/map-maker/layout', { description: 'a small keep with a guard room and a storeroom', cols: 30, rows: 20 });
+  const r = await s.post('/api/map-maker/layout', { description: 'a small keep with a guard room and a storeroom', cols: 10, rows: 8 });
   assert.equal(r.status, 200, r.text);
   assert.equal(r.json.ok, true); assert.deepEqual(r.json.grid, GOOD); assert.equal(r.json.name, 'Test hall'); assert.equal(r.json.attempts, 1);
   assert.match(r.json.svg, /<svg[^>]+data-cols="10"/); assert.equal(typeof r.json.cost, 'number'); assert.ok(r.json.legend.length >= 9);
   const req = designer()[0];
-  assert.match(JSON.stringify(req.messages), /small keep with a guard room/); assert.match(req.system[0].text || req.system, /exactly 30 characters wide and 20 rows tall/);
+  assert.match(JSON.stringify(req.messages), /small keep with a guard room/); assert.match(JSON.stringify(req.system), /exactly 10 characters wide and 8 rows tall/);
   assert.equal(req.model, 'claude-sonnet-5-5', 'a mid-priced model, not Opus');
 });
 
 test('a layout with a room nothing connects to is sent back once with what is wrong, and the corrected one is used', async () => {
   fake.__set((req) => (JSON.stringify(req.messages).includes('The grid has problems') ? reply(GOOD) : reply(LOST))); fake.requests.length = 0;
-  const r = await s.post('/api/map-maker/layout', { description: 'two rooms' });
+  const r = await s.post('/api/map-maker/layout', { description: 'two rooms', cols: 10, rows: 8 });
   assert.equal(r.json.ok, true); assert.equal(r.json.attempts, 2); assert.deepEqual(r.json.grid, GOOD);
   assert.match(JSON.stringify(designer()[1].messages), /cannot be reached from the party start/);
 });
 
 test('a layout the model cannot fix is still returned, with its problems, so the person can edit it', async () => {
   fake.__set(reply(LOST));
-  const r = await s.post('/api/map-maker/layout', { description: 'two rooms' });
+  const r = await s.post('/api/map-maker/layout', { description: 'two rooms', cols: 10, rows: 8 });
   assert.equal(r.status, 200); assert.equal(r.json.ok, false); assert.equal(r.json.attempts, 2);
   assert.ok(r.json.problems.some((p) => p.level === 'error' && /cannot be reached/.test(p.text)));
   assert.ok(r.json.svg.length > 100, 'there is still something to look at and fix');
@@ -65,7 +65,7 @@ test('the idea button asks the cheap model for the kind of map, and a missing de
 
 test('an out-of-credit error comes back with the provider help the page needs for its banner', async () => {
   fake.__set({ __status: 400, __message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' });
-  const r = await s.post('/api/map-maker/layout', { description: 'a keep' });
+  const r = await s.post('/api/map-maker/layout', { description: 'a keep', cols: 10, rows: 8 });
   assert.equal(r.status, 502); assert.equal(r.json.code, 'credit'); assert.match(r.json.help.url, /console\.anthropic\.com\/settings\/billing/);
 });
 
@@ -117,5 +117,23 @@ test('the designer is given room to think and write, and when it only thinks the
   fake.__set({ __thinkingOnly: true });
   const r = await s.post('/api/map-maker/layout', { description: 'a keep', size: 'small' });
   assert.equal(r.status, 502); assert.match(r.json.error, /ran out of room while thinking/);
+  fake.__set(reply(GOOD));
+});
+
+test('a grid a square or two off the size asked for is trimmed or padded to it; one far off is sent back', async () => {
+  const { fitToSize } = await import('../lib/map-designer.js');
+  const long = GOOD.map((r) => r + '#'), short = GOOD.slice(0, 7);
+  const a = fitToSize(long, 10, 8); assert.equal(a.adjusted, true); assert.ok(a.rows.every((r) => r.length === 10) && a.rows.length === 8);
+  const b = fitToSize(short, 10, 8); assert.equal(b.rows.length, 8); assert.equal(b.rows[7], '#'.repeat(10));
+  assert.equal(fitToSize(GOOD, 10, 8).adjusted, false);
+  assert.equal(fitToSize(GOOD, 30, 20).off > 2, true);
+  // through the route: 11-wide rows come back as 10 wide with a warning and no length complaint; a 10 x 8 grid for a 30 x 20 map is sent back once
+  fake.__set(reply(long)); fake.requests.length = 0;
+  const r = await s.post('/api/map-maker/layout', { description: 'a keep', cols: 10, rows: 8 });
+  assert.equal(r.json.cols, 10); assert.ok(r.json.problems.some((p) => /trimmed or padded/.test(p.text))); assert.ok(!r.json.problems.some((p) => /not all the same length/.test(p.text)));
+  fake.__set(reply(GOOD)); fake.requests.length = 0;
+  const far = await s.post('/api/map-maker/layout', { description: 'a keep', size: 'small' });
+  assert.equal(far.json.attempts, 2, 'sent back once'); assert.equal(far.json.ok, false);
+  assert.match(JSON.stringify(designer()[1].messages), /must be exactly 30 characters wide and 20 rows tall/);
   fake.__set(reply(GOOD));
 });
