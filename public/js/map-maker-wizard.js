@@ -60,8 +60,9 @@
     $('#descNext').textContent = s.kind === 'battle' ? 'Design the layout' : 'Next: choose a painter';
     $('#descNext').disabled = !s.description.trim();
     $('#layoutNext').disabled = !s.layoutOk;
+    $('#paintNext').disabled = !s.draft;
   }
-  function go(step) { s.step = step; say(''); render(); document.dispatchEvent(new CustomEvent('wizard-step', { detail: step })); if (step === 'paint') loadPaintOptions(); if (step === 'save') { $('#sName').value = s.name || ''; $('#sSummary').textContent = s.kind === 'battle' ? 'The walls, doors, lights, rough ground and start spots from the layout are saved with the picture.' : 'The picture is saved as a ' + s.kind + ' map.'; } }
+  function go(step) { s.step = step; say(''); render(); document.dispatchEvent(new CustomEvent('wizard-step', { detail: step })); if (step === 'paint') loadPaintOptions(); if (step === 'save') { showSavePreview(); $('#sName').value = s.name || ''; $('#sSummary').textContent = s.kind === 'battle' ? 'The walls, doors, lights, rough ground and start spots from the layout are saved with the picture.' : 'The picture is saved as a ' + s.kind + ' map.'; } }
   function next() { var l = steps(); go(l[l.indexOf(s.step) + 1]); }
   function back() { var l = steps(); go(l[Math.max(0, l.indexOf(s.step) - 1)]); }
 
@@ -241,9 +242,18 @@
   }
 
   // ---- step 5: save
+  // The picture that will be saved is shown here, so the person sees exactly what they are keeping (a map is never saved unseen).
+  function showSavePreview() {
+    var d = s.draft;
+    $('#sPreview').hidden = !d; $('#sSave').disabled = !d;
+    if (!d) { $('#sFacts').textContent = 'There is no picture yet: go back and paint it.'; return; }
+    $('#sImg').src = d.url + '?t=' + Date.now();
+    $('#sFacts').textContent = d.width + ' x ' + d.height + ' px' + (s.kind === 'battle' ? '. The walls, doors and lights of your layout are saved on top of this picture.' : '.');
+  }
   function buildSave() {
     $('#saveBack').addEventListener('click', back);
     $('#sSave').addEventListener('click', function () {
+      if (!s.draft) { say('Paint the map first.', 'bad'); return; }
       var name = $('#sName').value.trim();
       if (!name) { say('Give the map a name first.', 'bad'); $('#sName').focus(); return; }
       busy(true, 'Saving...');

@@ -92,6 +92,7 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   await page.waitFor(`document.querySelector('#pvProvider') && document.querySelector('#pvProvider').options.length > 0 && !document.querySelector('#paintForm').hidden`);
   assert.deepEqual(await page.eval(`[...document.querySelector('#pvProvider').options].map((o) => o.value)`), ['openai'], 'only the service with a key');
   assert.match(await page.eval(`document.querySelector('#pvPaint').textContent`), /Paint it \(about \$0\.0/);
+  assert.equal(await page.eval(`document.querySelector('#paintNext').disabled`), true, 'no way on to Save before there is a picture');
   await click(page, '#pvPaint');
   await page.waitFor(`!document.querySelector('#paintResult').hidden && document.querySelector('#pvImg').naturalWidth === 1536`);
   assert.match(await page.eval(`document.querySelector('#pvFacts').textContent`), /1536 x 1024/);
@@ -100,6 +101,8 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   await click(page, '#paintNext');
 
   assert.deepEqual(await visible(page), ['save']);
+  await page.waitFor(`document.querySelector('#sImg').naturalWidth === 1536`);
+  assert.equal(await page.eval(`!document.querySelector('#sPreview').hidden && !document.querySelector('#sSave').disabled`), true, 'the picture to be saved is shown, and Save is allowed');
   assert.equal(await page.eval(`document.querySelector('#sName').value`), 'Test hall', 'named by the designer');
   await page.eval(`document.querySelector('#sName').value = 'The Wizard Keep'`);
   await click(page, '#sSave');
