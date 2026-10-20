@@ -79,3 +79,22 @@ test('the wizard asks for a size by name and orientation, and says what is on of
   await s.post('/api/map-maker/layout', { description: 'a tavern', size: 'small' });
   assert.match(JSON.stringify(designer()[0].system), /exactly 30 characters wide and 20 rows tall/);
 });
+
+test('a change asked for in words sends the current grid and the sentence, keeps the size, and the answer is checked like any layout', async () => {
+  const CHANGED = ['##########', '#P.......#', '#...O....#', '######D###', '#........#', '#..L...E.#', '#..O.....#', '##########'];
+  fake.__set(reply(CHANGED, { name: 'Test hall' })); fake.requests.length = 0;
+  const r = await s.post('/api/map-maker/layout/revise', { grid: GOOD, instruction: 'put a pillar in the upper room', description: 'a small keep' });
+  assert.equal(r.status, 200, r.text);
+  assert.deepEqual(r.json.grid, CHANGED); assert.equal(r.json.ok, true); assert.equal(typeof r.json.cost, 'number');
+  const req = designer()[0], asked = JSON.stringify(req.messages);
+  assert.match(asked, /put a pillar in the upper room/); assert.match(asked, /#P\.\.\.\.\.\.\.#/); assert.match(asked, /a small keep/);
+  assert.match(JSON.stringify(req.system), /exactly 10 characters wide and 8 rows tall/, 'the size of the map in front of the person is kept');
+  // an unplayable answer is sent back once with its problems, as for a first design
+  fake.__set((rq) => (rq.messages.length > 1 ? reply(CHANGED) : reply(LOST))); fake.requests.length = 0;
+  const fixed = await s.post('/api/map-maker/layout/revise', { grid: GOOD, instruction: 'cut the door out' });
+  assert.equal(fixed.json.attempts, 2); assert.equal(fixed.json.ok, true);
+  // nothing to change, or no map to change
+  assert.equal((await s.post('/api/map-maker/layout/revise', { grid: GOOD, instruction: '  ' })).status, 400);
+  const none = await s.post('/api/map-maker/layout/revise', { grid: [], instruction: 'bigger' });
+  assert.equal(none.status, 502); assert.match(none.json.error, /no layout/i);
+});

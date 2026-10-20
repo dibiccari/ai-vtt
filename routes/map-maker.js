@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { designLayout, surpriseMap, DEFAULT_COLS, DEFAULT_ROWS } from '../lib/map-designer.js';
+import { designLayout, reviseLayout, surpriseMap, DEFAULT_COLS, DEFAULT_ROWS } from '../lib/map-designer.js';
 import { compileLayout, layoutSvg, scaleTo, LEGEND, SIZES } from '../lib/map-layout.js';
 import { paint, paintOptions } from '../lib/map-painter.js';
 import { settings, mapGen } from '../lib/runtime-settings.js';
@@ -43,6 +43,17 @@ export function registerMapMaker(app, deps) {
     if (!description) return res.status(400).json({ error: 'Describe the map first.' });
     try {
       const out = await designLayout({ client: settings.anthropicAny, model: settings.MAP_DESIGNER_MODEL, description, size: req.body?.size, orientation: req.body?.orientation, cols: Number(req.body?.cols) || DEFAULT_COLS, rows: Number(req.body?.rows) || DEFAULT_ROWS, record: (m, u) => deps.usageTracker.record(m, u, '', 'maps') });
+      res.json(layoutReply(out.layout, { name: out.name, summary: out.summary, setting: out.setting, attempts: out.attempts, model: settings.MAP_DESIGNER_MODEL, cost: Math.round(costOfUsage(settings.MAP_DESIGNER_MODEL, out.usage) * 10000) / 10000 }));
+    } catch (err) { aiError(res, err); }
+  }));
+
+  // A change asked for in words: the AI is given the current grid and the sentence and returns the whole map again.
+  app.post('/api/map-maker/layout/revise', deps.asyncRoute(async (req, res) => {
+    if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });
+    const instruction = String(req.body?.instruction ?? '').trim();
+    if (!instruction) return res.status(400).json({ error: 'Say what to change first.' });
+    try {
+      const out = await reviseLayout({ client: settings.anthropicAny, model: settings.MAP_DESIGNER_MODEL, grid: Array.isArray(req.body?.grid) ? req.body.grid.map(String) : String(req.body?.grid ?? ''), instruction, description: req.body?.description, record: (m, u) => deps.usageTracker.record(m, u, '', 'maps') });
       res.json(layoutReply(out.layout, { name: out.name, summary: out.summary, setting: out.setting, attempts: out.attempts, model: settings.MAP_DESIGNER_MODEL, cost: Math.round(costOfUsage(settings.MAP_DESIGNER_MODEL, out.usage) * 10000) / 10000 }));
     } catch (err) { aiError(res, err); }
   }));

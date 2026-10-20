@@ -106,6 +106,10 @@
         <ul class="problems" id="lyProblems"></ul>
         <div class="row"><label class="field" style="margin:0"><span>The painter should make it look</span><select id="lySetting"><option value="indoor">Indoors: dungeon, building, cave (inked sepia)</option><option value="outdoor">Outdoors: forest, road, beach (painted)</option></select></label><button type="button" id="lyRedo">Design it again</button></div>
       </div>
+      <div class="card">
+        <label class="field"><span>Change it with words</span><textarea id="lyWords" rows="2" maxlength="800" placeholder="For example: make the east room twice as big, add a second door to the vault, put a pillar in the middle of the hall, widen the corridor."></textarea></label>
+        <div class="row"><button type="button" id="lyChange">Make the change</button><button type="button" id="lyUndo" disabled>Undo the last change</button><span class="note" style="margin:0" id="lyWordsNote">The AI redraws the map with your change and keeps the rest. It costs a few cents each time.</span></div>
+      </div>
       <details class="card"><summary>Edit the layout as text</summary>
         <p class="note"># straight wall · % natural rock with curved edges (caves, cliffs, mountains) · . floor · D door · ~ shallow water · , rubble · O pillar, boulder or tree · L torch or fire · P party start · E enemies. Walls, doors, lights and rough ground are worked out from this.</p>
         <textarea class="mono" id="lyGrid" rows="14" spellcheck="false"></textarea>

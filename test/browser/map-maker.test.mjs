@@ -52,6 +52,20 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   assert.equal(await page.eval(`document.querySelector('#layoutNext').disabled`), false);
   assert.match(await page.eval(`document.querySelector('#lyCost').textContent`), /about \$/);
 
+  // a change in words: the grid on the page becomes what the AI sends back, and Undo goes back
+  const CHANGED = GOOD.map((r, i) => (i === 2 ? '#...O....#' : r));
+  fake.__set({ name: 'Test hall', summary: 'Added a pillar.', setting: 'indoor', rows: CHANGED }); fake.requests.length = 0;
+  assert.equal(await page.eval(`document.querySelector('#lyUndo').disabled`), true, 'nothing to undo yet');
+  await page.eval(`document.querySelector('#lyWords').value = 'put a pillar in the upper room'`);
+  await click(page, '#lyChange');
+  await page.waitFor(`document.querySelector('#lyGrid').value.includes('#...O....#')`);
+  assert.match(JSON.stringify(fake.requests[0].messages), /put a pillar in the upper room/);
+  assert.equal(await page.eval(`document.querySelector('#lyWords').value`), '', 'the box is cleared');
+  assert.equal(await page.eval(`document.querySelector('#lyUndo').disabled`), false);
+  await click(page, '#lyUndo');
+  await page.waitFor(`!document.querySelector('#lyGrid').value.includes('#...O....#') && document.querySelector('#lyUndo').disabled`);
+  assert.equal(await page.eval(`document.querySelector('#lyOk').textContent`), 'Playable');
+
   // a hand edit that cuts the lower room off is refused, and mending it brings the Next button back
   await page.eval(`(() => { document.querySelector('#lyGrid').value = ${JSON.stringify(['##########', '#P.......#', '#........#', '##########', '#........#', '#..L...E.#', '#..O.....#', '##########'].join('\n'))}; })()`);
   await click(page, '#lyCheck');

@@ -10,7 +10,7 @@
     regional: ['Regional map', 'A whole region from above with hexagons of 5 miles. Painted from your description.']
   };
   var STEP_NAMES = { type: 'Type', describe: 'Describe', layout: 'Layout', paint: 'Paint', save: 'Save' };
-  var s = { kind: '', size: 'small', orientation: 'landscape', description: '', name: '', setting: 'indoor', grid: [], layoutOk: false, options: null, paintOptions: null, draft: null, step: 'type', busy: false };
+  var s = { history: [], kind: '', size: 'small', orientation: 'landscape', description: '', name: '', setting: 'indoor', grid: [], layoutOk: false, options: null, paintOptions: null, draft: null, step: 'type', busy: false };
 
   function steps() { return s.kind === 'battle' ? ['type', 'describe', 'layout', 'paint', 'save'] : ['type', 'describe', 'paint', 'save']; }
   function money(v) { return '$' + (v < 0.01 ? v.toFixed(3) : v.toFixed(2)); }
@@ -103,6 +103,7 @@
 
   // ---- step 3: the layout (battle maps)
   function designLayout() {
+    s.history = [];
     busy(true, 'The AI is drawing the layout (this takes about 20 to 60 seconds)...');
     api('/api/map-maker/layout', { description: s.description, size: s.size, orientation: s.orientation }).then(function (o) {
       busy(false); s.name = s.name || o.name || ''; s.setting = o.setting || 'indoor'; $('#lySetting').value = s.setting;
@@ -111,7 +112,7 @@
     }).catch(function (e) { busy(false); showError(e); });
   }
   function showLayout(o) {
-    s.grid = o.grid || []; s.layoutOk = !!o.ok;
+    s.grid = o.grid || []; $('#lyUndo').disabled = !s.history.length; s.layoutOk = !!o.ok;
     $('#lySvg').innerHTML = o.svg || '';
     $('#lyGrid').value = s.grid.join('\n');
     var st = o.stats;
@@ -126,9 +127,26 @@
   function buildLayout() {
     $('#lyCheck').addEventListener('click', function () {
       busy(true, 'Checking...');
-      api('/api/map-maker/layout/check', { grid: $('#lyGrid').value.split('\n').map(function (r) { return r.replace(/\s+$/, ''); }).filter(function (r) { return r.length; }) }).then(function (o) { busy(false); showLayout(o); say('Checked.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
+      var before = s.grid.slice(); api('/api/map-maker/layout/check', { grid: $('#lyGrid').value.split('\n').map(function (r) { return r.replace(/\s+$/, ''); }).filter(function (r) { return r.length; }) }).then(function (o) { if (o.grid.join('\n') !== before.join('\n')) { s.history.push(before); s.draft = null; } busy(false); showLayout(o); say('Checked.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
     });
     $('#lyRedo').addEventListener('click', designLayout);
+    $('#lyChange').addEventListener('click', function () {
+      var words = $('#lyWords').value.trim();
+      if (!words) { say('Say what to change first.', 'bad'); $('#lyWords').focus(); return; }
+      var before = s.grid.slice();
+      busy(true, 'The AI is changing the layout (about 20 to 60 seconds)...');
+      api('/api/map-maker/layout/revise', { grid: before, instruction: words, description: s.description }).then(function (o) {
+        s.history.push(before); busy(false); showLayout(o); $('#lyWords').value = '';
+        $('#lyCost').textContent = 'Changed by ' + o.model + ' for about ' + money(o.cost || 0) + '. ' + (o.summary || '');
+        s.draft = null;
+      }).catch(function (e) { busy(false); showError(e); });
+    });
+    $('#lyUndo').addEventListener('click', function () {
+      if (!s.history.length) return;
+      var prev = s.history.pop();
+      busy(true, 'Going back...');
+      api('/api/map-maker/layout/check', { grid: prev }).then(function (o) { busy(false); showLayout(o); s.draft = null; say('Went back one change.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
+    });
     $('#lySetting').addEventListener('change', function (e) { s.setting = e.target.value; });
     $('#layoutBack').addEventListener('click', back);
     $('#layoutNext').addEventListener('click', next);
