@@ -64,6 +64,12 @@
   .stack img { width:100%; display:block; }
   .stack .over { position:absolute; inset:0; pointer-events:none; }
   details.card summary { cursor:pointer; font-weight:600; }
+  .busy { display:flex; align-items:center; gap:12px; padding:12px 16px; margin:0 0 14px; border:1px solid var(--accent); border-radius:10px; background:rgba(79,157,255,.1); font-weight:600; }
+  .busy[hidden] { display:none; }
+  .busy .elapsed { margin-left:auto; color:var(--muted); font-weight:400; font-variant-numeric:tabular-nums; }
+  .spinner { flex:none; width:22px; height:22px; border-radius:50%; border:3px solid rgba(79,157,255,.25); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce) { .spinner { animation-duration:2.4s; } }
   @media (max-width:760px) { .map { grid-template-columns:1fr; } }
 </style>
 </head>
@@ -77,6 +83,7 @@
 
   <section id="make">
     <ol class="steps" id="wzSteps"></ol>
+    <div class="busy" id="wzBusy" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="wzBusyText"></span><span class="elapsed" id="wzBusyTime"></span></div>
 
     <div class="wz" data-step="type">
       <div class="kinds" id="kindCards"></div>

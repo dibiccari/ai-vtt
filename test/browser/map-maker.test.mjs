@@ -52,10 +52,13 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   assert.equal(await page.eval(`document.querySelector('#descNext').disabled`), false);
   assert.equal(await page.eval(`document.querySelector('#descNext').textContent`), 'Design the layout');
   await page.eval(`(() => { const t = document.querySelector('#wzText'); t.value = 'a small keep with a guard room and a storeroom'; t.dispatchEvent(new Event('input')); })()`);
-  fake.requests.length = 0; fake.__set({ name: 'Test hall', summary: 'Two rooms and a door.', setting: 'indoor', rows: GOOD });
-  await click(page, '#descNext');
+  fake.requests.length = 0; fake.__set({ name: 'Test hall', summary: 'Two rooms and a door.', setting: 'indoor', rows: GOOD, __chunkMs: 0 });
+  // while the AI works there is a spinner with the words and a running clock (looked at in the same breath as the click, before any answer can arrive); it goes away when the answer is in
+  const waiting = await page.eval(`(() => { document.querySelector('#descNext').click(); const bar = document.querySelector('#wzBusy'); return { shown: !bar.hidden, spins: getComputedStyle(bar.querySelector('.spinner')).animationName, words: document.querySelector('#wzBusyText').textContent, clock: document.querySelector('#wzBusyTime').textContent }; })()`);
+  assert.equal(waiting.shown, true); assert.equal(waiting.spins, 'spin'); assert.match(waiting.words, /layout/); assert.match(waiting.clock, /^\d+ s$/);
   await page.waitFor(`document.querySelector('[data-step="layout"]') && !document.querySelector('[data-step="layout"]').hidden && document.querySelector('#lySvg svg')`);
   assert.match(JSON.stringify(fake.requests[0].system), /exactly 36 characters wide and 24 rows tall/, 'the chosen size reached the designer');
+  assert.equal(await page.eval(`document.querySelector('#wzBusy').hidden`), true, 'the spinner is gone once the layout is shown');
   assert.equal(await page.eval(`document.querySelector('#lyOk').textContent`), 'Playable');
   assert.equal(await page.eval(`document.querySelector('#layoutNext').disabled`), false);
   assert.match(await page.eval(`document.querySelector('#lyCost').textContent`), /about \$/);

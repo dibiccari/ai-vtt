@@ -29,10 +29,20 @@
       });
     });
   }
+  var clock = null;
+  function showBusy(on, text) {
+    var bar = $('#wzBusy'); bar.hidden = !on;
+    if (clock) { clearInterval(clock); clock = null; }
+    if (!on) return;
+    $('#wzBusyText').textContent = text || 'Working...';
+    var t0 = Date.now(), tick = function () { $('#wzBusyTime').textContent = Math.round((Date.now() - t0) / 1000) + ' s'; };
+    tick(); clock = setInterval(tick, 1000);
+    bar.scrollIntoView({ block: 'nearest' });
+  }
   function busy(on, text) {
-    s.busy = on;
+    s.busy = on; showBusy(on, text);
     document.querySelectorAll('#make button').forEach(function (b) { if (on) { b.dataset.was = b.disabled ? '1' : ''; b.disabled = true; } else b.disabled = b.dataset.was === '1'; });
-    if (on) say(text); else render();
+    if (on) say(''); else render();
   }
 
   // ---- the steps bar and which step shows
