@@ -16,7 +16,7 @@ export const skipReason = () => (!findChrome() ? 'Chrome is not installed (set C
 
 export async function launchChrome() {
   const profile = await mkdtemp(path.join(tmpdir(), 'vtt-chrome-'));
-  const child = spawn(findChrome(), ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--mute-audio', '--window-size=1400,900', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=CalculateNativeWinOcclusion', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn(findChrome(), ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--mute-audio', '--window-size=1400,900', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling', '--disable-ipc-flooding-protection', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
   let err = '';
   const port = await new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('Chrome did not report a debugging port in 20 s\n' + err)), 20000);
@@ -44,10 +44,19 @@ export async function launchChrome() {
     }
   };
   // Where a page that stopped answering is stuck: pause its JavaScript through the debugger and read the stack (a busy loop shows its own lines), or say that it cannot be paused.
+  let diagnosing = false;       // the probes below are calls too: they must not start a diagnosis of their own
   const diagnose = async () => {
+    if (diagnosing) return '';
+    diagnosing = true;
+    try { return await diagnoseNow(); } finally { diagnosing = false; }
+  };
+  const diagnoseNow = async () => {
     const quick = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r('timeout'), 5000))]);
     const answers = await quick(send('Runtime.evaluate', { expression: '1' }).then(() => 'yes', () => 'no'));
-    if (answers === 'yes') return 'the page still answers a simple query, so the script that was sent is waiting inside it';
+    if (answers === 'yes') {
+      const probe = await quick(send('Runtime.evaluate', { expression: 'new Promise((r) => { const t0 = performance.now(); setTimeout(() => r(Math.round(performance.now() - t0) + " ms for a 100 ms timer; " + document.visibilityState + ", focus " + document.hasFocus()), 100); })', awaitPromise: true, returnByValue: true }).then((m) => m.result?.value, () => "no answer"));
+      return 'the page still answers a simple query, so the script that was sent is waiting inside it; timer probe: ' + (probe === 'timeout' ? 'the timer never fired' : probe);
+    }
     const frames = new Promise((r) => pausedWaiters.push(r));
     ws.send(JSON.stringify({ id: ++id, method: 'Debugger.pause' }));
     const stack = await quick(frames);
@@ -61,7 +70,7 @@ export async function launchChrome() {
     pending.set(n, { resolve: (v) => { clearTimeout(timer); resolve(v); }, reject: (e) => { clearTimeout(timer); reject(e); } });
     ws.send(JSON.stringify({ id: n, method, params }));
   });
-  await send('Runtime.enable'); await send('Page.enable'); await send('Debugger.enable');       // on from the start: a page that is stuck in a loop can only be paused if the debugger was already on
+  await send('Runtime.enable'); await send('Page.enable'); await send('Debugger.enable'); await send('Page.bringToFront'); await send('Emulation.setFocusEmulationEnabled', { enabled: true });       // a page that thinks it is in the background has its timers slowed       // on from the start: a page that is stuck in a loop can only be paused if the debugger was already on
   // The drifting fog redraws the whole map many times a second, which starves a software-rendered headless page; tests look at the fog's shape, not its motion.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: "try { localStorage.setItem('vtt.fogMotion', 'off'); } catch (e) {}" });
   const api = {

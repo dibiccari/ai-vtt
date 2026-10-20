@@ -85,7 +85,7 @@ function setBusy(busy) {
   if (busy) scrollChat();
 }
 
-// What the DM is shown of the story so far: the players' messages and its own replies, and, after each reply, what the table applied for it (coins and items moved, experience, places found).
+// What the DM is shown of the story so far: the players' messages and its own replies, and, after each reply, what the table applied for it (coins and items moved, experience, places found, hit points lost or regained).
 // Without that it cannot tell that a payment it narrated was already paid, and sends it again whenever the scene still mentions it (seen in a playtest: the 10 gp for the wagon was paid three times).
 // An ID for one message to the DM: the server answers the same ID only once (a double press or a retried connection must not pay twice).
 function newRequestId() {
@@ -97,7 +97,7 @@ function dmHistory() {
   const out = [];
   for (const m of state.chat) {
     if (m.role === 'user' || m.role === 'assistant') out.push({ role: m.role, content: m.content });
-    else if (m.role === 'system' && /^(🎒|⭐|📍)/.test(m.content) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table applied: ${m.content.replace(/^\S+\s*/, '')}]`;
+    else if (m.role === 'system' && (/^(🎒|⭐|📍)/.test(m.content) || /^↳ .+( takes \d+| recovers \d+| HP \d+ → | is defeated| falls unconscious)/.test(m.content)) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table applied: ${m.content.replace(/^\S+\s*/, '')}]`;
     else if (m.role === 'system' && /^⚠ Skipped/.test(m.content) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table skipped: ${m.content.replace(/^⚠ Skipped\s*/, '')}]`;
   }
   return out.slice(-20);

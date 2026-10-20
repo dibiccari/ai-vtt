@@ -78,6 +78,9 @@ test('the history the DM is shown carries what the table applied after each of i
       { role: 'assistant', content: 'Elmar counts out the gold.' },
       { role: 'system', content: '🎒 Edric: +10 gp; Astarion: +10 gp' },
       { role: 'system', content: '🎲 not a change the table applied' },
+      { role: 'system', content: '↳ Goblin 3 takes 6' },
+      { role: 'system', content: '↳ Astarion moved to (12, 14)' },
+      { role: 'system', content: '↳ Raechyl HP 3 → 8/11' },
       { role: 'user', content: '[Edric] What else?' },
       { role: 'assistant', content: 'He points to the Coster.' },
       { role: 'system', content: '📍 New place on the map: Lionshield Coster' }
@@ -87,6 +90,8 @@ test('the history the DM is shown carries what the table applied after each of i
   assert.deepEqual(r.map((m) => m.role), ['user', 'assistant', 'user', 'assistant']);
   assert.match(r[1].content, /Elmar counts out the gold\.\n\[Table applied: Edric: \+10 gp; Astarion: \+10 gp\]/);
   assert.doesNotMatch(r[1].content, /not a change/);
+  assert.match(r[1].content, /\[Table applied: Goblin 3 takes 6\]/); assert.match(r[1].content, /\[Table applied: Raechyl HP 3 → 8\/11\]/);
+  assert.doesNotMatch(r[1].content, /moved to/, 'movement is not a change the DM needs to be told');
   assert.match(r[3].content, /\[Table applied: New place on the map: Lionshield Coster\]/);
 });
 
