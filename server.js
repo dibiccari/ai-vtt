@@ -11,6 +11,8 @@ import './public/js/token-size.js';                       // sets globalThis.Tok
 import { buildQuickCharacter, quickChoices } from './lib/quick-character.js';
 import { createStore as createCreatureVoiceStore } from './lib/creature-voices.js';
 import { createUsageTracker } from './lib/usage.js';
+import { createRewardGuard } from './lib/reward-guard.js';
+import { createRequestLedger } from './lib/request-ledger.js';
 import { readSettings } from './lib/settings.js';
 import { seedFromSheet, normalizeInventory, normalizeCoins, computeEffective } from './lib/party.js';
 import { liveMiddleware } from './lib/live.js';
@@ -46,6 +48,8 @@ if (process.env.VTT_KEEP_CHARACTER_IDS !== '1') { try { const moved = migrateCha
 characterAliases = readAliases(path.join(__dirname, 'data'));
 const canonId = (id) => canonicalId(characterAliases, String(id ?? ''));
 const usageTracker = createUsageTracker(path.join(__dirname, 'data'));
+const rewardGuard = createRewardGuard();             // refuses an identical reward on the replies right after it was made
+const requestLedger = createRequestLedger();         // exactly once per message the table sends the DM
 const playLog = createPlayLog(path.join(__dirname, 'data'));
 const creatureVoices = createCreatureVoiceStore(path.join(__dirname, 'data'));
 const PORT = Number(process.env.PORT) || 3000;
@@ -241,6 +245,8 @@ const deps = Object.defineProperties({}, {
   TTS_PROFILES: { get: () => TTS_PROFILES },
   UPLOAD_DIR: { get: () => UPLOAD_DIR },
   usageTracker: { get: () => usageTracker },
+  rewardGuard: { get: () => rewardGuard },
+  requestLedger: { get: () => requestLedger },
   voiceProviderNow: { get: () => voiceProviderNow },
   VOICES: { get: () => VOICES },
   withSavedStarts: { get: () => withSavedStarts },

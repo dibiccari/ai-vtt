@@ -87,11 +87,18 @@ function setBusy(busy) {
 
 // What the DM is shown of the story so far: the players' messages and its own replies, and, after each reply, what the table applied for it (coins and items moved, experience, places found).
 // Without that it cannot tell that a payment it narrated was already paid, and sends it again whenever the scene still mentions it (seen in a playtest: the 10 gp for the wagon was paid three times).
+// An ID for one message to the DM: the server answers the same ID only once (a double press or a retried connection must not pay twice).
+function newRequestId() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch { /* an older browser */ }
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+}
+
 function dmHistory() {
   const out = [];
   for (const m of state.chat) {
     if (m.role === 'user' || m.role === 'assistant') out.push({ role: m.role, content: m.content });
     else if (m.role === 'system' && /^(🎒|⭐|📍)/.test(m.content) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table applied: ${m.content.replace(/^\S+\s*/, '')}]`;
+    else if (m.role === 'system' && /^⚠ Skipped/.test(m.content) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table skipped: ${m.content.replace(/^⚠ Skipped\s*/, '')}]`;
   }
   return out.slice(-20);
 }
@@ -118,6 +125,7 @@ async function sendTurn(spokenText, opts) {
   try {
     let streamedMsg = null, streamedEl = null, streamedLines = 0, streamedRolls = 0;       // what has already been printed and spoken while the reply was still being written
     const data = await chatStream({
+      requestId: newRequestId(),
       message: content,
       history,
       activeTokenId: active ? active.id : null,

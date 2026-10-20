@@ -68,6 +68,8 @@ The long notes live outside this file so it stays quick to read. Search them (gr
 - The gate before a commit: `npm run check`, `npm test` and `npm run test:browser` all pass (the browser suite takes about four minutes). Run `npm run dm-check -- --live` (it spends money) after changing the DM prompt, schema or board state.
 - Do not make paid API calls gratuitously. Do not claim audio was heard: only the user can judge voices and sounds.
 - Do not hand-edit data/mapsets files while the server runs: change them through the API.
+- Git: stage files by name, never `git add -A` or `.`, and read `git diff --cached --name-only` before every commit (the working tree often holds changes that are not part of the task, e.g. COLLABORATION.md or game data). This machine's git is 2.15: there is no `git restore`; unstage with `git reset -q HEAD -- <file>`.
+- Nothing the DM does may be applied twice: a change to coins, items or experience is protected by the request ID and the duplicate-reward guard (see docs/notes); do not bypass them, and prefer exact amounts (`setcoins`) to repeating a change.
 
 ## Voices
 

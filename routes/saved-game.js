@@ -62,6 +62,7 @@ export function registerSavedGame(app, deps) {
     await writeStash(dir, {});
     for (const f of Object.values(gamePaths(id))) { try { await unlink(f); } catch { /* nothing saved */ } }
     try { await unlink(path.join(dir, 'merchants.json')); } catch { /* no shopkeeper remembered */ }       // shopkeepers forget the party too
+    deps.rewardGuard.reset(id);                                                                          // and so does the memory of which rewards were just made
     res.json({ ok: true });
   }));
 
