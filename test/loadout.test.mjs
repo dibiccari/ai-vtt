@@ -73,6 +73,12 @@ test('the shop lists the SRD gear with prices and the magic items for free', () 
   assert.ok(shop.some((s) => s.group === 'Standard Gear')); assert.equal(shop.find((s) => s.name === 'Ring of Protection').group, 'Magic items');
 });
 
+test('the shop does not list the SRD items that have no price (the contents of equipment packs)', () => {
+  const shop = shopCatalog([]);
+  for (const name of ['Alms box', 'Block of incense', 'Censer', 'Little bag of sand', 'Small knife', 'String (10 feet)', 'Vestments']) assert.equal(shop.some((s) => s.name === name), false, name + ' is not for sale');
+  assert.ok(shop.every((s) => s.cp > 0), 'every piece of gear has a price');
+});
+
 import { before, after } from 'node:test';
 import { startServer } from './helpers/sandbox.mjs';
 import { ID } from './helpers/ids.mjs';

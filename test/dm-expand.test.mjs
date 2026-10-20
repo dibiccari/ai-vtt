@@ -78,6 +78,11 @@ test('expandTokenUpdates: add without a monster uses the DM numbers; adventure c
 
 const G = (action, extra = {}) => ({ type: 'gear', action, target: ID.edric, to: '', name: 'Rope', qty: 1, weight: 0, requiresAttunement: false, effectKind: 'none', effectValue: 0, effectAbility: '', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0, ...extra });
 
+test('gearToPartyUpdates: setcoins becomes setCoins with all five amounts', () => {
+  const [u] = gearToPartyUpdates([G('setcoins', { gp: 12, sp: 0 })]);
+  assert.deepEqual(u, { type: 'setCoins', target: ID.edric, cp: 0, sp: 0, ep: 0, gp: 12, pp: 0 });
+});
+
 test('gearToPartyUpdates: every gear action maps to the party update', () => {
   const out = gearToPartyUpdates([
     null, { type: 'token' }, G('add', { qty: 2, effectKind: 'ac', effectValue: 1 }), G('add'), G('remove', { qty: 1 }), G('move', { to: 'stash' }), G('attune'), G('unattune'), G('coins', { gp: -5, sp: 2 }), G('juggle')

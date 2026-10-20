@@ -136,6 +136,20 @@ test('gear updates: add, stack, remove, move to the stash, coins, attunement rul
   });
 });
 
+test('setCoins sets the exact purse, ignores a repeat, and refuses a negative or unknown target', async () => {
+  const list = [{ id: 'hero', name: 'Hero', sheet: {}, coins: { cp: 1, sp: 2, ep: 0, gp: 5, pp: 0 } }];
+  const store = { async list() { return list; }, async save(c) { const i = list.findIndex((x) => x.id === c.id); list[i] = c; return c; }, async stash() { return { items: [], coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 } }; }, async saveStash(s) { return s; } };
+  let r = await processPartyUpdates([{ type: 'setCoins', target: 'hero', cp: 0, sp: 0, ep: 0, gp: 12, pp: 1 }], store);
+  assert.deepEqual(list[0].coins, { cp: 0, sp: 0, ep: 0, gp: 12, pp: 1 });
+  assert.equal(r.notes.length, 1); assert.match(r.notes[0], /coins set/); assert.match(r.notes[0], /gp 5 to 12/);
+  r = await processPartyUpdates([{ type: 'setCoins', target: 'hero', cp: 0, sp: 0, ep: 0, gp: 12, pp: 1 }], store);
+  assert.deepEqual(r.notes, [], 'the same purse again is no change'); assert.deepEqual(r.changed, []);
+  r = await processPartyUpdates([{ type: 'setCoins', target: 'hero', gp: -1 }, { type: 'setCoins', target: 'hero', gp: 'a lot' }, { type: 'setCoins', target: 'nobody', gp: 1 }], store);
+  assert.equal(r.problems.length, 3); assert.equal(list[0].coins.gp, 12, 'nothing was changed');
+  r = await processPartyUpdates([{ type: 'setCoins', target: 'hero', gp: 3 }], store);
+  assert.deepEqual(list[0].coins, { cp: 0, sp: 0, ep: 0, gp: 3, pp: 0 }, 'a coin that is left out is none');
+});
+
 test('gear updates: attune needs an item that requires it and respects the limit of three', async () => {
   const items = [1, 2, 3, 4].map((n) => normalizeItem({ name: `Charm ${n}`, requiresAttunement: true })).concat([normalizeItem({ name: 'Plain' })]);
   await withStore([hero({ inventory: items })], async (store, list) => {

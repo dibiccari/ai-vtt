@@ -85,6 +85,17 @@ function setBusy(busy) {
   if (busy) scrollChat();
 }
 
+// What the DM is shown of the story so far: the players' messages and its own replies, and, after each reply, what the table applied for it (coins and items moved, experience, places found).
+// Without that it cannot tell that a payment it narrated was already paid, and sends it again whenever the scene still mentions it (seen in a playtest: the 10 gp for the wagon was paid three times).
+function dmHistory() {
+  const out = [];
+  for (const m of state.chat) {
+    if (m.role === 'user' || m.role === 'assistant') out.push({ role: m.role, content: m.content });
+    else if (m.role === 'system' && /^(🎒|⭐|📍)/.test(m.content) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table applied: ${m.content.replace(/^\S+\s*/, '')}]`;
+  }
+  return out.slice(-20);
+}
+
 async function sendTurn(spokenText, opts) {
   if (state.busy) return;
   if (state.campaignId === 'default') { toast('No campaign is selected. Open the Campaigns page and press Continue on one.'); return; }
@@ -98,10 +109,7 @@ async function sendTurn(spokenText, opts) {
   const active = activeToken();
   const speaker = opts && opts.as ? opts.as : active;
   const content = speaker ? `[${speaker.name}] ${text}` : text;
-  const history = state.chat
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .slice(-20)
-    .map(({ role, content: c }) => ({ role, content: c }));
+  const history = dmHistory();
 
   if (!auto) { addChat('user', content); input.value = ''; }
   const combatWasOn = state.combat.active;

@@ -70,4 +70,24 @@ test('the rolls and the first line show and are spoken while the rest is still b
   assert.ok(r.spoken[0].at < r.allLinesAt - 300, `the first line was spoken at ${r.spoken[0].at} ms, before the reply was finished (${r.allLinesAt} ms)`);
 });
 
+test('the history the DM is shown carries what the table applied after each of its replies, so a payment is not made twice', opts, async () => {
+  const r = await page.eval(`(() => {
+    const s = vtt.state, keep = s.chat;
+    s.chat = [
+      { role: 'user', content: '[Edric] I deliver the wagon.' },
+      { role: 'assistant', content: 'Elmar counts out the gold.' },
+      { role: 'system', content: '🎒 Edric: +10 gp; Astarion: +10 gp' },
+      { role: 'system', content: '🎲 not a change the table applied' },
+      { role: 'user', content: '[Edric] What else?' },
+      { role: 'assistant', content: 'He points to the Coster.' },
+      { role: 'system', content: '📍 New place on the map: Lionshield Coster' }
+    ];
+    const h = dmHistory(); s.chat = keep; return h;
+  })()`);
+  assert.deepEqual(r.map((m) => m.role), ['user', 'assistant', 'user', 'assistant']);
+  assert.match(r[1].content, /Elmar counts out the gold\.\n\[Table applied: Edric: \+10 gp; Astarion: \+10 gp\]/);
+  assert.doesNotMatch(r[1].content, /not a change/);
+  assert.match(r[3].content, /\[Table applied: New place on the map: Lionshield Coster\]/);
+});
+
 test('no page errors', opts, () => { assert.deepEqual(page.problems, []); });

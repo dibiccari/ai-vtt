@@ -41,6 +41,21 @@ test('coins: adding and spending, and the sheet boxes follow', async () => {
   assert.ok(j.partyNotes.some((n) => /gp/.test(n)));
 });
 
+test('setcoins: the exact purse, safe to repeat, never negative, and the sheet boxes follow', async () => {
+  await say(gear({ action: 'setcoins', gp: 40, sp: 3, cp: 0, ep: 0, pp: 0 }));
+  let c = await character(ID.edric);
+  assert.deepEqual(c.coins, { cp: 0, sp: 3, ep: 0, gp: 40, pp: 0 });
+  assert.equal(String(c.sheet.GP), '40');
+  const again = await say(gear({ action: 'setcoins', gp: 40, sp: 3, cp: 0, ep: 0, pp: 0 }));          // the same reply again changes nothing
+  c = await character(ID.edric);
+  assert.deepEqual(c.coins, { cp: 0, sp: 3, ep: 0, gp: 40, pp: 0 }); assert.deepEqual(again.partyNotes, [], 'no change, so nothing to tell the table');
+  const bad = await say(gear({ action: 'setcoins', gp: -5, sp: 3 }));
+  assert.equal((await character(ID.edric)).coins.gp, 40, 'a negative amount changes nothing');
+  assert.ok(bad.characterProblems.some((p) => /negative/.test(p)));
+  await say(gear({ action: 'coins', gp: 10 }), gear({ action: 'coins', gp: 10 }));                    // a change repeated is applied twice, which is why setcoins exists
+  assert.equal((await character(ID.edric)).coins.gp, 60);
+});
+
 test('remove: some of a stack, then the rest; removing something that is not there is a problem, not a crash', async () => {
   await say(gear({ action: 'remove', name: 'Potion of healing', qty: 1 }));
   assert.equal(item(await character(ID.edric), 'Potion of healing').qty, 2);

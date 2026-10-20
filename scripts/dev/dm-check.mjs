@@ -1,6 +1,6 @@
 // Scripted DM check: a short, fixed conversation with the REAL Dungeon Master (paid API calls), with invariants asserted on every reply.
 //   npm run dm-check -- --dry-run       print the plan, spend nothing
-//   npm run dm-check -- --live          run it (default at most 60 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
+//   npm run dm-check -- --live          run it (default at most 90 API calls: one per step, one more for each service round and one bookkeeper call after each reply; --max-calls N, --timeout SECONDS per call, default 180)
 // It starts a throwaway server on a COPY of the data (the real data/ is never touched) with a fresh campaign copied from the tavern test,
 // puts a local proxy between the server and api.anthropic.com to see the requests (dice tray) and the real token usage, and prints
 // pass/fail lines only: no story text. The key comes from ANTHROPIC_API_KEY or the repo's .env (never printed, never copied into the sandbox).
@@ -16,7 +16,7 @@ import { ID } from '../../test/helpers/ids.mjs';
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const MAX_CALLS = Number(opt("--max-calls", 60));
+const MAX_CALLS = Number(opt("--max-calls", 90));
 const ONLY_STEPS = opt('--only', '').split(',').filter(Boolean);                  // run just these steps (the table starts the pretend fight itself when it is needed)
 const DEBUG_STEPS = opt('--debug-steps', '').split(',').filter(Boolean);        // print the updates and the start of the narrative of these steps (the tavern scenario has no secrets)
 const TIMEOUT_MS = Number(opt('--timeout', 180)) * 1000;
@@ -41,6 +41,13 @@ const STEPS = [
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
   { id: 'senses', say: '[Vex] I slip along the wall towards the back door, trying not to be seen by the guard at the bar, and I listen carefully at the door. Roll my Stealth and tell me what I hear.', expect: 'Stealth roll from the tray against the guard\'s passive Perception, a hint of noise from the noisy hidden group, nothing from the silent one' },
   { id: 'gear', say: '[Thorin] I buy a hempen rope (50 ft) and two torches from Orla, the barkeep, and pay with coins from my purse. Please update my gear and coins.', expect: 'gear updates: a rope and torches added to Thorin and coins spent, applied by the server' },
+  { id: 'setcoins', say: '[Table] The scene calls for it: a pickpocket in the crowd lifts Thorin\'s purse and leaves him only the 2 silver pieces he keeps in his boot. Set his purse to exactly 2 sp and nothing else, and describe it.', expect: 'Thorin\'s coins end at exactly 2 sp and nothing else' },
+  { id: 'payonce', say: '[Table] The scene calls for it: Orla, grateful that the brawl is over, pays Thorin ten gold pieces. Apply it to his purse and describe it.', expect: 'Thorin gains exactly 10 gp, once' },
+  { id: 'payonce2', say: '[Thorin] I put the coins away and ask Orla whether she has heard any rumours about the road.', expect: 'no coin or item change at all: the payment is already made' },
+  { id: 'rewarditem', say: '[Table] The scene calls for it: Orla gives Thorin a Potion of healing as thanks. Put it in his pack and describe it.', expect: 'one Potion of healing added to Thorin\'s pack, once' },
+  { id: 'rewarditem2', say: '[Thorin] I tuck the potion away and ask Orla for a bite to eat.', expect: 'no item or coin change: the gift is already made' },
+  { id: 'rewardxp', say: '[Table] The party has finished the quest the barkeep set them. Award the party 200 experience points, shared equally.', expect: 'the party gains 200 xp in all, once' },
+  { id: 'rewardxp2', say: '[Thorin] We thank Orla, finish our meal and talk over what to do tomorrow.', expect: 'no experience awarded again' },
   { id: 'deathsave', say: '[Lyra] It is my turn and I am at 0 hit points, unconscious and dying. Make my death saving throw.', expect: 'a d20 death save rolled from the tray, no attack or damage on anyone' },
   { id: 'group', say: '[Table] The scene calls for it: three goblin raiders and an ogre bruiser kick in the front door (the place front-door) and rush into the taproom. Place them on the board and start combat.', expect: 'four creatures added with their own squares near the front-door pin, the ogre Large' },
   { id: 'fly', say: '[Thorin] I drink the Potion of flying from my pack and rise twenty feet above the floor. Please update the board.', expect: 'Thorin raised to 20 feet (elevate) and a flying effect, no spell slot spent' },
@@ -223,6 +230,7 @@ try {
         T.walls = [{ x1: (v.col + 1) * g, y1: (v.row - 3) * g, x2: (v.col + 2) * g, y2: (v.row - 3) * g, type: 'door', open: false, locked: true, dc: 12 },
                    { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
       },
+      rewarditem: async () => { combat = { active: false }; setActive('pc-thorin'); const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === ID.thorin); T.potions0 = (th.inventory || []).filter((i) => /potion of healing/i.test(i.name)).reduce((n, i) => n + (i.qty || 0), 0); },
       discovergo: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/vtt-phandalin.png', name: 'Phandalin (town map)', places: [{ name: 'to-triboar-trail', note: 'The road out of town', col: 2, row: 30, known: true }, { name: 'town-green', note: 'The green in the middle of town', col: 20, row: 25 }, { name: 'smithy', note: 'The village smithy', col: 14, row: 20 }, { name: 'stonehill-inn', note: 'A two-storey inn', col: 24, row: 22 }, { name: 'barthens-provisions', note: 'A trading post', col: 28, row: 30 }, { name: 'shrine-of-luck', note: 'A small shrine', col: 18, row: 34 }] }; },
       discovertold: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/vtt-phandalin.png', name: 'Phandalin (town map)', places: [{ name: 'to-triboar-trail', note: 'The road out of town', col: 2, row: 30, known: true }, { name: 'town-green', note: 'The green in the middle of town', col: 20, row: 25 }, { name: 'smithy', note: 'The village smithy', col: 14, row: 20 }, { name: 'stonehill-inn', note: 'A two-storey inn', col: 24, row: 22 }, { name: 'barthens-provisions', note: 'A trading post', col: 28, row: 30 }, { name: 'shrine-of-luck', note: 'A small shrine', col: 18, row: 34 }] }; },
       discover: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/dnd-sword-coast-ours.png', name: 'The Sword Coast (regional map)', places: [{ name: 'neverwinter', note: 'The great city on the coast', col: 10, row: 30, known: true }, { name: 'phandalin', note: 'A frontier town', col: 30, row: 55, known: true }, { name: 'thundertree', note: 'A ruined town in the forest', col: 20, row: 33 }, { name: 'conyberry', note: 'A ruined hamlet', col: 44, row: 37 }, { name: 'icespire-peak', note: 'A mountain', col: 36, row: 50 }] }; },
@@ -473,6 +481,27 @@ try {
       check(((th.inventory || []).find((i) => /torch/i.test(i.name)) || { qty: 0 }).qty >= 2, 'gear: two torches');
       check((j.partyChanged || []).includes(ID.thorin), 'gear: the table was told the party changed');
     }
+    if (['setcoins', 'payonce', 'payonce2'].includes(step.id)) {
+      const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === ID.thorin);
+      if (step.id === 'setcoins') {
+        check(th.coins.sp === 2 && th.coins.cp === 0 && th.coins.gp === 0 && th.coins.ep === 0 && th.coins.pp === 0, 'setcoins: Thorin\'s purse is exactly 2 sp', JSON.stringify(th.coins));
+        T.purseAfterSet = th.coins.gp;
+      }
+      if (step.id === 'payonce') {
+        check(th.coins.gp === (T.purseAfterSet ?? th.coins.gp) + 10, 'payonce: Thorin gained exactly 10 gp', JSON.stringify(th.coins) + ' (before ' + T.purseAfterSet + ')');
+        T.purseAfterPay = th.coins.gp;
+      }
+      if (step.id === 'payonce2') check(th.coins.gp === T.purseAfterPay, 'payonce2: nothing was paid again', JSON.stringify(th.coins) + ' (before ' + T.purseAfterPay + ')');
+    }
+    if (['rewarditem', 'rewarditem2', 'rewardxp', 'rewardxp2'].includes(step.id)) {
+      const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === ID.thorin);
+      const potions = (th.inventory || []).filter((i) => /potion of healing/i.test(i.name)).reduce((n, i) => n + (i.qty || 0), 0);
+      const xpTotal = (await srv.get('/api/party')).json.characters.reduce((n, c) => n + (c.rules?.xp || 0), 0);
+      if (step.id === 'rewarditem') { check(potions === (T.potions0 ?? 0) + 1, 'rewarditem: Thorin has exactly one more Potion of healing', 'now ' + potions + ', before ' + T.potions0); T.potionsAfterGift = potions; }
+      if (step.id === 'rewarditem2') { check(potions === T.potionsAfterGift, 'rewarditem2: no second potion', 'now ' + potions + ', before ' + T.potionsAfterGift); T.xpBefore = xpTotal; }
+      if (step.id === 'rewardxp') { check(xpTotal === (T.xpBefore ?? 0) + 200, 'rewardxp: the party gained exactly 200 xp', 'now ' + xpTotal + ', before ' + T.xpBefore); T.xpAfter = xpTotal; }
+      if (step.id === 'rewardxp2') check(xpTotal === T.xpAfter, 'rewardxp2: no experience awarded again', 'now ' + xpTotal + ', before ' + T.xpAfter);
+    }
     if (step.id === 'travel') {
       const asked = (raw?.mapUpdates || []).find((u) => u.type === 'changeMap');
       check(!!asked && /cellar/i.test(asked.mapId), 'travel: the DM moved the table to the cellars map', asked ? 'mapId ' + asked.mapId : 'no changeMap');
@@ -501,7 +530,7 @@ try {
       else if (u.type === 'startCombat') startPretendCombat();
       else if (u.type === 'endCombat') combat = { active: false };
     }
-    history.push({ role: 'user', content: said }, { role: 'assistant', content: j.narrative });
+    history.push({ role: 'user', content: said }, { role: 'assistant', content: j.narrative + ((j.partyNotes || []).length ? `\n[Table applied: ${j.partyNotes.join('; ')}]` : '') });       // the browser shows the DM what the table applied after each reply (dmHistory)
   }
 
   // ---- usage and cost ----
