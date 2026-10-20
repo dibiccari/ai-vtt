@@ -39,6 +39,31 @@
   .req .body { flex:1; }
   .status { min-height:20px; font-size:13px; color:var(--muted); }
   .status.ok { color:var(--ok); } .status.bad { color:var(--danger); }
+  .tabs { display:flex; gap:6px; margin:10px 0 16px; border-bottom:1px solid var(--border); }
+  .tab { border-radius:6px 6px 0 0; border-bottom:0; background:transparent; color:var(--muted); }
+  .tab.on { background:var(--panel); color:var(--text); border-color:var(--border); }
+  .steps { list-style:none; display:flex; gap:8px; flex-wrap:wrap; padding:0; margin:0 0 14px; }
+  .steps li { padding:4px 12px; border-radius:99px; border:1px solid var(--border); color:var(--muted); font-size:12px; font-weight:600; }
+  .steps li.on { background:var(--accent); border-color:var(--accent); color:#04101f; }
+  .steps li.done { color:var(--ok); border-color:rgba(63,210,127,.4); }
+  .kinds { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:14px; }
+  .kind { text-align:left; display:flex; flex-direction:column; gap:6px; padding:14px; border-radius:12px; background:var(--panel2); }
+  .kind b { font-size:16px; } .kind span { color:var(--muted); font-weight:400; font-size:13px; }
+  .kind.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .nav { display:flex; gap:10px; justify-content:space-between; margin-top:14px; }
+  .nav .spacer { flex:1; }
+  #wzText { min-height:130px; }
+  button.live { background:var(--danger); color:#1a0505; border-color:var(--danger); }
+  .svgbox { background:#000; border:1px solid var(--border); border-radius:8px; overflow:auto; max-height:70vh; }
+  .svgbox svg { display:block; max-width:100%; height:auto; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:700; border:1px solid; }
+  .pill.good { color:var(--ok); border-color:rgba(63,210,127,.5); } .pill.bad { color:var(--danger); border-color:rgba(255,107,107,.5); }
+  ul.problems { margin:8px 0; padding-left:20px; font-size:13px; } ul.problems .bad { color:var(--danger); } ul.problems .warn { color:var(--gold); } ul.problems .good { color:var(--ok); }
+  textarea.mono { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:1.15; white-space:pre; overflow:auto; }
+  .stack { position:relative; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#000; }
+  .stack img { width:100%; display:block; }
+  .stack .over { position:absolute; inset:0; pointer-events:none; }
+  details.card summary { cursor:pointer; font-weight:600; }
   @media (max-width:760px) { .map { grid-template-columns:1fr; } }
 </style>
 </head>
@@ -47,6 +72,81 @@
 <div class="content">
 <div class="page">
   <h1>Map <span>Maker</span></h1>
+  <p class="lead">Make a new map in a few steps: pick the type, describe it (type, speak, or let the AI surprise you), check the layout, have it painted, and save it. It opens in <a href="/map-test.html">Map Test</a> ready to edit.</p>
+  <div class="tabs"><button class="tab on" id="tabMake" type="button">Make a map</button><button class="tab" id="tabNotes" type="button">Requests and notes</button></div>
+
+  <section id="make">
+    <ol class="steps" id="wzSteps"></ol>
+
+    <div class="wz" data-step="type">
+      <div class="kinds" id="kindCards"></div>
+      <div class="card" id="szBox" hidden>
+        <div class="row">
+          <label class="field"><span>Size</span><select id="szSize"></select></label>
+          <label class="field"><span>Shape</span><select id="szOrient"><option value="landscape">Wide (landscape)</option><option value="portrait">Tall (portrait)</option></select></label>
+        </div>
+        <div class="note">One square is 5 feet. Bigger maps cost more to design and are painted with smaller squares, so very large ones look softer.</div>
+      </div>
+      <div class="nav"><span class="spacer"></span><button class="primary" id="typeNext" type="button" disabled>Next: describe it</button></div>
+    </div>
+
+    <div class="wz" data-step="describe" hidden>
+      <div class="card">
+        <label class="field"><span>What should it show?</span><textarea id="wzText" maxlength="1500" placeholder="The place, the mood, what happens there. For example: the undercroft of a vampire's castle, a long hall with coffin alcoves, a sealed vault, torches, a flooded corner."></textarea></label>
+        <div class="row"><button type="button" id="wzMic">🎤 Speak</button><button type="button" id="wzSurprise">✨ Surprise me</button><span class="note" style="margin:0">Surprise me asks a small, cheap AI model for an idea (a fraction of a cent).</span></div>
+      </div>
+      <div class="nav"><button type="button" id="descBack">Back</button><span class="spacer"></span><button class="primary" id="descNext" type="button" disabled>Next</button></div>
+    </div>
+
+    <div class="wz" data-step="layout" hidden>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><span class="pill" id="lyOk"></span><span class="stats" id="lyStats" style="margin:0"></span></div>
+        <div class="note" id="lyCost" style="margin-top:8px"></div>
+        <div class="svgbox"><div id="lySvg"></div></div>
+        <ul class="problems" id="lyProblems"></ul>
+        <div class="row"><label class="field" style="margin:0"><span>The painter should make it look</span><select id="lySetting"><option value="indoor">Indoors: dungeon, building, cave (inked sepia)</option><option value="outdoor">Outdoors: forest, road, beach (painted)</option></select></label><button type="button" id="lyRedo">Design it again</button></div>
+      </div>
+      <details class="card"><summary>Edit the layout as text</summary>
+        <p class="note"># wall or rock · . floor · D door · ~ shallow water · , rubble · O pillar, boulder or tree · L torch or fire · P party start · E enemies. Walls, doors, lights and rough ground are worked out from this.</p>
+        <textarea class="mono" id="lyGrid" rows="14" spellcheck="false"></textarea>
+        <div class="row" style="margin-top:8px"><button type="button" id="lyCheck">Check my changes</button></div>
+      </details>
+      <div class="nav"><button type="button" id="layoutBack">Back</button><span class="spacer"></span><button class="primary" id="layoutNext" type="button" disabled>Next: paint it</button></div>
+    </div>
+
+    <div class="wz" data-step="paint" hidden>
+      <div class="card" id="paintNone" hidden>No picture service has a key yet. <a href="/settings.html">Open Settings</a>, add an OpenAI, Google Gemini or fal.ai key, then come back.</div>
+      <div class="card" id="paintForm" hidden>
+        <div class="row">
+          <label class="field"><span>Painter</span><select id="pvProvider"></select></label>
+          <label class="field"><span>Model</span><select id="pvModel"></select></label>
+          <label class="field"><span>Quality</span><select id="pvQuality"></select></label>
+        </div>
+        <div class="note" id="pvNote"></div>
+        <div class="note" id="pvCost"></div>
+        <button class="primary" type="button" id="pvPaint">Paint it</button>
+      </div>
+      <div class="card" id="paintResult" hidden>
+        <div class="stack"><img id="pvImg" alt="The painted map"><div class="over" id="pvSvg"></div></div>
+        <div class="row" id="pvOverlayRow" style="margin-top:8px"><label class="field" style="margin:0;flex:1"><span>Show the layout over the picture</span><input type="range" id="pvOverlay" min="0" max="90" value="0"></label></div>
+        <div class="note" id="pvFacts" style="margin-top:8px"></div>
+      </div>
+      <div class="nav"><button type="button" id="paintBack">Back</button><span class="spacer"></span><button class="primary" id="paintNext" type="button">Next: save</button></div>
+    </div>
+
+    <div class="wz" data-step="save" hidden>
+      <div class="card">
+        <label class="field"><span>Name of the map</span><input type="text" id="sName" maxlength="80"></label>
+        <p class="note" id="sSummary"></p>
+        <button class="primary" type="button" id="sSave">Save and open in Map Test</button>
+      </div>
+      <div class="nav"><button type="button" id="saveBack">Back</button><span class="spacer"></span></div>
+    </div>
+
+    <div class="status" id="wzStatus" role="status" aria-live="polite"></div>
+  </section>
+
+  <section id="notes" hidden>
   <p class="lead">Ask for a new map, or tell me what to change on one I made. Your requests and notes are saved here; in our coding session say "work through the map requests and feedback" and I read them, draw the new or improved maps, import them, and tick them off. Then look at the result in <a href="/map-test.html">Test</a> and add more feedback.</p>
 
   <h2>Request a new map</h2>
@@ -70,9 +170,11 @@
   <div id="maps"></div>
 
   <div class="status" id="status" role="status" aria-live="polite"></div>
+  </section>
 </div>
 </div>
 <script src="/js/nav.js"></script>
+<script src="/js/map-maker-wizard.js"></script>
 <script>
 (function () {
   'use strict';

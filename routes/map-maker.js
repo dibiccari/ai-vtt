@@ -1,9 +1,11 @@
 // Map Maker: routes registered by server.js. What it needs from server.js comes through `deps` (read when a route runs); what server.js needs from it is returned.
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { designLayout, surpriseMap, DEFAULT_COLS, DEFAULT_ROWS } from '../lib/map-designer.js';
-import { compileLayout, layoutSvg, LEGEND, SIZES } from '../lib/map-layout.js';
-import { settings } from '../lib/runtime-settings.js';
+import { compileLayout, layoutSvg, scaleTo, LEGEND, SIZES } from '../lib/map-layout.js';
+import { paint, paintOptions } from '../lib/map-painter.js';
+import { settings, mapGen } from '../lib/runtime-settings.js';
 import { describeAiError } from '../lib/ai-errors.js';
 import { costOf, normalizeUsage } from '../lib/usage.js';
 
@@ -41,7 +43,7 @@ export function registerMapMaker(app, deps) {
     if (!description) return res.status(400).json({ error: 'Describe the map first.' });
     try {
       const out = await designLayout({ client: settings.anthropicAny, model: settings.MAP_DESIGNER_MODEL, description, size: req.body?.size, orientation: req.body?.orientation, cols: Number(req.body?.cols) || DEFAULT_COLS, rows: Number(req.body?.rows) || DEFAULT_ROWS, record: (m, u) => deps.usageTracker.record(m, u, '', 'maps') });
-      res.json(layoutReply(out.layout, { name: out.name, summary: out.summary, attempts: out.attempts, model: settings.MAP_DESIGNER_MODEL, cost: Math.round(costOfUsage(settings.MAP_DESIGNER_MODEL, out.usage) * 10000) / 10000 }));
+      res.json(layoutReply(out.layout, { name: out.name, summary: out.summary, setting: out.setting, attempts: out.attempts, model: settings.MAP_DESIGNER_MODEL, cost: Math.round(costOfUsage(settings.MAP_DESIGNER_MODEL, out.usage) * 10000) / 10000 }));
     } catch (err) { aiError(res, err); }
   }));
 
@@ -49,6 +51,66 @@ export function registerMapMaker(app, deps) {
   app.post('/api/map-maker/layout/check', deps.asyncRoute(async (req, res) => {
     const grid = Array.isArray(req.body?.grid) ? req.body.grid.map(String) : String(req.body?.grid ?? '');
     res.json(layoutReply(compileLayout(grid)));
+  }));
+
+  // ---- painting: the services that have a key, a price, then the picture (kept as a draft until it is saved)
+  const imageKeys = () => ({ openai: settings.IMAGE_KEY || settings.OPENAI_KEY, gemini: settings.GEMINI_KEY, fal: settings.FAL_KEY });
+  const KINDS = ['battle', 'town', 'regional'];
+  const drafts = new Map();              // id -> { bytes, ext, width, height, kind } (in memory; a restart forgets them)
+
+  app.get('/api/map-maker/paint-options', (req, res) => {
+    const kind = KINDS.includes(req.query.kind) ? req.query.kind : 'battle';
+    res.json({ kind, ...paintOptions(imageKeys(), mapGen(kind)), layoutLocked: kind === 'battle' });
+  });
+
+  app.post('/api/map-maker/paint', deps.localOnly, deps.asyncRoute(async (req, res) => {
+    const b = req.body || {}, kind = KINDS.includes(b.kind) ? b.kind : null;
+    if (!kind) return res.status(400).json({ error: 'Choose the type of map first.' });
+    const description = String(b.description ?? '').trim();
+    if (!description) return res.status(400).json({ error: 'Describe the map first.' });
+    const options = paintOptions(imageKeys(), null), provider = options.providers.find((p) => p.id === b.provider && p.available);
+    if (!provider) return res.status(400).json({ error: 'That picture service has no key saved yet (Settings).', help: { label: 'Open Settings', url: '/settings.html' } });
+    const model = provider.models.find((m) => m.id === b.model) || provider.models[0], quality = model.qualities.includes(b.quality) ? b.quality : model.qualities[0];
+    let layout = null;
+    if (kind === 'battle') {
+      layout = compileLayout(Array.isArray(b.grid) ? b.grid.map(String) : String(b.grid ?? ''));
+      if (!layout.ok) return res.status(400).json({ error: 'The layout still has problems; fix them before painting.', problems: layout.problems });
+    }
+    try {
+      const out = await paint({ root: deps.__dirname, kind, description, setting: b.setting === 'outdoor' ? 'outdoor' : 'indoor', layout, orientation: b.orientation, provider: provider.id, model: model.id, quality, keys: imageKeys() });
+      const id = randomBytes(8).toString('hex');
+      drafts.set(id, { bytes: out.bytes, ext: out.ext, width: out.width, height: out.height, kind });
+      while (drafts.size > 12) drafts.delete(drafts.keys().next().value);
+      res.json({ draftId: id, url: '/api/map-maker/draft/' + id, width: out.width, height: out.height, cost: out.cost, drift: out.drift, note: out.note, seconds: Math.round(out.ms / 1000), provider: provider.id, model: model.id, quality });
+    } catch (err) { res.status(502).json({ error: String(err?.short || err?.message || err) }); }
+  }));
+
+  app.get('/api/map-maker/draft/:id', (req, res) => {
+    const d = drafts.get(String(req.params.id));
+    if (!d) return res.status(404).json({ error: 'That picture is no longer kept: paint it again.' });
+    res.type(d.ext === 'jpg' ? 'image/jpeg' : 'image/png').send(d.bytes);
+  });
+
+  // Saves a painted draft as a map: the picture goes to the uploads folder, the layout's walls, doors, lights, terrain and start spots are set on it, and a map set is made.
+  app.post('/api/map-maker/save', deps.localOnly, deps.asyncRoute(async (req, res) => {
+    const b = req.body || {}, d = drafts.get(String(b.draftId));
+    if (!d) return res.status(404).json({ error: 'That picture is no longer kept: paint it again.' });
+    const name = String(b.name ?? '').trim().slice(0, 80);
+    if (!name) return res.status(400).json({ error: 'Give the map a name.' });
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'map';
+    let config = { name, publisher: 'Explorer', kind: d.kind };
+    if (d.kind === 'battle') {
+      const layout = compileLayout(Array.isArray(b.grid) ? b.grid.map(String) : String(b.grid ?? ''));
+      if (!layout.ok) return res.status(400).json({ error: 'The layout still has problems.', problems: layout.problems });
+      config = { ...config, ...scaleTo(layout, d.width, d.height), light: b.setting === 'outdoor' ? 'bright' : 'dim' };
+    } else if (d.kind === 'regional') config = { ...config, tiles: 'hex', hexSize: Math.max(20, Math.round(d.width / (0.866 * 24))) };
+    const file = `vtt-${slug}-${Date.now().toString(36)}.${d.ext}`;
+    await writeFile(path.join(deps.UPLOAD_DIR, file), d.bytes);
+    await deps.writeMapConfig(file, deps.normalizeMapConfig(config));
+    const { index } = await deps.ensureSets(), hit = index.get(file);
+    if (!hit) return res.status(500).json({ error: 'The picture was saved but no map set was made for it.' });
+    drafts.delete(String(b.draftId));
+    res.json({ ok: true, file, guid: hit.set.id, url: `/map-test.html?set=${hit.set.id}` });
   }));
 
   app.get('/api/map-maker', deps.asyncRoute(async (_req, res) => {
