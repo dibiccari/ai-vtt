@@ -821,5 +821,6 @@ async function applyMapUpdates(updates) {
   }
   revealFog();
   commitBoard();
+  announceTurn();
 }
 

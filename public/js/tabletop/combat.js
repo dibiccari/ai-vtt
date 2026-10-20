@@ -212,7 +212,18 @@ function beginTurn(t) {
   const lazy = tokenConditions(t).find((c) => c.name === 'lethargic');
   if (lazy) { lazy.armed = true; t.spent = { a: true, b: true, r: false }; }                     // the turn after haste ended: no move, no actions (a reaction is not an action)
   if (hasCondition(t, 'surprised')) { t.spent = { a: true, b: true, r: true }; if (seenByParty(t)) addChat('system', `↳ ${t.name} is surprised and loses this turn`); }
-  if (seenByParty(t)) toast(`${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`, 'ok');
+  // Who is up is announced once the turns have stopped moving (announceTurn), not for every turn a reply passes through.
+  state.turnNotice = t.id;
+  clearTimeout(beginTurn.timer); beginTurn.timer = setTimeout(announceTurn, 400);       // in case nothing flushes it sooner
+}
+
+// One line in the transcript for the combatant the turn has come to rest on: a reply that plays several creatures' turns passes many of them at once, and only the last one is somebody's turn to act.
+function announceTurn() {
+  clearTimeout(beginTurn.timer);
+  const id = state.turnNotice; state.turnNotice = '';
+  const t = id ? activeToken() : null;
+  if (!t || t.id !== id || !state.combat.active || !seenByParty(t)) return;
+  addChat('system', `▶ ${t.name}'s turn${t.isPC && hpOf(t) === 0 && !t.stable ? ': death saving throw' : ''}`);
 }
 
 // Death save pips: from the combat panel or from the DM (condition "death save success" / "death save fail", rounds = how many).

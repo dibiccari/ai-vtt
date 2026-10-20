@@ -148,4 +148,22 @@ test('the play log is told every time the turn passes, and when an endTurn is ig
   assert.ok(r.some(([w, d]) => w === 'turn' && /^Bravo is up \(round 1\), after Alpha/.test(d)), JSON.stringify(r));
 });
 
+test('the transcript says whose turn it is once, for the combatant the turn rests on, and no pop-ups are stacked over the map', opts, async () => {
+  const r = await page.eval(`(() => {
+    const s = vtt.state, keep = { tokens: s.tokens, active: s.activeIndex, combat: s.combat, chat: s.chat.length };
+    const mk = (id, name, init) => { const t = makeToken({ id, name, color: '#999', col: 2, row: 2, speed: 30, isPC: false }); t.initiative = init; return t; };
+    s.tokens = [mk('npc-a', 'Alpha', 30), mk('npc-b', 'Bravo', 20), mk('npc-c', 'Charlie', 10)]; s.activeIndex = 0;
+    s.combat = { active: true, round: 1, order: ['npc-a', 'npc-b', 'npc-c'], fresh: false };
+    const before = s.chat.length;
+    nextCombatTurn(); nextCombatTurn(); nextCombatTurn();       // a reply that plays three turns in a row
+    announceTurn();
+    const lines = s.chat.slice(before).filter((m) => m.role === 'system').map((m) => m.content);
+    const toasts = document.querySelectorAll('#toasts .toast').length;
+    s.tokens = keep.tokens; s.activeIndex = keep.active; s.combat = keep.combat;
+    return { lines, toasts };
+  })()`);
+  assert.deepEqual(r.lines.filter((l) => l.startsWith('▶')), ["▶ Alpha's turn"], 'one line, for the combatant whose turn it now is, not one for every turn passed');
+  assert.equal(r.toasts, 0, 'no pop-ups over the map');
+});
+
 test('no page errors', opts, () => { assert.deepEqual(page.problems, []); });

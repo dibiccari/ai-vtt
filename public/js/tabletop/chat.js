@@ -196,7 +196,7 @@ async function sendTurn(spokenText, opts) {
     } else {
       // The reply played this creature's turn but did not end it (the DM sometimes forgets endTurn): the table ends it, instead of asking about the same creature again.
       const still = activeToken();
-      if (opts && opts.nudgeFor && state.combat.active && still && still.id === opts.nudgeFor) { nextCombatTurn(); commitBoard(); renderCombat(); }
+      if (opts && opts.nudgeFor && state.combat.active && still && still.id === opts.nudgeFor) { nextCombatTurn(); announceTurn(); commitBoard(); renderCombat(); }
       aiTakesItsTurn();
     }
   }
