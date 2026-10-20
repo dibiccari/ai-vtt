@@ -59,6 +59,7 @@ test('a battle map is painted from the layout drawing, kept as a draft, and save
   assert.equal(calls.length, 1); assert.match(calls[0].url, /images\/edits/); assert.match(calls[0].type, /multipart/);
   assert.match(calls[0].body, /KEEP THE LAYOUT EXACTLY/); assert.match(calls[0].body, /it is a 10 by 8 square map/); assert.match(calls[0].body, /hand-drawn fantasy role-playing module cartography/, 'the indoor style');
   assert.match(calls[0].body, /name="size"\r\n\r\n1536x1024/);
+  assert.match(calls[0].body, /LIGHT SOURCE \(1 in all\)[^]*wall torch/, 'the one torch of the layout is described to the painter');
   assert.equal(r.json.width, 1536); assert.equal(r.json.height, 1024); assert.equal(typeof r.json.cost, 'number');
   if (r.json.drift) assert.ok(r.json.drift.medianPx <= 8, 'the picture is the layout itself, so the walls cannot have drifted: ' + JSON.stringify(r.json.drift));
   const pic = await fetch(withKey.base + r.json.url); assert.equal(pic.status, 200); assert.equal(pic.headers.get('content-type'), 'image/png');
@@ -108,4 +109,13 @@ test('the picture service refusing is reported, not hidden', async () => {
     const r = await bad.post('/api/map-maker/paint', { kind: 'town', description: 'a town', provider: 'openai', model: 'gpt-image-1', quality: 'low' });
     assert.equal(r.status, 502); assert.ok(r.json.error);
   } finally { await bad.stop(); }
+});
+
+test('the drawing the painter gets shows each light as an orange dot, and the prompt only talks about lights when there are some', async () => {
+  const { battlePrompt } = await import('../lib/map-painter.js');
+  const lit = compileLayout(GOOD), dark = compileLayout(GOOD.map((r) => r.replace('L', '.')));
+  assert.equal(lit.lights.length, 1); assert.equal(dark.lights.length, 0);
+  assert.notDeepEqual(layoutPng(lit, { width: 600, height: 400 }), layoutPng(dark, { width: 600, height: 400 }), 'the torch is drawn');
+  assert.doesNotMatch(await battlePrompt(process.cwd(), { setting: 'indoor', description: 'x', cols: 10, rows: 8, layout: dark }), /LIGHT SOURCE/);
+  assert.match(await battlePrompt(process.cwd(), { setting: 'outdoor', description: 'x', cols: 10, rows: 8, layout: lit }), /campfire, lantern or torch/);
 });
