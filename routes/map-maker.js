@@ -1,6 +1,11 @@
 // Map Maker: routes registered by server.js. What it needs from server.js comes through `deps` (read when a route runs); what server.js needs from it is returned.
 import path from 'node:path';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { designLayout, surpriseMap, DEFAULT_COLS, DEFAULT_ROWS } from '../lib/map-designer.js';
+import { compileLayout, layoutSvg, LEGEND, SIZES } from '../lib/map-layout.js';
+import { settings } from '../lib/runtime-settings.js';
+import { describeAiError } from '../lib/ai-errors.js';
+import { costOf, normalizeUsage } from '../lib/usage.js';
 
 export function registerMapMaker(app, deps) {
   // Requests and feedback are written here from the Map Maker page and read by the assistant in the coding session, which then generates or
@@ -9,6 +14,42 @@ export function registerMapMaker(app, deps) {
   const MAP_FEEDBACK_FILE = path.join(deps.__dirname, 'data', 'map-feedback.json');
   const REQUEST_STATUS = ['new', 'working', 'done'];
   const FEATURES = ['doors', 'lights', 'water', 'trees', 'difficult terrain', 'stairs', 'secret door', 'traps', 'night version'];
+
+  // ---- the wizard: an idea, then a layout (battle maps), then a picture. The AI calls are paid, so each says what it cost.
+  const aiError = (res, err) => {
+    if (err && err.code === 'designer') return res.status(502).json({ error: err.message });
+    const help = describeAiError(err);
+    return res.status(502).json({ error: `AI error: ${err?.message || err}`, ...(help || {}) });
+  };
+  const costOfUsage = (model, usageList) => usageList.reduce((sum, u) => sum + costOf(model, normalizeUsage(u)), 0);
+  const layoutReply = (compiled, extra = {}) => ({ ok: compiled.ok, grid: compiled.cells, cols: compiled.cols, rows: compiled.rows, svg: compiled.cols ? layoutSvg(compiled) : '', problems: compiled.problems, stats: compiled.stats || null, legend: LEGEND, ...extra });
+
+  // What the wizard offers: the kinds of map and the battle map sizes.
+  app.get('/api/map-maker/options', (_req, res) => res.json({ kinds: [{ id: 'battle', label: 'Battle map' }, { id: 'town', label: 'Town map' }, { id: 'regional', label: 'Regional map' }], sizes: SIZES, orientations: ['landscape', 'portrait'] }));
+
+  app.post('/api/map-maker/surprise', deps.asyncRoute(async (req, res) => {
+    if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });
+    try {
+      const out = await surpriseMap({ client: settings.anthropicAny, model: settings.MAP_IDEA_MODEL, kind: String(req.body?.kind || 'battle'), record: (m, u) => deps.usageTracker.record(m, u, '', 'maps') });
+      res.json({ description: out.description });
+    } catch (err) { aiError(res, err); }
+  }));
+
+  app.post('/api/map-maker/layout', deps.asyncRoute(async (req, res) => {
+    if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });
+    const description = String(req.body?.description ?? '').trim();
+    if (!description) return res.status(400).json({ error: 'Describe the map first.' });
+    try {
+      const out = await designLayout({ client: settings.anthropicAny, model: settings.MAP_DESIGNER_MODEL, description, size: req.body?.size, orientation: req.body?.orientation, cols: Number(req.body?.cols) || DEFAULT_COLS, rows: Number(req.body?.rows) || DEFAULT_ROWS, record: (m, u) => deps.usageTracker.record(m, u, '', 'maps') });
+      res.json(layoutReply(out.layout, { name: out.name, summary: out.summary, attempts: out.attempts, model: settings.MAP_DESIGNER_MODEL, cost: Math.round(costOfUsage(settings.MAP_DESIGNER_MODEL, out.usage) * 10000) / 10000 }));
+    } catch (err) { aiError(res, err); }
+  }));
+
+  // A grid the person edited by hand: checked and drawn again, no AI.
+  app.post('/api/map-maker/layout/check', deps.asyncRoute(async (req, res) => {
+    const grid = Array.isArray(req.body?.grid) ? req.body.grid.map(String) : String(req.body?.grid ?? '');
+    res.json(layoutReply(compileLayout(grid)));
+  }));
 
   app.get('/api/map-maker', deps.asyncRoute(async (_req, res) => {
     const scen = (await readdir(path.join(deps.PUBLIC_DIR, 'scenarios'))).filter((f) => f.endsWith('.dd2vtt')).map((f) => f.slice(0, -7));
