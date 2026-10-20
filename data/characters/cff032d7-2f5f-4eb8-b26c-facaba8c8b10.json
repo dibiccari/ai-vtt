@@ -118,6 +118,9 @@
     "Bonds": "Her mentor, Brother Ostin, who taught her the hymns and stopped answering her letters."
   },
   "darkvision": 0,
+  "campaigns": [
+    "open-world"
+  ],
   "inventory": [
     {
       "id": "tamsin-ashgrove-0",

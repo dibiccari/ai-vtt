@@ -112,6 +112,9 @@
     "Bonds": "A little brother she left in Wickerby Crossing who thinks she is a lamplighter."
   },
   "darkvision": 0,
+  "campaigns": [
+    "open-world"
+  ],
   "inventory": [
     {
       "id": "nessa-wickham-0",

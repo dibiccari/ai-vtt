@@ -112,6 +112,9 @@
     "Bonds": "The guard company that dissolved when its captain vanished on the road."
   },
   "darkvision": 60,
+  "campaigns": [
+    "open-world"
+  ],
   "inventory": [
     {
       "id": "borrin-keg-0",

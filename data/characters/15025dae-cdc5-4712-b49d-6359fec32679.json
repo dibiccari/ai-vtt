@@ -118,6 +118,9 @@
     "Bonds": "A star chart that does not match the sky since Hollowmere changed it."
   },
   "darkvision": 60,
+  "campaigns": [
+    "open-world"
+  ],
   "inventory": [
     {
       "id": "fizzwick-orrery-0",
