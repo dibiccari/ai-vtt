@@ -113,3 +113,33 @@ test('five sizes, all 3:2, from a tavern to a cave system; portrait turns them o
   const big = compileLayout(Array.from({ length: 64 }, (_, r) => (r === 0 || r === 63 ? '#'.repeat(96) : '#' + (r === 1 ? 'P' : '.').padEnd(94, '.') + '#')));
   assert.equal(big.ok, true, JSON.stringify(big.problems)); assert.deepEqual([big.cols, big.rows], [96, 64]);
 });
+
+test('natural rock (%) gives curved walls: diagonal pieces and rounded corners; straight rock (#) stays square', () => {
+  const cave = ['%%%%%%%%%%', '%%%....%%%', '%%......%%', '%%P.....%%', '%%%....%%%', '%%%%..%%%%', '%%%%%%%%%%', '%%%%%%%%%%'];
+  const c = compileLayout(cave);
+  assert.equal(c.ok, true, JSON.stringify(c.problems));
+  const slanted = c.walls.filter((w) => w.x1 !== w.x2 && w.y1 !== w.y2);
+  assert.ok(slanted.length >= 8, 'the corners are cut into slanted pieces: ' + slanted.length);
+  assert.ok(c.smooth.length > 0 && c.smooth.every((s) => s.pts.length === 4));
+  assert.ok(c.smooth.some((s) => s.fill === 'rock') && c.smooth.some((s) => s.fill === 'floor'), 'corners are cut off and filled in');
+  // the outline is one closed ring: every piece starts where the last ended
+  const ring = c.walls; for (let i = 0; i < ring.length; i++) { const n = ring[(i + 1) % ring.length]; assert.ok(Math.hypot(ring[i].x2 - n.x1, ring[i].y2 - n.y1) < 1e-3, 'piece ' + i + ' does not meet the next'); }
+  assert.match(layoutSvg(c), /id="smoothing"><polygon/);
+  assert.ok(layoutPng(c, { width: 500, height: 400 }).length > 100);
+  // the same room with straight walls has only straight pieces and no corner shapes
+  const square = compileLayout(cave.map((r) => r.replace(/%/g, '#')));
+  assert.ok(square.walls.every((w) => w.x1 === w.x2 || w.y1 === w.y2)); assert.equal(square.smooth.length, 0);
+  // a curve stays within half a square of the squares it replaces, so the floor is still where the grid says it is
+  for (const w of c.walls) for (const [x, y] of [[w.x1, w.y1], [w.x2, w.y2]]) { const cx = Math.round(x), cy = Math.round(y); assert.ok(Math.hypot(x - cx, y - cy) <= 0.5 + 1e-6, 'a point strays ' + x + ',' + y); }
+});
+
+test('doors, the map edge and # walls keep their square corners even beside natural rock', () => {
+  const g = ['%%%%%%%%%%%%', '%..........%', '%..........%', '###D########', '#....P.....#', '#..........#', '############', '############'];
+  const l = compileLayout(g);
+  assert.equal(l.ok, true, JSON.stringify(l.problems));
+  const door = l.walls.find((w) => w.type === 'door');
+  assert.deepEqual([door.x1, door.x2, door.y1], [3, 4, 3.5]);
+  const atDoor = l.walls.filter((w) => w.type === 'wall' && [w.x1, w.x2].some((x) => x === 3 || x === 4) && [w.y1, w.y2].some((y) => y === 3 || y === 4));
+  assert.ok(atDoor.length >= 2 && atDoor.every((w) => w.x1 === w.x2 || w.y1 === w.y2), 'the wall pieces at the doorway are straight');
+  assert.ok(l.walls.some((w) => w.type === 'wall' && w.y1 === 1 && w.y2 === 1), 'the top edge beside natural rock is a floor edge: only its corners are rounded');
+});
