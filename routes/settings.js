@@ -1,5 +1,6 @@
 // settings: routes registered by server.js. What it needs from server.js comes through `deps` (read when a route runs); what server.js needs from it is returned.
 import path from 'node:path';
+import { modelChoices, capsOf } from '../lib/model-caps.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { localOnly } from '../lib/local-only.js';
 import { settings, mapGen, applySettings } from '../lib/runtime-settings.js';
@@ -51,7 +52,7 @@ export function registerSettings(app, deps) {
   app.get('/api/settings', localOnly, (_req, res) => {
     res.json({
       anthropic: { set: Boolean(process.env.ANTHROPIC_API_KEY), hint: hint(process.env.ANTHROPIC_API_KEY), model: settings.MODEL },
-      dm: { provider: settings.DM_NONE ? 'none' : 'claude', model: settings.MODEL, effort: settings.DM_EFFORT, speed: settings.DM_SPEED },
+      dm: { provider: settings.DM_NONE ? 'none' : 'claude', model: settings.MODEL, models: modelChoices(), caps: capsOf(settings.MODEL), effort: settings.DM_EFFORT, speed: settings.DM_SPEED },
       voice: { openaiVoices: [...deps.KNOWN_OPENAI_VOICES], dmVoice: deps.chosenVoice(settings.DM_VOICE) || deps.TTS_PROFILES.narrator.voices[0], provider: settings.VOICE_PROVIDER, effective: deps.voiceProviderNow(), npc: settings.NPC_PROVIDER === 'same' ? settings.VOICE_PROVIDER : settings.NPC_PROVIDER, npcEffective: deps.npcProviderNow(), npcModel: settings.NPC_TTS_MODEL, model: settings.TTS_MODEL },
       maps: { regional: mapGen('regional'), town: mapGen('town'), battle: mapGen('battle') },
       openai: { set: Boolean(settings.OPENAI_KEY), hint: hint(settings.OPENAI_KEY), ttsModel: settings.TTS_MODEL, voiceProvider: 'openai', imageProvider: settings.IMAGE_PROVIDER, imageModel: settings.IMAGE_MODEL, imageQuality: settings.IMAGE_QUALITY, imageKey: { own: Boolean(settings.IMAGE_KEY), hint: hint(settings.IMAGE_KEY), usable: Boolean(settings.IMAGE_KEY || settings.OPENAI_KEY) },

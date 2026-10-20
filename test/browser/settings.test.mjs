@@ -36,3 +36,34 @@ test('Dungeon Master voice: provider, the voices of that provider and a model; N
   const off = await page.eval(`({ provider: document.querySelector('#voiceProvider').disabled, npc: document.querySelector('#npcProvider').disabled, save: document.querySelector('#voiceSave').disabled })`);
   assert.deepEqual(off, { provider: true, npc: true, save: true });
 });
+
+test('Dungeon Master: the model decides what the speed and effort choices offer, and the wanted speed is not lost on the way', opts, async () => {
+  const r = await page.eval(`(() => {
+    const $ = (s) => document.querySelector(s), fire = (el) => el.dispatchEvent(new Event('change'));
+    const p = $('#dmProvider'); p.value = 'claude'; fire(p);
+    const pick = (m) => { $('#dmModel').value = m; fire($('#dmModel')); };
+    const view = () => ({ speedHidden: $('#dmSpeed').closest('label').offsetParent === null, speed: $('#dmSpeed').value, effort: $('#dmEffortLabel').textContent, note: $('#dmCaps').textContent });
+    const out = {};
+    pick('claude-opus-5-5'); $('#dmSpeed').value = 'fast'; fire($('#dmSpeed'));       // the person wants fast
+    out.opus = view();
+    pick('claude-sonnet-5-5'); out.sonnet55 = view();
+    pick('claude-sonnet-5'); out.sonnet5 = view();
+    pick('claude-opus-5-5'); out.back = view();
+    return out;
+  })()`);
+  assert.deepEqual([r.opus.speedHidden, r.opus.speed, r.opus.effort], [false, 'fast', 'Thinking effort'], 'Opus: the Speed choice is shown, with Fast');
+  assert.match(r.opus.note, /always thinks/); assert.doesNotMatch(r.opus.note, /no fast mode/);
+  assert.deepEqual([r.sonnet55.speedHidden, r.sonnet55.speed, r.sonnet55.effort], [true, 'standard', 'Thinking effort'], 'Sonnet 5.5: no fast mode, so no Speed choice at all; it still thinks first');
+  assert.match(r.sonnet55.note, /no fast mode/);
+  assert.deepEqual([r.sonnet5.speedHidden, r.sonnet5.speed, r.sonnet5.effort], [true, 'standard', 'Reply effort'], 'Sonnet 5: no Speed choice, and no thinking step so the effort is about the reply');
+  assert.match(r.sonnet5.note, /straight away/);
+  assert.deepEqual([r.back.speedHidden, r.back.speed], [false, 'fast'], 'back on Opus, the Speed choice returns with the speed that was wanted');
+  // saving on a model with no fast mode must not overwrite the speed the person chose
+  await server.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5', DM_SPEED: 'fast' });
+  await page.eval(`(() => { const $ = (s) => document.querySelector(s), fire = (el) => el.dispatchEvent(new Event('change')); $('#dmModel').value = 'claude-sonnet-5'; fire($('#dmModel')); $('#dmSave').click(); })()`);
+  await page.waitFor(`document.querySelector('#dmMsg').textContent.length > 0`);
+  const saved = (await server.get('/api/settings')).json.dm;
+  assert.equal(saved.model, 'claude-sonnet-5'); assert.equal(saved.speed, 'fast', 'the saved speed stays Fast, ready for when an Opus model is chosen again');
+  assert.equal(saved.caps.fast, false); assert.ok(saved.models.some((m) => m.id === 'claude-opus-5-5' && m.fast === true));
+  await server.post('/api/settings', { ANTHROPIC_MODEL: 'claude-opus-5-5' });
+});

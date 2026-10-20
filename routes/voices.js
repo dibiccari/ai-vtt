@@ -1,5 +1,6 @@
 // cloud voices: routes registered by server.js. What it needs from server.js comes through `deps` (read when a route runs); what server.js needs from it is returned.
 import { readFile, writeFile } from 'node:fs/promises';
+import { canGoFast, canSkipThinking } from '../lib/model-caps.js';
 import path from 'node:path';
 import { settings } from '../lib/runtime-settings.js';
 import { findCreature, voiceFor, OPENAI_VOICES } from '../lib/creature-voices.js';
@@ -10,10 +11,6 @@ import { pronounce } from '../lib/pronounce.js';
 import { createHash } from 'node:crypto';
 
 export function registerVoices(app, deps) {
-  // The newest models (the 5.5 family and Fable) always think before they answer and cannot be told not to; the others can, and the DM replies much sooner without it (replay, Nov 2026).
-  const canSkipThinking = (model) => !/-5-5(?![0-9])|fable/i.test(String(model));
-  // Fast mode (Anthropic, Opus 5.5 / 5 / 4.8): the same model writing about 2.5 times faster, at twice the price. It changes the speed of the writing, not the wait before it starts.
-  const canGoFast = (model) => /^claude-opus-(5-5|5|4-8)$/.test(String(model));
 
   // Each DM voice tag maps to a few OpenAI voices plus an acting direction.
   const TTS_PROFILES = {

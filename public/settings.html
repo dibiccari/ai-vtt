@@ -102,18 +102,19 @@
     </label>
     <label>Speed
       <select id="dmSpeed">
-        <option value="fast">Fast (Opus models only: about 2.5 times faster writing, twice the price)</option>
+        <option value="fast">Fast (about 2.5 times faster writing, twice the price)</option>
         <option value="standard">Standard (half the price)</option>
       </select>
     </label>
-    <label>Thinking effort
+    <label><span id="dmEffortLabel">Thinking effort</span>
       <select id="dmEffort">
-        <option value="low">Low (fastest, shorter answers)</option>
-        <option value="medium">Medium (slower, fuller answers)</option>
-        <option value="high">High (slowest, most careful)</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
       </select>
     </label>
   </div>
+  <p class="hint" id="dmCaps"></p>
   <div class="row"><button class="primary" id="dmSave">Save</button></div>
   <div class="msg" id="dmMsg"></div>
 </div>
@@ -199,7 +200,7 @@ async function api(path, body) {
 }
 function badge(el, set) { el.textContent = set ? 'key saved' : 'no key'; el.className = `badge ${set ? 'on' : 'off'}`; }
 
-const DM_MODELS = [['claude-sonnet-5', 'Claude Sonnet 5 (fastest reply: answers without thinking first)'], ['claude-opus-4-8', 'Claude Opus 4.8 (fast start, no thinking step)'], ['claude-opus-5-5', 'Claude Opus 5.5 (best; the model the DM was tested with; thinks first, slower)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (faster, cheaper)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (cheapest, simplest)'], ['claude-fable-5-1', 'Claude Fable 5.1']];
+let DM_MODELS = [];       // [{ id, label, fast, skipsThinking }] from the server (lib/model-caps.js): what each model can do decides what the other choices offer
 const SERVICES = { openai: 'OpenAI (ChatGPT images)', gemini: 'Google Gemini', fal: 'FLUX on fal.ai' };
 const IMAGE_INFO = {
   openai: {
@@ -265,10 +266,11 @@ async function load() {
     $('#gmHint').textContent = keys.gemini.set ? `(saved, ${keys.gemini.hint}; leave blank to keep it)` : '(not set)';
     $('#flHint').textContent = keys.fal.set ? `(saved, ${keys.fal.hint}; leave blank to keep it)` : '(not set)';
     $('#dmProvider').value = s.dm.provider;
-    fill($('#dmModel'), DM_MODELS, s.dm.model);
-    $('#dmModel').disabled = $('#dmEffort').disabled = s.dm.provider === 'none';
+    DM_MODELS = s.dm.models || [];
+    fill($('#dmModel'), DM_MODELS.map((m) => [m.id, m.label]), s.dm.model);
     $('#dmEffort').value = s.dm.effort || 'low';
-    $('#dmSpeed').value = s.dm.speed || 'fast'; $('#dmSpeed').disabled = s.dm.provider === 'none';
+    wantedSpeed = s.dm.speed || 'fast';
+    reflectModel();
     $('#voiceProvider').value = s.voice.provider;
     $('#npcProvider').value = ['none', 'openai', 'browser'].includes(s.voice.npc) ? s.voice.npc : s.voice.provider;
     for (const [id, want] of [['#oaModel', s.voice.model], ['#npcModel', s.voice.npcModel]]) {
@@ -302,8 +304,29 @@ async function test(which, msgEl) {
 $('#anTest').addEventListener('click', () => test('anthropic', $('#keysMsg')));
 $('#oaTest').addEventListener('click', () => test('openai', $('#keysMsg')));
 
-$('#dmProvider').addEventListener('change', (e) => { $('#dmModel').disabled = $('#dmEffort').disabled = e.target.value === 'none'; showVoice(); });
-$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value, DM_EFFORT: $('#dmEffort').value, DM_SPEED: $('#dmSpeed').value }, $('#dmMsg')));
+// Waterfall: the choice above decides what the choices below offer. The model decides whether Fast speed exists (Opus models only) and what "effort" means (a model that thinks first, or one that answers straight away);
+// the Dungeon Master choice switches the rest on or off. wantedSpeed remembers the speed that is saved, so going Sonnet then back to Opus brings Fast back instead of losing it.
+let wantedSpeed = 'fast';
+function reflectModel() {
+  const off = $('#dmProvider').value === 'none';
+  const caps = DM_MODELS.find((m) => m.id === $('#dmModel').value) || { fast: false, skipsThinking: true };
+  const speed = $('#dmSpeed');
+  speed.closest('label').hidden = !caps.fast;                    // no fast mode, nothing to choose: the whole Speed field is hidden, and comes back with an Opus model
+  speed.value = caps.fast ? wantedSpeed : 'standard';
+  const labels = caps.skipsThinking
+    ? { low: 'Low (shortest answers, cheapest)', medium: 'Medium (fuller answers)', high: 'High (fullest answers, most expensive)' }
+    : { low: 'Low (thinks least before answering: fastest)', medium: 'Medium (thinks more: slower, fuller answers)', high: 'High (thinks most: slowest, most careful)' };
+  for (const o of $('#dmEffort').options) o.textContent = labels[o.value];
+  $('#dmEffortLabel').textContent = caps.skipsThinking ? 'Reply effort' : 'Thinking effort';
+  $('#dmCaps').textContent = caps.skipsThinking
+    ? 'This model answers straight away, without a thinking step, so replies start sooner.' + (caps.fast ? '' : ' It has no fast mode (only Opus 5.5, Opus 5 and Opus 4.8 do).')
+    : 'This model always thinks before it answers, so a reply takes longer to start.' + (caps.fast ? '' : ' It has no fast mode (only Opus 5.5, Opus 5 and Opus 4.8 do).');
+  $('#dmModel').disabled = $('#dmEffort').disabled = speed.disabled = off;
+}
+$('#dmModel').addEventListener('change', reflectModel);
+$('#dmSpeed').addEventListener('change', () => { wantedSpeed = $('#dmSpeed').value; });
+$('#dmProvider').addEventListener('change', (e) => { reflectModel(); showVoice(); });
+$('#dmSave').addEventListener('click', () => save({ DM_PROVIDER: $('#dmProvider').value, ANTHROPIC_MODEL: $('#dmModel').value, DM_EFFORT: $('#dmEffort').value, DM_SPEED: wantedSpeed }, $('#dmMsg')));
 // The voice cards depend on who runs the game: a person needs none, an AI Dungeon Master speaks with ChatGPT or Microsoft voices (Claude cannot speak).
 // The Dungeon Master voice has a list of voices per provider: ChatGPT's are fixed and saved on the server, the Microsoft ones are whatever this browser has installed and are remembered per browser.
 const synth = window.speechSynthesis || null;
