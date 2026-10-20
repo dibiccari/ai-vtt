@@ -36,6 +36,9 @@ const STEPS = [
   { id: 'handoff', say: 'TABLE', expect: 'the DM gives the status and options for the active player and waits (no rolls, no turns played for the player)' },
   { id: 'attack', say: '[Thorin] I attack Drunk Bram, who is right next to me, with my longsword, and roll damage if I hit.', expect: 'attack and damage from the tray, updates name real tokens' },
   { id: 'turndone', say: '[Thorin] That is everything I do this turn. I am done.', expect: 'endTurn sent for Thorin (the board only moves on when the DM sends it), no turn played for the player' },
+  { id: 'grapple', say: '[Thorin] On my turn I try to grab Drunk Bram and grapple him, holding him still.', expect: 'a contest rolled right now (the grappler\'s Athletics against the target\'s Athletics or Acrobatics); grappled only if the grappler wins, with the grappler as its source; no escape roll asked for now' },
+  { id: 'grapplenpc', diceMode: 'player', say: "[Table] It is Drunk Bram's turn. Play it. (Bram has decided to grab Thorin, who stands next to him, and hold him.)", expect: 'players roll their own dice: the DM asks for Thorin\'s contested check now and waits; it does not declare Thorin held, and does not roll for Thorin' },
+  { id: 'grappleescape', say: '[Thorin] It is my turn and Drunk Bram still has me in his grip. I use my action to break free of the grapple.', expect: 'a fresh contest on his own turn (his Athletics or Acrobatics against Bram\'s Athletics, both rolled now); the grappled condition is removed only if Thorin wins' },
   { id: 'effects', say: '[Seraphine] It is my turn. I cast Bless on Thorin and Vex with my action, concentrating on it. Just apply it.', expect: 'a known effect sent by name only (table gives the duration), caster id as source for the concentration effect, concentrating on the caster' },
   { id: 'warded', say: '[Lyra] It is my turn. I carry a Sanctuary ward cast on me earlier and I know that attacking will end it, so go ahead: I attack Garrick, a brawler standing right next to me, with my dagger and roll damage if I hit.', expect: 'the DM does not remove sanctuary itself after a hit (the table does)' },
   { id: 'time', say: '[Thorin] Bram is down and the room has emptied. We tidy up and spend about five minutes talking with Orla by the fire.', expect: 'the time action advances the clock; the DM does not remove an effect that is still running because the fight ended' },
@@ -48,6 +51,7 @@ const STEPS = [
   { id: 'rewarditem2', say: '[Thorin] I tuck the potion away and ask Orla for a bite to eat.', expect: 'no item or coin change: the gift is already made' },
   { id: 'rewardxp', say: '[Table] The party has finished the quest the barkeep set them. Award the party 200 experience points, shared equally.', expect: 'the party gains 200 xp in all, once' },
   { id: 'rewardxp2', say: '[Thorin] We thank Orla, finish our meal and talk over what to do tomorrow.', expect: 'no experience awarded again' },
+  { id: 'misheard', say: '[Vex] I snatch up a mug and hurl it across the room at Thoren!', expect: 'a name that is not on the board but sounds like a party member (Thorin): the DM asks who is meant and changes nobody\'s hit points first' },
   { id: 'deathsave', say: '[Lyra] It is my turn and I am at 0 hit points, unconscious and dying. Make my death saving throw.', expect: 'a d20 death save rolled from the tray, no attack or damage on anyone' },
   { id: 'group', say: '[Table] The scene calls for it: three goblin raiders and an ogre bruiser kick in the front door (the place front-door) and rush into the taproom. Place them on the board and start combat.', expect: 'four creatures added with their own squares near the front-door pin, the ogre Large' },
   { id: 'fly', say: '[Thorin] I drink the Potion of flying from my pack and rise twenty feet above the floor. Please update the board.', expect: 'Thorin raised to 20 feet (elevate) and a flying effect, no spell slot spent' },
@@ -231,6 +235,8 @@ try {
                    { x1: (v.col + 6) * g, y1: (v.row + 3) * g, x2: (v.col + 7) * g, y2: (v.row + 3) * g, type: 'door', open: false, secret: true, dc: 8 }];
       },
       rewarditem: async () => { combat = { active: false }; setActive('pc-thorin'); const th = (await srv.get('/api/characters?campaign=dm-check')).json.find((c) => c.id === ID.thorin); T.potions0 = (th.inventory || []).filter((i) => /potion of healing/i.test(i.name)).reduce((n, i) => n + (i.qty || 0), 0); },
+      grapplenpc: async () => { setActive('npc-bram'); },
+      grappleescape: async () => { setActive('pc-thorin'); const th = byId('pc-thorin'); th.conditions = (th.conditions || []).filter((c) => c.name !== 'grappled').concat([{ name: 'grappled', rounds: 0, source: 'npc-bram' }]); },
       discovergo: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/vtt-phandalin.png', name: 'Phandalin (town map)', places: [{ name: 'to-triboar-trail', note: 'The road out of town', col: 2, row: 30, known: true }, { name: 'town-green', note: 'The green in the middle of town', col: 20, row: 25 }, { name: 'smithy', note: 'The village smithy', col: 14, row: 20 }, { name: 'stonehill-inn', note: 'A two-storey inn', col: 24, row: 22 }, { name: 'barthens-provisions', note: 'A trading post', col: 28, row: 30 }, { name: 'shrine-of-luck', note: 'A small shrine', col: 18, row: 34 }] }; },
       discovertold: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/vtt-phandalin.png', name: 'Phandalin (town map)', places: [{ name: 'to-triboar-trail', note: 'The road out of town', col: 2, row: 30, known: true }, { name: 'town-green', note: 'The green in the middle of town', col: 20, row: 25 }, { name: 'smithy', note: 'The village smithy', col: 14, row: 20 }, { name: 'stonehill-inn', note: 'A two-storey inn', col: 24, row: 22 }, { name: 'barthens-provisions', note: 'A trading post', col: 28, row: 30 }, { name: 'shrine-of-luck', note: 'A small shrine', col: 18, row: 34 }] }; },
       discover: async () => { combat = { active: false }; setActive('pc-thorin'); T.map = { url: '/uploads/dnd-sword-coast-ours.png', name: 'The Sword Coast (regional map)', places: [{ name: 'neverwinter', note: 'The great city on the coast', col: 10, row: 30, known: true }, { name: 'phandalin', note: 'A frontier town', col: 30, row: 55, known: true }, { name: 'thundertree', note: 'A ruined town in the forest', col: 20, row: 33 }, { name: 'conyberry', note: 'A ruined hamlet', col: 44, row: 37 }, { name: 'icespire-peak', note: 'A mountain', col: 36, row: 50 }] }; },
@@ -267,7 +273,7 @@ try {
 
   for (const [n, step] of STEPS.entries()) {
     if (ONLY_STEPS.length && !ONLY_STEPS.includes(step.id)) continue;
-    if (ONLY_STEPS.length && !combat.active && ['handoff', 'attack', 'turndone', 'effects', 'warded'].includes(step.id)) startPretendCombat();
+    if (ONLY_STEPS.length && !combat.active && ['handoff', 'attack', 'turndone', 'grapple', 'grapplenpc', 'grappleescape', 'effects', 'warded'].includes(step.id)) startPretendCombat();
     if (calls.length >= MAX_CALLS) { warn(`call cap reached before step ${step.id}`); break; }
     console.log(`-- step ${n + 1}/${STEPS.length}: ${step.id}`);
     const before = calls.length;
@@ -278,7 +284,7 @@ try {
     try {
       if (hooks.before[step.id]) await hooks.before[step.id]();
       res = await Promise.race([
-        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: T.walls || [], gridSize: 50, mapUrl: T.map ? T.map.url : flagon.url, mapName: T.map ? T.map.name : flagon.name, places: T.map ? T.map.places : (T.places || []), inputMode: 'text', combat, diceMode: 'ai', movementRule: 'circle' }),
+        srv.post('/api/chat', { message: said, history: history.slice(-8), activeTokenId: T.active, tokens, characters: chars, walls: T.walls || [], gridSize: 50, mapUrl: T.map ? T.map.url : flagon.url, mapName: T.map ? T.map.name : flagon.name, places: T.map ? T.map.places : (T.places || []), inputMode: 'text', combat, diceMode: step.diceMode || 'ai', movementRule: 'circle' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), TIMEOUT_MS + 5000))
       ]);
     } catch (err) { fail(`${step.id}: no reply (${err.message})`); continue; }
@@ -501,6 +507,35 @@ try {
       if (step.id === 'rewarditem2') { check(potions === T.potionsAfterGift, 'rewarditem2: no second potion', 'now ' + potions + ', before ' + T.potionsAfterGift); T.xpBefore = xpTotal; }
       if (step.id === 'rewardxp') { check(xpTotal === (T.xpBefore ?? 0) + 200, 'rewardxp: the party gained exactly 200 xp', 'now ' + xpTotal + ', before ' + T.xpBefore); T.xpAfter = xpTotal; }
       if (step.id === 'rewardxp2') check(xpTotal === T.xpAfter, 'rewardxp2: no experience awarded again', 'now ' + xpTotal + ', before ' + T.xpAfter);
+    }
+    if (step.id === 'grapple') {
+      const added = upd(j).filter((u) => u.type === 'addCondition' && /grappled/i.test(condOf(u)));
+      const totals = (j.rolls || []).join(' ').match(/=\s*(\d+)/g)?.map((s) => Number(s.replace(/\D/g, ''))) || [];
+      check((j.rolls || []).length >= 2, 'grapple: both sides rolled right away (a contest)', JSON.stringify(j.rolls || []).slice(0, 220));
+      if (added.length) {
+        check(added.every((u) => u.tokenId === 'npc-bram' && u.source === 'pc-thorin'), 'grapple: grappled is on Bram with Thorin as its source', JSON.stringify(added).slice(0, 200));
+        check(totals.length >= 2 && totals[0] > totals[1], 'grapple: the grappler won the contest (his total is higher)', 'totals ' + totals.join(' vs '));
+      } else if (totals.length >= 2) check(totals[0] <= totals[1], 'grapple: no grappled condition, so the grappler did not win', 'totals ' + totals.join(' vs '));
+      check(!/roll[^.?!]*(break|escape|free)|(break|escape)[^.?!]*roll/i.test(j.narrative || ''), 'grapple: the DM did not ask for an escape roll now (escaping is an action on the grappled creature\'s own turn)', (j.narrative || '').slice(0, 220));
+    }
+    if (step.id === 'grappleescape') {
+      const rolls = j.rolls || [], num = (re) => { const r = rolls.find((x) => re.test(x)); const m = r && /=\s*(\d+)/.exec(r); return m ? Number(m[1]) : null; };
+      const thorin = num(/thorin/i), bram = num(/bram/i), freed = upd(j).some((u) => u.type === 'removeCondition' && /grappled/i.test(condOf(u)) && u.tokenId === 'pc-thorin');
+      check(thorin != null && bram != null, 'grappleescape: both sides rolled a fresh check', JSON.stringify(rolls).slice(0, 220));
+      if (thorin != null && bram != null) check(freed === (thorin > bram), 'grappleescape: freed exactly when Thorin beat Bram (a tie keeps him held)', 'Thorin ' + thorin + ' vs Bram ' + bram + ', freed ' + freed);
+    }
+    if (step.id === 'grapplenpc') {
+      const held = upd(j).filter((u) => u.type === 'addCondition' && /grappled/i.test(condOf(u)) && u.tokenId === 'pc-thorin');
+      check(held.length === 0, 'grapplenpc: Thorin is not declared grappled before his check is rolled', JSON.stringify(held).slice(0, 160));
+      check((j.rolls || []).some((r) => /bram/i.test(r) && /d20/i.test(r)), "grapplenpc: Bram's grapple check was rolled (from the tray)", JSON.stringify(j.rolls || []).slice(0, 200));
+      check(!(j.rolls || []).some((r) => /thorin/i.test(r)), "grapplenpc: the DM did not roll Thorin's check for him (players roll their own)", JSON.stringify(j.rolls || []).slice(0, 200));
+      check(/thorin/i.test(j.narrative || '') && /(roll|check|athletics|acrobatics)/i.test(j.narrative || ''), 'grapplenpc: the DM asks Thorin for his check', (j.narrative || '').slice(0, 220));
+    }
+    if (step.id === 'misheard') {
+      const hurtParty = upd(j).filter((u) => ['damageToken', 'setHp', 'healToken'].includes(u.type) && /^pc-/.test(String(u.tokenId || u.characterId || '')));
+      check(hurtParty.length === 0, 'misheard: nobody in the party had their hit points changed', JSON.stringify(hurtParty).slice(0, 160));
+      check((j.rolls || []).length === 0, 'misheard: no attack was rolled against a party member on a guess', JSON.stringify(j.rolls || []).slice(0, 200));
+      check(/mean|do you|did you|which|who/i.test(j.narrative || '') && /\?/.test(j.narrative || ''), 'misheard: the DM asked who was meant', (j.narrative || '').slice(0, 200));
     }
     if (step.id === 'travel') {
       const asked = (raw?.mapUpdates || []).find((u) => u.type === 'changeMap');

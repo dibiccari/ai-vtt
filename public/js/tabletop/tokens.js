@@ -438,8 +438,20 @@ function syncTokensWithCharacters() {
     const spot = freeSquareNear(clamp(col, 0, cols() - 1), clamp(row, 0, rows() - 1));
     state.tokens.push(makeToken({ id: tokenIdFor(c.id), name: c.name, color: c.color, characterId: c.id, col: spot.col, row: spot.row, speed: c.effSpeed ?? c.speed, image: c.image || '' }));
   }
-  const idx = state.tokens.findIndex((t) => t.id === activeId);
-  state.activeIndex = idx >= 0 ? idx : clamp(state.activeIndex, 0, Math.max(0, state.tokens.length - 1));
+  let idx = state.tokens.findIndex((t) => t.id === activeId);
+  if (idx < 0) {
+    // The active token left (a character was taken out of the party mid-fight, for instance): the turn passes to the next combatant in the order who is still here,
+    // never to whatever token now happens to sit at the old position in the list (that once made a trap the active combatant).
+    let next = null;
+    if (state.combat.active) {
+      const order = state.combat.order, from = order.indexOf(activeId);
+      for (let k = 1; k <= order.length && !next; k++) next = state.tokens.find((t) => t.id === order[(from + k) % order.length] && !t.dead && !isElsewhere(t)) || null;
+    }
+    idx = next ? state.tokens.indexOf(next) : state.tokens.findIndex((t) => t.isPC);
+  }
+  state.activeIndex = idx >= 0 ? idx : 0;
+  if (activeId && state.tokens[state.activeIndex] && state.tokens[state.activeIndex].id !== activeId) logTable('turn', `${state.tokens[state.activeIndex].name} is up, because ${activeId} left the table`);
+  if (state.combat.active) state.combat.order = state.combat.order.filter((id) => state.tokens.some((t) => t.id === id));       // ids of tokens that are gone do not stay in the order
 }
 
 function clampTokensToMap() {

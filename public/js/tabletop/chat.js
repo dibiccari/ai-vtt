@@ -114,7 +114,8 @@ async function sendTurn(spokenText, opts) {
   if (!text) { toast('Describe your action first'); input.focus(); return; }
   if (!auto) voice.cancelSpeech();       // the table's own nudges must not cut off the narration that is playing (that is how a lot of it went unheard)
   const active = activeToken();
-  const speaker = opts && opts.as ? opts.as : active;
+  // A player's message is labelled with a player character: during a creature's turn (or a trap's) the active token is not who is typing, and the DM would take the words as spoken by it.
+  const speaker = opts && opts.as ? opts.as : (active && active.isPC ? active : null);
   const content = speaker ? `[${speaker.name}] ${text}` : text;
   const history = dmHistory();
 

@@ -95,4 +95,57 @@ test('the history the DM is shown carries what the table applied after each of i
   assert.match(r[3].content, /\[Table applied: New place on the map: Lionshield Coster\]/);
 });
 
+test('during a creature turn the message a player types is not labelled with the creature', opts, async () => {
+  const msg = await page.eval(`(async () => {
+    const s = vtt.state, keep = { tokens: s.tokens, active: s.activeIndex };
+    const npc = makeToken({ id: 'npc-bruno', name: 'Bruno', color: '#888', isPC: false, col: 3, row: 3, speed: 30 });
+    s.tokens = [...s.tokens, npc]; s.activeIndex = s.tokens.indexOf(npc);
+    const el = document.querySelector('#chatInput'); el.value = 'whose turn is it';
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    const t0 = performance.now();
+    while (performance.now() - t0 < 15000 && !(s.chat.some((m) => m.role === 'user' && /whose turn/.test(m.content)))) await new Promise((r) => setTimeout(r, 30));
+    const sent = s.chat.filter((m) => m.role === 'user').at(-1).content;
+    while (performance.now() - t0 < 20000 && s.busy) await new Promise((r) => setTimeout(r, 30));
+    s.tokens = keep.tokens; s.activeIndex = keep.active;
+    return sent;
+  })()`);
+  assert.equal(msg, 'whose turn is it', 'no [Bruno] in front of the words the player typed');
+});
+
+test('a character taken out of the party hands the turn to the next combatant who is still there, never to whatever token sits at the old position', opts, async () => {
+  const r = await page.eval(`(() => {
+    const s = vtt.state, keep = { tokens: s.tokens, characters: s.characters, active: s.activeIndex, combat: s.combat };
+    const pcs = s.characters.slice(0, 2);
+    const mk = (id, extra) => makeToken({ id, name: id, color: '#999', col: 2, row: 2, speed: 30, ...extra });
+    s.tokens = [mk('tok-first', { isPC: true, characterId: pcs[0].id }), mk('trap-x', { isPC: false, kind: 'trap', hidden: true }), mk('npc-foe', { isPC: false }), mk('tok-second', { isPC: true, characterId: pcs[1].id })];
+    s.activeIndex = 0;
+    s.combat = { active: true, round: 1, order: ['tok-first', 'npc-foe', 'tok-second'] };
+    s.characters = s.characters.filter((c) => c.id !== pcs[0].id);        // the active character leaves the party
+    syncTokensWithCharacters();
+    const out = { active: activeToken().id, order: s.combat.order.slice() };
+    s.tokens = keep.tokens; s.characters = keep.characters; s.activeIndex = keep.active; s.combat = keep.combat;
+    return out;
+  })()`);
+  assert.equal(r.active, 'npc-foe', 'the trap that moved into the old position is not the active combatant');
+  assert.deepEqual(r.order, ['npc-foe', 'tok-second'], 'the order forgets the token that is gone');
+});
+
+test('the play log is told every time the turn passes, and when an endTurn is ignored', opts, async () => {
+  const r = await page.eval(`(() => {
+    const s = vtt.state, keep = { tokens: s.tokens, active: s.activeIndex, combat: s.combat }, seen = [], real = logTable;
+    logTable = (what, detail) => { seen.push([what, detail]); };
+    const mk = (id, name, extra) => makeToken({ id, name, color: '#999', col: 2, row: 2, speed: 30, ...extra });
+    const a = mk('npc-a', 'Alpha', { isPC: false }), b = mk('npc-b', 'Bravo', { isPC: false });
+    a.initiative = 10; b.initiative = 5;
+    s.tokens = [a, b]; s.activeIndex = 0; s.combat = { active: true, round: 1, order: ['npc-a', 'npc-b'], fresh: false };
+    try {
+      vtt.applyMapUpdates([{ type: 'endTurn', tokenId: 'npc-b' }]);        // not Alpha's turn: ignored, and said so
+      vtt.applyMapUpdates([{ type: 'endTurn', tokenId: 'npc-a' }]);        // Alpha's turn: Bravo is up
+    } finally { logTable = real; s.tokens = keep.tokens; s.activeIndex = keep.active; s.combat = keep.combat; }
+    return seen;
+  })()`);
+  assert.ok(r.some(([w, d]) => w === 'turn' && /endTurn for Bravo ignored: it is Alpha's turn/.test(d)), JSON.stringify(r));
+  assert.ok(r.some(([w, d]) => w === 'turn' && /^Bravo is up \(round 1\), after Alpha/.test(d)), JSON.stringify(r));
+});
+
 test('no page errors', opts, () => { assert.deepEqual(page.problems, []); });

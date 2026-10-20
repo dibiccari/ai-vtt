@@ -807,6 +807,7 @@ async function applyMapUpdates(updates) {
       case 'endTurn':
         // The DM finished a creature's turn (or a player said they are done in the chat): only the token whose turn it is can end it.
         if (state.combat.active && activeToken() && activeToken().id === u.tokenId) nextCombatTurn();
+        else if (state.combat.active) logTable('turn', `endTurn for ${(state.tokens.find((t) => t.id === u.tokenId) || {}).name || u.tokenId} ignored: it is ${activeToken() ? activeToken().name : 'nobody'}'s turn`);       // logged, so a turn that did not move can be explained
         break;
       case 'changeMap':
         break;                                    // handled before the loop

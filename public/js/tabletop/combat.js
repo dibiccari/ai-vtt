@@ -240,7 +240,7 @@ function startCombat() {
   if (rolled.length) addChat('system', '🎲 Initiative: ' + rolled.join(' · '));
   sortCombat();
   const first = combatTokens()[0];
-  if (first) state.activeIndex = state.tokens.indexOf(first);
+  if (first) { state.activeIndex = state.tokens.indexOf(first); logTable('turn', `${first.name} is up first (round 1)`); }
   addChat('system', members.some((t) => t.isPC && !Number.isFinite(t.initiative)) ? '⚔ Combat begins. Players: tell the DM your initiative, or say "roll for me".' : '⚔ Combat begins');
   syncAmbience();
   commitBoard();
@@ -280,6 +280,7 @@ function nextCombatTurn() {
   }
   chosen.delayed = false;
   state.activeIndex = state.tokens.indexOf(chosen);
+  logTable('turn', `${chosen.name} is up (round ${state.combat.round})${leaving && leaving !== chosen ? ', after ' + leaving.name : ''}`);       // the play log says every time the turn passes
   beginTurn(chosen);
   // A surprised combatant's turn is lost whoever it is, so the table moves on at once (nobody has to say "I end my turn").
   if (hasCondition(chosen, 'surprised') && (nextCombatTurn.depth || 0) < 20) {

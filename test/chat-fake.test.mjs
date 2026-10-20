@@ -342,6 +342,9 @@ test('a page that goes away stops the model call: the reply nobody receives is n
   const days = (await s.get(`/api/campaigns/${LOST}/log`)).json?.days || [];
   const logText = days.length ? (await s.get(`/api/campaigns/${LOST}/log?format=text&day=${days.at(-1)}`)).text : '';
   assert.doesNotMatch(logText, /ABORTEDREPLYMARKER/, 'the finished reply was not logged as if it had been delivered');
+  const mine = logText.slice(logText.lastIndexOf('PLAYER: [Edric] I wait'));        // the log holds the whole day, including earlier tests' errors: look at this exchange only
+  assert.match(mine, /page went away/, 'the log says what happened');
+  assert.doesNotMatch(mine, /ERROR/, 'a page that went away is not an error');
 });
 
 test('the DM sheets drop the spell lines that have a card and keep the ones that do not (so no spell is in neither place)', async () => {
