@@ -126,6 +126,7 @@ export async function fakeAnthropic(replies) {
       }
       res.setHeader('content-type', 'application/json');
       if (out && out.__status) { res.statusCode = out.__status; return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: out.__message || 'fake error' } })); }
+      if (out && out.__thinkingOnly) return res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: [{ type: 'thinking', thinking: 'hmm', signature: 'x' }], stop_reason: 'max_tokens', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 6000 } }));       // a model that used all its room thinking
       if (out && out.__tool_use) return res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: out.__tool_use.map((t, i) => ({ type: 'tool_use', id: 'toolu_fake' + i, name: t.name, input: t.input })), stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 5 } }));
       const stop = out && out.__stop ? out.__stop : 'end_turn';
       res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model: 'fake', content: [{ type: 'text', text: JSON.stringify(out) }], stop_reason: stop, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 5 } }));

@@ -107,3 +107,15 @@ test('the examples list offers the Cragmaw Hideout as a small map, written from 
   assert.ok(ex.description.length < 2500);
   assert.deepEqual((await s.get('/api/map-maker/examples?kind=town')).json.examples, [], 'only battle maps have one so far');
 });
+
+test('the designer is given room to think and write, and when it only thinks the person is told so plainly', async () => {
+  const { tokenRoom } = await import('../lib/map-designer.js');
+  assert.equal(tokenRoom(30, 20), 12720); assert.ok(tokenRoom(96, 64) <= 21000, 'under what the SDK allows without streaming'); assert.ok(tokenRoom(8, 8) > 12000);
+  fake.__set(reply(GOOD)); fake.requests.length = 0;
+  await s.post('/api/map-maker/layout', { description: 'a keep', size: 'small' });
+  const asked = designer()[0]; assert.equal(asked.max_tokens, 12720); assert.equal(asked.output_config.effort, 'low');
+  fake.__set({ __thinkingOnly: true });
+  const r = await s.post('/api/map-maker/layout', { description: 'a keep', size: 'small' });
+  assert.equal(r.status, 502); assert.match(r.json.error, /ran out of room while thinking/);
+  fake.__set(reply(GOOD));
+});
