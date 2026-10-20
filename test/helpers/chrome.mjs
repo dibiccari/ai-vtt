@@ -10,6 +10,7 @@ export const CHROME_PATHS = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'
 ].filter(Boolean);
+const CALL_TIMEOUT_MS = Number(process.env.VTT_CALL_TIMEOUT_MS) || 120000;       // how long a call to the page may go unanswered
 export const findChrome = () => CHROME_PATHS.find((p) => existsSync(p)) || null;
 export const skipReason = () => (!findChrome() ? 'Chrome is not installed (set CHROME_PATH)' : typeof WebSocket === 'undefined' ? 'no WebSocket in this Node: run with node --experimental-websocket (npm run test:browser does)' : '');
 
@@ -29,22 +30,38 @@ export async function launchChrome() {
   let id = 0;
   const pending = new Map();
   const problems = [];
-  const waiters = [];
+  const waiters = [], pausedWaiters = [];
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) { const { resolve, reject } = pending.get(msg.id); pending.delete(msg.id); msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result); return; }
     if (msg.method === 'Runtime.exceptionThrown') problems.push('exception: ' + (msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text));
     if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') problems.push('console.error: ' + msg.params.args.map((a) => a.value ?? a.description).join(' '));
     if (msg.method === 'Page.loadEventFired') while (waiters.length) waiters.shift()();
+    if (msg.method === 'Debugger.paused') pausedWaiters.splice(0).forEach((w) => w(msg.params.callFrames || []));
+    if (msg.method === 'Page.javascriptDialogOpening') {          // alert, confirm, prompt or beforeunload: the page stays frozen until somebody answers, so answer it and say so
+      problems.push(`dialog: ${msg.params.type} "${String(msg.params.message).slice(0, 120)}"`);
+      ws.send(JSON.stringify({ id: ++id, method: 'Page.handleJavaScriptDialog', params: { accept: true } }));
+    }
+  };
+  // Where a page that stopped answering is stuck: pause its JavaScript through the debugger and read the stack (a busy loop shows its own lines), or say that it cannot be paused.
+  const diagnose = async () => {
+    const quick = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r('timeout'), 5000))]);
+    const answers = await quick(send('Runtime.evaluate', { expression: '1' }).then(() => 'yes', () => 'no'));
+    if (answers === 'yes') return 'the page still answers a simple query, so the script that was sent is waiting inside it';
+    const frames = new Promise((r) => pausedWaiters.push(r));
+    ws.send(JSON.stringify({ id: ++id, method: 'Debugger.pause' }));
+    const stack = await quick(frames);
+    ws.send(JSON.stringify({ id: ++id, method: 'Debugger.resume' }));
+    return stack === 'timeout' ? 'the page does not answer and cannot be paused (its JavaScript thread is not running)' : 'the page is busy; stack: ' + stack.slice(0, 6).map((f) => `${f.functionName || '(anonymous)'} ${String(f.url).split('/').slice(-2).join('/')}:${f.location.lineNumber + 1}`).join(' < ');
   };
   // A reply that never comes (seen now and then in a long run: a script waiting inside the page whose answer is lost) fails that one call after two minutes, instead of freezing the whole suite.
   const send = (method, params = {}) => new Promise((resolve, reject) => {
     const n = ++id;
-    const timer = setTimeout(() => { pending.delete(n); reject(new Error(`no answer from the page to ${method} in 120 s${params.expression ? ': ' + String(params.expression).replace(/\s+/g, ' ').slice(0, 160) : ''}`)); }, 120000);
+    const timer = setTimeout(async () => { pending.delete(n); const alive = method === 'Runtime.evaluate' && params.expression !== '1' ? await diagnose() : ''; reject(new Error(`no answer from the page to ${method} in ${Math.round(CALL_TIMEOUT_MS / 1000)} s${alive ? ' [' + alive + ']' : ''}${params.expression ? ': ' + String(params.expression).replace(/\s+/g, ' ').slice(0, 160) : ''}`)); }, CALL_TIMEOUT_MS);
     pending.set(n, { resolve: (v) => { clearTimeout(timer); resolve(v); }, reject: (e) => { clearTimeout(timer); reject(e); } });
     ws.send(JSON.stringify({ id: n, method, params }));
   });
-  await send('Runtime.enable'); await send('Page.enable');
+  await send('Runtime.enable'); await send('Page.enable'); await send('Debugger.enable');       // on from the start: a page that is stuck in a loop can only be paused if the debugger was already on
   // The drifting fog redraws the whole map many times a second, which starves a software-rendered headless page; tests look at the fog's shape, not its motion.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: "try { localStorage.setItem('vtt.fogMotion', 'off'); } catch (e) {}" });
   const api = {
