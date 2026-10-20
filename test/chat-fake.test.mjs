@@ -373,3 +373,21 @@ test('a stream that breaks after the table has already been sent lines is not tr
   assert.equal(fake.requests.length, 2, 'a second try at standard speed'); assert.equal(fake.requests[1].speed, undefined);
   assert.equal(early.at(-1).event, 'done'); assert.equal(early.filter((e) => e.event === 'line').length, 2);
 });
+
+test('the conversation so far carries a cache breakpoint (the earlier turns are read from the cache, not paid for again), and the last message does not', async () => {
+  setReply(reply);
+  const history = [{ role: 'user', content: '[Edric] I look around' }, { role: 'assistant', content: 'The common room is loud.' }, { role: 'user', content: '[Edric] I ask the barkeep for news' }, { role: 'assistant', content: 'Marta shrugs and polishes a mug.' }];
+  await s.post('/api/chat', { message: '[Edric] I listen', history, tokens: [], characters: [], walls: [] });
+  const req = fake.requests[0], msgs = req.messages;
+  assert.equal(msgs.length, 5);
+  const marked = msgs.map((m, i) => [i, Array.isArray(m.content) && m.content.some((b) => b.cache_control)]).filter(([, y]) => y).map(([i]) => i);
+  assert.deepEqual(marked, [3], 'the breakpoint is on the last history message');
+  assert.equal(typeof msgs[4].content, 'string', 'the new turn (it has the board state, which changes every turn) is not cached');
+  const breakpoints = req.system.filter((b) => b.cache_control).length + marked.length;
+  assert.ok(breakpoints <= 4, 'the API allows four cache breakpoints: ' + breakpoints);
+  // a history that ends with a user message (a table note just before the turn) puts the breakpoint one earlier, on a message that is not merged with the turn
+  setReply(reply);
+  await s.post('/api/chat', { message: '[Edric] and now', history: [...history, { role: 'user', content: '[Table] nudge' }], tokens: [], characters: [], walls: [] });
+  const m2 = fake.requests[0].messages;
+  assert.deepEqual(m2.map((m, i) => [i, Array.isArray(m.content) && m.content.some((b) => b.cache_control)]).filter(([, y]) => y).map(([i]) => i), [3]);
+});

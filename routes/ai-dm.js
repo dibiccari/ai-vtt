@@ -18,6 +18,7 @@ import { modeOf, modeNote, schemaForMode } from '../lib/dm-schema-modes.js';
 import { enabledServices, movedFor, buildServices, toolsFor, servicesNote, runService } from '../lib/services.js';
 import { processTrackUpdates } from '../lib/rules-apply.js';
 import { validRequestId } from '../lib/request-ledger.js';
+import { describeAiError } from '../lib/ai-errors.js';
 import { statCards, partySpellKeys, spellKeyOf } from '../lib/statcards.js';
 import { ReplyStreamer } from '../lib/partial-reply.js';
 import { processCharacterUpdates } from '../lib/sheet-edit.js';
@@ -373,6 +374,10 @@ transcribed from speech and may contain recognition errors - interpret it charit
       else messages.push({ role, content: text });
     }
     while (messages.length && messages[0].role !== 'user') messages.shift();
+    // Cache the conversation so far: the previous turns are the same bytes next turn (the browser moves its window in steps, see historyWindowStart), so they are read at a tenth of the price
+    // and only the two new messages are paid for in full. The breakpoint goes on the last history message that is not merged with the new turn.
+    const cacheAt = messages.length && messages[messages.length - 1].role === 'assistant' ? messages.length - 1 : messages.length - 2;
+    if (cacheAt >= 0) messages[cacheAt] = { role: messages[cacheAt].role, content: [{ type: 'text', text: messages[cacheAt].content, cache_control: { type: 'ephemeral' } }] };
     const label = inputMode === 'voice' ? 'PLAYER ACTION (spoken, speech-to-text)' : 'PLAYER ACTION';
   const turn = `BOARD STATE (JSON):\n${JSON.stringify(state)}\n\n${label}:\n${message}`;
     const last = messages[messages.length - 1];
@@ -653,7 +658,7 @@ transcribed from speech and may contain recognition errors - interpret it charit
       }
       if (err instanceof Anthropic.APIError) {
         console.error('Anthropic API error:', err.status, err.message);
-        return res.status(502).json({ error: `AI DM error: ${err.message}` });
+        return res.status(502).json({ error: `AI DM error: ${err.message}`, ...(describeAiError(err) || {}) });
       }
       throw err;
     }

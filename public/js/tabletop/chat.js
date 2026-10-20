@@ -93,6 +93,10 @@ function newRequestId() {
   return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
 }
 
+// Where the window of messages sent to the DM starts. It moves only in steps of eight, so the start is the same for several turns running and the API can read the earlier turns from its cache
+// (a window that slid by one message every turn would never match the cached one). Between 13 and 20 messages are sent once there are more than 20.
+function historyWindowStart(n) { return n > 20 ? Math.ceil((n - 20) / 8) * 8 : 0; }
+
 function dmHistory() {
   const out = [];
   for (const m of state.chat) {
@@ -100,7 +104,7 @@ function dmHistory() {
     else if (m.role === 'system' && (/^(🎒|⭐|📍)/.test(m.content) || /^↳ .+( takes \d+| recovers \d+| HP \d+ → | is defeated| falls unconscious)/.test(m.content)) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table applied: ${m.content.replace(/^\S+\s*/, '')}]`;
     else if (m.role === 'system' && /^⚠ Skipped/.test(m.content) && out.length && out[out.length - 1].role === 'assistant') out[out.length - 1].content += `\n[Table skipped: ${m.content.replace(/^⚠ Skipped\s*/, '')}]`;
   }
-  return out.slice(-20);
+  return out.slice(historyWindowStart(out.length));
 }
 
 async function sendTurn(spokenText, opts) {
@@ -177,7 +181,8 @@ async function sendTurn(spokenText, opts) {
     ok = true;
   } catch (err) {
     addChat('system', `Could not reach the AI DM: ${err.message}`);
-    toast(err.message, 'error');
+    if (err.help) showBanner({ key: err.code, text: err.summary || err.message, detail: [err.providerMessage || err.message, err.requestId ? `(request ${err.requestId})` : ''].filter(Boolean).join(' '), links: err.links || [err.help] });       // out of credit, a refused key: it stays until it is closed, with the link to fix it
+    else toast(err.message, 'error');
   } finally {
     setBusy(false);
   }

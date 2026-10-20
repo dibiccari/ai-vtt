@@ -196,6 +196,25 @@ function toast(message, kind = 'info', ms = 2600) {
   setTimeout(() => el.remove(), ms);
 }
 
+// A banner is a message that stays until it is closed, for a problem the person has to act on (the AI account is out of credit, for instance): a toast fades after a moment and is gone before it can be read twice.
+// key: one banner per kind of problem (a repeat replaces it); link: { label, url } opens in a new tab.
+function showBanner({ key = '', kind = 'error', text, detail = '', link = null, links = null }) {
+  const host = $('#banners');
+  if (key) host.querySelectorAll(`[data-key="${key}"]`).forEach((b) => b.remove());
+  const el = document.createElement('div');
+  el.className = `banner ${kind}`; el.setAttribute('role', 'alert'); if (key) el.dataset.key = key;
+  const body = document.createElement('div'); body.className = 'banner-text';
+  const main = document.createElement('div'); main.className = 'banner-main'; main.textContent = text; body.appendChild(main);
+  if (detail) { const d = document.createElement('div'); d.className = 'banner-detail'; d.textContent = detail; body.appendChild(d); }
+  const all = (Array.isArray(links) && links.length ? links : link ? [link] : []).filter((l) => l && l.url);
+  if (all.length) { const row = document.createElement('div'); row.className = 'banner-links'; all.forEach((l, i) => { const a = document.createElement('a'); a.className = 'banner-link' + (i ? ' secondary' : ''); a.href = l.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = l.label || l.url; row.appendChild(a); }); body.appendChild(row); }
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'banner-close'; close.setAttribute('aria-label', 'Close this message'); close.textContent = '✕';
+  close.addEventListener('click', () => el.remove());
+  el.append(body, close);
+  host.appendChild(el);
+  return el;
+}
+
 async function api(path, options = {}) {
   const res = await fetch(path, options);
   let data = null;
@@ -205,6 +224,13 @@ async function api(path, options = {}) {
 }
 const jsonPost = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 // The DM's answer as it is written: the server sends one JSON line per event (roll, line, then done or error). handlers.onRoll(text) and handlers.onLine(line, index) are called as they arrive; resolves with the final reply.
+// An error from the DM route, with what the server said about it (code, summary, help link) so the page can show a banner that says where to fix it.
+function aiError(data, fallback) {
+  const e = new Error((data && data.error) || fallback);
+  if (data && data.code) { e.code = data.code; e.summary = data.summary || ''; e.help = data.help || null; e.links = data.links || null; e.providerMessage = data.providerMessage || ''; e.requestId = data.requestId || ''; }
+  return e;
+}
+
 async function chatStream(body, handlers) {
   // If nothing at all arrives for 90 seconds the connection is given up on, so the table never sits on 'thinking' for good.
   const ctl = new AbortController();
@@ -213,7 +239,7 @@ async function chatStream(body, handlers) {
   bump();
   try {
   const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, stream: true }), signal: ctl.signal });
-  if (!(res.headers.get('content-type') || '').includes('ndjson')) { const data = await res.json().catch(() => ({})); throw new Error(data.error || `${res.status} ${res.statusText}`); }
+  if (!(res.headers.get('content-type') || '').includes('ndjson')) { const data = await res.json().catch(() => ({})); throw aiError(data, `${res.status} ${res.statusText}`); }
   const reader = res.body.getReader(), dec = new TextDecoder();
   let buf = '', done = null;
   const handle = (raw) => {
@@ -221,7 +247,7 @@ async function chatStream(body, handlers) {
     const ev = JSON.parse(raw);
     if (ev.event === 'roll') handlers.onRoll && handlers.onRoll(ev.text);
     else if (ev.event === 'line') handlers.onLine && handlers.onLine(ev.line, ev.index);
-    else if (ev.event === 'error') throw new Error(ev.error || 'The AI DM could not answer');
+    else if (ev.event === 'error') throw aiError(ev, 'The AI DM could not answer');
     else if (ev.event === 'done') done = ev;
   };
   for (;;) {

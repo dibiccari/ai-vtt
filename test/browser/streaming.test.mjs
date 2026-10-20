@@ -166,4 +166,46 @@ test('the transcript says whose turn it is once, for the combatant the turn rest
   assert.equal(r.toasts, 0, 'no pop-ups over the map');
 });
 
+test('an out-of-credit error stays on screen as a banner with a link until it is closed, and is also in the transcript', opts, async () => {
+  fake.__set({ __status: 400, __message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' });
+  try {
+    const r = await page.eval(`(async () => {
+      const s = vtt.state, wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      s.combat = { active: false, round: 0, order: [] };
+      const el = document.querySelector('#chatInput'); el.value = 'Edric looks around.';
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const t0 = performance.now();
+      while (performance.now() - t0 < 15000 && !document.querySelector('#banners .banner')) await wait(50);
+      const first = document.querySelector('#banners .banner');
+      const out = { shown: !!first, text: first && first.querySelector('.banner-main').textContent, links: first ? [...first.querySelectorAll('a')].map((a) => a.getAttribute('href')) : [], target: first && first.querySelector('a') && first.querySelector('a').target, detail: first && first.querySelector('.banner-detail').textContent };
+      await wait(3500);                                            // a toast is gone after 2.6 s
+      out.stillThere = document.querySelectorAll('#banners .banner').length;
+      out.transcript = s.chat.some((m) => m.role === 'system' && /Could not reach the AI DM: .*credit balance is too low/.test(m.content));
+      out.toasts = document.querySelectorAll('#toasts .toast').length;
+      document.querySelector('#banners .banner-close').click();
+      out.afterClose = document.querySelectorAll('#banners .banner').length;
+      return out;
+    })()`);
+    assert.equal(r.shown, true); assert.match(r.text, /out of credit/);
+    assert.deepEqual(r.links, ['https://console.anthropic.com/settings/billing', '/settings.html'], 'the provider\'s billing page and this app\'s Settings'); assert.equal(r.target, '_blank');
+    assert.match(r.detail, /^Your credit balance is too low to access the Anthropic API\. Please go to Plans & Billing/, 'the provider\'s own message, readable');
+    assert.doesNotMatch(r.detail, /"type":"error"/, 'not the raw JSON');
+    assert.equal(r.stillThere, 1, 'the banner is still there after a toast would have faded');
+    assert.equal(r.transcript, true, 'and the transcript has the line too'); assert.equal(r.toasts, 0, 'no toast on top of it');
+    assert.equal(r.afterClose, 0, 'the close button removes it');
+  } finally { fake.__set(DM); await page.eval('vtt.state.busy = false; document.querySelectorAll("#banners .banner").forEach((b) => b.remove())'); }
+});
+
+test('the history window moves in steps of eight, so the same start holds for several turns running (that is what lets the API reuse its cache)', opts, async () => {
+  const r = await page.eval(`(() => { const out = []; for (let n = 1; n <= 80; n++) out.push([n, historyWindowStart(n)]); return out; })()`);
+  for (const [n, start] of r) {
+    const size = n - start;
+    assert.ok(size <= 20 && (n <= 20 ? size === n : size >= 13), `n=${n}: the window is ${size}`);
+    assert.equal(start % 8, 0, 'the start is a multiple of eight');
+  }
+  const starts = r.map(([, s]) => s);
+  const changes = starts.filter((s, i) => i && s !== starts[i - 1]).length;
+  assert.ok(changes <= 8, 'over eighty messages the start moves only ' + changes + ' times, not every turn');
+});
+
 test('no page errors', opts, () => { assert.deepEqual(page.problems, []); });
