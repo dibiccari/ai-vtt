@@ -92,8 +92,9 @@
 
     <div class="wz" data-step="describe" hidden>
       <div class="card">
-        <label class="field"><span>What should it show?</span><textarea id="wzText" maxlength="1500" placeholder="The place, the mood, what happens there. For example: the undercroft of a vampire's castle, a long hall with coffin alcoves, a sealed vault, torches, a flooded corner."></textarea></label>
-        <div class="row"><button type="button" id="wzMic">🎤 Speak</button><button type="button" id="wzSurprise">✨ Surprise me</button><span class="note" style="margin:0">Surprise me asks a small, cheap AI model for an idea (a fraction of a cent).</span></div>
+        <label class="field"><span>What should it show?</span><textarea id="wzText" maxlength="2500" placeholder="The place, the mood, what happens there. For example: the undercroft of a vampire's castle, a long hall with coffin alcoves, a sealed vault, torches, a flooded corner."></textarea></label>
+        <div class="row"><button type="button" id="wzMic">🎤 Speak</button><button type="button" id="wzSurprise">✨ Surprise me</button><span id="wzExamples" class="row" style="gap:10px"></span><span class="note" style="margin:0">Surprise me asks a small, cheap AI model for an idea (a fraction of a cent).</span></div>
+        <div class="note" id="wzExampleNote" hidden></div>
       </div>
       <div class="nav"><button type="button" id="descBack">Back</button><span class="spacer"></span><button class="primary" id="descNext" type="button" disabled>Next</button></div>
     </div>

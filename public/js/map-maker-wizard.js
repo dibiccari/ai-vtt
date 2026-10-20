@@ -51,7 +51,7 @@
     $('#descNext').disabled = !s.description.trim();
     $('#layoutNext').disabled = !s.layoutOk;
   }
-  function go(step) { s.step = step; say(''); render(); if (step === 'paint') loadPaintOptions(); if (step === 'save') { $('#sName').value = s.name || ''; $('#sSummary').textContent = s.kind === 'battle' ? 'The walls, doors, lights, rough ground and start spots from the layout are saved with the picture.' : 'The picture is saved as a ' + s.kind + ' map.'; } }
+  function go(step) { s.step = step; say(''); render(); document.dispatchEvent(new CustomEvent('wizard-step', { detail: step })); if (step === 'paint') loadPaintOptions(); if (step === 'save') { $('#sName').value = s.name || ''; $('#sSummary').textContent = s.kind === 'battle' ? 'The walls, doors, lights, rough ground and start spots from the layout are saved with the picture.' : 'The picture is saved as a ' + s.kind + ' map.'; } }
   function next() { var l = steps(); go(l[l.indexOf(s.step) + 1]); }
   function back() { var l = steps(); go(l[Math.max(0, l.indexOf(s.step) - 1)]); }
 
@@ -83,6 +83,23 @@
       busy(true, 'Thinking up a ' + KIND_TEXT[s.kind][0].toLowerCase() + '...');
       api('/api/map-maker/surprise', { kind: s.kind }).then(function (o) { ta.value = o.description; s.description = o.description; s.layoutOk = false; busy(false); say('Here is an idea. Change it however you like.', 'ok'); }).catch(function (e) { busy(false); showError(e); });
     });
+    function loadExamples() {
+      var host = $('#wzExamples'); host.innerHTML = ''; $('#wzExampleNote').hidden = true;
+      if (!s.kind) return;
+      api('/api/map-maker/examples?kind=' + s.kind).then(function (o) {
+        o.examples.forEach(function (ex) {
+          var b = el('button', '', '🏚 ' + ex.title); b.type = 'button';
+          b.addEventListener('click', function () {
+            ta.value = ex.description; s.description = ex.description; s.layoutOk = false; s.name = '';
+            if (ex.size) { s.size = ex.size; $('#szSize').value = ex.size; }
+            if (ex.orientation) { s.orientation = ex.orientation; $('#szOrient').value = ex.orientation; }
+            var n = $('#wzExampleNote'); n.textContent = ex.note || ''; n.hidden = !ex.note; render();
+          });
+          host.appendChild(b);
+        });
+      }).catch(function () { /* the examples are optional */ });
+    }
+    document.addEventListener('wizard-step', function (ev) { if (ev.detail === 'describe') loadExamples(); });
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition, mic = $('#wzMic'), rec = null;
     if (!SR) { mic.hidden = true; return; }
     mic.addEventListener('click', function () {

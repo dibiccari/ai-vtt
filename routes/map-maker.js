@@ -5,6 +5,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { designLayout, reviseLayout, surpriseMap, DEFAULT_COLS, DEFAULT_ROWS } from '../lib/map-designer.js';
 import { compileLayout, layoutSvg, scaleTo, LEGEND, SIZES } from '../lib/map-layout.js';
 import { paint, paintOptions } from '../lib/map-painter.js';
+import { EXAMPLES } from '../lib/map-examples.js';
 import { settings, mapGen } from '../lib/runtime-settings.js';
 import { describeAiError } from '../lib/ai-errors.js';
 import { costOf, normalizeUsage } from '../lib/usage.js';
@@ -28,6 +29,9 @@ export function registerMapMaker(app, deps) {
 
   // What the wizard offers: the kinds of map and the battle map sizes.
   app.get('/api/map-maker/options', (_req, res) => res.json({ kinds: [{ id: 'battle', label: 'Battle map' }, { id: 'town', label: 'Town map' }, { id: 'regional', label: 'Regional map' }], sizes: SIZES, orientations: ['landscape', 'portrait'] }));
+
+  // Descriptions of known places the person can try (to see how close the AI gets).
+  app.get('/api/map-maker/examples', (req, res) => res.json({ examples: EXAMPLES.filter((e) => !req.query.kind || e.kind === req.query.kind) }));
 
   app.post('/api/map-maker/surprise', deps.asyncRoute(async (req, res) => {
     if (!settings.anthropicAny) return res.status(503).json({ error: 'No Anthropic key is saved yet (Settings).', code: 'key', summary: 'The Map Maker needs the Anthropic key.', help: { label: 'Open Settings', url: '/settings.html' }, links: [{ label: 'Open Settings', url: '/settings.html' }] });

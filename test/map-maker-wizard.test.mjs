@@ -98,3 +98,12 @@ test('a change asked for in words sends the current grid and the sentence, keeps
   const none = await s.post('/api/map-maker/layout/revise', { grid: [], instruction: 'bigger' });
   assert.equal(none.status, 502); assert.match(none.json.error, /no layout/i);
 });
+
+test('the examples list offers the Cragmaw Hideout as a small map, written from the adventure text', async () => {
+  const r = (await s.get('/api/map-maker/examples?kind=battle')).json;
+  const ex = r.examples.find((e) => e.id === 'cragmaw-hideout');
+  assert.equal(ex.size, 'small'); assert.equal(ex.orientation, 'landscape');
+  for (const word of ['stream', 'kennel', 'Klarg', 'twin pools', 'goblin den', 'briar']) assert.match(ex.description.toLowerCase(), new RegExp(word.toLowerCase()), word);
+  assert.ok(ex.description.length < 2500);
+  assert.deepEqual((await s.get('/api/map-maker/examples?kind=town')).json.examples, [], 'only battle maps have one so far');
+});

@@ -38,6 +38,14 @@ test('the wizard walks a battle map from the idea to Map Test', opts, async () =
   assert.deepEqual(await visible(page), ['describe']);
 
   assert.equal(await page.eval(`document.querySelector('#descNext').disabled`), true, 'nothing to design from yet');
+  // the Cragmaw Hideout button: fills in the description and sets the size to Small (30 x 20), whatever was chosen before
+  await page.waitFor(`document.querySelectorAll('#wzExamples button').length === 1`);
+  await click(page, '#wzExamples button');
+  assert.match(await page.eval(`document.querySelector('#wzText').value`), /Cragmaw Hideout/);
+  assert.equal(await page.eval(`document.querySelector('#szSize').value`), 'small');
+  assert.match(await page.eval(`document.querySelector('#wzExampleNote').textContent`), /30 x 20 squares/);
+  assert.equal(await page.eval(`document.querySelector('#descNext').disabled`), false);
+  await page.eval(`(() => { const t = document.querySelector('#wzText'); t.value = ''; t.dispatchEvent(new Event('input')); const s = document.querySelector('#szSize'); s.value = 'medium'; s.dispatchEvent(new Event('change')); })()`);
   fake.__set({ name: 'idea', summary: '', setting: 'indoor', rows: GOOD });       // Surprise me answers with plain text; the pretend API only knows JSON, which is fine as an "idea"
   await click(page, '#wzSurprise');
   await page.waitFor(`document.querySelector('#wzText').value.length > 0`);
